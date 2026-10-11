@@ -16,6 +16,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { SubscriptionsService } from './subscriptions.service';
+import { TenantService } from '../../database/tenant.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
@@ -39,6 +40,7 @@ import { CreatePlanDto, UpdatePlanDto } from './dto/plan.dto';
 export class SubscriptionsController {
   constructor(
     private readonly subscriptionsService: SubscriptionsService,
+    private readonly tenantService: TenantService,
   ) {}
 
   // ==================== SUBSCRIPTION ENDPOINTS ====================
