@@ -1,0 +1,12 @@
+import {SchedulePlannerService} from './schedule-planner.service';
+describe('Durable timetable planner',()=>{
+ let service:SchedulePlannerService,db:any;
+ const user={userId:'manager',role:'PRINCIPAL'},classId='11111111-1111-4111-8111-111111111111',subjectId='22222222-2222-4222-8222-222222222222',teacherId='33333333-3333-4333-8333-333333333333';
+ const input={classId,room:'Room 1',daysPerWeek:2,periodsPerDay:2,maxTeacherDailyPeriods:2,courses:[{subjectId,teacherId,periodsPerWeek:3}]};
+ beforeEach(()=>{db={subject:{findFirst:jest.fn().mockResolvedValue({id:subjectId})},staff:{findFirst:jest.fn().mockResolvedValue({id:teacherId})},tenant:{update:jest.fn().mockResolvedValue({})},timetableEntry:{findMany:jest.fn().mockResolvedValue([]),createMany:jest.fn().mockResolvedValue({count:3})},auditLog:{create:jest.fn()}};db.$transaction=jest.fn(async fn=>fn(db));service=new SchedulePlannerService(db,{requireTenantContext:()=> 'tenant'} as any,{classAccess:jest.fn().mockResolvedValue(undefined)} as any);});
+ it('persists explicit requirements after taking a tenant lock',async()=>{const result=await service.generate(user,input);expect(result.added).toBe(3);expect(db.tenant.update).toHaveBeenCalled();expect(db.timetableEntry.createMany).toHaveBeenCalledWith({data:expect.arrayContaining([expect.objectContaining({subjectId,teacherId,classId,tenantId:'tenant'})])});expect(result.entries.filter(e=>e.dayOfWeek===1).length).toBeLessThanOrEqual(2);});
+ it('does not duplicate existing subject requirements',async()=>{db.timetableEntry.findMany.mockResolvedValue([{classId,subjectId,teacherId,dayOfWeek:1,startTime:'08:00',endTime:'08:40',room:'Room 1'}]);const result=await service.generate(user,input);expect(result.added).toBe(2);expect(result.entries.some(e=>e.dayOfWeek===1&&e.startTime==='08:00')).toBe(false);});
+ it('fails atomically when requirements do not fit',async()=>{await expect(service.generate(user,{...input,daysPerWeek:1,periodsPerDay:1})).rejects.toThrow('do not fit');expect(db.timetableEntry.createMany).not.toHaveBeenCalled();});
+ it('rejects family users and invalid course objects',async()=>{await expect(service.generate({...user,role:'PARENT'},input)).rejects.toThrow('management');await expect(service.generate(user,{...input,courses:[null]})).rejects.toThrow('Invalid weekly');});
+ it('rejects unknown or inactive teachers',async()=>{db.staff.findFirst.mockResolvedValue(null);await expect(service.generate(user,input)).rejects.toThrow('active teachers');expect(db.$transaction).not.toHaveBeenCalled();});
+});

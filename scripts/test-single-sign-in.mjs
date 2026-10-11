@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -49,7 +49,7 @@ try {
   const login = await session();
   for (const path of ['/', '/login', '/admin/login', '/teacher/login', '/parent/login', '/student/login']) {
     await login.page.goto(base + path);
-    await login.page.waitForURL('**/login');
+    await login.page.waitForURL(base + '/login');
     assert.equal(new URL(login.page.url()).pathname, '/login');
     await login.page.getByLabel('Email address', { exact: true }).waitFor();
     assert.equal(await login.page.locator('.portal-tabs').count(), 0);
@@ -61,10 +61,10 @@ try {
     await fits(login.page);
     await login.page.screenshot({ path: fileURLToPath(new URL('login-' + width + '.png', output)), fullPage: true });
   }
-  await login.page.getByRole('button', { name: 'Switch to Kiswahili' }).click();
+  await login.page.locator('button[title="Switch to Kiswahili"]').click();
   await login.page.getByText('Akaunti moja. Mazingira yako ya shule.', { exact: true }).waitFor();
   await fits(login.page);
-  await login.page.getByRole('button', { name: 'Badilisha kwa English' }).click();
+  await login.page.locator('button[title="Badilisha kwa English"]').click();
   login.setInvalid(true);
   await login.page.getByLabel('Email address', { exact: true }).fill('account@example.test');
   await login.page.getByLabel('Password', { exact: true }).fill('Incorrect123!');

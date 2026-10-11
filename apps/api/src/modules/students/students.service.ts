@@ -563,10 +563,14 @@ export class StudentsService {
     });
 
     const todayName = new Intl.DateTimeFormat('en-US', {weekday:'long',timeZone:'Africa/Nairobi'}).format(new Date()).toUpperCase();
-    const daySchedule = timetable.schedule.filter(
+    let daySchedule = timetable.schedule.filter(
       (s: any) => s.day === todayName,
     );
 
+    const schoolDate=new Date(new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Nairobi',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
+    const cover=await this.prisma.substitutionDuty.findMany({where:{tenantId:student.tenantId,date:schoolDate,timetableEntryId:{in:daySchedule.map((entry:any)=>entry.id)}}});
+    const coverTeachers=await this.prisma.staff.findMany({where:{tenantId:student.tenantId,id:{in:cover.map(duty=>duty.teacherId)}}});
+    daySchedule=daySchedule.map((entry:any)=>{const duty=cover.find(d=>d.timetableEntryId===entry.id),teacher=coverTeachers.find(t=>t.id===duty?.teacherId);return teacher?{...entry,teacher:teacher.firstName+' '+teacher.lastName,isSubstitution:true}:entry;});
     return {
       student,
       todaySchedule: daySchedule,

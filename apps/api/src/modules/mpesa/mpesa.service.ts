@@ -55,6 +55,7 @@ export class MpesaService {
       this.configService.get('MPESA_BASE_URL', '') ||
       'https://sandbox.safaricom.co.ke';
     this.consumerKey = this.configService.get('MPESA_CONSUMER_KEY', '');
+    this.consumerSecret = this.configService.get('MPESA_CONSUMER_SECRET', '');
     this.shortCode =
       this.configService.get('MPESA_SHORT_CODE', '') ||
       this.configService.get('MPESA_SHORTCODE', '');
