@@ -269,7 +269,7 @@ export function FinanceDashboard() {
                   Active Student Invoices & Payment Ledger
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Click 'Pay with Gateway' on any invoice to test international checkout (Stripe, M-Pesa, PayPal, UPI).
+                  Click &apos;Pay with Gateway&apos; on any invoice to test international checkout (Stripe, M-Pesa, PayPal, UPI).
                 </p>
               </div>
               <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full">

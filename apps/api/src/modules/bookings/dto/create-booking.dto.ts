@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, IsUUID, IsDateString } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsUUID, IsDateString, MaxLength, Matches } from 'class-validator';
 
 export enum BookingStatus {
   PENDING = 'PENDING',
@@ -22,20 +22,25 @@ export class CreateBookingDto {
   teacherId: string;
 
   @IsDateString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
   bookingDate: string;
 
   @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   startTime: string; // HH:MM format
 
   @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   endTime: string; // HH:MM format
 
   @IsString()
   @IsOptional()
+  @MaxLength(2000)
   purpose?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(150)
   topic?: string;
 
   @IsEnum(MeetingType)
@@ -52,5 +57,6 @@ export class CreateBookingDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(2000)
   parentNotes?: string;
 }

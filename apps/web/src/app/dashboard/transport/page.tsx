@@ -30,7 +30,7 @@ export default function ParentBusTrackingPage() {
   const [trackingView, setTrackingView] = useState<ParentBusTrackingView | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<string>('stu-003'); // Malavika Nair
   const [loading, setLoading] = useState<boolean>(true);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [lastUpdated, setLastUpdated] = useState<Date>(() => new Date());
   const [isCopied, setIsCopied] = useState(false);
 
   const fetchTracking = useCallback(async () => {
@@ -170,7 +170,7 @@ export default function ParentBusTrackingPage() {
               <p className="text-base font-bold text-gray-900">
                 {isDropped
                   ? 'Completed'
-                  : `Around ${new Date(Date.now() + etaMinutes * 60000).toLocaleTimeString([], {
+                  : `Around ${new Date(lastUpdated.getTime() + etaMinutes * 60000).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',
                     })}`}
@@ -264,7 +264,7 @@ export default function ParentBusTrackingPage() {
               </div>
               <p className="text-[11px] text-gray-600 mt-1">
                 {isBoarded
-                  ? `Boarded safely at ${new Date(child?.updatedAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                  ? `Boarded safely at ${child?.updatedAt ? new Date(child.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'time not recorded'}`
                   : 'Awaiting student boarding'}
               </p>
             </div>

@@ -119,14 +119,14 @@ export function AtRiskStudentsPanel() {
             )}
             {report && !error && (
               <>
-                <div className="ai-risk-toolbar flex items-center justify-between bg-amber-50/70 border border-amber-200/80 p-3.5 rounded-xl">
+                <div className="ai-risk-toolbar flex items-center justify-between bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
                   <div>
-                    <strong className="text-amber-950 text-sm flex items-center gap-1.5 font-semibold">
-                      <AlertCircle size={16} className="text-amber-600" />
-                      {flagged.length} At-Risk Students Flagged for Proactive Intervention
+                    <strong className="text-slate-900 text-sm flex items-center gap-1.5 font-semibold">
+                      <AlertCircle size={16} className="text-primary-600" />
+                      {flagged.length ? `${flagged.length} students flagged for support` : 'No support flags in these records'}
                     </strong>
-                    <p className="text-xs text-amber-800 mt-0.5">
-                      Flagged on Principal & Class Teacher radar. Take immediate action before term ends.
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      Review the evidence and data coverage before planning support.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -141,7 +141,7 @@ export function AtRiskStudentsPanel() {
                     </Button>
                     <Link
                       href={base + '/copilot'}
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md shadow-sm transition-all"
+                      className="px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-medium rounded-lg transition-colors"
                     >
                       Ask Copilot →
                     </Link>

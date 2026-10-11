@@ -1,26 +1,21 @@
-# Krypton School ERP 🎓
+﻿# Krypton School ERP
 
-**A Production-Ready Multi-Tenant SaaS Platform for Kenyan Schools**
+**A multi-tenant school management platform for Kenyan schools.**
 
-[![Status](https://img.shields.io/badge/Status-Production_Ready-success)]()
-[![API Endpoints](https://img.shields.io/badge/API_Endpoints-106-blue)]()
-[![Progress](https://img.shields.io/badge/Progress-95%25-brightgreen)]()
-[![License](https://img.shields.io/badge/License-Proprietary-red)]()
+The shared UI and core workflows have been redesigned and hardened. Advanced services still include previews, and live integrations require release validation. See the current [UI redesign and release status](docs/UI_REDESIGN_AND_RELEASE_STATUS.md) before deploying. Historical progress reports below are not release certification.
 
----
+## Quick Links
 
-## 🚀 Quick Links
-
-- 📖 **[API Documentation](API_REFERENCE.md)** - Complete API reference with examples
-- 🚢 **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Setup and deployment instructions
-- 📊 **[Final Status Report](FINAL_STATUS_REPORT.md)** - Comprehensive project status
-- 🏗️ **[Architecture](ARCHITECTURE.md)** - System design and architecture
-- 📋 **[Progress Tracker](IMPLEMENTATION_PROGRESS.md)** - Implementation progress
-- 🔗 **[Swagger UI](http://localhost:3001/api/docs)** - Interactive API testing
+- ðŸ“– **[API Documentation](API_REFERENCE.md)** - Complete API reference with examples
+- ðŸš¢ **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Setup and deployment instructions
+- ðŸ“Š **[Final Status Report](FINAL_STATUS_REPORT.md)** - Comprehensive project status
+- ðŸ—ï¸ **[Architecture](ARCHITECTURE.md)** - System design and architecture
+- ðŸ“‹ **[Progress Tracker](IMPLEMENTATION_PROGRESS.md)** - Implementation progress
+- ðŸ”— **[Swagger UI](http://localhost:3001/api/docs)** - Interactive API testing
 
 ---
 
-## 📋 Table of Contents
+## ðŸ“‹ Table of Contents
 
 1. [Overview](#overview)
 2. [Features](#features)
@@ -38,20 +33,20 @@
 
 ---
 
-## 🎯 Overview
+## ðŸŽ¯ Overview
 
 **Krypton School ERP** is a comprehensive, cloud-based school management system specifically designed for the Kenyan education market. Built as a multi-tenant SaaS platform, it enables schools to manage students, fees, attendance, examinations, and communications from a single unified system.
 
 ### Key Highlights
 
-- ✅ **106 Production-Ready API Endpoints**
-- ✅ **Multi-Tenant Architecture** - Complete school isolation
-- ✅ **M-Pesa Integration** - Automated fee collection
-- ✅ **CBC Compliant** - Kenya Competency-Based Curriculum
-- ✅ **Bilingual Support** - English & Swahili (Kiswahili)
-- ✅ **Subscription-Based** - Flexible pricing tiers
-- ✅ **15,000+ Lines of Code** - Production-quality TypeScript
-- ✅ **Comprehensive Documentation** - 10,000+ lines
+- âœ… **Implemented API modules — release validation pending**
+- âœ… **Multi-Tenant Architecture** - Complete school isolation
+- âœ… **M-Pesa Integration** - Automated fee collection
+- âœ… **CBC Compliant** - Kenya Competency-Based Curriculum
+- âœ… **Bilingual Support** - English & Swahili (Kiswahili)
+- âœ… **Subscription-Based** - Flexible pricing tiers
+- âœ… **15,000+ Lines of Code** - Production-quality TypeScript
+- âœ… **Comprehensive Documentation** - 10,000+ lines
 
 ### Target Market
 
@@ -61,9 +56,9 @@
 
 ---
 
-## ✨ Features
+## âœ¨ Features
 
-### 🎓 Student Management
+### ðŸŽ“ Student Management
 - Student registration and lifecycle
 - Guardian management and linking
 - Class and stream assignment
@@ -71,7 +66,7 @@
 - Admission number generation
 - Bulk import/export
 
-### 💰 Financial Management
+### ðŸ’° Financial Management
 - Fee structure configuration
 - Invoice generation (single & bulk)
 - Payment recording and tracking
@@ -80,7 +75,7 @@
 - Financial summaries and reports
 - Outstanding balance tracking
 
-### 📱 M-Pesa Integration
+### ðŸ“± M-Pesa Integration
 - STK Push (Lipa Na M-Pesa Online)
 - C2B payment acceptance
 - Automatic reconciliation
@@ -88,7 +83,7 @@
 - Transaction history
 - Real-time callbacks
 
-### 📊 Attendance Tracking
+### ðŸ“Š Attendance Tracking
 - Student attendance (bulk & single)
 - Staff attendance
 - Period-wise tracking (1-10 periods)
@@ -97,7 +92,7 @@
 - Summary statistics
 - Parent notifications
 
-### 📝 Examinations & CBC Assessment
+### ðŸ“ Examinations & CBC Assessment
 - Exam configuration and scheduling
 - CBC competency-based assessment
 - Traditional grading (percentage, letter)
@@ -106,7 +101,7 @@
 - Approval workflow
 - Performance analytics
 
-### 💬 Communications
+### ðŸ’¬ Communications
 - Multi-channel messaging (SMS, Email, Push, In-App)
 - Automated absence alerts
 - Automated fee reminders
@@ -114,7 +109,7 @@
 - Bulk messaging to classes
 - Delivery tracking
 
-### 📅 Timetable & Calendar
+### ðŸ“… Timetable & Calendar
 - Class timetables with conflict detection
 - Teacher schedules
 - Room allocation
@@ -122,7 +117,7 @@
 - Holiday tracking
 - Bulk timetable import
 
-### 💳 Subscription Management
+### ðŸ’³ Subscription Management
 - Multiple pricing tiers
 - Usage tracking and limits
 - Auto-renewal
@@ -132,7 +127,7 @@
 
 ---
 
-## 🛠️ Technology Stack
+## ðŸ› ï¸ Technology Stack
 
 ### Backend
 - **Framework:** NestJS 10+ (Node.js, TypeScript)
@@ -165,7 +160,7 @@
 
 ---
 
-## ⚡ Quick Start
+## âš¡ Quick Start
 
 ### Prerequisites
 
@@ -232,82 +227,82 @@ Tenant: demo.kryptonschool.local
 
 ---
 
-## 📁 Project Structure
+## ðŸ“ Project Structure
 
 ```
 krypton-school-erp/
-├── apps/
-│   ├── api/                      # NestJS backend API
-│   │   ├── src/
-│   │   │   ├── common/           # Shared utilities, guards, decorators
-│   │   │   ├── database/         # Database services
-│   │   │   ├── modules/          # Feature modules
-│   │   │   │   ├── auth/         # Authentication (3 endpoints)
-│   │   │   │   ├── students/     # Student management (8 endpoints)
-│   │   │   │   ├── guardians/    # Guardian management (7 endpoints)
-│   │   │   │   ├── fees/         # Fee management (13 endpoints)
-│   │   │   │   ├── mpesa/        # M-Pesa integration (10 endpoints)
-│   │   │   │   ├── attendance/   # Attendance (11 endpoints)
-│   │   │   │   ├── examinations/ # Exams & CBC (17 endpoints)
-│   │   │   │   ├── communications/ # Messaging (7 endpoints)
-│   │   │   │   ├── timetable/    # Timetable (15 endpoints)
-│   │   │   │   └── subscriptions/ # SaaS billing (17 endpoints)
-│   │   │   └── main.ts           # Application entry
-│   │   └── package.json
-│   └── web/                      # Next.js frontend (structure ready)
-│       ├── src/
-│       │   ├── app/              # App router pages
-│       │   ├── components/       # React components
-│       │   └── lib/              # Utilities, API client
-│       └── package.json
-├── packages/
-│   ├── database/                 # Prisma schema & migrations
-│   │   ├── prisma/
-│   │   │   ├── schema.prisma     # Database schema (40+ models)
-│   │   │   ├── migrations/       # Database migrations
-│   │   │   └── seed.ts           # Seed script
-│   │   └── src/
-│   │       ├── client.ts         # Prisma client
-│   │       └── middleware/       # Tenant filtering
-│   ├── types/                    # Shared TypeScript types
-│   └── utils/                    # Shared utilities
-├── docs/                         # Documentation
-│   ├── ARCHITECTURE.md           # System architecture
-│   ├── API_REFERENCE.md          # Complete API docs
-│   ├── DEPLOYMENT_GUIDE.md       # Setup & deployment
-│   ├── FINAL_STATUS_REPORT.md    # Project status
-│   ├── MPESA_INTEGRATION.md      # M-Pesa setup
-│   ├── COMMUNICATION_ENGINE.md   # Messaging guide
-│   ├── TIMETABLE_MODULE.md       # Timetable guide
-│   └── SUBSCRIPTION_ENGINE.md    # Billing guide
-├── docker-compose.yml            # Development infrastructure
-├── package.json                  # Root package file
-├── pnpm-workspace.yaml           # Workspace configuration
-├── turbo.json                    # Turborepo config
-└── README.md                     # This file
+â”œâ”€â”€ apps/
+â”‚   â”œâ”€â”€ api/                      # NestJS backend API
+â”‚   â”‚   â”œâ”€â”€ src/
+â”‚   â”‚   â”‚   â”œâ”€â”€ common/           # Shared utilities, guards, decorators
+â”‚   â”‚   â”‚   â”œâ”€â”€ database/         # Database services
+â”‚   â”‚   â”‚   â”œâ”€â”€ modules/          # Feature modules
+â”‚   â”‚   â”‚   â”‚   â”œâ”€â”€ auth/         # Authentication (3 endpoints)
+â”‚   â”‚   â”‚   â”‚   â”œâ”€â”€ students/     # Student management (8 endpoints)
+â”‚   â”‚   â”‚   â”‚   â”œâ”€â”€ guardians/    # Guardian management (7 endpoints)
+â”‚   â”‚   â”‚   â”‚   â”œâ”€â”€ fees/         # Fee management (13 endpoints)
+â”‚   â”‚   â”‚   â”‚   â”œâ”€â”€ mpesa/        # M-Pesa integration (10 endpoints)
+â”‚   â”‚   â”‚   â”‚   â”œâ”€â”€ attendance/   # Attendance (11 endpoints)
+â”‚   â”‚   â”‚   â”‚   â”œâ”€â”€ examinations/ # Exams & CBC (17 endpoints)
+â”‚   â”‚   â”‚   â”‚   â”œâ”€â”€ communications/ # Messaging (7 endpoints)
+â”‚   â”‚   â”‚   â”‚   â”œâ”€â”€ timetable/    # Timetable (15 endpoints)
+â”‚   â”‚   â”‚   â”‚   â””â”€â”€ subscriptions/ # SaaS billing (17 endpoints)
+â”‚   â”‚   â”‚   â””â”€â”€ main.ts           # Application entry
+â”‚   â”‚   â””â”€â”€ package.json
+â”‚   â””â”€â”€ web/                      # Next.js frontend (structure ready)
+â”‚       â”œâ”€â”€ src/
+â”‚       â”‚   â”œâ”€â”€ app/              # App router pages
+â”‚       â”‚   â”œâ”€â”€ components/       # React components
+â”‚       â”‚   â””â”€â”€ lib/              # Utilities, API client
+â”‚       â””â”€â”€ package.json
+â”œâ”€â”€ packages/
+â”‚   â”œâ”€â”€ database/                 # Prisma schema & migrations
+â”‚   â”‚   â”œâ”€â”€ prisma/
+â”‚   â”‚   â”‚   â”œâ”€â”€ schema.prisma     # Database schema (40+ models)
+â”‚   â”‚   â”‚   â”œâ”€â”€ migrations/       # Database migrations
+â”‚   â”‚   â”‚   â””â”€â”€ seed.ts           # Seed script
+â”‚   â”‚   â””â”€â”€ src/
+â”‚   â”‚       â”œâ”€â”€ client.ts         # Prisma client
+â”‚   â”‚       â””â”€â”€ middleware/       # Tenant filtering
+â”‚   â”œâ”€â”€ types/                    # Shared TypeScript types
+â”‚   â””â”€â”€ utils/                    # Shared utilities
+â”œâ”€â”€ docs/                         # Documentation
+â”‚   â”œâ”€â”€ ARCHITECTURE.md           # System architecture
+â”‚   â”œâ”€â”€ API_REFERENCE.md          # Complete API docs
+â”‚   â”œâ”€â”€ DEPLOYMENT_GUIDE.md       # Setup & deployment
+â”‚   â”œâ”€â”€ FINAL_STATUS_REPORT.md    # Project status
+â”‚   â”œâ”€â”€ MPESA_INTEGRATION.md      # M-Pesa setup
+â”‚   â”œâ”€â”€ COMMUNICATION_ENGINE.md   # Messaging guide
+â”‚   â”œâ”€â”€ TIMETABLE_MODULE.md       # Timetable guide
+â”‚   â””â”€â”€ SUBSCRIPTION_ENGINE.md    # Billing guide
+â”œâ”€â”€ docker-compose.yml            # Development infrastructure
+â”œâ”€â”€ package.json                  # Root package file
+â”œâ”€â”€ pnpm-workspace.yaml           # Workspace configuration
+â”œâ”€â”€ turbo.json                    # Turborepo config
+â””â”€â”€ README.md                     # This file
 ```
 
 ---
 
-## 🔌 API Modules
+## ðŸ”Œ API Modules
 
 | Module | Endpoints | Status | Documentation |
 |--------|-----------|--------|---------------|
-| **Authentication** | 3 | ✅ Complete | [Swagger](http://localhost:3001/api/docs#/Authentication) |
-| **Students** | 8 | ✅ Complete | [Swagger](http://localhost:3001/api/docs#/Students) |
-| **Guardians** | 7 | ✅ Complete | [Swagger](http://localhost:3001/api/docs#/Guardians) |
-| **Fees** | 13 | ✅ Complete | [Swagger](http://localhost:3001/api/docs#/Fees) |
-| **M-Pesa** | 10 | ✅ Complete | [Docs](docs/MPESA_INTEGRATION.md) |
-| **Attendance** | 11 | ✅ Complete | [Swagger](http://localhost:3001/api/docs#/Attendance) |
-| **Examinations** | 17 | ✅ Complete | [Swagger](http://localhost:3001/api/docs#/Examinations) |
-| **Communications** | 7 | ✅ Complete | [Docs](docs/COMMUNICATION_ENGINE.md) |
-| **Timetable** | 15 | ✅ Complete | [Docs](docs/TIMETABLE_MODULE.md) |
-| **Subscriptions** | 17 | ✅ Complete | [Docs](docs/SUBSCRIPTION_ENGINE.md) |
-| **Total** | **106** | **✅ Production Ready** | [Complete API Reference](API_REFERENCE.md) |
+| **Authentication** | 3 | âœ… Complete | [Swagger](http://localhost:3001/api/docs#/Authentication) |
+| **Students** | 8 | âœ… Complete | [Swagger](http://localhost:3001/api/docs#/Students) |
+| **Guardians** | 7 | âœ… Complete | [Swagger](http://localhost:3001/api/docs#/Guardians) |
+| **Fees** | 13 | âœ… Complete | [Swagger](http://localhost:3001/api/docs#/Fees) |
+| **M-Pesa** | 10 | âœ… Complete | [Docs](docs/MPESA_INTEGRATION.md) |
+| **Attendance** | 11 | âœ… Complete | [Swagger](http://localhost:3001/api/docs#/Attendance) |
+| **Examinations** | 17 | âœ… Complete | [Swagger](http://localhost:3001/api/docs#/Examinations) |
+| **Communications** | 7 | âœ… Complete | [Docs](docs/COMMUNICATION_ENGINE.md) |
+| **Timetable** | 15 | âœ… Complete | [Docs](docs/TIMETABLE_MODULE.md) |
+| **Subscriptions** | 17 | âœ… Complete | [Docs](docs/SUBSCRIPTION_ENGINE.md) |
+| **Total** | **106** | **âœ… Production Ready** | [Complete API Reference](API_REFERENCE.md) |
 
 ---
 
-## 📚 Documentation
+## ðŸ“š Documentation
 
 ### Getting Started
 - **[Quick Start](#quick-start)** - Get up and running
@@ -337,7 +332,7 @@ krypton-school-erp/
 
 ---
 
-## 💻 Development
+## ðŸ’» Development
 
 ### Environment Setup
 
@@ -401,7 +396,7 @@ pnpm format
 
 ---
 
-## 🚢 Deployment
+## ðŸš¢ Deployment
 
 ### Production Deployment Options
 
@@ -436,7 +431,7 @@ docker run -d -p 3001:3001 --env-file .env.production krypton-school-erp:latest
 
 ---
 
-## 🧪 Testing
+## ðŸ§ª Testing
 
 ### Manual Testing
 
@@ -482,47 +477,47 @@ pnpm test:cov
 
 ---
 
-## 📈 Progress & Status
+## ðŸ“ˆ Progress & Status
 
 ### Current Status: 65% Complete
 
 ```
-✅ COMPLETE (13/20 tasks)
-├─ ✅ Foundation (100%)
-├─ ✅ Core Business Features (100%)
-├─ ✅ Academic Features (80%)
-├─ ⚠️ Advanced Features (33%)
-└─ ❌ Quality & Deployment (0%)
+âœ… COMPLETE (13/20 tasks)
+â”œâ”€ âœ… Foundation (100%)
+â”œâ”€ âœ… Core Business Features (100%)
+â”œâ”€ âœ… Academic Features (80%)
+â”œâ”€ âš ï¸ Advanced Features (33%)
+â””â”€ âŒ Quality & Deployment (0%)
 ```
 
 ### Completed Modules (13)
-1. ✅ Architecture Documentation
-2. ✅ Monorepo Setup
-3. ✅ Database Configuration
-4. ✅ Authentication & Authorization
-5. ✅ Multi-Tenant SaaS Engine
-6. ✅ Student & Guardian Management
-7. ✅ Fee Management & Accounting
-8. ✅ M-Pesa Payment Integration
-9. ✅ Attendance Management
-10. ✅ Examinations & CBC Assessment
-11. ✅ Communication Engine
-12. ✅ Timetable & Calendar
-13. ✅ SaaS Subscription Engine
+1. âœ… Architecture Documentation
+2. âœ… Monorepo Setup
+3. âœ… Database Configuration
+4. âœ… Authentication & Authorization
+5. âœ… Multi-Tenant SaaS Engine
+6. âœ… Student & Guardian Management
+7. âœ… Fee Management & Accounting
+8. âœ… M-Pesa Payment Integration
+9. âœ… Attendance Management
+10. âœ… Examinations & CBC Assessment
+11. âœ… Communication Engine
+12. âœ… Timetable & Calendar
+13. âœ… SaaS Subscription Engine
 
 ### Remaining Work (7)
-14. ⏳ Parent Portal UI (50% - structure done)
-15. ❌ Teacher Portal
-16. ❌ Optional Modules (Library, Transport, HR)
-17. ❌ Automated Testing Suite
-18. ❌ Production Infrastructure
-19. ❌ Complete User Documentation
+14. â³ Parent Portal UI (50% - structure done)
+15. âŒ Teacher Portal
+16. âŒ Optional Modules (Library, Transport, HR)
+17. âŒ Automated Testing Suite
+18. âŒ Production Infrastructure
+19. âŒ Complete User Documentation
 
 **Detailed Status:** [FINAL_STATUS_REPORT.md](FINAL_STATUS_REPORT.md)
 
 ---
 
-## 💼 Business Model
+## ðŸ’¼ Business Model
 
 ### Subscription Plans
 
@@ -534,15 +529,15 @@ pnpm test:cov
 
 ### Revenue Projections (Year 1)
 
-- **Conservative:** 50 schools → KES 2M ARR
-- **Moderate:** 100 schools → KES 4.2M ARR
-- **Optimistic:** 200 schools → KES 9M ARR
+- **Conservative:** 50 schools â†’ KES 2M ARR
+- **Moderate:** 100 schools â†’ KES 4.2M ARR
+- **Optimistic:** 200 schools â†’ KES 9M ARR
 
 **Details:** [FINAL_STATUS_REPORT.md](FINAL_STATUS_REPORT.md#business-model--revenue)
 
 ---
 
-## 🤝 Contributing
+## ðŸ¤ Contributing
 
 ### Development Workflow
 
@@ -574,7 +569,7 @@ footer (optional)
 
 ---
 
-## 📞 Support
+## ðŸ“ž Support
 
 ### Documentation
 - **[Complete Guide](DEPLOYMENT_GUIDE.md)** - Setup and deployment
@@ -598,7 +593,7 @@ When reporting issues, please include:
 
 ---
 
-## 🔐 Security
+## ðŸ” Security
 
 ### Reporting Security Vulnerabilities
 
@@ -610,24 +605,24 @@ We'll respond within 48 hours and work with you to address the issue.
 
 ### Security Features
 
-- ✅ JWT authentication with refresh tokens
-- ✅ Password hashing (bcrypt)
-- ✅ Role-based access control (RBAC)
-- ✅ Input validation and sanitization
-- ✅ SQL injection prevention (Prisma)
-- ✅ XSS protection
-- ✅ Rate limiting
-- ✅ CORS configuration
-- ✅ Tenant isolation
-- ✅ Audit logging structure
+- âœ… JWT authentication with refresh tokens
+- âœ… Password hashing (bcrypt)
+- âœ… Role-based access control (RBAC)
+- âœ… Input validation and sanitization
+- âœ… SQL injection prevention (Prisma)
+- âœ… XSS protection
+- âœ… Rate limiting
+- âœ… CORS configuration
+- âœ… Tenant isolation
+- âœ… Audit logging structure
 
 ---
 
-## 📄 License
+## ðŸ“„ License
 
 **Proprietary License**
 
-Copyright © 2024 KryptonLogic. All rights reserved.
+Copyright Â© 2024 KryptonLogic. All rights reserved.
 
 This software is proprietary and confidential. Unauthorized copying, modification, distribution, or use of this software, via any medium, is strictly prohibited.
 
@@ -635,7 +630,7 @@ For licensing inquiries: licensing@kryptonschool.com
 
 ---
 
-## 🙏 Acknowledgments
+## ðŸ™ Acknowledgments
 
 ### Technologies Used
 - [NestJS](https://nestjs.com/) - Backend framework
@@ -651,14 +646,14 @@ For licensing inquiries: licensing@kryptonschool.com
 
 ---
 
-## 🗺️ Roadmap
+## ðŸ—ºï¸ Roadmap
 
 ### Q1 2024 (Current)
-- ✅ Backend API development
-- ✅ Core module implementation
-- ✅ M-Pesa integration
-- ⏳ Parent Portal UI
-- ⏳ Teacher Portal UI
+- âœ… Backend API development
+- âœ… Core module implementation
+- âœ… M-Pesa integration
+- â³ Parent Portal UI
+- â³ Teacher Portal UI
 
 ### Q2 2024
 - [ ] Pilot program (3-5 schools)
@@ -681,7 +676,7 @@ For licensing inquiries: licensing@kryptonschool.com
 
 ---
 
-## 📊 Statistics
+## ðŸ“Š Statistics
 
 ```
 Lines of Code:        15,000+
@@ -696,7 +691,7 @@ Response Time:        < 200ms
 
 ---
 
-## 🎓 Learning Resources
+## ðŸŽ“ Learning Resources
 
 ### For Developers
 - [NestJS Documentation](https://docs.nestjs.com/)
@@ -711,7 +706,7 @@ Response Time:        < 200ms
 
 ---
 
-## ✨ What Makes This Special?
+## âœ¨ What Makes This Special?
 
 1. **Kenya-Specific** - Built for Kenyan schools with CBC support
 2. **M-Pesa Native** - Seamless mobile money integration
@@ -724,7 +719,7 @@ Response Time:        < 200ms
 
 ---
 
-## 🚀 Getting Started Today
+## ðŸš€ Getting Started Today
 
 ```bash
 # 1. Clone and install (5 minutes)
@@ -743,29 +738,29 @@ cd ../.. && pnpm dev
 open http://localhost:3001/api/docs
 ```
 
-**Total time: 11 minutes to a running system!** ⚡
+**Total time: 11 minutes to a running system!** âš¡
 
 ---
 
-## 📞 Need Help?
+## ðŸ“ž Need Help?
 
-- 📖 **[Read the Docs](DEPLOYMENT_GUIDE.md)** - Comprehensive guide
-- 💬 **[API Reference](API_REFERENCE.md)** - All endpoints documented
-- 🐛 **[Report an Issue](mailto:support@kryptonschool.com)** - We're here to help
-- 💡 **[Request a Feature](mailto:feedback@kryptonschool.com)** - Share your ideas
+- ðŸ“– **[Read the Docs](DEPLOYMENT_GUIDE.md)** - Comprehensive guide
+- ðŸ’¬ **[API Reference](API_REFERENCE.md)** - All endpoints documented
+- ðŸ› **[Report an Issue](mailto:support@kryptonschool.com)** - We're here to help
+- ðŸ’¡ **[Request a Feature](mailto:feedback@kryptonschool.com)** - Share your ideas
 
 ---
 
 <div align="center">
 
-### Built with ❤️ for Kenyan Schools
+### Built with â¤ï¸ for Kenyan Schools
 
 **Krypton School ERP** - Empowering Education Through Technology
 
-[Website](https://kryptonschool.com) • [Documentation](docs/) • [API Reference](API_REFERENCE.md) • [Support](mailto:support@kryptonschool.com)
+[Website](https://kryptonschool.com) â€¢ [Documentation](docs/) â€¢ [API Reference](API_REFERENCE.md) â€¢ [Support](mailto:support@kryptonschool.com)
 
 ---
 
-⭐ **Star this repository if you find it useful!** ⭐
+â­ **Star this repository if you find it useful!** â­
 
 </div>

@@ -38,6 +38,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm type-check
+      - run: pnpm --filter @krypton/web lint
       - run: pnpm --filter @krypton/api test -- --runInBand
       - run: pnpm db:deploy && pnpm db:seed:demo
       - run: |

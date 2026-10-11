@@ -1,9 +1,9 @@
 import { OnlineAdmissionPortal } from '@/components/admissions/OnlineAdmissionPortal';
 
 export const metadata = {
-  title: 'Online School Admissions 2026-2027 | Krypton International Public School',
+  title: 'Admissions | Krypton',
   description:
-    'Apply online for student admissions. Upload birth certificate, student photo, and track admission status in real-time.',
+    'School admission services and application preview.',
 };
 
 export default function AdmissionsPage() {

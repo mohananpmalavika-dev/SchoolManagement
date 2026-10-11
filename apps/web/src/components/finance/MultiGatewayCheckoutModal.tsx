@@ -651,7 +651,7 @@ export function MultiGatewayCheckoutModal({
                         <Globe size={16} /> PayPal International Checkout
                       </p>
                       <p>
-                        Supports over 200 countries and 25 currencies. You will be redirected to PayPal's secure authentication terminal to complete the authorization.
+                        Supports over 200 countries and 25 currencies. You will be redirected to PayPal&apos;s secure authentication terminal to complete the authorization.
                       </p>
                     </div>
                   )}

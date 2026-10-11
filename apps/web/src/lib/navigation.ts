@@ -20,11 +20,21 @@ export function navigationFor(portal: Portal, role: string): NavigationGroup[] {
   ];
   if (portal === 'student') return [
     group('WORKSPACE', [['dashboard', 'Overview', LayoutDashboard], ['timetable', 'My schedule', CalendarDays], ['profile', 'My profile', Users]]),
-    group('MY LEARNING', [['academics', 'Academics & CBC', BookOpen], ['assignments', 'Assignments', ClipboardCheck], ['quizzes', 'Quizzes', Zap], ['materials', 'Learning materials', Library], ['grades', 'My grades', BarChart3], ['report-cards', 'Report cards', FileCheck], ['attendance', 'My attendance', ClipboardCheck], ['portfolio', 'My portfolio', GraduationCap], ['library', 'Library', Library]]),
+    group('MY LEARNING', [['academics', 'Academic results', BookOpen], ['assignments', 'Assignments', ClipboardCheck], ['quizzes', 'Quizzes', Zap], ['materials', 'Learning materials', Library], ['grades', 'My grades', BarChart3], ['report-cards', 'Report cards', FileCheck], ['attendance', 'My attendance', ClipboardCheck], ['portfolio', 'My portfolio', GraduationCap], ['library', 'Library', Library]]),
   ];
   if (portal === 'parent') return [
     group('FAMILY', [['', 'Overview', LayoutDashboard], ['fees', 'Fees & payments', CreditCard], ['attendance', 'Attendance', ClipboardCheck], ['grades', 'Learning progress', BookOpen], ['notifications', 'School updates', MessageSquare]]),
     group('SCHOOL SERVICES', [['/parent/transport', 'Bus tracking', Bus], ['/parent/absence', 'Report an absence', ClipboardCheck], ['lms', 'Homework & quizzes', Library], ['ptm', 'Parent meetings', CalendarDays], ['certificates', 'Certificates & ID cards', FileCheck]]),
+  ];
+  const operations: Record<string, Entry[]> = {
+    ACCOUNTANT: [['guardians', 'Guardians', Users], ['fees', 'Fees & invoices', CreditCard]],
+    LIBRARIAN: [['library', 'Library', Library]],
+    TRANSPORT_OFFICER: [['transport/setup', 'Vehicles & routes', Bus]],
+    RECEPTIONIST: [['guardians', 'Guardians', Users]],
+  };
+  if (operations[role]) return [
+    group('WORKSPACE', [['dashboard', 'Overview', LayoutDashboard], ['students', 'Students', Users]]),
+    group('OPERATIONS', [...operations[role], ['support', 'Support', LifeBuoy]]),
   ];
   return [
     group('WORKSPACE', [['dashboard', 'Overview', LayoutDashboard], ...(predictiveAnalyticsRoles.includes(role) ? [['analytics', 'Advanced analytics', BarChart3], ['predictive-analytics', 'Student risk insights', BarChart3], ['ai-studio', 'AI teaching studio', Sparkles]] as Entry[] : []), ['copilot', 'ERP Copilot', Bot]]),

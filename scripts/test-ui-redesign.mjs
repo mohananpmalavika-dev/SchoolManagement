@@ -1,9 +1,9 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '../node_modules/.pnpm/playwright@1.64.0/node_modules/playwright');
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launch({ headless: true });
 const base = process.env.UI_BASE_URL || 'http://localhost:3105';
 const output = new URL('../qa/redesign/', import.meta.url);
@@ -12,7 +12,7 @@ const checks = [], errors = [], requests = [];
 const userFor = role => ({ id:'user-1', firstName:'Amara', lastName:'Mwangi', role, tenantId:'tenant-1', email:'amara@example.test' });
 const rows = Array.from({length:27}, (_,i) => ({ id:'s-' + i, firstName:'Learner', lastName:String(i+1), name:'Learner ' + (i+1), admissionNumber:'ADM-' + String(i+1).padStart(3,'0'), className:'Grade 5', dateOfBirth:'2016-05-02', gender:'FEMALE', admissionDate:'2026-01-10', status:i%3 ? 'ACTIVE':'SUSPENDED' }));
 const overview = { students:1248, staff:86, classes:6, balance:24800000, examinations:8, schools:14, subscriptions:12, attendanceTotal:1170, attendanceRate:96, weekly:[0,1,2,3,4].map(i=>({date:'2026-10-0'+(5+i),rate:92+i,total:1100})), events:[{id:'ev-1',title:'Term assessment review',location:'School hall',startDate:'2026-10-15'}], activities:[{id:'a-1',action:'STUDENT_CREATED',entityType:'Student',createdAt:'2026-10-11'}], recentSchools:[{id:'t1',name:'Evidence Academy',status:'ACTIVE',createdAt:'2026-10-01'}] };
-let recordError = false, mfaEnabled = false, mfaValid = false;
+let recordError = false, mfaEnabled = false, mfaValid = false, submittedWork = false;
 async function contextFor(role, auth = true) {
   const context = await browser.newContext({ viewport:{width:1440,height:1000}, serviceWorkers:'block' });
   if (auth) await context.addInitScript(() => localStorage.setItem('accessToken','qa-access'));
@@ -36,9 +36,14 @@ async function contextFor(role, auth = true) {
     }
     if (path === '/api/workspace/classes') return ok([{id:'class-1',name:'Grade 5'}]);
     if (path === '/api/workspace/children') return ok([{id:'s-1',firstName:'Learner',lastName:'One',currentClass:{name:'Grade 5'}}]);
-    if (path === '/api/workspace/student/s-1') return ok({student:{firstName:'Learner',lastName:'One',currentClass:{name:'Grade 5'}},invoices:[],payments:[],attendance:[],grades:[],reportCards:[],events:[],attendanceSummary:{totalDays:0,attendanceRate:0}});
+    if (path === '/api/workspace/student/s-1') return ok({student:{firstName:'Learner',lastName:'One',currentClass:{name:'Grade 5'}},invoices:[{id:'invoice-1',invoiceNumber:'INV-001',term:{name:'Term 3'},dueDate:'2026-11-01',totalAmount:125000,balanceAmount:125000,status:'UNPAID'}],payments:[],attendance:[],grades:[],reportCards:[],events:[],attendanceSummary:{totalDays:0,attendanceRate:0}});
     if (path === '/api/students/me') return ok({firstName:'Learner',lastName:'One',class:{name:'Grade 5'},school:'Evidence Academy'});
-    if (path === '/api/students/me/dashboard') return ok({attendanceSummary:{totalDays:0,attendanceRate:0},attendance:{rate:0,total:0},assignments:[],upcomingAssignments:[],events:[],grades:[],timetable:[]});
+    if (path === '/api/students/me/dashboard') return ok({attendance:{attendanceRate:0,totalDays:0},todaySchedule:[],pendingAssignments:[],recentGrades:[],announcements:[]});
+    if (path === '/api/students/me/assignments') { const assignment={id:'assignment-1',title:'Saved class task',description:'Explain your reasoning.',subject:'Math',dueDate:'2026-11-01',maxMarks:20,status:'SUBMITTED',submission:{submittedAt:'2026-10-11'}};return ok({pending:submittedWork?[]:[assignment],completed:submittedWork?[assignment]:[]}); }
+    if (path === '/api/workspace/submissions' && route.request().method()==='POST') { submittedWork=true;return ok({id:'submission-1'}); }
+    if (path === '/api/students/me/materials') return ok({curriculumMaterials:[{id:'material-1',title:'Saved teacher notes',url:'https://example.test/notes'}],borrowedBooks:[{id:'loan-1',book:{title:'Saved library book',author:'Author'},dueDate:'2026-11-01',status:'BORROWED'}]});
+    if (path === '/api/workspace/terms') return ok([{id:'term-1',name:'Term 3'}]);
+    if (path === '/api/workspace/invoices') return ok([]);
     if (path === '/api/teacher-ai/options') return ok({classes:[],terms:[],status:{configured:false}});
     if (path === '/api/teacher-ai/at-risk' || path === '/api/predictive-analytics') return ok({students:[],summary:{highRisk:0,incompleteData:0}});
     return ok([]);
@@ -170,6 +175,64 @@ try {
     await session.context.close();
   }
   checks.push('School, teacher, and platform dashboards retain their role-specific navigation');
+  const family=await contextFor('PARENT');
+  await family.page.goto(base+'/dashboard');
+  await family.page.getByRole('heading',{name:'Your family, connected',exact:true}).waitFor();
+  await family.page.getByRole('heading',{name:'Growing, learning, belonging.',exact:true}).waitFor();
+  await family.page.screenshot({path:fileURLToPath(new URL('family-desktop.png',output)),fullPage:true});
+  await family.page.goto(base+'/dashboard/fees');
+  await family.page.getByRole('button',{name:'Pay with M-Pesa',exact:true}).click();
+  await family.page.getByLabel('M-Pesa mobile number').fill('0712 345 678');
+  await family.page.getByLabel('Amount (KES)').fill('250');
+  await family.page.getByRole('button',{name:'Send payment request',exact:true}).click();
+  await family.page.getByRole('status').filter({hasText:'balance updates after confirmation'}).waitFor();
+  assert.deepEqual(requests.find(request=>request.path==='/api/workspace/pay')?.body,{invoiceId:'invoice-1',amount:25000,phoneNumber:'254712345678'});
+  await family.page.setViewportSize({width:390,height:844});
+  assert.equal(await family.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await family.context.close();
+  checks.push('Family portal loads linked records and sends normalized M-Pesa requests without claiming confirmed payment');
+
+  const learner=await contextFor('STUDENT');
+  await learner.page.goto(base+'/student/dashboard');
+  await learner.page.getByText('No lessons scheduled today',{exact:true}).waitFor();
+  await learner.page.screenshot({path:fileURLToPath(new URL('student-desktop.png',output)),fullPage:true});
+  await learner.page.goto(base+'/student/assignments');
+  await learner.page.getByRole('button',{name:'Submit work',exact:true}).click();
+  await learner.page.getByLabel('Your work',{exact:true}).fill('Saved assignment answer');
+  await learner.page.getByRole('button',{name:'Submit assignment',exact:true}).click();
+  await learner.page.getByRole('status').filter({hasText:'submitted to your teacher'}).waitFor();
+  assert.deepEqual(requests.find(request=>request.path==='/api/workspace/submissions'&&request.body)?.body,{data:{assignmentId:'assignment-1',text:'Saved assignment answer'}});
+  await learner.page.getByRole('heading',{name:'You’re caught up',exact:true}).waitFor();
+  await learner.page.goto(base+'/student/library');
+  await learner.page.getByText('Saved library book',{exact:true}).waitFor();
+  assert.equal(await learner.page.getByRole('link',{name:'Open resource',exact:false}).getAttribute('href'),'https://example.test/notes');
+  await learner.context.close();
+  checks.push('Student portal uses saved learning records, submits work to the API, and opens actual resource links');
+
+  const finance=await contextFor('ACCOUNTANT');
+  await finance.page.goto(base+'/school/fees');
+  await finance.page.getByRole('heading',{name:'Invoices',exact:true}).waitFor();
+  assert.equal(await finance.page.locator('aside').getByRole('link',{name:'Staff directory',exact:true}).count(),0);
+  await finance.page.getByRole('button',{name:'Add record',exact:true}).click();
+  const invoiceForm=finance.page.getByRole('dialog',{name:'Add record',exact:true});
+  await invoiceForm.getByLabel('Student *',{exact:true}).selectOption('s-0');
+  await invoiceForm.getByLabel('Term *',{exact:true}).selectOption('term-1');
+  await invoiceForm.getByLabel('Description *',{exact:true}).fill('Tuition');
+  await invoiceForm.getByLabel('Amount (KES) *',{exact:true}).fill('1250.50');
+  await invoiceForm.getByRole('button',{name:'Create record',exact:true}).click();
+  await finance.page.getByRole('status').filter({hasText:'saved successfully'}).waitFor();
+  assert.equal(requests.find(request=>request.path==='/api/workspace/invoices'&&request.body)?.body.data.amount,125050);
+  await finance.context.close();
+  checks.push('Finance staff see their permitted navigation and currency forms convert shillings to integer cents');
+  if (process.env.UI_PRODUCTION === 'true') {
+    const production=await contextFor('SCHOOL_ADMIN');
+    await production.page.goto(base+'/school/admissions');
+    await production.page.getByRole('heading',{name:'This service is not available yet',exact:true}).waitFor();
+    assert.equal(requests.filter(request=>request.path==='/api/admissions').length,0);
+    assert.equal(await production.page.getByRole('link',{name:'Open student directory',exact:false}).getAttribute('href'),'/school/students');
+    await production.context.close();
+    checks.push('Production hides sample admissions and offers the connected directory without calling the preview API');
+  }
   assert.deepEqual(errors,[]);
   await writeFile(new URL('results.json',output),JSON.stringify({checks,errors,fixture:'Mocked API responses. No real school records changed.'},null,2));
   console.log(JSON.stringify({passed:checks.length,checks},null,2));

@@ -8,29 +8,33 @@ import {
   Delete,
   Query,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
-import { CreateAvailabilityDto } from './dto/create-availability.dto';
+import { CreateAvailabilityDto, UpdateAvailabilityDto } from './dto/create-availability.dto';
 import { CreateBookingDto, BookingStatus } from './dto/create-booking.dto';
 import { UpdateBookingDto, CancelBookingDto } from './dto/update-booking.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@krypton/types';
 
 @Controller('bookings')
+@Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.EXAM_OFFICER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN, UserRole.PARENT)
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
+
+  @Get('options')
+  getOptions(@Request() req: any) { return this.bookingsService.getOptions(req.user); }
 
   // ===== TEACHER AVAILABILITY =====
 
   @Post('availability')
-  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  createAvailability(
+  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.EXAM_OFFICER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
+  async createAvailability(
     @Body() createAvailabilityDto: CreateAvailabilityDto,
     @Request() req: any,
   ) {
-    // In a real implementation, we'd get teacherId from the user's staff record
-    // For now, assuming the request body includes it or we derive it from user
-    return this.bookingsService.createAvailability(req.user.id, createAvailabilityDto);
+    const teacherId = await this.bookingsService.teacherForUser(req.user);
+    return this.bookingsService.createAvailability(teacherId, createAvailabilityDto);
   }
 
   @Get('availability/teacher/:teacherId')
@@ -39,17 +43,20 @@ export class BookingsController {
   }
 
   @Patch('availability/:id')
-  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  updateAvailability(
+  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.EXAM_OFFICER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
+  async updateAvailability(
     @Param('id') id: string,
-    @Body() updateAvailabilityDto: Partial<CreateAvailabilityDto>,
+    @Body() updateAvailabilityDto: UpdateAvailabilityDto,
+    @Request() req: any,
   ) {
+    await this.bookingsService.authorizeAvailability(req.user, id);
     return this.bookingsService.updateAvailability(id, updateAvailabilityDto);
   }
 
   @Delete('availability/:id')
-  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  deleteAvailability(@Param('id') id: string) {
+  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.EXAM_OFFICER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
+  async deleteAvailability(@Param('id') id: string, @Request() req: any) {
+    await this.bookingsService.authorizeAvailability(req.user, id);
     return this.bookingsService.deleteAvailability(id);
   }
 
@@ -64,8 +71,9 @@ export class BookingsController {
   // ===== BOOKINGS =====
 
   @Get()
-  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN, UserRole.PARENT)
-  getBookings(
+  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.EXAM_OFFICER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN, UserRole.PARENT)
+  async getBookings(
+    @Request() req: any,
     @Query('guardianId') guardianId?: string,
     @Query('teacherId') teacherId?: string,
     @Query('studentId') studentId?: string,
@@ -73,6 +81,7 @@ export class BookingsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
+    const scope = await this.bookingsService.accountScope(req.user);
     return this.bookingsService.getBookings({
       guardianId,
       teacherId,
@@ -80,43 +89,50 @@ export class BookingsController {
       status,
       startDate,
       endDate,
+      ...scope,
     });
   }
 
   @Get(':id')
-  getBooking(@Param('id') id: string) {
-    return this.bookingsService.getBooking(id);
+  getBooking(@Param('id') id: string, @Request() req: any) {
+    return this.bookingsService.authorizeBooking(req.user, id);
   }
 
   @Patch(':id')
-  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PARENT)
-  updateBooking(
+  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.EXAM_OFFICER, UserRole.PARENT)
+  async updateBooking(
     @Param('id') id: string,
     @Body() updateBookingDto: UpdateBookingDto,
     @Request() req: any,
   ) {
-    return this.bookingsService.updateBooking(id, updateBookingDto, req.user.id);
+    await this.bookingsService.authorizeBooking(req.user, id);
+    const allowed = req.user.role === 'PARENT' ? ['parentNotes'] : ['teacherNotes','location','meetingLink'];
+    if (Object.entries(updateBookingDto).some(([key, value]) => !allowed.includes(key) && value !== undefined)) throw new ForbiddenException('You cannot change these meeting fields');
+    return this.bookingsService.updateBooking(id, updateBookingDto, req.user.userId || req.user.id);
   }
 
   @Post(':id/confirm')
-  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER)
-  confirmBooking(@Param('id') id: string, @Request() req: any) {
-    return this.bookingsService.confirmBooking(id, req.user.id);
+  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.EXAM_OFFICER)
+  async confirmBooking(@Param('id') id: string, @Request() req: any) {
+    await this.bookingsService.authorizeBooking(req.user, id);
+    return this.bookingsService.confirmBooking(id, await this.bookingsService.teacherForUser(req.user));
   }
 
   @Post(':id/cancel')
-  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PARENT)
-  cancelBooking(
+  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.EXAM_OFFICER, UserRole.PARENT)
+  async cancelBooking(
     @Param('id') id: string,
     @Body() cancelBookingDto: CancelBookingDto,
     @Request() req: any,
   ) {
-    return this.bookingsService.cancelBooking(id, req.user.id, cancelBookingDto);
+    await this.bookingsService.authorizeBooking(req.user, id);
+    return this.bookingsService.cancelBooking(id, req.user.userId || req.user.id, cancelBookingDto);
   }
 
   @Post(':id/complete')
-  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER)
-  completeBooking(@Param('id') id: string, @Request() req: any) {
-    return this.bookingsService.completeBooking(id, req.user.id);
+  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.EXAM_OFFICER)
+  async completeBooking(@Param('id') id: string, @Request() req: any) {
+    await this.bookingsService.authorizeBooking(req.user, id);
+    return this.bookingsService.completeBooking(id, await this.bookingsService.teacherForUser(req.user));
   }
 }

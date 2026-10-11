@@ -89,32 +89,32 @@ export function AdmissionKanbanBoard() {
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
 
   // Interview Form State
-  const [interviewForm, setInterviewForm] = useState({
+  const [interviewForm, setInterviewForm] = useState(() => ({
     scheduledDate: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
     scheduledTime: '10:00',
     interviewerName: 'Dr. K. R. Nambiar (Principal)',
     venueOrLink: 'Principal Chambers, Academic Block',
     isVirtual: false,
     notes: 'Assessment on foundational literacy, numeracy & general awareness.',
-  });
+  }));
 
   // Payment Form State
-  const [paymentForm, setPaymentForm] = useState({
+  const [paymentForm, setPaymentForm] = useState(() => ({
     amount: 25000,
     paymentMethod: 'UPI' as AdmissionPaymentMethod,
     receiptNumber: `RCP-2026-${Math.floor(1000 + Math.random() * 9000)}`,
     feeType: 'Admission & Term 1 Tuition Fee',
     transactionId: `TXN-${Date.now().toString().slice(-8)}`,
-  });
+  }));
 
   // Enrollment Form State
-  const [enrollmentForm, setEnrollmentForm] = useState({
+  const [enrollmentForm, setEnrollmentForm] = useState(() => ({
     officialAdmissionNumber: `KPS-2026-${Math.floor(1000 + Math.random() * 9000)}`,
     assignedClass: 'Grade 1',
     assignedSection: 'A',
     rollNumber: '01',
     welcomeKitDispatched: true,
-  });
+  }));
 
   // Direct Lead Form State
   const [directLeadForm, setDirectLeadForm] = useState({

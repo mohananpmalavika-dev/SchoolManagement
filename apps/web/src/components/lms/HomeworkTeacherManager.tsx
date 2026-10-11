@@ -52,7 +52,7 @@ export function HomeworkTeacherManager({ onNotify }: HomeworkTeacherManagerProps
   const [newSubjectMl, setNewSubjectMl] = useState('കണക്ക്');
   const [newClass, setNewClass] = useState('Class 10-A');
   const [newDueDate, setNewDueDate] = useState(
-    new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    () => new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   );
   const [newMaxMarks, setNewMaxMarks] = useState<number>(20);
   const [newDescription, setNewDescription] = useState('');
@@ -84,7 +84,7 @@ export function HomeworkTeacherManager({ onNotify }: HomeworkTeacherManagerProps
       attachments: attachedFileName
         ? [
             {
-              id: `att-${Date.now()}`,
+              id: window.crypto.randomUUID(),
               name: attachedFileName,
               fileType: attachedFileName.endsWith('.pdf') ? 'PDF' : 'IMAGE',
               url: '#',

@@ -24,6 +24,15 @@ export class ParentPortalService {
     private bookingsService: BookingsService,
   ) {}
 
+  async guardianForUser(user: {userId?: string; id?: string}) {
+    const tenantId = this.tenantService.requireTenantContext();
+    const userId = user.userId || user.id;
+    if (!userId) throw new ForbiddenException('Parent account is not linked');
+    const guardian = await this.prisma.guardian.findFirst({where: {tenantId, userId}, select: {id: true}});
+    if (!guardian) throw new ForbiddenException('Parent account is not linked');
+    return guardian.id;
+  }
+
   // Get guardian's children
   async getMyChildren(guardianId: string) {
     const tenantId = this.tenantService.requireTenantContext();

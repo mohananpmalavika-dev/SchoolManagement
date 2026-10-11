@@ -51,12 +51,12 @@ export function StudentMCQQuizRunner({ onNotify }: StudentMCQQuizRunnerProps) {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const startQuiz = (quiz: MCQQuiz) => {
+  const startQuiz = (quiz: MCQQuiz, startedAt: number) => {
     setActiveQuiz(quiz);
     setCurrentQuestionIndex(0);
     setAnswers({});
     setTimeRemainingSeconds(quiz.durationMinutes * 60);
-    setExamStartedAt(Date.now());
+    setExamStartedAt(startedAt);
     setLastResult(null);
     setShowConfirmSubmit(false);
   };
@@ -589,7 +589,7 @@ export function StudentMCQQuizRunner({ onNotify }: StudentMCQQuizRunnerProps) {
                     </div>
 
                     <button
-                      onClick={() => startQuiz(quiz)}
+                      onClick={() => startQuiz(quiz, Date.now())}
                       className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all transform active:scale-95 flex items-center gap-1.5"
                     >
                       <span>പരീക്ഷ തുടങ്ങുക (Start Test)</span>

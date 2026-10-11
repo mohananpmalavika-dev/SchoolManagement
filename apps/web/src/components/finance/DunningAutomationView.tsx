@@ -472,7 +472,7 @@ export function DunningAutomationView({
                 <span>To: <strong>{selectedNoticeForPreview.guardianPhone}</strong></span>
               </div>
               <p className="text-slate-800 font-sans leading-relaxed bg-white p-3 rounded border border-slate-200">
-                "{selectedNoticeForPreview.messagePreview}"
+                &quot;{selectedNoticeForPreview.messagePreview}&quot;
               </p>
             </div>
 

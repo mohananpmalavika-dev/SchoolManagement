@@ -25,17 +25,15 @@ export type EmailTemplate =
  * Features:
  * - SMTP transport with configuration
  * - HTML email templates
- * - Fallback to console logging in development
+ * - Explicit failure when delivery is unavailable
  * - Rate limiting protection
  */
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter: Transporter | null = null;
-  private readonly isDevelopment: boolean;
 
   constructor(private readonly configService: ConfigService) {
-    this.isDevelopment = this.configService.get('NODE_ENV') !== 'production';
     this.initializeTransporter();
   }
 
@@ -51,7 +49,7 @@ export class EmailService {
       const smtpPass = this.configService.get('SMTP_PASS');
 
       if (!smtpHost) {
-        this.logger.warn('SMTP not configured. Emails will be logged to console.');
+        this.logger.warn('SMTP not configured. Email delivery is unavailable.');
         return;
       }
 
@@ -59,6 +57,10 @@ export class EmailService {
         host: smtpHost,
         port: parseInt(smtpPort || '587', 10),
         secure: smtpSecure,
+        connectionTimeout: 10000,
+        socketTimeout: 20000,
+        disableFileAccess: true,
+        disableUrlAccess: true,
         auth: smtpUser && smtpPass ? {
           user: smtpUser,
           pass: smtpPass,
@@ -129,15 +131,9 @@ export class EmailService {
     try {
       const from = `${this.configService.get('EMAIL_FROM_NAME', 'Krypton School ERP')} <${this.configService.get('EMAIL_FROM', 'noreply@kryptonschool.com')}>`;
 
-      if (!this.transporter || this.isDevelopment) {
-        // In development, log to console
-        this.logger.log('=== EMAIL (Development Mode) ===');
-        this.logger.log(`To: ${to}`);
-        this.logger.log(`From: ${from}`);
-        this.logger.log(`Subject: ${subject}`);
-        this.logger.log(`Text: ${text}`);
-        this.logger.log('================================');
-        return true;
+      if (!this.transporter) {
+        this.logger.warn('Email could not be delivered: SMTP is not configured');
+        return false;
       }
 
       await this.transporter.sendMail({

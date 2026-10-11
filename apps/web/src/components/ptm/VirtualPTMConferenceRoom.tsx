@@ -289,8 +289,8 @@ export function VirtualPTMConferenceRoom({
 
   // Trigger Emojis Reaction
   const sendReaction = (emoji: string) => {
-    const id = Math.random().toString();
-    const x = Math.floor(20 + Math.random() * 60);
+    const id = window.crypto.randomUUID();
+    const x = 50;
     setReactions(prev => [...prev, { id, emoji, x }]);
     setTimeout(() => {
       setReactions(prev => prev.filter(r => r.id !== id));

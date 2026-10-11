@@ -1,4 +1,4 @@
-import {
+﻿import {
   Controller,
   Get,
   Post,
@@ -6,6 +6,7 @@ import {
   Param,
   Query,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ParentPortalService } from './parent-portal.service';
 import { ActivityFeedService } from '../activity-feed/activity-feed.service';
@@ -37,113 +38,112 @@ export class ParentPortalController {
   // ===== GUARDIAN & CHILDREN =====
 
   @Get('my-children')
-  getMyChildren(@Request() req: any) {
-    // Assuming guardianId is available from authenticated user
-    const guardianId = req.user.guardianId || req.user.id;
+  async getMyChildren(@Request() req: any) {
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.parentPortalService.getMyChildren(guardianId);
   }
 
   // ===== STUDENT DASHBOARD & PROFILE =====
 
   @Get('student/:studentId/dashboard')
-  getStudentDashboard(@Param('studentId') studentId: string, @Request() req: any) {
-    const guardianId = req.user.guardianId || req.user.id;
+  async getStudentDashboard(@Param('studentId') studentId: string, @Request() req: any) {
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.parentPortalService.getStudentDashboard(studentId, guardianId);
   }
 
   @Get('student/:studentId/profile')
-  getStudentProfile(@Param('studentId') studentId: string, @Request() req: any) {
-    const guardianId = req.user.guardianId || req.user.id;
+  async getStudentProfile(@Param('studentId') studentId: string, @Request() req: any) {
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.parentPortalService.getStudentProfile(studentId, guardianId);
   }
 
   // ===== ACTIVITY FEED =====
 
   @Get('student/:studentId/activities')
-  getStudentActivities(
+  async getStudentActivities(
     @Param('studentId') studentId: string,
     @Query() query: QueryActivitiesDto,
     @Request() req: any,
   ) {
-    const guardianId = req.user.guardianId || req.user.id;
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.activityFeedService.getStudentActivities(studentId, guardianId, query);
   }
 
   @Get('student/:studentId/activities/summary')
-  getActivitySummary(@Param('studentId') studentId: string, @Request() req: any) {
-    const guardianId = req.user.guardianId || req.user.id;
+  async getActivitySummary(@Param('studentId') studentId: string, @Request() req: any) {
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.activityFeedService.getActivitySummary(studentId, guardianId);
   }
 
   // ===== MEDIA GALLERY =====
 
   @Get('student/:studentId/media')
-  getStudentMedia(
+  async getStudentMedia(
     @Param('studentId') studentId: string,
     @Query() query: QueryMediaDto,
     @Request() req: any,
   ) {
-    const guardianId = req.user.guardianId || req.user.id;
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.mediaService.getStudentMedia(studentId, guardianId, query);
   }
 
   // ===== BEHAVIOR TRACKING =====
 
   @Get('student/:studentId/behavior')
-  getStudentBehavior(
+  async getStudentBehavior(
     @Param('studentId') studentId: string,
     @Query() query: QueryBehaviorDto,
     @Request() req: any,
   ) {
-    const guardianId = req.user.guardianId || req.user.id;
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.behaviorService.getStudentBehavior(studentId, guardianId, query);
   }
 
   @Get('student/:studentId/behavior/summary')
-  getBehaviorSummary(@Param('studentId') studentId: string, @Request() req: any) {
-    const guardianId = req.user.guardianId || req.user.id;
+  async getBehaviorSummary(@Param('studentId') studentId: string, @Request() req: any) {
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.behaviorService.getBehaviorSummary(studentId, guardianId);
   }
 
   // ===== HOMEWORK TRACKING =====
 
   @Get('student/:studentId/homework')
-  getStudentHomework(
+  async getStudentHomework(
     @Param('studentId') studentId: string,
     @Query() query: QueryHomeworkDto,
     @Request() req: any,
   ) {
-    const guardianId = req.user.guardianId || req.user.id;
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.homeworkService.getStudentHomework(studentId, guardianId, query);
   }
 
   @Get('student/:studentId/homework/summary')
-  getHomeworkSummary(@Param('studentId') studentId: string, @Request() req: any) {
-    const guardianId = req.user.guardianId || req.user.id;
+  async getHomeworkSummary(@Param('studentId') studentId: string, @Request() req: any) {
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.homeworkService.getHomeworkSummary(studentId, guardianId);
   }
 
   @Get('student/:studentId/homework/upcoming')
-  getUpcomingHomework(@Param('studentId') studentId: string, @Request() req: any) {
-    const guardianId = req.user.guardianId || req.user.id;
+  async getUpcomingHomework(@Param('studentId') studentId: string, @Request() req: any) {
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.homeworkService.getUpcomingHomework(studentId, guardianId);
   }
 
   @Get('homework/assignment/:assignmentId/student/:studentId')
-  getAssignmentDetails(
+  async getAssignmentDetails(
     @Param('assignmentId') assignmentId: string,
     @Param('studentId') studentId: string,
     @Request() req: any,
   ) {
-    const guardianId = req.user.guardianId || req.user.id;
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.homeworkService.getAssignmentDetails(assignmentId, studentId, guardianId);
   }
 
   // ===== TEACHER BOOKINGS =====
 
   @Get('bookings')
-  getMyBookings(@Request() req: any, @Query('status') status?: string) {
-    const guardianId = req.user.guardianId || req.user.id;
+  async getMyBookings(@Request() req: any, @Query('status') status?: string) {
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.bookingsService.getBookings({
       guardianId,
       status: status as any,
@@ -159,30 +159,38 @@ export class ParentPortalController {
   }
 
   @Post('bookings')
-  createBooking(@Body() createBookingDto: CreateBookingDto, @Request() req: any) {
-    const guardianId = req.user.guardianId || req.user.id;
+  async createBooking(@Body() createBookingDto: CreateBookingDto, @Request() req: any) {
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.bookingsService.createBooking(guardianId, createBookingDto);
   }
 
   @Get('bookings/:id')
-  getBooking(@Param('id') id: string) {
-    return this.bookingsService.getBooking(id);
+  async getBooking(@Param('id') id: string, @Request() req: any) {
+    return this.ownBooking(req, id);
   }
 
   @Post('bookings/:id/cancel')
-  cancelBooking(
+  async cancelBooking(
     @Param('id') id: string,
     @Body() cancelBookingDto: CancelBookingDto,
     @Request() req: any,
   ) {
-    return this.bookingsService.cancelBooking(id, req.user.id, cancelBookingDto);
+    await this.ownBooking(req, id);
+    return this.bookingsService.cancelBooking(id, req.user.userId || req.user.id, cancelBookingDto);
   }
 
   // ===== NOTIFICATIONS =====
 
   @Get('notifications')
-  getNotifications(@Request() req: any, @Query('limit') limit?: number) {
-    const guardianId = req.user.guardianId || req.user.id;
+  async getNotifications(@Request() req: any, @Query('limit') limit?: number) {
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
     return this.parentPortalService.getParentNotifications(guardianId, limit ? Number(limit) : 10);
+  }
+
+  private async ownBooking(req: any, id: string) {
+    const guardianId = await this.parentPortalService.guardianForUser(req.user);
+    const booking = await this.bookingsService.getBooking(id);
+    if (booking.guardianId !== guardianId) throw new ForbiddenException('This booking belongs to another family');
+    return booking;
   }
 }

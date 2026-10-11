@@ -1,4 +1,5 @@
 import { IsInt, IsString, IsBoolean, IsOptional, IsDateString, Min, Max } from 'class-validator';
+import { PartialType } from '@nestjs/swagger';
 
 export class CreateAvailabilityDto {
   @IsInt()
@@ -16,11 +17,11 @@ export class CreateAvailabilityDto {
   @Min(15)
   @Max(120)
   @IsOptional()
-  slotDuration?: number = 30; // minutes
+  slotDuration?: number; // minutes, defaults to 30 when creating
 
   @IsBoolean()
   @IsOptional()
-  isActive?: boolean = true;
+  isActive?: boolean;
 
   @IsDateString()
   @IsOptional()
@@ -30,3 +31,5 @@ export class CreateAvailabilityDto {
   @IsOptional()
   effectiveUntil?: string;
 }
+
+export class UpdateAvailabilityDto extends PartialType(CreateAvailabilityDto) {}

@@ -120,7 +120,7 @@ export function LiveBusMap({
               title="Focus on Child's Stop"
             >
               <MapPin size={13} className="text-slate-950" />
-              <span>Child's Stop</span>
+              <span>Child&apos;s Stop</span>
             </button>
           )}
 
@@ -354,7 +354,7 @@ export function LiveBusMap({
                 </text>
                 {isChild && (
                   <text x="0" y="16" fill="#fbbf24" fontSize="9" fontWeight="bold" textAnchor="middle">
-                    📍 YOUR CHILD'S STOP ({stop.scheduledTime})
+                    📍 YOUR CHILD&apos;S STOP ({stop.scheduledTime})
                   </text>
                 )}
               </g>

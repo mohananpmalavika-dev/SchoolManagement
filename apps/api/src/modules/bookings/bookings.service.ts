@@ -18,6 +18,53 @@ export class BookingsService {
     private tenantService: TenantService,
   ) {}
 
+  async accountScope(user: any): Promise<{guardianId?: string; teacherId?: string}> {
+    const tenantId = this.tenantService.requireTenantContext();
+    const userId = user.userId || user.id;
+    if (!userId) throw new ForbiddenException('Account is not linked');
+    if (user.role === 'PARENT') {
+      const guardian = await this.prisma.guardian.findFirst({where:{tenantId,userId},select:{id:true}});
+      if (!guardian) throw new ForbiddenException('Parent account is not linked');
+      return {guardianId:guardian.id};
+    }
+    if (['TEACHER','CLASS_TEACHER','EXAM_OFFICER'].includes(user.role)) return {teacherId:await this.teacherForUser(user)};
+    if (['SUPER_ADMIN','SCHOOL_OWNER','PRINCIPAL','DEPUTY_PRINCIPAL','SCHOOL_ADMIN'].includes(user.role)) return {};
+    throw new ForbiddenException('Meeting access is not available to your role');
+  }
+
+  async teacherForUser(user: any): Promise<string> {
+    const tenantId = this.tenantService.requireTenantContext();
+    const userId = user.userId || user.id;
+    if (!userId) throw new ForbiddenException('Teacher account is not linked');
+    const staff = await this.prisma.staff.findFirst({where:{tenantId,userId,isTeacher:true},select:{id:true}});
+    if (!staff) throw new ForbiddenException('Teacher account is not linked');
+    return staff.id;
+  }
+
+  async authorizeBooking(user: any, id: string) {
+    const scope = await this.accountScope(user);
+    const booking = await this.getBooking(id);
+    if (scope.guardianId && booking.guardianId !== scope.guardianId || scope.teacherId && booking.teacherId !== scope.teacherId) throw new ForbiddenException('This meeting belongs to another account');
+    return booking;
+  }
+
+  async authorizeAvailability(user: any, id: string) {
+    const scope = await this.accountScope(user);
+    if (scope.guardianId) throw new ForbiddenException('Only teachers can change availability');
+    const availability = await this.prisma.teacherAvailability.findFirst({where:{id,tenantId:this.tenantService.requireTenantContext(),...(scope.teacherId ? {teacherId:scope.teacherId} : {})}});
+    if (!availability) throw new NotFoundException('Availability not found');
+    return availability;
+  }
+
+  async getOptions(user: any) {
+    const scope = await this.accountScope(user);
+    const teachers = await this.prisma.staff.findMany({
+      where: {tenantId:this.tenantService.requireTenantContext(),isTeacher:true,status:'ACTIVE',...(scope.teacherId ? {id:scope.teacherId} : {})},
+      select: {id:true,firstName:true,lastName:true}, orderBy: {firstName:'asc'},
+    });
+    return {teachers:teachers.map(teacher=>({id:teacher.id,name:teacher.firstName+' '+teacher.lastName})),...scope};
+  }
+
   // ===== TEACHER AVAILABILITY =====
 
   async createAvailability(teacherId: string, dto: CreateAvailabilityDto) {
@@ -81,9 +128,7 @@ export class BookingsService {
       throw new NotFoundException('Availability not found');
     }
 
-    if (dto.startTime && dto.endTime) {
-      this.validateTimeSlot(dto.startTime, dto.endTime);
-    }
+    this.validateTimeSlot(dto.startTime ?? availability.startTime, dto.endTime ?? availability.endTime);
 
     return this.prisma.teacherAvailability.update({
       where: { id },
@@ -122,7 +167,7 @@ export class BookingsService {
 
     // Verify guardian has access to student
     const link = await this.prisma.guardianStudentLink.findFirst({
-      where: { guardianId, studentId: dto.studentId },
+      where: { guardianId, studentId: dto.studentId, guardian:{tenantId}, student:{tenantId,deletedAt:null} },
     });
 
     if (!link) {
@@ -131,7 +176,7 @@ export class BookingsService {
 
     // Verify teacher exists
     const teacher = await this.prisma.staff.findFirst({
-      where: { id: dto.teacherId, tenantId, isTeacher: true },
+      where: { id: dto.teacherId, tenantId, isTeacher: true, status:'ACTIVE' },
     });
 
     if (!teacher) {
@@ -140,12 +185,18 @@ export class BookingsService {
 
     // Validate time slot
     this.validateTimeSlot(dto.startTime, dto.endTime);
+    const bookingDate = this.bookingDay(dto.bookingDate);
+    const today = new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Nairobi'}).format(new Date());
+    if (dto.bookingDate < today) throw new BadRequestException('Choose today or a future meeting date');
+    const slots = await this.getAvailableSlots(dto.teacherId,dto.bookingDate);
+    if (!slots.some(slot=>slot.startTime===dto.startTime&&slot.endTime===dto.endTime)) throw new ConflictException('This time is not available. Refresh the meeting slots.');
 
-    const bookingDate = new Date(dto.bookingDate);
-    bookingDate.setHours(0, 0, 0, 0);
+    return this.prisma.$transaction(async tx => {
+    // Serialize reservations for this teacher so simultaneous requests cannot double-book.
+    await tx.staff.update({where:{id:dto.teacherId,tenantId},data:{updatedAt:new Date()}});
 
     // Check for conflicts
-    const conflict = await this.prisma.parentTeacherBooking.findFirst({
+    const conflict = await tx.parentTeacherBooking.findFirst({
       where: {
         tenantId,
         teacherId: dto.teacherId,
@@ -180,7 +231,7 @@ export class BookingsService {
       throw new ConflictException('This time slot is already booked');
     }
 
-    const booking = await this.prisma.parentTeacherBooking.create({
+    const booking = await tx.parentTeacherBooking.create({
       data: {
         tenantId,
         guardianId,
@@ -192,14 +243,13 @@ export class BookingsService {
         purpose: dto.purpose,
         topic: dto.topic,
         status: BookingStatus.PENDING,
-        meetingType: dto.meetingType || 'IN_PERSON',
-        location: dto.location,
-        meetingLink: dto.meetingLink,
+        meetingType: 'IN_PERSON',
         parentNotes: dto.parentNotes,
       },
     });
 
     return booking;
+    });
   }
 
   async getBookings(filters?: {
@@ -242,6 +292,7 @@ export class BookingsService {
 
     const bookings = await this.prisma.parentTeacherBooking.findMany({
       where,
+      include: {student:{select:{firstName:true,lastName:true}},guardian:{select:{firstName:true,lastName:true}}},
       orderBy: [
         { bookingDate: 'asc' },
         { startTime: 'asc' },
@@ -354,8 +405,8 @@ export class BookingsService {
   async getAvailableSlots(teacherId: string, date: string) {
     const tenantId = this.tenantService.requireTenantContext();
 
-    const bookingDate = new Date(date);
-    const dayOfWeek = bookingDate.getDay() || 7; // Convert Sunday from 0 to 7
+    const bookingDate = this.bookingDay(date);
+    const dayOfWeek = bookingDate.getUTCDay() || 7; // Convert Sunday from 0 to 7
 
     // Get teacher's availability for this day
     const availability = await this.prisma.teacherAvailability.findMany({
@@ -428,10 +479,20 @@ export class BookingsService {
       }
     }
 
-    return slots;
+    const clock = new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Nairobi',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const time = new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Nairobi',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date());
+    const unique = new Map(slots.filter(slot=>date>clock||date===clock&&slot.startTime>time).map(slot=>[slot.startTime+'-'+slot.endTime,slot]));
+    return Array.from(unique.values()).sort((a,b)=>a.startTime.localeCompare(b.startTime));
   }
 
   // Helper methods
+
+  private bookingDay(date: string): Date {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new BadRequestException('Choose a valid meeting date');
+    const result=new Date(date+'T00:00:00.000Z');
+    if (!Number.isFinite(result.getTime()) || result.toISOString().slice(0,10)!==date) throw new BadRequestException('Choose a valid meeting date');
+    return result;
+  }
 
   private validateTimeSlot(startTime: string, endTime: string) {
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;

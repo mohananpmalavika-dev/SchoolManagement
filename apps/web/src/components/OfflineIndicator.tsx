@@ -29,7 +29,7 @@ export function OfflineIndicator() {
               />
             </svg>
             <div className="flex-1">
-              <p className="font-medium">You're offline</p>
+              <p className="font-medium">You&apos;re offline</p>
               <p className="text-sm mt-0.5">
                 Some features may be unavailable. Cached data is being shown.
               </p>

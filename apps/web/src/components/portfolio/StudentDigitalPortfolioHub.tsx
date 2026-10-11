@@ -579,7 +579,7 @@ export function StudentDigitalPortfolioHub({
                 CBC & Holistic Student Ledger
               </h4>
               <p className="text-xs text-gray-600 leading-relaxed">
-                This digital profile unifies academic grading with co-curricular prowess, sports participation, and community leadership over the student's entire school tenure.
+                This digital profile unifies academic grading with co-curricular prowess, sports participation, and community leadership over the student&apos;s entire school tenure.
               </p>
               <div className="mt-4 space-y-2 text-xs">
                 <div className="flex justify-between text-gray-700">
@@ -817,7 +817,7 @@ export function StudentDigitalPortfolioHub({
                   <span className="text-[11px] font-bold text-gray-700 block mb-1">
                     Teacher Feedback & Assessment:
                   </span>
-                  <p className="text-xs text-gray-600 italic">"{prj.teacherFeedback}"</p>
+                  <p className="text-xs text-gray-600 italic">&quot;{prj.teacherFeedback}&quot;</p>
                 </div>
               </div>
             ))}

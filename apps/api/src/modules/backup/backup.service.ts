@@ -94,9 +94,9 @@ export class BackupService {
       this.dbConfig = {
         host: url.hostname,
         port: url.port || '5432',
-        database: url.pathname.slice(1),
-        user: url.username,
-        password: url.password,
+        database: decodeURIComponent(url.pathname.slice(1)),
+        user: decodeURIComponent(url.username),
+        password: decodeURIComponent(url.password),
       };
     } else {
       this.dbConfig = {
@@ -203,7 +203,7 @@ export class BackupService {
     this.logger.log(`Verifying backup: ${backupId}`);
 
     try {
-      const filename = backupId.includes('.') ? backupId : `${backupId}.sql.gz.enc`;
+      const filename = this.backupFilename(backupId);
       const localPath = path.join(this.localBackupDir, filename);
 
       // Download from S3 if not local
@@ -234,7 +234,7 @@ export class BackupService {
       await pipeline(readStream, gunzip, writeStream);
 
       // Clean up verification files
-      await execAsync(`rm -f "${decryptedFile}" "${decompressedFile}"`);
+      for (const file of [decryptedFile, decompressedFile]) if (existsSync(file)) unlinkSync(file);
 
       this.logger.log(`Backup verification successful: ${backupId}`);
       return true;
@@ -253,7 +253,7 @@ export class BackupService {
     this.logger.warn(`Starting database restore from backup: ${backupId}`);
 
     try {
-      const filename = backupId.includes('.') ? backupId : `${backupId}.sql.gz.enc`;
+      const filename = this.backupFilename(backupId);
       const localPath = path.join(this.localBackupDir, filename);
 
       // Download from S3 if not local
@@ -384,6 +384,11 @@ export class BackupService {
 
   // ========== PRIVATE HELPER METHODS ==========
 
+  private backupFilename(backupId: string): string {
+    if (!/^[A-Za-z0-9_-]+(?:\.sql\.gz\.enc|\.enc)?$/.test(backupId)) throw new Error('Invalid backup identifier');
+    return backupId.endsWith('.enc') ? backupId : `${backupId}.sql.gz.enc`;
+  }
+
   /**
    * Encrypt file using AES-256-CBC
    */
@@ -404,16 +409,14 @@ export class BackupService {
    * Decrypt file using AES-256-CBC
    */
   private async decryptFile(inputPath: string, outputPath: string): Promise<void> {
-    const input = createReadStream(inputPath);
-    const output = createWriteStream(outputPath);
-
     // Read IV from first 16 bytes
     const iv = await this.readBytes(inputPath, 16);
+    if (iv.length !== 16) throw new Error('Backup file is truncated');
     const decipher = createDecipheriv('aes-256-cbc', this.encryptionKey, iv);
 
     // Skip first 16 bytes (IV) when decrypting
     const encryptedStream = createReadStream(inputPath, { start: 16 });
-
+    const output = createWriteStream(outputPath);
     await pipeline(encryptedStream, decipher, output);
   }
 

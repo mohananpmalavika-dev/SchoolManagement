@@ -483,23 +483,13 @@ export class StudentsService {
   }
 
   async resolveStudentForUser(user: any) {
-    const tenantId = user.tenantId || this.tenantService.requireTenantContext();
-    const student =
-      (await this.prisma.student.findFirst({
-        where: {
-          tenantId,
-          deletedAt: null,
-          OR: [{ email: user.email }, { id: user.id }],
-        },
-        include: {
-          currentClass: true,
-          currentStream: true,
-        },
-      })) ||
-      (await this.prisma.student.findFirst({
-        where: { tenantId, deletedAt: null },
-        include: { currentClass: true, currentStream: true },
-      }));
+    const tenantId = this.tenantService.requireTenantContext();
+    const userId = user.userId || user.id;
+    if (!userId) throw new NotFoundException('Student account is not linked');
+    const student = await this.prisma.student.findFirst({
+      where: { tenantId, userId, deletedAt: null },
+      include: { currentClass: true, currentStream: true },
+    });
 
     if (!student) {
       throw new NotFoundException('Student profile not found');
@@ -508,9 +498,11 @@ export class StudentsService {
   }
 
   async getMyChildren(user: any) {
-    const tenantId = user.tenantId || this.tenantService.requireTenantContext();
+    const tenantId = this.tenantService.requireTenantContext();
+    const userId = user.userId || user.id;
+    if (!userId) return [];
     const guardian = await this.prisma.guardian.findFirst({
-      where: { tenantId, email: user.email },
+      where: { tenantId, userId },
       include: {
         studentLinks: {
           include: {
@@ -523,7 +515,7 @@ export class StudentsService {
     });
 
     if (guardian && guardian.studentLinks && guardian.studentLinks.length > 0) {
-      return guardian.studentLinks.map((link) => ({
+      return guardian.studentLinks.filter(link => !link.student.deletedAt && link.student.tenantId === tenantId).map((link) => ({
         id: link.student.id,
         firstName: link.student.firstName,
         lastName: link.student.lastName,
@@ -537,21 +529,7 @@ export class StudentsService {
       }));
     }
 
-    const students = await this.prisma.student.findMany({
-      where: { tenantId, deletedAt: null },
-      include: { currentClass: true, currentStream: true },
-      take: 5,
-    });
-    return students.map((s) => ({
-      id: s.id,
-      firstName: s.firstName,
-      lastName: s.lastName,
-      admissionNumber: s.admissionNumber,
-      class: s.currentClass
-        ? { name: s.currentClass.name }
-        : { name: 'Class' },
-      stream: s.currentStream ? { name: s.currentStream.name } : null,
-    }));
+    return [];
   }
 
   async getMe(user: any) {
@@ -564,7 +542,7 @@ export class StudentsService {
       ...student,
       class: student.currentClass
         ? { id: student.currentClass.id, name: student.currentClass.name }
-        : { id: 'c1', name: 'Class' },
+        : null,
       stream: student.currentStream
         ? { id: student.currentStream.id, name: student.currentStream.name }
         : null,
@@ -665,7 +643,7 @@ export class StudentsService {
           ? Math.round(
               ((count('PRESENT') + count('LATE')) / records.length) * 100,
             )
-          : 100,
+          : 0,
       },
     };
   }
@@ -682,6 +660,7 @@ export class StudentsService {
       orderBy: { createdAt: 'desc' },
     });
     return {
+      overallAverage: rows.length ? Math.round(rows.reduce((sum, grade) => sum + grade.percentage, 0) / rows.length) : null,
       subjects: rows.map((g) => ({
         id: g.subjectId,
         name: g.subject.name,
@@ -718,21 +697,22 @@ export class StudentsService {
   }
 
   async getMeAssignments(user: any) {
+    const student = await this.resolveStudentForUser(user);
+    if (!student.currentClassId) return { pending: [], completed: [] };
+    const rows = await this.prisma.assignment.findMany({
+      where: { tenantId: student.tenantId, classId: student.currentClassId },
+      include: { subject: true, submissions: { where: { tenantId: student.tenantId, studentId: student.id } } },
+      orderBy: { dueDate: 'asc' },
+    });
+    const assignments = rows.map(item => ({
+      id: item.id, title: item.title, subject: item.subject.name,
+      assignedDate: item.createdAt, dueDate: item.dueDate, description: item.description,
+      maxMarks: item.maxMarks, status: item.submissions[0]?.status || 'PENDING',
+      submission: item.submissions[0] || null,
+    }));
     return {
-      pending: [
-        {
-          id: 'asg-1',
-          title: 'Mathematics CBC Practice Task',
-          subject: 'Mathematics',
-          assignedDate: new Date(Date.now() - 86400000).toISOString(),
-          dueDate: new Date(Date.now() + 86400000 * 2).toISOString(),
-          description: 'Complete word problems exercise in workbook page 45.',
-          status: 'PENDING',
-          maxMarks: 20,
-          teacher: 'Class Teacher',
-        },
-      ],
-      completed: [],
+      pending: assignments.filter(item => !item.submission),
+      completed: assignments.filter(item => item.submission),
     };
   }
 
@@ -744,26 +724,10 @@ export class StudentsService {
       orderBy: { createdAt: 'desc' },
       take: 10,
     });
-    return {
-      curriculumMaterials: [
-        {
-          id: 'mat-1',
-          title: 'CBC Curriculum Guide & Reference Notes',
-          subject: 'General',
-          type: 'PDF',
-          size: '2.5 MB',
-          updatedAt: new Date().toISOString(),
-          downloadUrl: '#',
-        },
-      ],
-      borrowedBooks: borrowings.map((b) => ({
-        id: b.id,
-        title: b.book.title,
-        author: b.book.author,
-        borrowedDate: b.borrowDate.toISOString(),
-        dueDate: b.dueDate.toISOString(),
-        status: b.status,
-      })),
-    };
+    const materials = await this.prisma.learningMaterial.findMany({
+      where: { tenantId: student.tenantId, OR: [{classId: null}, ...(student.currentClassId ? [{classId: student.currentClassId}] : [])] },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { curriculumMaterials: materials, borrowedBooks: borrowings };
   }
 }
