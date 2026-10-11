@@ -10,6 +10,7 @@ import { MediaService } from '../media/media.service';
 import { BehaviorService } from '../behavior/behavior.service';
 import { HomeworkService } from '../homework/homework.service';
 import { BookingsService } from '../bookings/bookings.service';
+import { BookingStatus } from '../bookings/dto/create-booking.dto';
 
 @Injectable()
 export class ParentPortalService {
@@ -126,7 +127,7 @@ export class ParentPortalService {
       this.bookingsService.getBookings({
         guardianId,
         studentId,
-        status: 'CONFIRMED',
+        status: BookingStatus.CONFIRMED,
         startDate: new Date().toISOString(),
       }),
     ]);

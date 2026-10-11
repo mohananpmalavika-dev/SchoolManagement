@@ -58,6 +58,16 @@ export class MediaController {
     return this.mediaService.findOne(id);
   }
 
+  @Get(':id/presigned-url')
+  @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN, UserRole.PARENT)
+  async getPresignedUrl(
+    @Param('id') id: string,
+    @Query('expiresIn') expiresIn?: string,
+  ) {
+    const expires = expiresIn ? parseInt(expiresIn) : 3600;
+    return this.mediaService.getPresignedUrl(id, expires);
+  }
+
   @Delete(':id')
   @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
   remove(@Param('id') id: string) {

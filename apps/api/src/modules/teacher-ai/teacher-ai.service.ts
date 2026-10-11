@@ -250,8 +250,10 @@ export class TeacherAIService {
       const numRaw = parseInt(attMatch[2], 10);
       if (!isNaN(numRaw)) {
         attendanceThreshold = numRaw;
-        if (['<', '<=', 'below', 'under', 'less than'].includes(opRaw)) attendanceOperator = '<';
-        else if (['>', '>=', 'above', 'over', 'greater than'].includes(opRaw)) attendanceOperator = '>';
+        if (['<', 'below', 'under', 'less than'].includes(opRaw)) attendanceOperator = '<';
+        else if (opRaw === '<=') attendanceOperator = '<=';
+        else if (['>', 'above', 'over', 'greater than'].includes(opRaw)) attendanceOperator = '>';
+        else if (opRaw === '>=') attendanceOperator = '>=';
         else attendanceOperator = '<';
         parsedFilters.push({
           label: 'Attendance',
@@ -357,7 +359,13 @@ export class TeacherAIService {
         admissionNumber: true,
         currentClassId: true,
         currentClass: { select: { id: true, name: true } },
-        parent: { select: { firstName: true, lastName: true, phone: true, email: true } },
+        guardianLinks: {
+          select: {
+            guardian: {
+              select: { firstName: true, lastName: true, phone: true, email: true },
+            },
+          },
+        },
         attendanceRecords: {
           where: { tenantId, date: { gte: attendanceStart, lte: now } },
           select: { date: true, status: true },
@@ -415,7 +423,7 @@ export class TeacherAIService {
         riskLevel = 'HIGH';
         reasons.push(`Attendance critically low at ${attendanceRate}% (${attendanceDays} recorded days).`);
       } else if (attendanceRate !== null && attendanceRate < 82) {
-        if (riskLevel !== 'HIGH') riskLevel = 'MODERATE';
+        riskLevel = 'MODERATE';
         reasons.push(`Attendance dropping below 82% (${attendanceRate}%).`);
       }
 
@@ -423,7 +431,7 @@ export class TeacherAIService {
         riskLevel = 'HIGH';
         reasons.push(`Academic average critically low at ${latestAverage}%.`);
       } else if (latestAverage !== null && latestAverage < 50) {
-        if (riskLevel !== 'HIGH') riskLevel = 'MODERATE';
+        if ((riskLevel as string) !== 'HIGH') riskLevel = 'MODERATE';
         reasons.push(`Academic average needs improvement (${latestAverage}%).`);
       }
 
@@ -467,6 +475,7 @@ export class TeacherAIService {
       }
 
       if (passes) {
+        const primaryGuardian = student.guardianLinks[0]?.guardian;
         matches.push({
           studentId: student.id,
           name: `${student.firstName} ${student.lastName}`,
@@ -479,9 +488,9 @@ export class TeacherAIService {
           outstandingBalance,
           overdueBalance,
           riskLevel,
-          parentName: student.parent ? `${student.parent.firstName} ${student.parent.lastName}` : undefined,
-          parentPhone: student.parent?.phone || undefined,
-          parentEmail: student.parent?.email || undefined,
+          parentName: primaryGuardian ? `${primaryGuardian.firstName} ${primaryGuardian.lastName}` : undefined,
+          parentPhone: primaryGuardian?.phone || undefined,
+          parentEmail: primaryGuardian?.email || undefined,
           reasons: reasons.length ? reasons : ['Matches current search parameters.'],
         });
       }

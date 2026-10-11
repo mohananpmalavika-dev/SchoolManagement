@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { BullModule } from '@nestjs/bull';
 import { ScheduleModule } from '@nestjs/schedule';
-import { PrismaModule } from '@krypton/database';
+import { DatabaseModule } from '../../database/database.module';
 
 // Services
 import { NemisService } from './services/nemis.service';
@@ -21,7 +21,7 @@ import { GovernmentSchedulerService } from './jobs/government-scheduler.service'
 @Module({
   imports: [
     ConfigModule,
-    PrismaModule,
+    DatabaseModule,
     ScheduleModule.forRoot(),
     BullModule.registerQueue({
       name: 'government-sync',

@@ -42,7 +42,7 @@ export class ParentEngagementNotificationsService {
         },
       });
 
-      if (!activity || !activity.isVisibleToParents) {
+      if (!activity || !activity.isVisibleToParents || !activity.student) {
         return;
       }
 
@@ -339,7 +339,8 @@ export class ParentEngagementNotificationsService {
 
       // Send digest to each guardian
       for (const [studentId, studentActivities] of byStudent.entries()) {
-        const student = studentActivities[0].student;
+        const student = studentActivities[0]?.student;
+        if (!student) continue;
         const primaryGuardian = student.guardianLinks[0]?.guardian;
 
         if (!primaryGuardian || !primaryGuardian.phone) {

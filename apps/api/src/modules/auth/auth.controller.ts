@@ -6,6 +6,7 @@ import {PasswordResetService} from './services/password-reset.service';
 import {MfaService} from './services/mfa.service';
 import {Public} from '../../common/decorators/public.decorator';
 import {Roles} from '../../common/decorators/roles.decorator';
+import {UserRole} from '@krypton/types';
 import {LoginDto} from './dto/login.dto';
 import {RefreshTokenDto} from './dto/refresh-token.dto';
 import {VerifyMfaTokenDto, DisableMfaDto, RegenerateBackupCodesDto} from './dto/mfa.dto';
@@ -34,6 +35,11 @@ class VerifyResetTokenDto {
  @IsString() token:string;
 }
 
+class VerifyLoginMfaDto {
+ @IsString() mfaSessionToken:string;
+ @IsString() code:string;
+}
+
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -48,6 +54,14 @@ export class AuthController {
  @ApiResponse({ status: 200, description: 'Successfully authenticated' })
  @ApiResponse({ status: 401, description: 'Invalid credentials or account locked' })
  login(@Body() dto:LoginDto){return this.auth.login(dto);}
+
+ @Public() @Post('mfa/verify-login') @HttpCode(200) @Throttle({default:{limit:10,ttl:60000}})
+ @ApiOperation({ summary: 'Verify MFA code during login and obtain access tokens' })
+ @ApiResponse({ status: 200, description: 'Successfully authenticated via MFA' })
+ @ApiResponse({ status: 401, description: 'Invalid or expired MFA code' })
+ verifyLoginMfa(@Body() dto:VerifyLoginMfaDto){
+   return this.auth.verifyMfaLogin(dto.mfaSessionToken, dto.code);
+ }
  
  @Public() @Post('refresh') @HttpCode(200)
  @ApiOperation({ summary: 'Refresh access token' })
@@ -66,7 +80,7 @@ export class AuthController {
  password(@Request() req:any,@Body() dto:ChangePasswordDto){return this.auth.changePassword(req.user.userId,dto.currentPassword,dto.newPassword);}
  
  @Post('admin/unlock-account') @HttpCode(200)
- @Roles('SUPER_ADMIN', 'PRINCIPAL')
+ @Roles(UserRole.SUPER_ADMIN, UserRole.PRINCIPAL)
  @ApiOperation({ summary: 'Unlock a locked account (admin only)' })
  @ApiResponse({ status: 200, description: 'Account unlocked successfully' })
  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
@@ -75,7 +89,7 @@ export class AuthController {
  }
  
  @Get('admin/lockout-status/:email')
- @Roles('SUPER_ADMIN', 'PRINCIPAL')
+ @Roles(UserRole.SUPER_ADMIN, UserRole.PRINCIPAL)
  @ApiOperation({ summary: 'Check lockout status for an email (admin only)' })
  @ApiResponse({ status: 200, description: 'Lockout status retrieved' })
  checkLockoutStatus(@Param('email') email:string){
@@ -96,7 +110,7 @@ export class AuthController {
  @ApiResponse({ status: 200, description: 'Token is valid' })
  @ApiResponse({ status: 400, description: 'Token is invalid or expired' })
  verifyResetToken(@Body() dto:VerifyResetTokenDto){
-   return this.passwordReset.verifyToken(dto.token);
+   return this.passwordReset.verifyResetToken(dto.token);
  }
  
  @Public() @Post('password-reset/reset') @HttpCode(200)

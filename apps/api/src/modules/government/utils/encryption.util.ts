@@ -45,7 +45,7 @@ export class EncryptionUtil {
         Buffer.from(encrypted, 'hex'),
         tag,
       ]).toString('base64');
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Encryption failed: ${error.message}`);
     }
   }
@@ -70,7 +70,7 @@ export class EncryptionUtil {
       decrypted += decipher.final('utf8');
 
       return decrypted;
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Decryption failed: ${error.message}`);
     }
   }

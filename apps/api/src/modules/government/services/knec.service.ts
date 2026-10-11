@@ -1,6 +1,6 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '@krypton/database';
+import { PrismaService } from '../../../database/prisma.service';
 import { 
   KnecSyncType, 
   SyncStatus, 
@@ -51,7 +51,7 @@ export class KnecService {
 
       this.logger.log(`KNEC integration initialized for tenant: ${tenantId}`);
       return integration;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Failed to initialize KNEC integration: ${error.message}`);
       throw new HttpException(
         'Failed to initialize KNEC integration',
@@ -110,7 +110,7 @@ export class KnecService {
           );
           results.registrations.push(registration);
           results.succeeded++;
-        } catch (error) {
+        } catch (error: any) {
           results.failed++;
           results.errors.push({
             studentId,
@@ -131,7 +131,7 @@ export class KnecService {
         success: true,
         ...results,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Candidate registration failed: ${error.message}`);
       await this.updateSyncLog(syncLog.id, {
         status: SyncStatus.FAILED,
@@ -186,7 +186,7 @@ export class KnecService {
         national_id: student.nationalId,
         birth_cert_number: student.birthCertNumber,
       },
-      subjects: subjects.map(s => s.code),
+      subjects: subjects.map((s: any) => s.code),
       special_needs: null, // TODO: Implement special needs tracking
     };
 
@@ -220,7 +220,7 @@ export class KnecService {
         examLevel,
         candidateNumber: response.candidate_number,
         indexNumber: response.index_number,
-        subjects: subjects.map(s => s.code),
+        subjects: subjects.map((s: any) => s.code),
         registrationDate: new Date(),
         registrationStatus: RegistrationStatus.SUBMITTED,
         syncStatus: SyncStatus.COMPLETED,
@@ -248,7 +248,6 @@ export class KnecService {
     );
 
     try {
-      // Get all registrations for this exam
       const registrations = await this.prisma.knecExamRegistration.findMany({
         where: {
           tenantId,
@@ -256,10 +255,14 @@ export class KnecService {
           examLevel,
           registrationStatus: RegistrationStatus.APPROVED,
         },
-        include: {
-          student: true,
-        },
       });
+
+      const studentIds = registrations.map(r => r.studentId);
+      const students = await this.prisma.student.findMany({
+        where: { id: { in: studentIds } },
+        select: { id: true, firstName: true, lastName: true },
+      });
+      const studentMap = new Map(students.map(s => [s.id, `${s.firstName} ${s.lastName}`]));
 
       const results = {
         attempted: registrations.length,
@@ -277,11 +280,11 @@ export class KnecService {
           );
           results.downloaded.push(result);
           results.succeeded++;
-        } catch (error) {
+        } catch (error: any) {
           results.failed++;
           results.errors.push({
             candidateNumber: registration.candidateNumber,
-            studentName: `${registration.student?.firstName} ${registration.student?.lastName}`,
+            studentName: studentMap.get(registration.studentId) || 'Unknown Student',
             error: error.message,
           });
         }
@@ -299,7 +302,7 @@ export class KnecService {
         success: true,
         ...results,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Results download failed: ${error.message}`);
       await this.updateSyncLog(syncLog.id, {
         status: SyncStatus.FAILED,
@@ -429,7 +432,7 @@ export class KnecService {
         success: true,
         timetable: response.timetable,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Timetable download failed: ${error.message}`);
       await this.updateSyncLog(syncLog.id, {
         status: SyncStatus.FAILED,
@@ -469,26 +472,33 @@ export class KnecService {
     if (examYear) where.examYear = examYear;
     if (examLevel) where.examLevel = examLevel;
 
-    return this.prisma.knecExamRegistration.findMany({
+    const registrations = await this.prisma.knecExamRegistration.findMany({
       where,
-      include: {
-        student: {
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const studentIds = registrations.map(r => r.studentId);
+    const students = await this.prisma.student.findMany({
+      where: { id: { in: studentIds } },
+      select: {
+        id: true,
+        admissionNumber: true,
+        firstName: true,
+        middleName: true,
+        lastName: true,
+        currentClass: {
           select: {
-            id: true,
-            admissionNumber: true,
-            firstName: true,
-            middleName: true,
-            lastName: true,
-            currentClass: {
-              select: {
-                name: true,
-              },
-            },
+            name: true,
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
     });
+    const studentMap = new Map(students.map(s => [s.id, s]));
+
+    return registrations.map(r => ({
+      ...r,
+      student: studentMap.get(r.studentId) || null,
+    }));
   }
 
   /**
@@ -539,7 +549,7 @@ export class KnecService {
         success: true,
         reportId: response.report_id,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Irregularity report submission failed: ${error.message}`);
       await this.updateSyncLog(syncLog.id, {
         status: SyncStatus.FAILED,

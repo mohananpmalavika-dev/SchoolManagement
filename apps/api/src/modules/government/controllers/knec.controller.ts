@@ -37,7 +37,7 @@ export class KnecController {
   async initialize(
     @Request() req: any,
     @Body() dto: InitializeKnecDto,
-  ): Promise<KnecIntegrationResponseDto> {
+  ): Promise<any> {
     const tenantId = req.user.tenantId;
     return this.knecService.initializeIntegration(
       tenantId,
@@ -50,7 +50,7 @@ export class KnecController {
   @Get('integration')
   @ApiOperation({ summary: 'Get KNEC integration settings' })
   @ApiResponse({ status: 200, description: 'Integration settings retrieved' })
-  async getIntegration(@Request() req: any): Promise<KnecIntegrationResponseDto> {
+  async getIntegration(@Request() req: any): Promise<any> {
     const tenantId = req.user.tenantId;
     return this.knecService.getIntegration(tenantId);
   }
@@ -61,7 +61,7 @@ export class KnecController {
   async updateIntegration(
     @Request() req: any,
     @Body() dto: UpdateKnecConfigDto,
-  ): Promise<KnecIntegrationResponseDto> {
+  ): Promise<any> {
     const tenantId = req.user.tenantId;
     // Update logic would go here
     return this.knecService.getIntegration(tenantId);
@@ -132,7 +132,7 @@ export class KnecController {
   async getRegistrations(
     @Request() req: any,
     @Query() query: GetRegistrationsQueryDto,
-  ): Promise<KnecRegistrationResponseDto[]> {
+  ): Promise<any> {
     const tenantId = req.user.tenantId;
     return this.knecService.getRegistrations(
       tenantId,

@@ -6,11 +6,16 @@ import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 
+import { AccountLockoutService } from '../modules/auth/services/account-lockout.service';
+import { MfaService } from '../modules/auth/services/mfa.service';
+
 describe('AuthService Security Suite', () => {
   let authService: AuthService;
   let prisma: any;
   let jwt: any;
   let config: any;
+  let accountLockout: any;
+  let mfa: any;
 
   const mockUser = {
     id: 'user_123',
@@ -52,12 +57,24 @@ describe('AuthService Security Suite', () => {
       getOrThrow: jest.fn().mockImplementation((key) => `secret_for_${key}`),
     };
 
+    accountLockout = {
+      isLocked: jest.fn().mockResolvedValue({ isLocked: false, remainingAttempts: 5 }),
+      recordFailedAttempt: jest.fn().mockResolvedValue(false),
+      clearAttempts: jest.fn().mockResolvedValue(undefined),
+    };
+
+    mfa = {
+      verifyMfaToken: jest.fn().mockResolvedValue(true),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwt },
         { provide: ConfigService, useValue: config },
+        { provide: AccountLockoutService, useValue: accountLockout },
+        { provide: MfaService, useValue: mfa },
       ],
     }).compile();
 
@@ -126,6 +143,50 @@ describe('AuthService Security Suite', () => {
           email: 'nonexistent@school.com',
           password: 'Password123!',
         }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should issue MFA challenge session token when user has mfaEnabled', async () => {
+      const mfaUser = { ...mockUser, mfaEnabled: true };
+      prisma.user.findMany.mockResolvedValue([mfaUser]);
+
+      const result = await authService.login({
+        email: 'admin@school.com',
+        password: 'CorrectPassword123!',
+      });
+
+      expect(result).toHaveProperty('requiresMfa', true);
+      expect(result).toHaveProperty('mfaSessionToken');
+      expect((result as any).accessToken).toBeUndefined();
+    });
+
+    it('should complete login and issue full access tokens upon successful MFA code verification', async () => {
+      jwt.verify.mockReturnValue({
+        sub: mockUser.id,
+        tenantId: mockUser.tenantId,
+        type: 'mfa_pending',
+      });
+      mfa.verifyMfaToken.mockResolvedValue(true);
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.update.mockResolvedValue(mockUser);
+
+      const result = await authService.verifyMfaLogin('valid_mfa_token', '123456');
+
+      expect(result).toHaveProperty('accessToken');
+      expect(result).toHaveProperty('refreshToken');
+      expect(result).toHaveProperty('user');
+    });
+
+    it('should reject invalid MFA verification code during login', async () => {
+      jwt.verify.mockReturnValue({
+        sub: mockUser.id,
+        tenantId: mockUser.tenantId,
+        type: 'mfa_pending',
+      });
+      mfa.verifyMfaToken.mockResolvedValue(false);
+
+      await expect(
+        authService.verifyMfaLogin('valid_mfa_token', 'wrong_code')
       ).rejects.toThrow(UnauthorizedException);
     });
   });

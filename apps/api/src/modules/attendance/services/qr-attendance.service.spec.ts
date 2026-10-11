@@ -29,7 +29,7 @@ describe('QRAttendanceService', () => {
     student: {
       findUnique: jest.fn(),
     },
-    attendance: {
+    attendanceRecord: {
       create: jest.fn(),
     },
   };
@@ -148,8 +148,8 @@ describe('QRAttendanceService', () => {
       firstName: 'John',
       lastName: 'Doe',
       admissionNumber: 'ADM001',
-      classId: 'class-123',
-      streamId: 'stream-456',
+      currentClassId: 'class-123',
+      currentStreamId: 'stream-456',
       tenantId: 'tenant-789',
       class: { name: 'Grade 5A' },
     };
@@ -161,7 +161,7 @@ describe('QRAttendanceService', () => {
       );
       mockRedisService.exists.mockResolvedValue(false);
       mockPrismaService.student.findUnique.mockResolvedValue(mockStudent);
-      mockPrismaService.attendance.create.mockResolvedValue({
+      mockPrismaService.attendanceRecord.create.mockResolvedValue({
         id: 'attendance-001',
         studentId: mockStudent.id,
         status: 'PRESENT',
@@ -176,7 +176,7 @@ describe('QRAttendanceService', () => {
       expect(result.success).toBe(true);
       expect(result.attendanceId).toBe('attendance-001');
       expect(result.student?.name).toBe('John Doe');
-      expect(mockPrismaService.attendance.create).toHaveBeenCalled();
+      expect(mockPrismaService.attendanceRecord.create).toHaveBeenCalled();
     });
 
     it('should reject QR from different tenant', async () => {
@@ -203,7 +203,7 @@ describe('QRAttendanceService', () => {
       );
       mockPrismaService.student.findUnique.mockResolvedValue({
         ...mockStudent,
-        classId: 'different-class',
+        currentClassId: 'different-class',
       });
 
       await expect(
@@ -229,7 +229,7 @@ describe('QRAttendanceService', () => {
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Already marked present');
-      expect(mockPrismaService.attendance.create).not.toHaveBeenCalled();
+      expect(mockPrismaService.attendanceRecord.create).not.toHaveBeenCalled();
     });
 
     it('should reject expired token', async () => {

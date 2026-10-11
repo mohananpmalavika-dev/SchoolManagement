@@ -1,6 +1,6 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '@krypton/database';
+import { PrismaService } from '../../../database/prisma.service';
 import { 
   NemisSyncType, 
   SyncStatus, 
@@ -56,7 +56,7 @@ export class NemisService {
 
       this.logger.log(`NEMIS integration initialized for tenant: ${tenantId}`);
       return integration;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Failed to initialize NEMIS integration: ${error.message}`);
       throw new HttpException(
         'Failed to initialize NEMIS integration',
@@ -119,7 +119,7 @@ export class NemisService {
         try {
           await this.syncStudentToNemis(integration, student);
           syncResults.succeeded++;
-        } catch (error) {
+        } catch (error: any) {
           syncResults.failed++;
           syncResults.errors.push({
             studentId: student.id,
@@ -151,7 +151,7 @@ export class NemisService {
         success: true,
         ...syncResults,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Student enrollment sync failed: ${error.message}`);
       await this.updateSyncLog(syncLog.id, {
         status: SyncStatus.FAILED,
@@ -269,7 +269,7 @@ export class NemisService {
         try {
           await this.syncTeacherToNemis(integration, teacher);
           syncResults.succeeded++;
-        } catch (error) {
+        } catch (error: any) {
           syncResults.failed++;
           syncResults.errors.push({
             staffId: teacher.id,
@@ -298,7 +298,7 @@ export class NemisService {
         success: true,
         ...syncResults,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Teacher data sync failed: ${error.message}`);
       await this.updateSyncLog(syncLog.id, {
         status: SyncStatus.FAILED,
@@ -424,7 +424,7 @@ export class NemisService {
       });
 
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`School profile sync failed: ${error.message}`);
       await this.updateSyncLog(syncLog.id, {
         status: SyncStatus.FAILED,
@@ -466,7 +466,7 @@ export class NemisService {
       // Group by date and calculate statistics
       const attendanceByDate = new Map<string, any>();
       
-      attendanceRecords.forEach((record) => {
+      attendanceRecords.forEach((record: any) => {
         const dateKey = record.date.toISOString().split('T')[0];
         if (!attendanceByDate.has(dateKey)) {
           attendanceByDate.set(dateKey, {
@@ -520,7 +520,7 @@ export class NemisService {
       });
 
       return { success: true, recordsSynced: attendanceRecords.length };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Attendance sync failed: ${error.message}`);
       await this.updateSyncLog(syncLog.id, {
         status: SyncStatus.FAILED,
@@ -545,19 +545,19 @@ export class NemisService {
 
     try {
       results.schoolProfile = await this.syncSchoolProfile(tenantId);
-    } catch (error) {
+    } catch (error: any) {
       results.errors.push(`School profile sync failed: ${error.message}`);
     }
 
     try {
       results.studentEnrollment = await this.syncStudentEnrollment(tenantId);
-    } catch (error) {
+    } catch (error: any) {
       results.errors.push(`Student enrollment sync failed: ${error.message}`);
     }
 
     try {
       results.teacherData = await this.syncTeacherData(tenantId);
-    } catch (error) {
+    } catch (error: any) {
       results.errors.push(`Teacher data sync failed: ${error.message}`);
     }
 
@@ -624,7 +624,7 @@ export class NemisService {
     if (student.guardianLinks.length === 0) {
       validationErrors.push('At least one guardian is required');
     } else {
-      const primaryGuardian = student.guardianLinks.find(link => link.isPrimary);
+      const primaryGuardian = student.guardianLinks.find((link: any) => link.isPrimary);
       if (!primaryGuardian) {
         warnings.push('No primary guardian specified');
       }
@@ -642,13 +642,13 @@ export class NemisService {
       where: { studentId: student.id },
       update: {
         validationStatus: isValid ? ValidationStatus.VALID : ValidationStatus.INVALID,
-        validationErrors: validationErrors.length > 0 ? validationErrors : null,
+        validationErrors: (validationErrors.length > 0 ? validationErrors : null) as any,
       },
       create: {
         tenantId: student.tenantId,
         studentId: student.id,
         validationStatus: isValid ? ValidationStatus.VALID : ValidationStatus.INVALID,
-        validationErrors: validationErrors.length > 0 ? validationErrors : null,
+        validationErrors: (validationErrors.length > 0 ? validationErrors : null) as any,
       },
     });
 

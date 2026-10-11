@@ -183,6 +183,6 @@ export class ParentPortalController {
   @Get('notifications')
   getNotifications(@Request() req: any, @Query('limit') limit?: number) {
     const guardianId = req.user.guardianId || req.user.id;
-    return this.parentPortalService.getParentNotifications(guardianId, limit ? parseInt(limit as string) : 10);
+    return this.parentPortalService.getParentNotifications(guardianId, limit ? Number(limit) : 10);
   }
 }

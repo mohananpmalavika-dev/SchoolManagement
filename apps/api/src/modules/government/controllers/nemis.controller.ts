@@ -34,7 +34,7 @@ export class NemisController {
   async initialize(
     @Request() req: any,
     @Body() dto: InitializeNemisDto,
-  ): Promise<NemisIntegrationResponseDto> {
+  ): Promise<any> {
     const tenantId = req.user.tenantId;
     return this.nemisService.initializeIntegration(
       tenantId,
@@ -47,7 +47,7 @@ export class NemisController {
   @Get('integration')
   @ApiOperation({ summary: 'Get NEMIS integration settings' })
   @ApiResponse({ status: 200, description: 'Integration settings retrieved' })
-  async getIntegration(@Request() req: any): Promise<NemisIntegrationResponseDto> {
+  async getIntegration(@Request() req: any): Promise<any> {
     const tenantId = req.user.tenantId;
     return this.nemisService.getIntegration(tenantId);
   }
@@ -58,7 +58,7 @@ export class NemisController {
   async updateIntegration(
     @Request() req: any,
     @Body() dto: UpdateNemisConfigDto,
-  ): Promise<NemisIntegrationResponseDto> {
+  ): Promise<any> {
     const tenantId = req.user.tenantId;
     const integration = await this.nemisService.getIntegration(tenantId);
     

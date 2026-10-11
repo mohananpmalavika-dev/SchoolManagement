@@ -43,22 +43,23 @@ export class GovernmentSyncProcessor {
 
     try {
       const result = await this.nemisService.performFullSync(tenantId);
+      const errors = result.results?.errors || [];
       
       // Create alerts if there were errors
-      if (result.errors && result.errors.length > 0) {
+      if (errors.length > 0) {
         await this.complianceService.createAlert(
           tenantId,
           'SYNC_FAILURE',
           'WARNING',
           'NEMIS Sync Completed with Errors',
-          `NEMIS sync completed but encountered ${result.errors.length} error(s)`,
+          `NEMIS sync completed but encountered ${errors.length} error(s)`,
           'NEMIS_SYNC',
           tenantId,
         );
       }
 
       return result;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`NEMIS full sync failed for tenant ${tenantId}: ${error.message}`);
       
       // Create critical alert
@@ -86,7 +87,7 @@ export class GovernmentSyncProcessor {
 
     try {
       return await this.nemisService.syncStudentEnrollment(tenantId);
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`NEMIS student sync failed: ${error.message}`);
       throw error;
     }
@@ -102,7 +103,7 @@ export class GovernmentSyncProcessor {
 
     try {
       return await this.nemisService.syncTeacherData(tenantId);
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`NEMIS teacher sync failed: ${error.message}`);
       throw error;
     }
@@ -124,7 +125,7 @@ export class GovernmentSyncProcessor {
         new Date(startDate),
         new Date(endDate),
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`NEMIS attendance sync failed: ${error.message}`);
       throw error;
     }
@@ -161,7 +162,7 @@ export class GovernmentSyncProcessor {
       }
 
       return result;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`KNEC results download failed: ${error.message}`);
       throw error;
     }
@@ -255,7 +256,7 @@ export class GovernmentSyncProcessor {
       );
 
       return report;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Compliance report generation failed: ${error.message}`);
       
       await this.complianceService.createAlert(
@@ -312,7 +313,7 @@ export class GovernmentSyncProcessor {
       }
 
       return audit;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Data quality audit failed: ${error.message}`);
       throw error;
     }
@@ -363,7 +364,7 @@ export class GovernmentSyncProcessor {
       }
 
       return { checked: checklists.length };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Compliance deadline check failed: ${error.message}`);
       throw error;
     }
@@ -393,7 +394,7 @@ export class GovernmentSyncProcessor {
       );
 
       return report;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Report submission failed: ${error.message}`);
       
       await this.complianceService.createAlert(

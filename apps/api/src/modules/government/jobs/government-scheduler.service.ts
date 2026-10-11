@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
-import { PrismaService } from '@krypton/database';
+import { PrismaService } from '../../../database/prisma.service';
 
 /**
  * Scheduler service for automated government integration tasks
@@ -55,7 +55,7 @@ export class GovernmentSchedulerService {
           });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error scheduling NEMIS sync: ${error.message}`);
     }
   }
@@ -82,7 +82,7 @@ export class GovernmentSchedulerService {
           removeOnComplete: true,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error checking compliance deadlines: ${error.message}`);
     }
   }
@@ -110,7 +110,7 @@ export class GovernmentSchedulerService {
           removeOnComplete: true,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error running data quality audits: ${error.message}`);
     }
   }
@@ -176,7 +176,7 @@ export class GovernmentSchedulerService {
           removeOnComplete: true,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error generating monthly reports: ${error.message}`);
     }
   }
@@ -222,7 +222,7 @@ export class GovernmentSchedulerService {
           removeOnComplete: true,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error checking KNEC results: ${error.message}`);
     }
   }
@@ -262,7 +262,7 @@ export class GovernmentSchedulerService {
           removeOnComplete: true,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error syncing daily attendance: ${error.message}`);
     }
   }
@@ -469,7 +469,7 @@ export class GovernmentSchedulerService {
       await this.syncQueue.clean(sevenDaysAgo, 'failed');
       
       this.logger.log('Old jobs cleaned successfully');
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error cleaning old jobs: ${error.message}`);
     }
   }

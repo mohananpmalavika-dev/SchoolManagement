@@ -52,7 +52,7 @@ export class ComplianceController {
   async generateReport(
     @Request() req: any,
     @Body() dto: GenerateReportDto,
-  ): Promise<ComplianceReportResponseDto> {
+  ): Promise<any> {
     const tenantId = req.user.tenantId;
     
     switch (dto.reportType) {
@@ -117,7 +117,7 @@ export class ComplianceController {
   async getReports(
     @Request() req: any,
     @Query() query: GetReportsQueryDto,
-  ): Promise<ComplianceReportResponseDto[]> {
+  ): Promise<any> {
     const tenantId = req.user.tenantId;
     return this.complianceService.getReports(
       tenantId,
@@ -173,12 +173,12 @@ export class ComplianceController {
   async createChecklist(
     @Request() req: any,
     @Body() dto: CreateChecklistDto,
-  ): Promise<ChecklistResponseDto> {
+  ): Promise<any> {
     const tenantId = req.user.tenantId;
     return this.complianceService.createChecklist(
       tenantId,
       dto.title,
-      dto.description,
+      dto.description || '',
       dto.complianceArea,
       dto.requiredBy,
       dto.frequency,
@@ -196,7 +196,7 @@ export class ComplianceController {
   async getChecklists(
     @Request() req: any,
     @Query() query: GetChecklistsQueryDto,
-  ): Promise<ChecklistResponseDto[]> {
+  ): Promise<any> {
     const tenantId = req.user.tenantId;
     return this.complianceService.getChecklists(
       tenantId,
@@ -246,7 +246,7 @@ export class ComplianceController {
   async runAudit(
     @Request() req: any,
     @Body() dto: RunDataAuditDto,
-  ): Promise<DataAuditResponseDto> {
+  ): Promise<any> {
     const tenantId = req.user.tenantId;
     return this.complianceService.runDataQualityAudit(tenantId, dto.auditType);
   }
@@ -291,7 +291,7 @@ export class ComplianceController {
   async createAlert(
     @Request() req: any,
     @Body() dto: CreateAlertDto,
-  ): Promise<AlertResponseDto> {
+  ): Promise<any> {
     const tenantId = req.user.tenantId;
     return this.complianceService.createAlert(
       tenantId,
@@ -314,7 +314,7 @@ export class ComplianceController {
   async getAlerts(
     @Request() req: any,
     @Query() query: GetAlertsQueryDto,
-  ): Promise<AlertResponseDto[]> {
+  ): Promise<any> {
     const tenantId = req.user.tenantId;
     return this.complianceService.getAlerts(tenantId, query.status);
   }

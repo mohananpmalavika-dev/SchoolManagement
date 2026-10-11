@@ -5,6 +5,7 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../database/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { AccountLockoutService } from './services/account-lockout.service';
+import { MfaService } from './services/mfa.service';
 
 @Injectable()
 export class AuthService {
@@ -13,6 +14,7 @@ export class AuthService {
    private jwt:JwtService,
    private config:ConfigService,
    private accountLockout:AccountLockoutService,
+   private mfa:MfaService,
  ){}
  
  async validateUser(email:string,password:string){
@@ -67,11 +69,56 @@ export class AuthService {
    // Successful login - clear any failed attempts
    await this.accountLockout.clearAttempts(dto.email);
    
-   if(user.mfaEnabled)throw new UnauthorizedException('This account requires MFA. Contact your administrator to configure a supported sign-in provider.');
+   if (user.mfaEnabled) {
+     const mfaSessionToken = this.jwt.sign(
+       { sub: user.id, tenantId: user.tenantId, type: 'mfa_pending' },
+       { expiresIn: '5m' },
+     );
+     return {
+       requiresMfa: true,
+       mfaSessionToken,
+       user: this.publicUser(user),
+     };
+   }
    await this.prisma.user.update({where:{id:user.id},data:{lastLoginAt:new Date()}});
    return this.issue(user);
  }
- 
+
+ async verifyMfaLogin(mfaSessionToken: string, code: string) {
+   try {
+     const payload = this.jwt.verify(mfaSessionToken);
+     if (payload.type !== 'mfa_pending') {
+       throw new UnauthorizedException('Invalid MFA session token');
+     }
+
+     const isValid = await this.mfa.verifyMfaToken(payload.sub, code);
+     if (!isValid) {
+       throw new UnauthorizedException('Invalid verification code');
+     }
+
+     const user = await this.prisma.user.findUnique({
+       where: { id: payload.sub },
+       include: { tenant: true },
+     });
+
+     if (!user || !user.isActive) {
+       throw new UnauthorizedException('Account inactive or not found');
+     }
+
+     await this.prisma.user.update({
+       where: { id: user.id },
+       data: { lastLoginAt: new Date() },
+     });
+
+     return this.issue(user);
+   } catch (err: any) {
+     if (err instanceof UnauthorizedException || err instanceof BadRequestException) {
+       throw err;
+     }
+     throw new UnauthorizedException('MFA session expired or invalid');
+   }
+ }
+
  async refreshToken(token:string){
   try {const payload=this.jwt.verify(token,{secret:this.config.getOrThrow('JWT_REFRESH_SECRET')});if(payload.type!=='refresh')throw new Error('Invalid token type');
    const user=await this.prisma.user.findUnique({where:{id:payload.sub},include:{tenant:true}});

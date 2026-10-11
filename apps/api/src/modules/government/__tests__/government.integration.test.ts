@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { PrismaService } from '@krypton/database';
+import { PrismaService } from '../../../database/prisma.service';
 import { GovernmentModule } from '../government.module';
 import { NemisService } from '../services/nemis.service';
 import { KnecService } from '../services/knec.service';

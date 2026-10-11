@@ -16,7 +16,7 @@ export class ValidationUtil {
    */
   static isValidBirthCertificate(certNumber: string): boolean {
     // Birth certificate format varies, basic validation
-    return certNumber && certNumber.length >= 6 && certNumber.length <= 20;
+    return !!certNumber && certNumber.length >= 6 && certNumber.length <= 20;
   }
 
   /**
@@ -51,7 +51,7 @@ export class ValidationUtil {
    */
   static isValidCandidateNumber(candidateNumber: string): boolean {
     // Candidate number format varies
-    return candidateNumber && candidateNumber.length >= 8 && candidateNumber.length <= 15;
+    return !!candidateNumber && candidateNumber.length >= 8 && candidateNumber.length <= 15;
   }
 
   /**

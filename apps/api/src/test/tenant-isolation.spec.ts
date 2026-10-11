@@ -162,6 +162,46 @@ describe('Tenant Isolation Verification Suite', () => {
       expect(next).toHaveBeenCalledTimes(1);
       expect(params.args.where).toEqual({ isActive: true });
     });
+
+    it('should strictly isolate newly added models like ActivityFeed, NemisStudentRecord and ComplianceReport', async () => {
+      const next = jest.fn().mockResolvedValue([]);
+      const sensitiveModels = ['ActivityFeed', 'NemisStudentRecord', 'ComplianceReport', 'MediaItem', 'ParentTeacherBooking'];
+
+      for (const model of sensitiveModels) {
+        const params = {
+          model: model as any,
+          action: 'findMany' as any,
+          args: { where: {} },
+          dataPath: [],
+          runInTransaction: false,
+        };
+
+        await middleware(params, next);
+
+        expect(params.args.where).toEqual({
+          tenantId: 'school_alpha_123',
+        });
+      }
+    });
+
+    it('should reject adversarial cross-tenant creation on sensitive models', async () => {
+      const next = jest.fn();
+      const params = {
+        model: 'NemisStudentRecord' as any,
+        action: 'create' as any,
+        args: {
+          data: {
+            upi: 'ABC1234XYZ',
+            tenantId: 'school_beta_hacker',
+          },
+        },
+        dataPath: [],
+        runInTransaction: false,
+      };
+
+      await expect(middleware(params, next)).rejects.toThrow('Cross-tenant write denied');
+      expect(next).not.toHaveBeenCalled();
+    });
   });
 
   describe('TenantGuard Access Control', () => {

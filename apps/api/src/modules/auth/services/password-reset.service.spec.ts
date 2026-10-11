@@ -5,7 +5,7 @@ import { PasswordResetService } from './password-reset.service';
 import { PrismaService } from '../../../database/prisma.service';
 import { RedisService } from '../../../common/services/redis.service';
 import { EmailService } from '../../../common/services/email.service';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 describe('PasswordResetService', () => {
   let service: PasswordResetService;
@@ -46,7 +46,7 @@ describe('PasswordResetService', () => {
         REDIS_HOST: 'localhost',
         REDIS_PORT: 6379,
       };
-      return config[key] ?? defaultValue;
+      return (config as Record<string, any>)[key] ?? defaultValue;
     }),
   };
 

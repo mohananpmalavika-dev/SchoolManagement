@@ -1,6 +1,7 @@
 import { Injectable, Logger, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { AttendanceStatus } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { RedisService } from '../../../common/services/redis.service';
 
@@ -162,7 +163,7 @@ export class QRAttendanceService {
           tenantId,
         },
         include: {
-          class: true,
+          currentClass: true,
         },
       });
 
@@ -171,9 +172,9 @@ export class QRAttendanceService {
       }
 
       // 4. Verify student is in the correct class (if class-specific QR)
-      if (payload.classId && student.classId !== payload.classId) {
+      if (payload.classId && student.currentClassId !== payload.classId) {
         throw new BadRequestException(
-          `This QR code is for ${payload.classId} only. Student is in ${student.classId}.`
+          `This QR code is for ${payload.classId} only. Student is in ${student.currentClassId}.`
         );
       }
 
@@ -190,17 +191,16 @@ export class QRAttendanceService {
 
       // 6. Mark attendance
       const scannedAt = request.scannedAt || new Date();
-      const attendance = await this.prisma.attendance.create({
+      const attendance = await this.prisma.attendanceRecord.create({
         data: {
           studentId: request.studentId,
-          classId: student.classId!,
-          streamId: student.streamId,
+          classId: student.currentClassId!,
+          streamId: student.currentStreamId,
           date: scannedAt,
           status: this.calculateAttendanceStatus(scannedAt),
-          remarks: `QR scan - Session: ${payload.sessionId}`,
-          verificationMethod: 'DYNAMIC_QR',
-          verifiedBy: payload.createdBy,
-          verifiedAt: scannedAt,
+          remarks: `QR scan - Session: ${payload.sessionId} (DYNAMIC_QR)`,
+          markedBy: payload.createdBy,
+          arrivalTime: scannedAt,
           tenantId,
         },
       });
@@ -229,7 +229,7 @@ export class QRAttendanceService {
           id: student.id,
           name: `${student.firstName} ${student.lastName}`,
           admissionNumber: student.admissionNumber,
-          class: student.class?.name,
+          class: student.currentClass?.name,
         },
         message: `Attendance marked successfully for ${student.firstName} ${student.lastName}`,
       };
@@ -281,7 +281,7 @@ export class QRAttendanceService {
   /**
    * Calculate attendance status based on time
    */
-  private calculateAttendanceStatus(scannedAt: Date): string {
+  private calculateAttendanceStatus(scannedAt: Date): AttendanceStatus {
     const hour = scannedAt.getHours();
     const minute = scannedAt.getMinutes();
 
@@ -290,11 +290,11 @@ export class QRAttendanceService {
     // After 9:00 AM = Absent (shouldn't mark via QR)
     
     if (hour < 8 || (hour === 8 && minute < 15)) {
-      return 'PRESENT';
+      return AttendanceStatus.PRESENT;
     } else if (hour < 9) {
-      return 'LATE';
+      return AttendanceStatus.LATE;
     } else {
-      return 'PRESENT'; // Still mark as present if scanning after hours
+      return AttendanceStatus.PRESENT; // Still mark as present if scanning after hours
     }
   }
 

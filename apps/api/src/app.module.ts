@@ -40,6 +40,8 @@ import { ParentPortalModule } from './modules/parent-portal/parent-portal.module
 import { CertificatesModule } from './modules/certificates/certificates.module';
 import { AdmissionsModule } from './modules/admissions/admissions.module';
 import { GovernmentModule } from './modules/government/government.module';
+import { BackupModule } from './modules/backup/backup.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -49,6 +51,9 @@ import { GovernmentModule } from './modules/government/government.module';
       validate: validateEnvironment,
       envFilePath: ['.env.local', '.env'],
     }),
+
+    // Schedule Module (for automated tasks like backups)
+    ScheduleModule.forRoot(),
 
     // Rate Limiting
     ThrottlerModule.forRoot([
@@ -101,6 +106,7 @@ import { GovernmentModule } from './modules/government/government.module';
     CertificatesModule,
     AdmissionsModule,
     GovernmentModule,
+    BackupModule,
   ],
   controllers: [AppController],
   providers: [

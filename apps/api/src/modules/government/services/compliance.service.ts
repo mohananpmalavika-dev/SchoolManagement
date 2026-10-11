@@ -1,5 +1,5 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
-import { PrismaService } from '@krypton/database';
+import { PrismaService } from '../../../database/prisma.service';
 import { 
   ComplianceReportType, 
   ReportStatus, 
@@ -50,7 +50,7 @@ export class ComplianceService {
     const byGender = this.groupBy(students, 'gender');
     
     // Statistics by class
-    const byClass = students.reduce((acc, student) => {
+    const byClass = students.reduce((acc: any, student: any) => {
       const className = student.currentClass?.name || 'Unassigned';
       if (!acc[className]) {
         acc[className] = { total: 0, male: 0, female: 0 };
@@ -196,13 +196,13 @@ export class ComplianceService {
     const nemisRecords = await this.prisma.nemisStaffRecord.findMany({
       where: {
         tenantId,
-        staffId: { in: teachers.map(t => t.id) },
+        staffId: { in: teachers.map((t: any) => t.id) },
       },
     });
 
-    const tscMap = new Map(nemisRecords.map(r => [r.staffId, r.tscNumber]));
+    const tscMap = new Map(nemisRecords.map((r: any) => [r.staffId, r.tscNumber]));
 
-    const teacherData = teachers.map(teacher => ({
+    const teacherData = teachers.map((teacher: any) => ({
       staffNumber: teacher.staffNumber,
       tscNumber: tscMap.get(teacher.id) || 'PENDING',
       name: `${teacher.firstName} ${teacher.middleName || ''} ${teacher.lastName}`,
@@ -230,7 +230,7 @@ export class ComplianceService {
         contractTeachers: byEmploymentType['CONTRACT'] || 0,
         maleTeachers: byGender['MALE'] || 0,
         femaleTeachers: byGender['FEMALE'] || 0,
-        registeredWithTSC: nemisRecords.filter(r => r.tscNumber).length,
+        registeredWithTSC: nemisRecords.filter((r: any) => r.tscNumber).length,
       },
       byStatus,
       byEmploymentType,
@@ -281,13 +281,13 @@ export class ComplianceService {
       },
     });
 
-    const allGrades = examinations.flatMap(exam => exam.grades);
+    const allGrades = examinations.flatMap((exam: any) => exam.grades);
 
     // Calculate statistics
     const totalExams = examinations.length;
     const totalGrades = allGrades.length;
     const averageScore = totalGrades > 0
-      ? allGrades.reduce((sum, g) => sum + (g.marks || 0), 0) / totalGrades
+      ? allGrades.reduce((sum: any, g: any) => sum + (g.marks || 0), 0) / totalGrades
       : 0;
 
     // Grade distribution
@@ -305,12 +305,12 @@ export class ComplianceService {
       },
       gradeDistribution,
       subjectPerformance,
-      examinations: examinations.map(exam => ({
+      examinations: examinations.map((exam: any) => ({
         name: exam.name,
         examType: exam.examType,
         totalStudents: exam.grades.length,
         averageScore: exam.grades.length > 0
-          ? exam.grades.reduce((sum, g) => sum + (g.marks || 0), 0) / exam.grades.length
+          ? exam.grades.reduce((sum: any, g: any) => sum + (g.marks || 0), 0) / exam.grades.length
           : 0,
       })),
       generatedAt: new Date(),
@@ -350,12 +350,12 @@ export class ComplianceService {
       },
     });
 
-    const totalRevenue = invoices.reduce((sum, inv) => sum + inv.paidAmount, 0);
-    const totalExpected = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-    const totalOutstanding = invoices.reduce((sum, inv) => sum + inv.balanceAmount, 0);
+    const totalRevenue = invoices.reduce((sum: any, inv: any) => sum + inv.paidAmount, 0);
+    const totalExpected = invoices.reduce((sum: any, inv: any) => sum + inv.totalAmount, 0);
+    const totalOutstanding = invoices.reduce((sum: any, inv: any) => sum + inv.balanceAmount, 0);
 
     // Payment methods breakdown
-    const payments = invoices.flatMap(inv => inv.payments);
+    const payments = invoices.flatMap((inv: any) => inv.payments);
     const byPaymentMethod = this.groupBy(payments, 'paymentMethod');
 
     // Monthly collection trend
@@ -370,15 +370,15 @@ export class ComplianceService {
           ? parseFloat(((totalRevenue / totalExpected) * 100).toFixed(2))
           : 0,
         totalInvoices: invoices.length,
-        paidInvoices: invoices.filter(i => i.status === 'PAID').length,
-        pendingInvoices: invoices.filter(i => i.status === 'PENDING').length,
+        paidInvoices: invoices.filter((i: any) => i.status === 'PAID').length,
+        pendingInvoices: invoices.filter((i: any) => i.status === 'PENDING').length,
       },
       byPaymentMethod: Object.entries(byPaymentMethod).map(([method, count]) => ({
         method,
         count,
         amount: payments
-          .filter(p => p.paymentMethod === method)
-          .reduce((sum, p) => sum + p.amount, 0),
+          .filter((p: any) => p.paymentMethod === method)
+          .reduce((sum: any, p: any) => sum + p.amount, 0),
       })),
       monthlyCollections,
       generatedAt: new Date(),
@@ -392,7 +392,7 @@ export class ComplianceService {
         reportYear,
         reportMonth,
         status: ReportStatus.DRAFT,
-        reportData,
+        reportData: reportData as any,
         isAutomated: true,
       },
     });
@@ -590,7 +590,7 @@ export class ComplianceService {
     let completenessScore = 0;
     let accuracyScore = 0;
 
-    students.forEach(student => {
+    students.forEach((student: any) => {
       let studentCompleteness = 0;
       const requiredFields = 10;
 
@@ -652,7 +652,7 @@ export class ComplianceService {
     const issues: any[] = [];
     let completenessScore = 0;
 
-    staff.forEach(member => {
+    staff.forEach((member: any) => {
       let staffCompleteness = 0;
       const requiredFields = 9;
 
@@ -709,7 +709,7 @@ export class ComplianceService {
     const issues: any[] = [];
     
     // Check for missing dates
-    const uniqueDates = new Set(records.map(r => r.date.toISOString().split('T')[0]));
+    const uniqueDates = new Set(records.map((r: any) => r.date.toISOString().split('T')[0]));
     const expectedDays = 22; // Approximate school days in 30 days
 
     if (uniqueDates.size < expectedDays) {

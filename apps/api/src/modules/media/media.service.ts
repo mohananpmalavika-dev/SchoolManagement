@@ -6,18 +6,15 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { TenantService } from '../../database/tenant.service';
+import { StorageService } from '../../common/services/storage.service';
 import { UploadMediaDto, MediaType } from './dto/upload-media.dto';
 import { QueryMediaDto } from './dto/query-media.dto';
+import { randomBytes } from 'crypto';
 import * as path from 'path';
-import * as fs from 'fs';
-import { promisify } from 'util';
-
-const writeFile = promisify(fs.writeFile);
-const mkdir = promisify(fs.mkdir);
+import 'multer';
 
 @Injectable()
 export class MediaService {
-  private readonly uploadDir = process.env.UPLOAD_DIR || './uploads';
   private readonly maxFileSize = 50 * 1024 * 1024; // 50MB
   private readonly allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
   private readonly allowedVideoTypes = ['video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo'];
@@ -26,6 +23,7 @@ export class MediaService {
   constructor(
     private prisma: PrismaService,
     private tenantService: TenantService,
+    private storageService: StorageService,
   ) {}
 
   async upload(
@@ -42,12 +40,17 @@ export class MediaService {
 
     // Determine media type from mime type
     let mediaType: MediaType;
+    let storageCategory: 'photos' | 'videos' | 'documents';
+    
     if (this.allowedImageTypes.includes(file.mimetype)) {
       mediaType = MediaType.PHOTO;
+      storageCategory = 'photos';
     } else if (this.allowedVideoTypes.includes(file.mimetype)) {
       mediaType = MediaType.VIDEO;
+      storageCategory = 'videos';
     } else if (this.allowedDocumentTypes.includes(file.mimetype)) {
       mediaType = MediaType.DOCUMENT;
+      storageCategory = 'documents';
     } else {
       throw new BadRequestException(
         'Unsupported file type. Allowed: images (jpg, png, gif, webp), videos (mp4, mpeg, mov, avi), documents (pdf, doc, docx)',
@@ -82,37 +85,35 @@ export class MediaService {
       }
     }
 
-    // Create directory structure: uploads/{tenantId}/{year}/{month}
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const uploadPath = path.join(this.uploadDir, tenantId, String(year), month);
-
-    try {
-      await mkdir(uploadPath, { recursive: true });
-    } catch (error) {
-      // Directory might already exist
-    }
-
     // Generate unique filename
     const fileExt = path.extname(file.originalname);
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}${fileExt}`;
-    const filePath = path.join(uploadPath, fileName);
-    const relativeUrl = `/uploads/${tenantId}/${year}/${month}/${fileName}`;
+    const randomSuffix = randomBytes(8).toString('hex');
+    const fileName = `${Date.now()}-${randomSuffix}${fileExt}`;
 
-    // Save file to disk
-    await writeFile(filePath, file.buffer);
+    // Upload to S3 with tenant isolation
+    const uploadResult = await this.storageService.uploadFile(file, {
+      tenantId,
+      category: storageCategory,
+      filename: fileName,
+      mimeType: file.mimetype,
+      metadata: {
+        originalName: file.originalname,
+        uploadedBy: userId,
+        studentId: dto.studentId || '',
+        classId: dto.classId || '',
+      },
+    });
 
     // For images, we could generate thumbnails here
     // For now, we'll use the same URL for thumbnail
-    const thumbnailUrl = mediaType === MediaType.PHOTO ? relativeUrl : null;
+    const thumbnailUrl = mediaType === MediaType.PHOTO ? uploadResult.url : null;
 
-    // Create media record
+    // Create media record with S3 key stored in fileUrl
     const media = await this.prisma.mediaItem.create({
       data: {
         tenantId,
         fileName: file.originalname,
-        fileUrl: relativeUrl,
+        fileUrl: uploadResult.key, // Store S3 key, not full URL
         thumbnailUrl,
         fileType: mediaType,
         fileSize: file.size,
@@ -127,7 +128,10 @@ export class MediaService {
       },
     });
 
-    return media;
+    return {
+      ...media,
+      fileUrl: uploadResult.url, // Return public URL in response
+    };
   }
 
   async findAll(query: QueryMediaDto) {
@@ -216,15 +220,12 @@ export class MediaService {
 
     const media = await this.findOne(id);
 
-    // Delete file from disk
+    // Delete file from S3 (tenant validation handled by StorageService)
     try {
-      const filePath = path.join(process.cwd(), media.fileUrl);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      await this.storageService.deleteFile(media.fileUrl, tenantId);
     } catch (error) {
       // Log error but don't fail the deletion
-      console.error('Failed to delete file from disk:', error);
+      console.error('Failed to delete file from S3:', error);
     }
 
     // Delete record
@@ -325,5 +326,22 @@ export class MediaService {
     }
 
     return this.findAll({ ...query, classId });
+  }
+
+  /**
+   * Get pre-signed URL for secure file access
+   * This method validates tenant ownership before generating the URL
+   */
+  async getPresignedUrl(mediaId: string, expiresIn: number = 3600): Promise<{ url: string; expiresIn: number }> {
+    const tenantId = this.tenantService.requireTenantContext();
+
+    // Get media item
+    const media = await this.findOne(mediaId);
+
+    // Generate pre-signed URL (tenant validation handled by StorageService)
+    return this.storageService.getPresignedUrl(media.fileUrl, expiresIn, {
+      tenantId,
+      responseContentDisposition: `inline; filename="${media.fileName}"`,
+    });
   }
 }
