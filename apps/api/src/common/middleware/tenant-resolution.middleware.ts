@@ -59,7 +59,7 @@ export class TenantResolutionMiddleware implements NestMiddleware {
       }
 
       next();
-    } catch (error) {
+    } catch (error: any) {
       next(error);
     }
   }

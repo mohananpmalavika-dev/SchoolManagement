@@ -19,11 +19,28 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@krypton/database": ["../../packages/database/src"],
-      "@krypton/types": ["../../packages/types/src"],
-      "@krypton/utils": ["../../packages/utils/src"]
-    }
+      "@krypton/database": [
+        "../../packages/database/src"
+      ],
+      "@krypton/types": [
+        "../../packages/types/src"
+      ],
+      "@krypton/utils": [
+        "../../packages/utils/src"
+      ]
+    },
+    "composite": false,
+    "rootDir": "../..",
+    "strictPropertyInitialization": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test"
+  ]
 }

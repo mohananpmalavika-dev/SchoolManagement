@@ -26,7 +26,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     // Log queries in development
     if (process.env.NODE_ENV === 'development') {
       // @ts-ignore
-      this.$on('query', (e) => {
+      this.$on('query' as never, (e: { query: string; duration: number }) => {
         this.logger.debug(`Query: ${e.query}`);
         this.logger.debug(`Duration: ${e.duration}ms`);
       });
@@ -37,7 +37,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     try {
       await this.$connect();
       this.logger.log('✅ Database connected successfully');
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('❌ Database connection failed', error);
       throw error;
     }

@@ -699,7 +699,7 @@ export class ExaminationsService {
           userId,
         );
         results.generated++;
-      } catch (error) {
+      } catch (error: any) {
         if (error instanceof ConflictException) {
           results.skipped++;
         } else {

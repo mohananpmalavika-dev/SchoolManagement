@@ -59,7 +59,7 @@ export class ExaminationsController {
     UserRole.PRINCIPAL,
     UserRole.DEPUTY_PRINCIPAL,
     UserRole.SCHOOL_ADMIN,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
   )
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new examination' })
@@ -82,7 +82,7 @@ export class ExaminationsController {
     UserRole.SCHOOL_ADMIN,
     UserRole.TEACHER,
     UserRole.CLASS_TEACHER,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
   )
   @ApiOperation({ summary: 'Get all examinations with optional filters' })
   @ApiResponse({ status: 200, description: 'Examinations retrieved successfully' })
@@ -103,7 +103,7 @@ export class ExaminationsController {
     UserRole.SCHOOL_ADMIN,
     UserRole.TEACHER,
     UserRole.CLASS_TEACHER,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
   )
   @ApiOperation({ summary: 'Get examination by ID with full details' })
   @ApiParam({ name: 'id', description: 'Examination ID' })
@@ -120,7 +120,7 @@ export class ExaminationsController {
     UserRole.PRINCIPAL,
     UserRole.DEPUTY_PRINCIPAL,
     UserRole.SCHOOL_ADMIN,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
   )
   @ApiOperation({ summary: 'Update examination details' })
   @ApiParam({ name: 'id', description: 'Examination ID' })
@@ -158,7 +158,7 @@ export class ExaminationsController {
     UserRole.PRINCIPAL,
     UserRole.DEPUTY_PRINCIPAL,
     UserRole.SCHOOL_ADMIN,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
   )
   @ApiOperation({ summary: 'Get examination statistics and grade distribution' })
   @ApiParam({ name: 'id', description: 'Examination ID' })
@@ -178,7 +178,7 @@ export class ExaminationsController {
     UserRole.SCHOOL_ADMIN,
     UserRole.TEACHER,
     UserRole.CLASS_TEACHER,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
   )
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Enter grade for a single student' })
@@ -199,7 +199,7 @@ export class ExaminationsController {
     UserRole.SCHOOL_ADMIN,
     UserRole.TEACHER,
     UserRole.CLASS_TEACHER,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
   )
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Enter grades for multiple students (bulk)' })
@@ -219,7 +219,7 @@ export class ExaminationsController {
     UserRole.SCHOOL_ADMIN,
     UserRole.TEACHER,
     UserRole.CLASS_TEACHER,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
   )
   @ApiOperation({ summary: 'Update existing grade' })
   @ApiParam({ name: 'id', description: 'Grade ID' })
@@ -242,7 +242,7 @@ export class ExaminationsController {
     UserRole.SCHOOL_ADMIN,
     UserRole.TEACHER,
     UserRole.CLASS_TEACHER,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
     UserRole.PARENT,
     UserRole.STUDENT,
   )
@@ -262,7 +262,7 @@ export class ExaminationsController {
     UserRole.DEPUTY_PRINCIPAL,
     UserRole.SCHOOL_ADMIN,
     UserRole.CLASS_TEACHER,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
   )
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Generate report card for a student' })
@@ -284,7 +284,7 @@ export class ExaminationsController {
     UserRole.PRINCIPAL,
     UserRole.DEPUTY_PRINCIPAL,
     UserRole.SCHOOL_ADMIN,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
   )
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Generate report cards for entire class/stream' })
@@ -305,7 +305,7 @@ export class ExaminationsController {
     UserRole.DEPUTY_PRINCIPAL,
     UserRole.SCHOOL_ADMIN,
     UserRole.CLASS_TEACHER,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
     UserRole.PARENT,
     UserRole.STUDENT,
   )
@@ -323,7 +323,7 @@ export class ExaminationsController {
     UserRole.DEPUTY_PRINCIPAL,
     UserRole.SCHOOL_ADMIN,
     UserRole.CLASS_TEACHER,
-    UserRole.EXAMINATION_OFFICER,
+    UserRole.EXAM_OFFICER,
     UserRole.PARENT,
     UserRole.STUDENT,
   )

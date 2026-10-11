@@ -1,3 +1,4 @@
+import { PaymentMethod } from '@krypton/types';
 import {
   Injectable,
   BadRequestException,
@@ -51,17 +52,24 @@ export class MpesaService {
     private configService: ConfigService,
   ) {
     this.baseUrl =
-      this.configService.get('MPESA_BASE_URL') ||
+      this.configService.get('MPESA_BASE_URL', '') ||
       'https://sandbox.safaricom.co.ke';
-    this.consumerKey = this.configService.get('MPESA_CONSUMER_KEY');
-    this.consumerSecret = this.configService.get('MPESA_CONSUMER_SECRET');
-    this.shortCode = this.configService.get('MPESA_SHORT_CODE');
-    this.passkey = this.configService.get('MPESA_PASSKEY');
-    this.callbackUrl = this.configService.get('MPESA_CALLBACK_URL');
-    this.validationUrl = this.configService.get('MPESA_VALIDATION_URL');
-    this.confirmationUrl = this.configService.get('MPESA_CONFIRMATION_URL');
+    this.consumerKey = this.configService.get('MPESA_CONSUMER_KEY', '');
+    this.consumerSecret = this.configService.get('MPESA_CONSUMER_SECRET', '');
+    this.shortCode = this.configService.get('MPESA_SHORT_CODE', '');
+    this.passkey = this.configService.get('MPESA_PASSKEY', '');
+    this.callbackUrl = this.configService.get('MPESA_CALLBACK_URL', '');
+    this.validationUrl = this.configService.get('MPESA_VALIDATION_URL', '');
+    this.confirmationUrl = this.configService.get('MPESA_CONFIRMATION_URL', '');
   }
 
+  private parseProviderDate(value:unknown):Date {
+    const text=String(value);
+    if(!/^\d{14}$/.test(text))throw new BadRequestException('Invalid payment date');
+    const date=new Date(text.slice(0,4)+'-'+text.slice(4,6)+'-'+text.slice(6,8)+'T'+text.slice(8,10)+':'+text.slice(10,12)+':'+text.slice(12,14)+'+03:00');
+    if(!Number.isFinite(date.getTime()))throw new BadRequestException('Invalid payment date');
+    return date;
+  }
   // ==================== AUTHENTICATION ====================
 
   private async getAccessToken(): Promise<string> {
@@ -96,7 +104,7 @@ export class MpesaService {
       };
 
       return access_token;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to get M-Pesa access token', error);
       throw new InternalServerErrorException(
         'Failed to authenticate with M-Pesa',
@@ -216,7 +224,7 @@ export class MpesaService {
         invoiceId: dto.invoiceId,
         amount: dto.amount,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('STK Push failed', error);
 
       if (error.response?.data) {
@@ -255,6 +263,8 @@ export class MpesaService {
       return;
     }
 
+    this.tenantService.setTenantId(transaction.tenantId);
+
     // Check if already processed
     if (transaction.callbackReceived) {
       this.logger.warn(
@@ -271,9 +281,7 @@ export class MpesaService {
       }, {} as any);
 
       const mpesaReceiptNumber = metadata.MpesaReceiptNumber;
-      const transactionDate = new Date(
-        metadata.TransactionDate?.toString() || Date.now(),
-      );
+      const transactionDate = this.parseProviderDate(metadata.TransactionDate);
       const phoneNumber = metadata.PhoneNumber?.toString();
 
       // Update transaction with success details
@@ -299,7 +307,7 @@ export class MpesaService {
             {
               invoiceId: transaction.invoiceId,
               amount: transaction.amount,
-              paymentMethod: 'MPESA',
+              paymentMethod: PaymentMethod.MPESA,
               reference: mpesaReceiptNumber,
               paymentDate: transactionDate.toISOString(),
               notes: `M-Pesa payment from ${phoneNumber}`,
@@ -311,7 +319,7 @@ export class MpesaService {
           await this.prisma.mpesaTransaction.update({
             where: { id: transaction.id },
             data: {
-              paymentId: payment.id,
+              paymentId: payment!.id,
               reconciliationStatus: 'MATCHED',
             },
           });
@@ -319,7 +327,7 @@ export class MpesaService {
           this.logger.log(
             `Payment auto-allocated: ${mpesaReceiptNumber} → Invoice ${transaction.invoiceId}`,
           );
-        } catch (error) {
+        } catch (error: any) {
           this.logger.error('Failed to auto-allocate payment', error);
           // Mark as unmatched for manual reconciliation
           await this.prisma.mpesaTransaction.update({
@@ -377,7 +385,7 @@ export class MpesaService {
       );
 
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('STK status query failed', error);
       throw new BadRequestException('Failed to query transaction status');
     }
@@ -478,7 +486,7 @@ export class MpesaService {
         ResultCode: 0,
         ResultDesc: 'Accepted',
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to process C2B confirmation', error);
       return {
         ResultCode: 1,
@@ -542,8 +550,8 @@ export class MpesaService {
       const payment = await this.feesService.recordPayment({
         invoiceId: invoice.id,
         amount: transaction.amount,
-        paymentMethod: 'MPESA',
-        reference: transaction.mpesaReceiptNumber,
+        paymentMethod: PaymentMethod.MPESA,
+        reference: transaction.mpesaReceiptNumber || (() => { throw new BadRequestException("Missing M-Pesa receipt"); })(),
         paymentDate: transaction.transactionDate?.toISOString(),
         notes: `C2B payment from ${transaction.phoneNumber}`,
       });
@@ -553,7 +561,7 @@ export class MpesaService {
         where: { id: transactionId },
         data: {
           invoiceId: invoice.id,
-          paymentId: payment.id,
+          paymentId: payment!.id,
           reconciliationStatus: 'MATCHED',
         },
       });
@@ -561,7 +569,7 @@ export class MpesaService {
       this.logger.log(
         `C2B payment auto-reconciled: ${transaction.mpesaReceiptNumber} → Invoice ${invoice.invoiceNumber}`,
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Auto-reconciliation failed', error);
       await this.prisma.mpesaTransaction.update({
         where: { id: transactionId },
@@ -637,8 +645,8 @@ export class MpesaService {
         const payment = await this.feesService.recordPayment({
           invoiceId: dto.invoiceId,
           amount: transaction.amount,
-          paymentMethod: 'MPESA',
-          reference: transaction.mpesaReceiptNumber,
+          paymentMethod: PaymentMethod.MPESA,
+          reference: transaction.mpesaReceiptNumber || (() => { throw new BadRequestException("Missing M-Pesa receipt"); })(),
           paymentDate: transaction.transactionDate?.toISOString(),
           notes: dto.notes || `Manual reconciliation by user ${userId}`,
         });
@@ -647,7 +655,7 @@ export class MpesaService {
           where: { id: dto.transactionId },
           data: {
             invoiceId: dto.invoiceId,
-            paymentId: payment.id,
+            paymentId: payment!.id,
             reconciliationStatus: 'MATCHED',
           },
         });
@@ -701,7 +709,7 @@ export class MpesaService {
           tenantId,
           transactionType: 'MANUAL',
           mpesaReceiptNumber: dto.mpesaReference,
-          phoneNumber: dto.customerPhone,
+          phoneNumber: dto.customerPhone || '',
           amount: dto.amount,
           invoiceId: dto.invoiceId,
           transactionDate: dto.transactionDate
@@ -722,7 +730,7 @@ export class MpesaService {
     const payment = await this.feesService.recordPayment({
       invoiceId: dto.invoiceId,
       amount: dto.amount,
-      paymentMethod: 'MPESA',
+      paymentMethod: PaymentMethod.MPESA,
       reference: dto.mpesaReference,
       paymentDate: dto.transactionDate,
       notes: dto.notes || 'Manual reconciliation',
@@ -733,7 +741,7 @@ export class MpesaService {
       where: { id: transaction.id },
       data: {
         invoiceId: dto.invoiceId,
-        paymentId: payment.id,
+        paymentId: payment!.id,
         reconciliationStatus: 'MATCHED',
       },
     });
@@ -741,7 +749,7 @@ export class MpesaService {
     return {
       success: true,
       message: 'Payment manually reconciled',
-      paymentId: payment.id,
+      paymentId: payment!.id,
     };
   }
 

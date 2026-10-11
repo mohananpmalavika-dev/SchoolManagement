@@ -16,11 +16,11 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { TimetableService } from './timetable.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '@krypton/types';
+import { UserRole as Role } from '@krypton/types';
 import {
   CreateTimetableEntryDto,
   UpdateTimetableEntryDto,

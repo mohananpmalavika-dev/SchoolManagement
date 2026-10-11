@@ -1,0 +1,2 @@
+import {ResourceTabs} from '@/components/ResourceTabs';
+export default function Page(){return <ResourceTabs resources={[{"key": "books", "label": "Book catalog"}, {"key": "borrowings", "label": "Book loans"}]}/>;}

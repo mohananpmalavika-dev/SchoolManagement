@@ -85,7 +85,7 @@ export class AttendanceService {
         tenantId,
         studentId: { in: studentIds },
         date: attendanceDate,
-        period: dto.period || null,
+        period: dto.period || 1,
       },
     });
 
@@ -105,7 +105,7 @@ export class AttendanceService {
             classId: dto.classId,
             streamId: dto.streamId,
             date: attendanceDate,
-            period: dto.period,
+            period: dto.period || 1,
             status: item.status,
             remarks: item.remarks,
             arrivalTime: item.arrivalTime ? new Date(item.arrivalTime) : null,
@@ -122,8 +122,7 @@ export class AttendanceService {
     // TODO: Send notifications to parents for absent students
     const absentStudents = records.filter(
       (r) =>
-        r.status === AttendanceStatus.ABSENT ||
-        r.status === AttendanceStatus.UNAUTHORIZED_ABSENCE,
+        r.status === AttendanceStatus.ABSENT,
     );
 
     if (absentStudents.length > 0) {
@@ -136,7 +135,7 @@ export class AttendanceService {
       success: true,
       markedCount: records.length,
       date: dto.date,
-      period: dto.period,
+      period: dto.period || 1,
       absentCount: absentStudents.length,
     };
   }
@@ -166,7 +165,7 @@ export class AttendanceService {
         tenantId,
         studentId: dto.studentId,
         date: attendanceDate,
-        period: dto.period || null,
+        period: dto.period || 1,
       },
     });
 
@@ -184,7 +183,7 @@ export class AttendanceService {
         classId: student.currentClassId,
         streamId: student.currentStreamId,
         date: attendanceDate,
-        period: dto.period,
+        period: dto.period || 1,
         status: dto.status,
         remarks: dto.remarks,
         arrivalTime: dto.arrivalTime ? new Date(dto.arrivalTime) : null,
@@ -380,7 +379,7 @@ export class AttendanceService {
           status: {
             in: [
               AttendanceStatus.ABSENT,
-              AttendanceStatus.UNAUTHORIZED_ABSENCE,
+              AttendanceStatus.ABSENT,
             ],
           },
         },
@@ -389,7 +388,7 @@ export class AttendanceService {
         where: { ...where, status: AttendanceStatus.LATE },
       }),
       this.prisma.attendanceRecord.count({
-        where: { ...where, status: AttendanceStatus.EXCUSED_ABSENCE },
+        where: { ...where, status: AttendanceStatus.EXCUSED },
       }),
       this.prisma.attendanceRecord.count({
         where: { ...where, status: AttendanceStatus.HALF_DAY },
@@ -484,9 +483,9 @@ export class AttendanceService {
         present: statusCounts[AttendanceStatus.PRESENT] || 0,
         absent:
           (statusCounts[AttendanceStatus.ABSENT] || 0) +
-          (statusCounts[AttendanceStatus.UNAUTHORIZED_ABSENCE] || 0),
+          (statusCounts[AttendanceStatus.ABSENT] || 0),
         late: statusCounts[AttendanceStatus.LATE] || 0,
-        excused: statusCounts[AttendanceStatus.EXCUSED_ABSENCE] || 0,
+        excused: statusCounts[AttendanceStatus.EXCUSED] || 0,
         halfDay: statusCounts[AttendanceStatus.HALF_DAY] || 0,
         attendanceRate: Math.round(attendanceRate * 100) / 100,
       },
@@ -534,8 +533,7 @@ export class AttendanceService {
         .length,
       absent: records.filter(
         (r) =>
-          r.status === AttendanceStatus.ABSENT ||
-          r.status === AttendanceStatus.UNAUTHORIZED_ABSENCE,
+          r.status === AttendanceStatus.ABSENT,
       ).length,
       late: records.filter((r) => r.status === AttendanceStatus.LATE).length,
     };
@@ -665,7 +663,7 @@ export class AttendanceService {
       include: {
         staff: {
           select: {
-            employeeNumber: true,
+            staffNumber: true,
             firstName: true,
             lastName: true,
           },
@@ -714,7 +712,7 @@ export class AttendanceService {
         staff: {
           select: {
             id: true,
-            employeeNumber: true,
+            staffNumber: true,
             firstName: true,
             lastName: true,
             position: true,

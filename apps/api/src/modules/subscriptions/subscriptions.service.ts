@@ -501,7 +501,7 @@ export class SubscriptionsService {
           data: { status: SubscriptionStatus.EXPIRED },
         });
         results.processed++;
-      } catch (error) {
+      } catch (error: any) {
         results.errors.push({
           subscriptionId: subscription.id,
           error: error.message,

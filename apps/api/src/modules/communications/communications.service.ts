@@ -14,6 +14,7 @@ import {
   SendFeeReminderDto,
   MessageChannel,
   MessageType,
+  MessagePriority,
 } from './dto/send-message.dto';
 import {
   CreateTemplateDto,
@@ -38,14 +39,14 @@ export class CommunicationsService {
     private configService: ConfigService,
   ) {
     // SMS Configuration (Africa's Talking)
-    this.smsApiKey = this.configService.get('SMS_API_KEY');
-    this.smsUsername = this.configService.get('SMS_USERNAME');
+    this.smsApiKey = this.configService.get('SMS_API_KEY', '');
+    this.smsUsername = this.configService.get('SMS_USERNAME', '');
 
     // Email Configuration
-    this.smtpHost = this.configService.get('SMTP_HOST');
-    this.smtpPort = this.configService.get('SMTP_PORT');
-    this.smtpUser = this.configService.get('SMTP_USER');
-    this.smtpPassword = this.configService.get('SMTP_PASSWORD');
+    this.smtpHost = this.configService.get('SMTP_HOST', '');
+    this.smtpPort = this.configService.get<number>('SMTP_PORT', 1025);
+    this.smtpUser = this.configService.get('SMTP_USER', '');
+    this.smtpPassword = this.configService.get('SMTP_PASSWORD', '');
   }
 
   // ==================== MESSAGING ====================
@@ -90,7 +91,7 @@ export class CommunicationsService {
         deletedAt: null,
       },
       include: {
-        guardians: {
+        guardianLinks: {
           include: {
             guardian: true,
           },
@@ -107,9 +108,9 @@ export class CommunicationsService {
 
     if (dto.includeParents !== false) {
       students.forEach((student) => {
-        student.guardians.forEach((link) => {
-          if (dto.channel === MessageChannel.SMS && link.guardian.phoneNumber) {
-            recipients.push(link.guardian.phoneNumber);
+        student.guardianLinks.forEach((link) => {
+          if (dto.channel === MessageChannel.SMS && link.guardian.phone) {
+            recipients.push(link.guardian.phone);
           } else if (dto.channel === MessageChannel.EMAIL && link.guardian.email) {
             recipients.push(link.guardian.email);
           }
@@ -119,8 +120,8 @@ export class CommunicationsService {
 
     if (dto.includeStudents) {
       students.forEach((student) => {
-        if (dto.channel === MessageChannel.SMS && student.phoneNumber) {
-          recipients.push(student.phoneNumber);
+        if (dto.channel === MessageChannel.SMS && student.phone) {
+          recipients.push(student.phone);
         } else if (dto.channel === MessageChannel.EMAIL && student.email) {
           recipients.push(student.email);
         }
@@ -158,14 +159,14 @@ export class CommunicationsService {
         tenantId,
         date: attendanceDate,
         status: {
-          in: ['ABSENT', 'UNAUTHORIZED_ABSENCE'],
+          in: ['ABSENT'],
         },
         ...(dto.classId && { classId: dto.classId }),
       },
       include: {
         student: {
           include: {
-            guardians: {
+            guardianLinks: {
               include: {
                 guardian: true,
               },
@@ -194,7 +195,7 @@ export class CommunicationsService {
 
     for (const record of absentRecords) {
       const student = record.student;
-      const primaryGuardian = student.guardians[0]?.guardian;
+      const primaryGuardian = student.guardianLinks[0]?.guardian;
 
       if (!primaryGuardian) continue;
 
@@ -210,7 +211,7 @@ export class CommunicationsService {
 
           const recipient =
             channel === MessageChannel.SMS
-              ? primaryGuardian.phoneNumber
+              ? primaryGuardian.phone
               : primaryGuardian.email;
 
           if (recipient) {
@@ -221,13 +222,13 @@ export class CommunicationsService {
                 subject: 'Student Absence Alert',
                 message,
                 messageType: MessageType.ATTENDANCE_ALERT,
-                priority: 'HIGH',
+                priority: MessagePriority.HIGH,
               },
               userId,
             );
             totalSent++;
           }
-        } catch (error) {
+        } catch (error: any) {
           this.logger.error(
             `Failed to send absence alert for student ${student.id}`,
             error,
@@ -265,7 +266,7 @@ export class CommunicationsService {
       include: {
         student: {
           include: {
-            guardians: {
+            guardianLinks: {
               include: {
                 guardian: true,
               },
@@ -297,7 +298,7 @@ export class CommunicationsService {
 
     for (const invoice of invoices) {
       const student = invoice.student;
-      const primaryGuardian = student.guardians[0]?.guardian;
+      const primaryGuardian = student.guardianLinks[0]?.guardian;
 
       if (!primaryGuardian) continue;
 
@@ -319,7 +320,7 @@ export class CommunicationsService {
 
           const recipient =
             channel === MessageChannel.SMS
-              ? primaryGuardian.phoneNumber
+              ? primaryGuardian.phone
               : primaryGuardian.email;
 
           if (recipient) {
@@ -330,13 +331,13 @@ export class CommunicationsService {
                 subject: 'School Fee Reminder',
                 message,
                 messageType: MessageType.FEE_REMINDER,
-                priority: 'NORMAL',
+                priority: MessagePriority.NORMAL,
               },
               userId,
             );
             totalSent++;
           }
-        } catch (error) {
+        } catch (error: any) {
           this.logger.error(
             `Failed to send fee reminder for invoice ${invoice.id}`,
             error,
@@ -439,7 +440,7 @@ export class CommunicationsService {
       }
 
       this.logger.log(`SMS sent to ${recipients.length} recipients`);
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to send SMS', error);
       results.failed = recipients.length;
       results.errors.push({ error: error.message });
@@ -466,7 +467,7 @@ export class CommunicationsService {
           },
         });
         results.success++;
-      } catch (error) {
+      } catch (error: any) {
         results.failed++;
         results.errors.push({ recipient, error: error.message });
       }
@@ -491,7 +492,7 @@ export class CommunicationsService {
           },
         });
         results.success++;
-      } catch (error) {
+      } catch (error: any) {
         results.failed++;
       }
     }

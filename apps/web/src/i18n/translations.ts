@@ -40,6 +40,22 @@ export interface Translations {
     close: string;
     open: string;
     settings: string;
+    dashboard: string;
+    profileSettings: string;
+    helpSupport: string;
+    school: string;
+    schoolWorkspace: string;
+    connectedSchool: string;
+    betterSchoolDays: string;
+    brighterFutures: string;
+    workspaceDescription: string;
+    peopleConnected: string;
+    learningSupported: string;
+    accessProtected: string;
+    placeToGrow: string;
+    oneCommunity: string;
+    welcomeToKrypton: string;
+    organizedSchools: string;
   };
 
   // Auth
@@ -48,16 +64,30 @@ export interface Translations {
     signOut: string;
     forgotPassword: string;
     rememberMe: string;
+    email: string;
+    password: string;
     emailAddress: string;
     enterPassword: string;
     invalidCredentials: string;
     loginSuccess: string;
     logoutSuccess: string;
     sessionExpired: string;
+    signingIn: string;
+    goodToSeeYou: string;
+    signInToWorkspace: string;
+    unableToSignIn: string;
+    showPassword: string;
+    hidePassword: string;
+    accessAssigned: string;
+    needHelpContact: string;
+    needHelp: string;
+    contactSupport: string;
+    demoCredentials: string;
   };
 
   // Parent Portal
   parent: {
+    portalLogin: string;
     dashboard: string;
     fees: string;
     attendance: string;
@@ -103,6 +133,13 @@ export interface Translations {
 
   // Teacher Portal
   teacher: {
+    portalLogin: string;
+    teacherPortal: string;
+    teacher: string;
+    teaching: string;
+    onlyTeachersAllowed: string;
+    notATeacher: string;
+    parentPortal: string;
     dashboard: string;
     myClasses: string;
     attendance: string;
@@ -160,11 +197,24 @@ export interface Translations {
     sendViaEmail: string;
     messageSent: string;
     replyReceived: string;
+    mobileNav: {
+      home: string;
+      classes: string;
+      attend: string;
+      grades: string;
+      messages: string;
+    };
   };
 
   // Admin Portal
   admin: {
     platformAdmin: string;
+    superAdmin: string;
+    administration: string;
+    platform: string;
+    platformAdministrator: string;
+    securityMFA: string;
+    auditLogs: string;
     dashboard: string;
     schools: string;
     subscriptions: string;
@@ -221,6 +271,12 @@ export interface Translations {
     announcements: string;
     createAnnouncement: string;
     publishAnnouncement: string;
+    mobileNav: {
+      dashboard: string;
+      schools: string;
+      billing: string;
+      system: string;
+    };
   };
 
   // Status

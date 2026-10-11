@@ -382,6 +382,7 @@ export class StudentsService {
         classId: assignClassDto.classId,
         streamId: assignClassDto.streamId,
         enrollmentDate: new Date(),
+        academicYearId: (await this.prisma.academicYear.findFirst({ where: { tenantId, isCurrent: true } }))?.id || (() => { throw new BadRequestException("Set a current academic year first"); })(),
       },
     });
 

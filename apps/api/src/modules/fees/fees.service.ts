@@ -57,7 +57,7 @@ export class FeesService {
         feeItems: {
           create: dto.feeItems.map((item) => ({
             name: item.name,
-            description: item.description,
+            description: item.description || item.name,
             amount: item.amount,
             feeCategory: item.feeCategory,
             isOptional: item.isOptional || false,
@@ -207,7 +207,7 @@ export class FeesService {
         dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
         invoiceItems: {
           create: dto.items.map((item) => ({
-            description: item.description,
+            description: item.description || item.name,
             amount: item.amount,
             feeCategory: item.feeCategory,
           })),
@@ -295,7 +295,7 @@ export class FeesService {
 
         // Create invoice
         const items = feeStructure.feeItems.map((item) => ({
-          description: item.description,
+          description: item.description || item.name,
           amount: item.amount,
           feeCategory: item.feeCategory,
         }));
@@ -308,7 +308,7 @@ export class FeesService {
         });
 
         results.created++;
-      } catch (error) {
+      } catch (error: any) {
         results.errors.push({
           student: `${student.firstName} ${student.lastName} (${student.admissionNumber})`,
           error: error.message,

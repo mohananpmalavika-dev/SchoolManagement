@@ -22,7 +22,7 @@ export function formatFullName(
   lastName: string,
   middleName?: string
 ): string {
-  const parts = [firstName, middleName, lastName].filter(Boolean);
+  const parts = [firstName, middleName, lastName].filter((name): name is string => !!name);
   return parts.map(formatName).join(' ');
 }
 

@@ -218,6 +218,7 @@ enum AcademicCalendar {
 // ===================================
 
 model User {
+  tokenVersion Int @default(0)
   id                String   @id @default(uuid())
   tenantId          String
   email             String
@@ -511,6 +512,7 @@ enum StaffStatus {
 }
 
 model StaffAttendance {
+  remarks String?
   id                String   @id @default(uuid())
   tenantId          String
   staffId           String
@@ -581,6 +583,9 @@ model Term {
 }
 
 model Class {
+  examinations Examination[]
+  reportCards ReportCard[]
+  attendanceRecords AttendanceRecord[]
   id                String   @id @default(uuid())
   tenantId          String
   schoolId          String
@@ -605,6 +610,9 @@ model Class {
 }
 
 model Stream {
+  examinations Examination[]
+  reportCards ReportCard[]
+  attendanceRecords AttendanceRecord[]
   id                String   @id @default(uuid())
   tenantId          String
   schoolId          String
@@ -627,6 +635,7 @@ model Stream {
 }
 
 model Subject {
+  examinationSubjects ExaminationSubject[]
   id                String   @id @default(uuid())
   tenantId          String
   name              String
@@ -673,12 +682,18 @@ model Enrollment {
 // ===================================
 
 model AttendanceRecord {
+  classId String?
+  streamId String?
+  remarks String?
+  arrivalTime DateTime?
+  class Class? @relation(fields: [classId], references: [id])
+  stream Stream? @relation(fields: [streamId], references: [id])
   id                String   @id @default(uuid())
   tenantId          String
   studentId         String
   date              DateTime @db.Date
   status            AttendanceStatus
-  period            String?  // For period-wise attendance
+  period            Int @default(1)  // For period-wise attendance
   markedBy          String?
   notes             String?
   
@@ -696,6 +711,9 @@ model AttendanceRecord {
 }
 
 enum AttendanceStatus {
+  ON_LEAVE
+  SICK_LEAVE
+  OFFICIAL_DUTY
   PRESENT
   ABSENT
   LATE
@@ -709,13 +727,22 @@ enum AttendanceStatus {
 // ===================================
 
 model Examination {
+  description String?
+  classId String?
+  streamId String?
+  examinationType String @default("SUMMATIVE")
+  gradingSystem String @default("PERCENTAGE")
+  createdBy String?
+  class Class? @relation(fields: [classId], references: [id])
+  stream Stream? @relation(fields: [streamId], references: [id])
+  subjects ExaminationSubject[]
   id                String   @id @default(uuid())
   tenantId          String
   termId            String
   name              String
-  examType          ExamType
-  startDate         DateTime
-  endDate           DateTime
+  examType          ExamType @default(ENDTERM)
+  startDate         DateTime?
+  endDate           DateTime?
   isPublished       Boolean  @default(false)
   
   createdAt         DateTime @default(now())
@@ -741,6 +768,12 @@ enum ExamType {
 }
 
 model Grade {
+  score Int @default(0)
+  totalMarks Int @default(100)
+  percentage Float @default(0)
+  letterGrade String @default("E")
+  competencyLevel String?
+  enteredBy String?
   id                String   @id @default(uuid())
   tenantId          String
   examinationId     String
@@ -765,6 +798,17 @@ model Grade {
 }
 
 model ReportCard {
+  classId String?
+  streamId String?
+  totalScore Float @default(0)
+  averagePercentage Float @default(0)
+  classTeacherComments String?
+  principalComments String?
+  generatedBy String?
+  approvedBy String?
+  approvedAt DateTime?
+  class Class? @relation(fields: [classId], references: [id])
+  stream Stream? @relation(fields: [streamId], references: [id])
   id                String   @id @default(uuid())
   tenantId          String
   studentId         String
@@ -794,6 +838,7 @@ model ReportCard {
 }
 
 enum ReportCardStatus {
+  APPROVED
   DRAFT
   PENDING_APPROVAL
   PUBLISHED
@@ -806,6 +851,7 @@ enum ReportCardStatus {
 // ===================================
 
 model FeeStructure {
+  invoices Invoice[]
   id                String   @id @default(uuid())
   tenantId          String
   termId            String
@@ -864,6 +910,9 @@ enum FeeCategory {
 }
 
 model Invoice {
+  feeStructureId String?
+  feeStructure FeeStructure? @relation(fields: [feeStructureId], references: [id])
+  mpesaTransactions MpesaTransaction[]
   id                String   @id @default(uuid())
   tenantId          String
   invoiceNumber     String
@@ -917,6 +966,7 @@ model InvoiceItem {
 }
 
 model Payment {
+  allocatedTransactions MpesaTransaction[] @relation("AllocatedPayment")
   id                String   @id @default(uuid())
   tenantId          String
   invoiceId         String
@@ -975,12 +1025,23 @@ enum PaymentStatus {
 // ===================================
 
 model MpesaTransaction {
+  payment Payment? @relation("AllocatedPayment", fields: [paymentId], references: [id])
+  invoiceId String?
+  paymentId String?
+  initiatedBy String?
+  responseCode String?
+  responseDescription String?
+  callbackReceived Boolean @default(false)
+  callbackReceivedAt DateTime?
+  reconciliationStatus String @default("PENDING")
+  metadata Json?
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
   id                String   @id @default(uuid())
   tenantId          String
   
   // Request Details
-  merchantRequestId String   @unique
-  checkoutRequestId String   @unique
+  merchantRequestId String?  @unique
+  checkoutRequestId String?  @unique
   
   // Transaction Details
   transactionType   MpesaTransactionType
@@ -992,7 +1053,7 @@ model MpesaTransaction {
   // Response Details
   mpesaReceiptNumber String? @unique
   transactionDate   DateTime?
-  resultCode        String?
+  resultCode        Int?
   resultDesc        String?
   
   // Status
@@ -1022,6 +1083,7 @@ model MpesaTransaction {
 }
 
 enum MpesaTransactionType {
+  MANUAL
   STK_PUSH
   C2B
   B2C
@@ -1029,6 +1091,7 @@ enum MpesaTransactionType {
 }
 
 enum MpesaStatus {
+  COMPLETED
   INITIATED
   PENDING
   SUCCESS
@@ -1043,6 +1106,7 @@ enum MpesaStatus {
 // ===================================
 
 model TimetableEntry {
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   id                String   @id @default(uuid())
   tenantId          String
   classId           String
@@ -1359,4 +1423,41 @@ model AuditLog {
   @@index([entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+
+model ExaminationSubject {
+  id String @id @default(uuid())
+  examinationId String
+  subjectId String
+  totalMarks Int @default(100)
+  passMark Int?
+  weight Float @default(1)
+  examination Examination @relation(fields: [examinationId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id])
+  @@unique([examinationId, subjectId])
+}
+
+model SupportTicket {
+  id String @id @default(uuid())
+  tenantId String
+  subject String
+  description String @db.Text
+  status String @default("OPEN")
+  priority String @default("NORMAL")
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([tenantId, status])
+}
+
+model Announcement {
+  id String @id @default(uuid())
+  title String
+  body String @db.Text
+  status String @default("DRAFT")
+  createdBy String
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

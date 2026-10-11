@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export function AdminNav() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [showMenu, setShowMenu] = useState(false);
   const [user, setUser] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -45,10 +47,10 @@ export function AdminNav() {
               </div>
               <div className="ml-3">
                 <span className="text-lg font-bold text-gray-900">
-                  Platform Admin
+                  {t('admin.platformAdmin')}
                 </span>
                 <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded">
-                  SUPER ADMIN
+                  {t('admin.superAdmin')}
                 </span>
               </div>
             </div>
@@ -56,12 +58,12 @@ export function AdminNav() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-            <NavLink href="/admin/dashboard">Dashboard</NavLink>
-            <NavLink href="/admin/schools">Schools</NavLink>
-            <NavLink href="/admin/subscriptions">Subscriptions</NavLink>
-            <NavLink href="/admin/users">Users</NavLink>
-            <NavLink href="/admin/system">System</NavLink>
-            <NavLink href="/admin/reports">Reports</NavLink>
+            <NavLink href="/admin/dashboard">{t('common.dashboard')}</NavLink>
+            <NavLink href="/admin/schools">{t('admin.schools')}</NavLink>
+            <NavLink href="/admin/subscriptions">{t('admin.subscriptions')}</NavLink>
+            <NavLink href="/admin/users">{t('admin.users')}</NavLink>
+            <NavLink href="/admin/system">{t('admin.system')}</NavLink>
+            <NavLink href="/admin/reports">{t('admin.reports')}</NavLink>
           </div>
 
           {/* User Menu */}
@@ -112,7 +114,7 @@ export function AdminNav() {
                     </p>
                     <p className="text-xs text-gray-500">{user?.email}</p>
                     <p className="text-xs text-purple-600 font-semibold mt-1">
-                      Platform Administrator
+                      {t('admin.platformAdministrator')}
                     </p>
                   </div>
                   
@@ -124,7 +126,7 @@ export function AdminNav() {
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
-                      Profile Settings
+                      {t('common.profileSettings')}
                     </div>
                   </a>
                   
@@ -136,7 +138,7 @@ export function AdminNav() {
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
-                      Security & MFA
+                      {t('admin.securityMFA')}
                     </div>
                   </a>
                   
@@ -148,7 +150,7 @@ export function AdminNav() {
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      Audit Logs
+                      {t('admin.auditLogs')}
                     </div>
                   </a>
                   
@@ -162,7 +164,7 @@ export function AdminNav() {
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                       </svg>
-                      Sign Out
+                      {t('auth.signOut')}
                     </div>
                   </button>
                 </div>
@@ -174,10 +176,10 @@ export function AdminNav() {
         {/* Mobile Navigation */}
         <div className="md:hidden border-t border-gray-200 py-2">
           <div className="flex items-center justify-around">
-            <MobileNavItem href="/admin/dashboard" icon="dashboard" label="Dashboard" />
-            <MobileNavItem href="/admin/schools" icon="school" label="Schools" />
-            <MobileNavItem href="/admin/subscriptions" icon="billing" label="Billing" />
-            <MobileNavItem href="/admin/system" icon="system" label="System" />
+            <MobileNavItem href="/admin/dashboard" icon="dashboard" label={t('admin.mobileNav.dashboard')} />
+            <MobileNavItem href="/admin/schools" icon="school" label={t('admin.mobileNav.schools')} />
+            <MobileNavItem href="/admin/subscriptions" icon="billing" label={t('admin.mobileNav.billing')} />
+            <MobileNavItem href="/admin/system" icon="system" label={t('admin.mobileNav.system')} />
           </div>
         </div>
       </div>

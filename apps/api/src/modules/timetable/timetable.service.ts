@@ -131,7 +131,7 @@ export class TimetableService {
       try {
         await this.createEntry(entryDto);
         results.success++;
-      } catch (error) {
+      } catch (error: any) {
         results.failed++;
         results.errors.push({
           entry: entryDto,
@@ -248,7 +248,7 @@ export class TimetableService {
     if (dto.teacherId || dto.startTime || dto.endTime || dto.room) {
       await this.checkConflicts(
         existing.classId,
-        existing.streamId,
+        existing.streamId || undefined,
         dto.teacherId || existing.teacherId,
         existing.dayOfWeek,
         existing.period,
@@ -337,7 +337,7 @@ export class TimetableService {
   private groupByDay(entries: any[]) {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     
-    const grouped = {};
+    const grouped: Record<string, any[]> = {};
 
     for (let i = 1; i <= 7; i++) {
       grouped[days[i - 1]] = entries.filter((e) => e.dayOfWeek === i);

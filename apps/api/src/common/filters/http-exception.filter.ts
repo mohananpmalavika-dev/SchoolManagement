@@ -21,6 +21,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     const errorResponse = {
       success: false,
+      message: this.getErrorMessage(exceptionResponse),
       error: {
         code: this.getErrorCode(status),
         message: this.getErrorMessage(exceptionResponse),

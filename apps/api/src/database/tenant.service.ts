@@ -1,54 +1,19 @@
-import { Injectable, Scope } from '@nestjs/common';
-
-/**
- * Service to manage tenant context in request scope
- * This uses AsyncLocalStorage pattern to maintain tenant context
- * throughout the request lifecycle
- */
-@Injectable({ scope: Scope.REQUEST })
+import { Injectable } from '@nestjs/common';
+import { AsyncLocalStorage } from 'node:async_hooks';
+interface TenantContext { tenantId: string | null; subdomain: string | null; customDomain: string | null }
+@Injectable()
 export class TenantService {
-  private tenantId: string | null = null;
-  private subdomain: string | null = null;
-  private customDomain: string | null = null;
-
-  setTenantId(tenantId: string | null): void {
-    this.tenantId = tenantId;
-  }
-
-  getTenantId(): string | null {
-    return this.tenantId;
-  }
-
-  setSubdomain(subdomain: string | null): void {
-    this.subdomain = subdomain;
-  }
-
-  getSubdomain(): string | null {
-    return this.subdomain;
-  }
-
-  setCustomDomain(customDomain: string | null): void {
-    this.customDomain = customDomain;
-  }
-
-  getCustomDomain(): string | null {
-    return this.customDomain;
-  }
-
-  clearTenantContext(): void {
-    this.tenantId = null;
-    this.subdomain = null;
-    this.customDomain = null;
-  }
-
-  hasTenantContext(): boolean {
-    return this.tenantId !== null;
-  }
-
-  requireTenantContext(): string {
-    if (!this.tenantId) {
-      throw new Error('Tenant context is required but not set');
-    }
-    return this.tenantId;
-  }
+ private readonly storage = new AsyncLocalStorage<TenantContext>();
+ run<T>(operation:()=>T):T {return this.storage.run({tenantId:null,subdomain:null,customDomain:null},operation);}
+ private context(){const value=this.storage.getStore();if(!value)throw new Error('Tenant request context is not initialized');return value;}
+ setTenantId(id:string|null){this.context().tenantId=id;}
+ getTenantId(){return this.storage.getStore()?.tenantId||null;}
+ setSubdomain(value:string|null){this.context().subdomain=value;}
+ getSubdomain(){return this.storage.getStore()?.subdomain||null;}
+ setCustomDomain(value:string|null){this.context().customDomain=value;}
+ getCustomDomain(){return this.storage.getStore()?.customDomain||null;}
+ getTenantContext(){return this.storage.getStore()||null;}
+ clearTenantContext(){Object.assign(this.context(),{tenantId:null,subdomain:null,customDomain:null});}
+ hasTenantContext(){return !!this.getTenantId();}
+ requireTenantContext():string {const id=this.getTenantId();if(!id)throw new Error('Tenant context required');return id;}
 }

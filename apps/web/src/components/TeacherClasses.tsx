@@ -1,0 +1,11 @@
+'use client';
+import {useState,useEffect} from 'react';
+import {Users,ArrowUpRight} from 'lucide-react';
+import Link from 'next/link';
+import {PageHeading,EmptyState} from './WorkspaceUI';
+import {getRows,messageFor} from '@/lib/workspace';
+export function TeacherClasses(){
+ const [classes,setClasses]=useState<any[]>([]);const [students,setStudents]=useState<any[]>([]);const [selected,setSelected]=useState('');const [error,setError]=useState('');const [loading,setLoading]=useState(true);
+ useEffect(()=>{Promise.all([getRows('/workspace/classes'),getRows('/workspace/students')]).then(([c,s])=>{setClasses(c);setStudents(s);setSelected(c[0]?.id||'');}).catch(err=>setError(messageFor(err))).finally(()=>setLoading(false));},[]);
+ return <><PageHeading title="My classes" description="Know your learners. Support their next step."/>{error&&<div className="state-box" role="alert">{error}</div>}<div className="grid gap-4 md:grid-cols-3 mb-6">{classes.map(c=><button className={'metric-card text-left '+(selected===c.id?'ring-2 ring-primary-600':'')} key={c.id} onClick={()=>setSelected(c.id)}><div className="metric-top"><Users size={22}/><span className="pill">{c.educationLevel.replaceAll('_',' ')}</span></div><h2 className="mt-5">{c.name}</h2><p className="muted text-xs mt-2">{c.studentCount} students</p></button>)}</div><section className="panel"><div className="panel-heading"><h2>Class directory</h2><Link className="panel-link" href="/teacher/attendance">Open register<ArrowUpRight size={15}/></Link></div>{loading?<div className="skeleton h-40 m-5"/>:!classes.length?<EmptyState title="Your classes will appear here" description="Ask your school administrator to link your staff profile and timetable."/>:<div className="table-wrap"><table><thead><tr><th>Student</th><th>Admission no.</th><th>Status</th></tr></thead><tbody>{students.filter(s=>s.currentClassId===selected).map(s=><tr key={s.id}><td>{s.name}</td><td>{s.admissionNumber}</td><td>{s.status.toLowerCase()}</td></tr>)}</tbody></table></div>}</section></>;
+}

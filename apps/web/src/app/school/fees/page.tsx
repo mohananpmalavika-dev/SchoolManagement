@@ -1,0 +1,2 @@
+import {ResourceTabs} from '@/components/ResourceTabs';
+export default function Page(){return <ResourceTabs resources={[{"key": "invoices", "label": "Invoices"}, {"key": "payments", "label": "Payment records"}]}/>;}

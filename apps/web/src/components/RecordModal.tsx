@@ -1,0 +1,21 @@
+'use client';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
+import { Button } from './ui';
+import { apiClient } from '@/lib/api-client';
+import { getRows, messageFor } from '@/lib/workspace';
+export interface Field {key:string;label:string;type?:string;required?:boolean;options?:string[];source?:string;min?:number;max?:number}
+export function RecordModal({title,endpoint,fields,initial,onClose,onSaved}:{title:string;endpoint:string;fields:Field[];initial?:Record<string,any>;onClose:()=>void;onSaved:()=>void}){
+ const [values,setValues]=useState<Record<string,string>>(()=>Object.fromEntries(fields.map(f=>[f.key,String(initial?.[f.key]??'')])));
+ const [options,setOptions]=useState<Record<string,any[]>>({});const [busy,setBusy]=useState(false);const [error,setError]=useState('');const dialog=useRef<HTMLDivElement>(null);
+ useEffect(()=>{
+  const previous=document.activeElement as HTMLElement|null;
+  const element=dialog.current; element?.querySelector<HTMLElement>('input,select,textarea,button')?.focus();
+  const key=(e:KeyboardEvent)=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const focusable=element?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select,textarea');if(!focusable?.length)return;const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}};
+  document.addEventListener('keydown',key);const previousOverflow=document.body.style.overflow;document.body.style.overflow='hidden';
+  return()=>{document.removeEventListener('keydown',key);document.body.style.overflow=previousOverflow;previous?.focus();};
+ },[onClose,busy]);
+ useEffect(()=>{let active=true;Promise.all(fields.filter(f=>f.source).map(async f=>[f.key,await getRows(f.source!)] as const)).then(rows=>{if(active)setOptions(Object.fromEntries(rows));}).catch(err=>{if(active)setError(messageFor(err));});return()=>{active=false;};},[fields]);
+ async function submit(e:FormEvent){e.preventDefault();setBusy(true);setError('');const data:Record<string,unknown>={};fields.forEach(f=>{if(values[f.key]!=='')data[f.key]=f.type==='number'?Number(values[f.key]):values[f.key];});try{if(initial)await apiClient.patch(endpoint+'/'+initial.id,{data});else await apiClient.post(endpoint,{data});onSaved();}catch(err){setError(messageFor(err));}finally{setBusy(false);}}
+ return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)onClose();}}><div ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby="record-title"><div className="modal-header"><h2 id="record-title">{title}</h2><button disabled={busy} onClick={onClose} className="icon-button" aria-label="Close dialog"><X size={20}/></button></div><form onSubmit={submit}>{error&&<div role="alert" className="state-box">{error}</div>}<div className="form-grid">{fields.map(f=><div className="field" key={f.key}><label htmlFor={'field-'+f.key}>{f.label}{f.required?' *':''}</label>{f.options||f.source?<select id={'field-'+f.key} required={f.required} value={values[f.key]} onChange={e=>setValues({...values,[f.key]:e.target.value})}><option value="">Select {f.label.toLowerCase()}</option>{f.options?.map(o=><option key={o} value={o}>{o.replaceAll('_',' ')}</option>)}{options[f.key]?.map(o=><option key={o.id} value={o.id}>{o.name||o.title||o.invoiceNumber||[o.firstName,o.lastName].filter(Boolean).join(' ')}</option>)}</select>:f.type==='textarea'?<textarea id={'field-'+f.key} required={f.required} value={values[f.key]} onChange={e=>setValues({...values,[f.key]:e.target.value})}/>:<input id={'field-'+f.key} type={f.type||'text'} required={f.required} min={f.min} max={f.max} maxLength={f.type==='password'?128:undefined} value={values[f.key]} onChange={e=>setValues({...values,[f.key]:e.target.value})}/>}</div>)}</div><div className="modal-actions"><Button variant="ghost" type="button" disabled={busy} onClick={onClose}>Cancel</Button><Button type="submit" isLoading={busy}>{initial?'Save changes':'Create record'}</Button></div></form></div></div>;
+}

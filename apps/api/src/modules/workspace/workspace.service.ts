@@ -1,0 +1,167 @@
+import {Injectable,BadRequestException,ForbiddenException,NotFoundException} from '@nestjs/common';
+import {PrismaService} from '../../database/prisma.service';
+import {TenantService} from '../../database/tenant.service';
+import {FeesService} from '../fees/fees.service';
+import {MpesaService} from '../mpesa/mpesa.service';
+import {TimetableService} from '../timetable/timetable.service';
+import {FeeCategory} from '@krypton/types';
+import {recordSpecs,managers,parseRecord} from './records';
+const teacherRoles=['TEACHER','CLASS_TEACHER','EXAM_OFFICER'];
+@Injectable()
+export class WorkspaceService{
+ constructor(private prisma:PrismaService,private tenants:TenantService,private fees:FeesService,private mpesa:MpesaService,private timetable:TimetableService){}
+ private tenant(){return this.tenants.requireTenantContext();}
+ private staffRole(user:any){if(['PARENT','STUDENT'].includes(user.role))throw new ForbiddenException('Staff access required');}
+ private async classIds(user:any):Promise<string[]|null>{
+  this.staffRole(user);if(!teacherRoles.includes(user.role))return null;
+  const staff=await this.prisma.staff.findFirst({where:{tenantId:this.tenant(),userId:user.userId,status:'ACTIVE'}});
+  if(!staff)return [];
+  const entries=await this.prisma.timetableEntry.findMany({where:{tenantId:this.tenant(),teacherId:staff.id},select:{classId:true}});
+  return [...new Set(entries.map(e=>e.classId))];
+ }
+ async authorizeClass(user:any,id:string){const classes=await this.classIds(user);if(classes&&!classes.includes(id))throw new ForbiddenException('This class is not assigned to you');
+  if(!await this.prisma.class.findFirst({where:{id,tenantId:this.tenant()}}))throw new NotFoundException('Class not found');}
+ private writer(user:any,resource:string){const spec=recordSpecs[resource];if(!spec)throw new NotFoundException('Unknown resource');const allowed=spec.roles||managers;if(!allowed.includes(user.role)&&user.role!=='SUPER_ADMIN')throw new ForbiddenException('You cannot edit this resource');return spec;}
+ async children(user:any){if(user.role!=='PARENT')throw new ForbiddenException('Family access required');return this.prisma.student.findMany({where:{tenantId:this.tenant(),deletedAt:null,guardianLinks:{some:{guardian:{userId:user.userId,tenantId:this.tenant()}}}},include:{currentClass:true,currentStream:true},orderBy:{firstName:'asc'}});}
+ async authorizeStudent(user:any,id:string){
+  const student=await this.prisma.student.findFirst({where:{id,tenantId:this.tenant(),deletedAt:null},include:{currentClass:true,currentStream:true}});
+  if(!student)throw new NotFoundException('Student not found');
+  if(user.role==='PARENT'){const children=await this.children(user);if(!children.some(s=>s.id===id))throw new ForbiddenException('Access denied to this student');}
+  else{this.staffRole(user);if(teacherRoles.includes(user.role))await this.authorizeClass(user,student.currentClassId||'');}
+  return student;
+ }
+ async studentData(user:any,id:string){
+  const student=await this.authorizeStudent(user,id);const tenantId=this.tenant();
+  const [invoices,payments,attendance,grades,reportCards,events]=await Promise.all([
+   this.prisma.invoice.findMany({where:{tenantId,studentId:id},orderBy:{createdAt:'desc'},include:{term:true}}),
+   this.prisma.payment.findMany({where:{tenantId,invoice:{studentId:id},status:'COMPLETED'},orderBy:{paymentDate:'desc'}}),
+   this.prisma.attendanceRecord.findMany({where:{tenantId,studentId:id},orderBy:{date:'desc'},take:365}),
+   this.prisma.grade.findMany({where:{tenantId,studentId:id,...(user.role==='PARENT'?{examination:{isPublished:true}}:{})},include:{subject:true,examination:true},orderBy:{createdAt:'desc'}}),
+   this.prisma.reportCard.findMany({where:{tenantId,studentId:id,...(user.role==='PARENT'?{status:'PUBLISHED'}:{})},include:{term:true},orderBy:{createdAt:'desc'}}),
+   this.prisma.schoolEvent.findMany({where:{tenantId,startDate:{gte:new Date()}},orderBy:{startDate:'asc'},take:5})
+  ]);
+  const present=attendance.filter(a=>['PRESENT','LATE'].includes(a.status)).length;
+  return {student,invoices,payments,attendance,grades,reportCards,events,attendanceSummary:{totalDays:attendance.length,presentCount:present,attendanceRate:attendance.length?Math.round(present/attendance.length*100):0}};
+ }
+ async pay(user:any,dto:any){const invoice=await this.prisma.invoice.findFirst({where:{id:dto.invoiceId,tenantId:this.tenant()}});if(!invoice)throw new NotFoundException('Invoice not found');await this.authorizeStudent(user,invoice.studentId);return this.mpesa.initiateSTKPush(dto,user.userId);}
+ async list(user:any,resource:string){
+  this.staffRole(user);const tenantId=this.tenant();const classes=await this.classIds(user);
+  const scope=classes?{currentClassId:{in:classes}}:{};
+  if(teacherRoles.includes(user.role)&&!['classes','students','examinations','subjects','timetable','messages','recipients'].includes(resource))throw new ForbiddenException('Resource is not available to teachers');
+  if(resource==='recipients')return this.prisma.guardian.findMany({where:{tenantId,studentLinks:{some:{student:scope}}},select:{id:true,firstName:true,lastName:true,userId:true}});
+  if(resource==='messages')return this.prisma.communication.findMany({where:{tenantId,...(classes?{sentBy:user.userId}:{})},orderBy:{createdAt:'desc'},take:500});
+  const spec=recordSpecs[resource];if(!spec)throw new NotFoundException('Unknown resource');
+  let rows:any[];
+  const db=this.prisma as any;
+  if(resource==='students')rows=await this.prisma.student.findMany({where:{tenantId,deletedAt:null,...scope},include:{currentClass:true,currentStream:true},orderBy:{firstName:'asc'},take:5000});
+  else if(resource==='classes')rows=await this.prisma.class.findMany({where:{tenantId,...(classes?{id:{in:classes}}:{})},include:{_count:{select:{currentStudents:true}}},orderBy:{sortOrder:'asc'}});
+  else if(resource==='examinations')rows=await this.prisma.examination.findMany({where:{tenantId,...(classes?{classId:{in:classes}}:{})},include:{class:true,term:true,subjects:{include:{subject:true}}},orderBy:{createdAt:'desc'}});
+  else if(resource==='invoices')rows=await this.prisma.invoice.findMany({where:{tenantId},include:{student:true,term:true},orderBy:{createdAt:'desc'},take:5000});
+  else if(resource==='payments')rows=await this.prisma.payment.findMany({where:{tenantId},include:{invoice:{include:{student:true}}},orderBy:{paymentDate:'desc'},take:5000});
+  else if(resource==='borrowings')rows=await this.prisma.bookBorrowing.findMany({where:{tenantId},include:{book:true},orderBy:{createdAt:'desc'},take:5000});
+  else if(resource==='timetable'){const staff=classes?await this.prisma.staff.findFirst({where:{tenantId,userId:user.userId}}):null;rows=await this.prisma.timetableEntry.findMany({where:{tenantId,...(classes?{teacherId:staff?.id||''}:{})},include:{class:true,subject:true,teacher:true},orderBy:[{dayOfWeek:'asc'},{startTime:'asc'}]});}
+  else if(resource==='guardian-links')rows=await this.prisma.guardianStudentLink.findMany({where:{guardian:{tenantId}},include:{guardian:true,student:true}});
+  else rows=await db[spec.model].findMany({where:{tenantId},orderBy:{createdAt:'desc'},take:5000});
+  return rows.map(r=>({...r,name:r.name||(r.firstName?r.firstName+' '+r.lastName:undefined),studentName:r.student?r.student.firstName+' '+r.student.lastName:undefined,className:r.currentClass?.name||r.class?.name,termName:r.term?.name,bookTitle:r.book?.title,guardianName:r.guardian?r.guardian.firstName+' '+r.guardian.lastName:undefined,subjectName:r.subject?.name,teacherName:r.teacher?r.teacher.firstName+' '+r.teacher.lastName:undefined,studentCount:r._count?.currentStudents,day:r.dayOfWeek?['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][r.dayOfWeek-1]:undefined}));
+ }
+ async write(user:any,resource:string,input:Record<string,unknown>,id?:string){
+  const spec=this.writer(user,resource);const tenantId=this.tenant();const data=parseRecord(spec,input,!!id);const db=this.prisma as any;
+  for(const [key,rule] of Object.entries(spec.fields))if(rule.startsWith('ref:')&&data[key]){
+   const model=rule.replace(/!$/,'').slice(4);const ref=await db[model].findFirst({where:{id:data[key],tenantId}});
+   if(!ref)throw new BadRequestException('Selected '+key+' is unavailable');
+   if(key==='userId'&&resource==='guardians'&&ref.role!=='PARENT')throw new BadRequestException('Guardian account must have the parent role');
+   if(key==='userId'&&resource==='staff'&&!teacherRoles.includes(ref.role))throw new BadRequestException('Linked staff account must have a teacher role');
+  }
+  if(id){const where=resource==='guardian-links'?{id,guardian:{tenantId}}:{id,tenantId};if(!await db[spec.model].findFirst({where}))throw new NotFoundException('Record not found');
+   if(['invoices','payments','examinations','borrowings','timetable'].includes(resource))throw new BadRequestException('This record cannot be edited here');
+   if(['years','terms'].includes(resource)){const existing=await db[spec.model].findFirst({where});if((data.startDate||existing.startDate)>(data.endDate||existing.endDate))throw new BadRequestException('End date must follow start date');}
+  }
+  if(resource==='streams'&&data.classId){const cls=await this.prisma.class.findFirst({where:{id:data.classId,tenantId}});if(cls?.schoolId!==data.schoolId)throw new BadRequestException('Class belongs to a different campus');}
+  let result:any;
+  if(resource==='invoices'){const {studentId,termId,description,amount,dueDate}=data;result=await this.fees.createInvoice({studentId,termId,items:[{description,amount,feeCategory:FeeCategory.TUITION}],dueDate:dueDate?.toISOString()});}
+  else if(resource==='payments')result=await this.fees.recordPayment({...data,paymentDate:data.paymentDate?.toISOString()} as any,user.userId);
+  else if(resource==='timetable')result=await this.timetable.createEntry(data as any);
+  else if(resource==='examinations'){const {subjectId,totalMarks,...exam}=data;result=await this.prisma.examination.create({data:{...exam,tenantId,subjects:{create:{subjectId,totalMarks}}} as any});}
+  else if(resource==='borrowings'){
+   if(data.dueDate<new Date())throw new BadRequestException('Due date must be in the future');
+   result=await this.prisma.$transaction(async tx=>{
+    const available=await tx.book.updateMany({where:{id:data.bookId,tenantId,available:{gt:0}},data:{available:{decrement:1}}});
+    if(!available.count)throw new BadRequestException('No copies are available');
+    return tx.bookBorrowing.create({data:{...data,tenantId,borrowerType:'STUDENT'} as any});
+   });
+  }else{
+   if(resource==='schools'&&!id)data.educationLevel=['PRIMARY'];
+   if(resource==='staff')data.isTeacher=data.department==='TEACHING';
+   if(resource==='books'&&!id)data.available=data.quantity;
+   if(resource==='tickets'&&!id)data.createdBy=user.userId;
+   if(resource==='books'&&id&&data.quantity!==undefined){
+    result=await this.prisma.$transaction(async tx=>{
+     // Serialize stock edits with the same book row used by borrowing transactions.
+     await tx.book.update({where:{id,tenantId},data:{updatedAt:new Date()}});
+     const book=await tx.book.findFirstOrThrow({where:{id,tenantId}});const onLoan=book.quantity-book.available;
+     if(data.quantity<onLoan)throw new BadRequestException('Quantity cannot be smaller than copies on loan');
+     return tx.book.update({where:{id,tenantId},data:{...data,available:data.quantity-onLoan}});
+    });
+   }else result=id?await db[spec.model].update({where:{id},data}):await db[spec.model].create({data:{...data,...(resource==='guardian-links'?{}:{tenantId})}});
+  }
+  await this.audit(user,id?'RECORD_UPDATED':'RECORD_CREATED',resource,result.id);return {id:result.id};
+ }
+ private async audit(user:any,action:string,entityType:string,entityId?:string){await this.prisma.auditLog.create({data:{tenantId:this.tenant(),userId:user.userId,action,entityType,entityId}});}
+ async action(user:any,resource:string,id:string,action:string){
+  this.writer(user,resource);const tenantId=this.tenant();
+  if(resource==='borrowings'&&action==='return'){await this.prisma.$transaction(async tx=>{const loan=await tx.bookBorrowing.findFirst({where:{id,tenantId}});if(!loan)throw new NotFoundException('Loan not found');const changed=await tx.bookBorrowing.updateMany({where:{id,tenantId,status:{in:['BORROWED','OVERDUE']}},data:{status:'RETURNED',returnDate:new Date()}});if(changed.count)await tx.book.update({where:{id:loan.bookId,tenantId},data:{available:{increment:1}}});});}
+  else if(['years','terms'].includes(resource)&&action==='current'){const model=recordSpecs[resource].model;const db=this.prisma as any;if(!await db[model].findFirst({where:{id,tenantId}}))throw new NotFoundException('Record not found');await this.prisma.$transaction(async tx=>{await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});await (tx as any)[model].updateMany({where:{tenantId},data:{isCurrent:false}});await (tx as any)[model].update({where:{id,tenantId},data:{isCurrent:true}});});}
+  else if(resource==='examinations'&&action==='publish'){if(!await this.prisma.examination.findFirst({where:{id,tenantId}}))throw new NotFoundException('Assessment not found');await this.prisma.examination.update({where:{id,tenantId},data:{isPublished:true}});}
+  else throw new BadRequestException('Unknown action');
+  await this.audit(user,'RECORD_'+action.toUpperCase(),resource,id);return {message:'Action completed'};
+ }
+ async register(user:any,classId:string,date:string){
+  await this.authorizeClass(user,classId);if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date)))throw new BadRequestException('Choose a valid date');
+  const tenantId=this.tenant();const [students,records]=await Promise.all([this.prisma.student.findMany({where:{tenantId,currentClassId:classId,status:'ACTIVE',deletedAt:null},orderBy:{firstName:'asc'}}),this.prisma.attendanceRecord.findMany({where:{tenantId,classId,date:new Date(date),period:1}})]);
+  return students.map(s=>({id:s.id,name:s.firstName+' '+s.lastName,admissionNumber:s.admissionNumber,status:records.find(r=>r.studentId===s.id)?.status||''}));
+ }
+ async saveRegister(user:any,dto:any){
+  if(![...managers,...teacherRoles].includes(user.role))throw new ForbiddenException('Cannot save attendance');
+  await this.authorizeClass(user,dto.classId);const roster=await this.register(user,dto.classId,dto.date);const ids=new Set(dto.records.map((r:any)=>r.studentId));
+  if(ids.size!==dto.records.length||dto.records.some((r:any)=>!roster.some(s=>s.id===r.studentId)))throw new BadRequestException('Invalid or duplicate students');
+  const tenantId=this.tenant();await this.prisma.$transaction(dto.records.map((r:any)=>this.prisma.attendanceRecord.upsert({where:{tenantId_studentId_date_period:{tenantId,studentId:r.studentId,date:new Date(dto.date),period:1}},create:{tenantId,studentId:r.studentId,classId:dto.classId,date:new Date(dto.date),period:1,status:r.status,markedBy:user.userId},update:{status:r.status,markedBy:user.userId}})));
+  await this.audit(user,'ATTENDANCE_SAVED','class',dto.classId);return {saved:dto.records.length};
+ }
+ async gradebook(user:any,id:string,subjectId:string){
+  this.staffRole(user);const exam=await this.prisma.examination.findFirst({where:{id,tenantId:this.tenant()},include:{subjects:true}});if(!exam||!exam.classId)throw new NotFoundException('Assessment not found');
+  await this.authorizeClass(user,exam.classId);const subject=exam.subjects.find(s=>s.subjectId===subjectId);if(!subject)throw new BadRequestException('Subject is not part of this assessment');
+  const [students,grades]=await Promise.all([this.prisma.student.findMany({where:{tenantId:this.tenant(),currentClassId:exam.classId,status:'ACTIVE',deletedAt:null},orderBy:{firstName:'asc'}}),this.prisma.grade.findMany({where:{tenantId:this.tenant(),examinationId:id,subjectId}})]);
+  return {totalMarks:subject.totalMarks,isPublished:exam.isPublished,rows:students.map(s=>({id:s.id,name:s.firstName+' '+s.lastName,admissionNumber:s.admissionNumber,score:grades.find(g=>g.studentId===s.id)?.score??''}))};
+ }
+ async saveMarks(user:any,dto:any){
+  if(![...managers,...teacherRoles].includes(user.role))throw new ForbiddenException('Cannot save grades');
+  const book=await this.gradebook(user,dto.examinationId,dto.subjectId);if(book.isPublished)throw new BadRequestException('Published assessments are locked');
+  const ids=new Set(dto.records.map((r:any)=>r.studentId));if(ids.size!==dto.records.length||dto.records.some((r:any)=>r.score>book.totalMarks||!book.rows.some(s=>s.id===r.studentId)))throw new BadRequestException('Invalid students or marks');
+  const tenantId=this.tenant();await this.prisma.$transaction(dto.records.map((r:any)=>{const percentage=r.score/book.totalMarks*100;const letterGrade=percentage>=80?'A':percentage>=70?'B':percentage>=60?'C':percentage>=50?'D':'E';const data={score:r.score,totalMarks:book.totalMarks,percentage,letterGrade,marks:r.score,grade:letterGrade,enteredBy:user.userId};return this.prisma.grade.upsert({where:{examinationId_studentId_subjectId:{examinationId:dto.examinationId,studentId:r.studentId,subjectId:dto.subjectId}},create:{tenantId,examinationId:dto.examinationId,studentId:r.studentId,subjectId:dto.subjectId,...data},update:data});}));
+  await this.audit(user,'GRADES_SAVED','examination',dto.examinationId);return {saved:dto.records.length};
+ }
+ async notifications(user:any){
+  const logs=await this.prisma.communicationLog.findMany({where:{recipient:user.userId,channel:'IN_APP',communication:{tenantId:this.tenant()}},include:{communication:true},orderBy:{createdAt:'desc'},take:100});
+  const announcements=await this.prisma.announcement.findMany({where:{status:'PUBLISHED'},orderBy:{publishedAt:'desc'},take:20});
+  return [...logs.map(l=>({id:l.id,title:l.communication.subject,body:l.communication.body,createdAt:l.createdAt,read:!!l.readAt})),...announcements.map(a=>({id:a.id,title:a.title,body:a.body,createdAt:a.publishedAt,read:true,platform:true}))].sort((a,b)=>new Date(b.createdAt!).getTime()-new Date(a.createdAt!).getTime());
+ }
+ async readNotification(user:any,id:string){const result=await this.prisma.communicationLog.updateMany({where:{id,recipient:user.userId,channel:'IN_APP',communication:{tenantId:this.tenant()}},data:{readAt:new Date(),status:'READ'}});if(!result.count)throw new NotFoundException('Message not found');return {message:'Marked as read'};}
+ async overview(user:any){
+  this.staffRole(user);const tenantId=this.tenant();const classes=await this.classIds(user);const classFilter=classes?{classId:{in:classes}}:{};
+  const today=new Date();today.setUTCHours(0,0,0,0);
+  const [students,staff,classCount,examinations,balance,attendance,events,activities,records]=await Promise.all([
+   this.prisma.student.count({where:{tenantId,status:'ACTIVE',deletedAt:null,...(classes?{currentClassId:{in:classes}}:{})}}),
+   this.prisma.staff.count({where:{tenantId,status:'ACTIVE'}}),this.prisma.class.count({where:{tenantId,...(classes?{id:{in:classes}}:{})}}),
+   this.prisma.examination.count({where:{tenantId,...classFilter}}),
+   this.prisma.invoice.aggregate({where:{tenantId,status:{in:['PENDING','PARTIALLY_PAID','OVERDUE']}},_sum:{balanceAmount:true}}),
+   this.prisma.attendanceRecord.findMany({where:{tenantId,date:today,period:1,...classFilter}}),
+   this.prisma.schoolEvent.findMany({where:{tenantId,startDate:{gte:today}},orderBy:{startDate:'asc'},take:5}),
+   this.prisma.auditLog.findMany({where:{tenantId,...(classes?{userId:user.userId}:{})},orderBy:{createdAt:'desc'},take:5}),
+   this.prisma.attendanceRecord.findMany({where:{tenantId,date:{gte:new Date(today.getTime()-7*86400000)},period:1,...classFilter}})
+  ]);
+  const weekdays:Date[]=[];let date=new Date(today);while(weekdays.length<5){if(date.getUTCDay()!==0&&date.getUTCDay()!==6)weekdays.unshift(new Date(date));date=new Date(date.getTime()-86400000);}
+  const rate=(rows:any[])=>rows.length?Math.round(rows.filter(r=>['PRESENT','LATE'].includes(r.status)).length/rows.length*100):0;
+  return {students,staff,classes:classCount,examinations,balance:balance._sum.balanceAmount||0,attendanceTotal:attendance.length,attendanceRate:rate(attendance),weekly:weekdays.map(day=>{const rows=records.filter(r=>r.date.toISOString().slice(0,10)===day.toISOString().slice(0,10));return {date:day.toISOString(),total:rows.length,rate:rate(rows)};}),events,activities};
+ }
+ async performance(user:any){const classes=await this.classIds(user);const grades=await this.prisma.grade.groupBy({by:['subjectId'],where:{tenantId:this.tenant(),...(classes?{examination:{classId:{in:classes}}}:{})},_avg:{percentage:true},_count:true});const subjects=await this.prisma.subject.findMany({where:{tenantId:this.tenant()}});return grades.map(g=>({id:g.subjectId,subjectName:subjects.find(s=>s.id===g.subjectId)?.name||'Subject',average:Math.round((g._avg.percentage||0)*10)/10,assessments:g._count}));}
+}

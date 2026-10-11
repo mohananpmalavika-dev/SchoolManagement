@@ -4,10 +4,151 @@ import Link from 'next/link';
 import { ArrowRight, Eye, EyeOff, GraduationCap, ShieldCheck, Users, BookOpen } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button, Input, Alert } from './ui';
+import { useTranslation } from '@/hooks/useTranslation';
+import LanguageSwitcher from './LanguageSwitcher';
 export function LoginScreen({portal = 'school'}: {portal?: string}) {
- const {login} = useAuth(); const [email,setEmail]=useState(''); const [password,setPassword]=useState('');const [show,setShow]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');
- async function submit(e:FormEvent){e.preventDefault();setBusy(true);setError('');try{await login(email,password);}catch(err:any){setError(err.response?.data?.message||'Unable to sign in. Check your details and try again.');}finally{setBusy(false);}}
- return <div className="login-page"><section className="login-story"><Link href="/" className="brand"><span className="brand-symbol">K</span><span>Krypton<small>SCHOOL WORKSPACE</small></span></Link><div className="login-story-content"><span className="eyebrow light"><span className="workspace-dot"/>THE CONNECTED SCHOOL</span><h1>Better school days.<br/><span>Brighter futures.</span></h1><p>A thoughtful workspace for the people who make education happen. Stay connected, simplify the everyday, and keep learning at the heart of it all.</p><div className="story-features"><div><Users/><span>People, connected</span></div><div><BookOpen/><span>Learning, supported</span></div><div><ShieldCheck/><span>Access, protected</span></div></div><div className="story-art" aria-hidden="true"><div className="art-orbit"/><div className="art-book"><GraduationCap size={68} strokeWidth={1}/><span>A place to grow.</span></div><div className="art-dot one"/><div className="art-dot two"/></div></div><small>One school. One community. One workspace.</small></section>
- <section className="login-form-panel"><div className="login-form-wrap"><span className="eyebrow">WELCOME TO KRYPTON</span><h2>Good to see you.</h2><p className="muted">Sign in to your {portal === 'admin'?'administration':portal === 'teacher'?'teaching':portal === 'parent'?'family':'school'} workspace.</p><div className="portal-tabs"><Link className={portal==='school'?'selected':''} href="/login">School</Link><Link className={portal==='teacher'?'selected':''} href="/teacher/login">Teacher</Link><Link className={portal==='parent'?'selected':''} href="/parent/login">Family</Link><Link className={portal==='admin'?'selected':''} href="/admin/login">Platform</Link></div>
- <form onSubmit={submit} className="space-y-5">{error&&<Alert variant="danger">{error}</Alert>}<Input label="Email address" type="email" autoComplete="username" placeholder="you@school.ac.ke" required value={email} onChange={e=>setEmail(e.target.value)}/><div className="password-field"><Input label="Password" type={show?'text':'password'} autoComplete="current-password" placeholder="Enter your password" required value={password} onChange={e=>setPassword(e.target.value)}/><button type="button" aria-label={show?'Hide password':'Show password'} onClick={()=>setShow(!show)}>{show?<EyeOff size={18}/>:<Eye size={18}/>}</button></div><Button type="submit" fullWidth isLoading={busy} rightIcon={<ArrowRight size={18}/>}>Sign in to workspace</Button></form><p className="login-help"><ShieldCheck size={16}/>Access is assigned by your school administrator.</p><p className="login-contact">Need help signing in? Contact your school office.</p></div><footer>Organized schools. Empowered people.</footer></section></div>;
+  const { login } = useAuth();
+  const { t } = useTranslation();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [show, setShow] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await login(email, password);
+    } catch (err: any) {
+      setError(err.response?.data?.message || t('auth.unableToSignIn'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const portalLabel = portal === 'admin' ? t('admin.administration') 
+    : portal === 'teacher' ? t('teacher.teaching') 
+    : portal === 'parent' ? t('parent.family') 
+    : t('common.school');
+
+  return (
+    <div className="login-page">
+      <section className="login-story">
+        <Link href="/" className="brand">
+          <span className="brand-symbol">K</span>
+          <span>
+            Krypton
+            <small>{t('common.schoolWorkspace')}</small>
+          </span>
+        </Link>
+        <div className="login-story-content">
+          <span className="eyebrow light">
+            <span className="workspace-dot" />
+            {t('common.connectedSchool')}
+          </span>
+          <h1>
+            {t('common.betterSchoolDays')}
+            <br />
+            <span>{t('common.brighterFutures')}</span>
+          </h1>
+          <p>{t('common.workspaceDescription')}</p>
+          <div className="story-features">
+            <div>
+              <Users />
+              <span>{t('common.peopleConnected')}</span>
+            </div>
+            <div>
+              <BookOpen />
+              <span>{t('common.learningSupported')}</span>
+            </div>
+            <div>
+              <ShieldCheck />
+              <span>{t('common.accessProtected')}</span>
+            </div>
+          </div>
+          <div className="story-art" aria-hidden="true">
+            <div className="art-orbit" />
+            <div className="art-book">
+              <GraduationCap size={68} strokeWidth={1} />
+              <span>{t('common.placeToGrow')}</span>
+            </div>
+            <div className="art-dot one" />
+            <div className="art-dot two" />
+          </div>
+          <small>{t('common.oneCommunity')}</small>
+        </div>
+      </section>
+
+      <section className="login-form-panel">
+        {/* Language Switcher */}
+        <div className="absolute top-4 right-4">
+          <LanguageSwitcher variant="compact" />
+        </div>
+
+        <div className="login-form-wrap">
+          <span className="eyebrow">{t('common.welcomeToKrypton')}</span>
+          <h2>{t('auth.goodToSeeYou')}</h2>
+          <p className="muted">
+            {t('auth.signInToWorkspace', { workspace: portalLabel })}
+          </p>
+          <div className="portal-tabs">
+            <Link className={portal === 'school' ? 'selected' : ''} href="/login">
+              {t('common.school')}
+            </Link>
+            <Link className={portal === 'teacher' ? 'selected' : ''} href="/teacher/login">
+              {t('teacher.teacher')}
+            </Link>
+            <Link className={portal === 'parent' ? 'selected' : ''} href="/parent/login">
+              {t('parent.family')}
+            </Link>
+            <Link className={portal === 'admin' ? 'selected' : ''} href="/admin/login">
+              {t('admin.platform')}
+            </Link>
+          </div>
+
+          <form onSubmit={submit} className="space-y-5">
+            {error && <Alert variant="danger">{error}</Alert>}
+            <Input
+              label={t('auth.email')}
+              type="email"
+              autoComplete="username"
+              placeholder="you@school.ac.ke"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <div className="password-field">
+              <Input
+                label={t('auth.password')}
+                type={show ? 'text' : 'password'}
+                autoComplete="current-password"
+                placeholder={t('auth.enterPassword')}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                aria-label={show ? t('auth.hidePassword') : t('auth.showPassword')}
+                onClick={() => setShow(!show)}
+              >
+                {show ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <Button type="submit" fullWidth isLoading={busy} rightIcon={<ArrowRight size={18} />}>
+              {t('auth.signInToWorkspace')}
+            </Button>
+          </form>
+          <p className="login-help">
+            <ShieldCheck size={16} />
+            {t('auth.accessAssigned')}
+          </p>
+          <p className="login-contact">{t('auth.needHelpContact')}</p>
+        </div>
+        <footer>{t('common.organizedSchools')}</footer>
+      </section>
+    </div>
+  );
 }
