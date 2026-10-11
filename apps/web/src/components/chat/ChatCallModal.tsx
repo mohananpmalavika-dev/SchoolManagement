@@ -23,6 +23,7 @@ export interface ChatCallModalProps {
   callType: 'audio' | 'video';
   onEndCall: () => void;
   onOpenWhiteboard?: () => void;
+  onOpenScreenShare?: () => void;
 }
 
 export function ChatCallModal({
@@ -30,6 +31,7 @@ export function ChatCallModal({
   callType,
   onEndCall,
   onOpenWhiteboard,
+  onOpenScreenShare,
 }: ChatCallModalProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(callType === 'audio');
@@ -90,21 +92,84 @@ export function ChatCallModal({
             </div>
           </div>
 
-          {/* Quick Whiteboard Launcher inside Call */}
-          {onOpenWhiteboard && (
-            <button
-              onClick={onOpenWhiteboard}
-              className="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
-            >
-              <Edit3 size={14} />
-              <span>Open Classroom Board</span>
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {onOpenScreenShare && (
+              <button
+                onClick={onOpenScreenShare}
+                className="px-3 py-1.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 border border-cyan-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+                title="Launch Live Screen Share"
+              >
+                <Share2 size={14} />
+                <span>Screen Share</span>
+              </button>
+            )}
+
+            {/* Quick Whiteboard Launcher inside Call */}
+            {onOpenWhiteboard && (
+              <button
+                onClick={onOpenWhiteboard}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+              >
+                <Edit3 size={14} />
+                <span>Classroom Board</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Call Stage Area */}
         <div className="flex-1 bg-slate-950 p-6 flex items-center justify-center relative overflow-hidden">
-          {callType === 'video' && !isVideoOff ? (
+          {isScreenSharing ? (
+            /* Screen Sharing Presenter View inside Call */
+            <div className="w-full h-full flex flex-col items-center justify-center relative bg-slate-900 rounded-2xl border border-cyan-800/60 p-6 overflow-hidden">
+              <div className="w-full max-w-2xl bg-slate-950/90 border border-cyan-500/30 rounded-xl p-6 shadow-2xl relative">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
+                    <span className="text-xs font-bold text-white">Live Screen Broadcast</span>
+                    <span className="text-[10px] bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded border border-cyan-800">
+                      1080p 60fps
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setIsScreenSharing(false)}
+                    className="text-xs text-red-400 hover:text-red-300 hover:underline"
+                  >
+                    Stop Share
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <h4 className="text-lg font-bold text-white">
+                    Kenya CBC Curriculum · Mathematics Form 1 & 4
+                  </h4>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Lesson Slides: Fractions, Ratios and Percentages in Daily Life.
+                    Broadcasting live desktop slides to all student and parent participants.
+                  </p>
+                  <div className="grid grid-cols-3 gap-3 pt-2">
+                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-center">
+                      <div className="text-sm font-bold text-emerald-400">1/2</div>
+                      <div className="text-[10px] text-slate-400">50% Half</div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-center">
+                      <div className="text-sm font-bold text-cyan-400">1/4</div>
+                      <div className="text-[10px] text-slate-400">25% Quarter</div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-center">
+                      <div className="text-sm font-bold text-amber-400">3/4</div>
+                      <div className="text-[10px] text-slate-400">75% Majority</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Presenter PIP corner badge */}
+              <div className="absolute bottom-4 right-4 bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-2 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span className="text-[11px] font-semibold text-slate-200">Presenter: Teacher</span>
+              </div>
+            </div>
+          ) : callType === 'video' && !isVideoOff ? (
             /* Video Call Screen Layout */
             <div className="w-full h-full grid grid-cols-1 md:grid-cols-2 gap-4 relative">
               {/* Remote Teacher/Class Stream */}
@@ -206,10 +271,16 @@ export function ChatCallModal({
 
           {/* Screen Share */}
           <button
-            onClick={() => setIsScreenSharing(!isScreenSharing)}
+            onClick={() => {
+              if (onOpenScreenShare) {
+                onOpenScreenShare();
+              } else {
+                setIsScreenSharing(!isScreenSharing);
+              }
+            }}
             className={`p-3.5 rounded-full transition-all ${
               isScreenSharing
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
+                ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30'
                 : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
             }`}
             title="Share Screen / Lesson Slides"

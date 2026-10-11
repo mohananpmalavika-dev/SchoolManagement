@@ -16,6 +16,7 @@ import {
   Sparkles,
   Phone,
   Video,
+  ScreenShare,
   X,
   FileText,
   CornerUpLeft,
@@ -31,6 +32,7 @@ import {
 } from '@/lib/chat-client';
 import { InteractiveClassroomBoard } from './InteractiveClassroomBoard';
 import { ChatCallModal } from './ChatCallModal';
+import { ScreenShareModal } from './ScreenShareModal';
 
 const EMOJIS = ['👍', '❤️', '👏', '💡', '📚', '🔔', '🏫', '✅', '🔥', '🙌'];
 
@@ -63,6 +65,7 @@ export function SchoolChatHub() {
   const [creatingChannel, setCreatingChannel] = useState(false);
   const [activeCall, setActiveCall] = useState<'audio' | 'video' | null>(null);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
+  const [showScreenShare, setShowScreenShare] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -231,6 +234,23 @@ export function SchoolChatHub() {
     setShowWhiteboard(false);
   };
 
+  const handleShareScreenSnapshot = async (dataUrl: string) => {
+    if (!activeChannelId) return;
+    const newMsg = await chatClient.sendMessage(
+      activeChannelId,
+      '🖥️ Shared live screen presentation snapshot with class',
+      [
+        {
+          name: 'Screen_Presentation_Snapshot.png',
+          url: dataUrl,
+          type: 'image/png',
+        },
+      ],
+    );
+    setMessages((prev) => [...prev, newMsg]);
+    setShowScreenShare(false);
+  };
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[780px]">
       {/* LEFT COLUMN: Channels and Direct Messages */}
@@ -389,6 +409,15 @@ export function SchoolChatHub() {
                 >
                   <Video size={13} />
                   <span className="hidden sm:inline">Video Call</span>
+                </button>
+
+                <button
+                  onClick={() => setShowScreenShare(true)}
+                  className="px-2.5 py-1.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  title="Live Screen Sharing & Lesson Presentation"
+                >
+                  <ScreenShare size={13} />
+                  <span className="hidden sm:inline">Screen Share</span>
                 </button>
 
                 <button
@@ -753,6 +782,19 @@ export function SchoolChatHub() {
         </div>
       )}
 
+      {/* Live Screen Sharing Modal */}
+      {showScreenShare && activeChannel && (
+        <ScreenShareModal
+          channelName={activeChannel.name}
+          onClose={() => setShowScreenShare(false)}
+          onOpenWhiteboard={() => {
+            setShowScreenShare(false);
+            setShowWhiteboard(true);
+          }}
+          onSendSnapshotToChat={handleShareScreenSnapshot}
+        />
+      )}
+
       {/* Voice & HD Video Call Suite Modal */}
       {activeCall && activeChannel && (
         <ChatCallModal
@@ -760,6 +802,7 @@ export function SchoolChatHub() {
           callType={activeCall}
           onEndCall={() => setActiveCall(null)}
           onOpenWhiteboard={() => setShowWhiteboard(true)}
+          onOpenScreenShare={() => setShowScreenShare(true)}
         />
       )}
     </div>
