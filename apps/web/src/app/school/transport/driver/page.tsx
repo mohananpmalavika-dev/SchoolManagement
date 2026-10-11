@@ -1,7 +1,2 @@
-'use client';
-
-import DriverAppPage from '@/app/driver/page';
-
-export default function SchoolDriverLauncherPage() {
-  return <DriverAppPage />;
-}
+import {TransportWorkspace} from "@/components/TransportWorkspace";
+export default function Page(){return <TransportWorkspace/>;}

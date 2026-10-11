@@ -1,10 +1,2 @@
-import { AdmissionKanbanBoard } from '@/components/admissions/AdmissionKanbanBoard';
-
-export const metadata = {
-  title: 'Admissions Pipeline | Staff Dashboard',
-  description: 'Manage incoming student applications and interview schedules.',
-};
-
-export default function DashboardAdmissionsPage() {
-  return <AdmissionKanbanBoard />;
-}
+import {OperationsWorkspace} from '@/components/OperationsWorkspace';
+export default function Page(){return <OperationsWorkspace resource="admissions"/>;}

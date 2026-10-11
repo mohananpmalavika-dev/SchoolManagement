@@ -6,34 +6,14 @@ import { PageHeading, Panel } from './WorkspaceUI';
 import { usePathname } from 'next/navigation';
 interface PreviewFeature { title: string; href: string; action: string }
 const previews: Record<string, PreviewFeature> = {
-  '/admissions': {title:'Online admission applications',href:'/login',action:'Return to sign in'},
   '/ptm/room': {title:'Virtual parent meetings',href:'/login',action:'Return to sign in'},
   '/school/fees/preview': {title:'Advanced finance studio',href:'/school/fees',action:'Open invoices and payments'},
   '/school/timetable/preview': {title:'Automatic timetable studio',href:'/school/timetable',action:'Open saved timetable'},
-  '/school/admissions': {title:'Admissions pipeline',href:'/school/students',action:'Open student directory'},
-  '/admin/admissions': {title:'Admissions pipeline',href:'/admin/schools',action:'Manage schools'},
-  '/dashboard/lms': {title:'Homework and quiz studio',href:'/dashboard/grades',action:'View learning progress'},
-  '/dashboard/certificates': {title:'Certificate studio',href:'/dashboard',action:'Return to family overview'},
   '/dashboard/compliance': {title:'Compliance studio',href:'/dashboard',action:'Return to workspace'},
   '/dashboard/whatsapp': {title:'WhatsApp automation',href:'/dashboard/notifications',action:'View school updates'},
   '/dashboard/smart-attendance': {title:'Smart attendance',href:'/dashboard/attendance',action:'View attendance'},
   '/dashboard/substitution': {title:'Staff substitutions',href:'/dashboard',action:'Return to workspace'},
-  '/dashboard/portfolio': {title:'Digital portfolios',href:'/dashboard/grades',action:'View learning progress'},
-  '/dashboard/admissions': {title:'Admissions pipeline',href:'/dashboard',action:'Return to workspace'},
-  '/dashboard/transport': {title:'Live bus tracking',href:'/dashboard',action:'Return to workspace'},
-  '/school/transport': {title:'Live bus tracking',href:'/school/transport/setup',action:'Manage vehicles and routes'},
-  '/school/transport/driver': {title:'Driver tracking',href:'/school/transport/setup',action:'Manage vehicles and routes'},
-  '/parent/transport': {title:'Live bus tracking',href:'/dashboard',action:'Return to family overview'},
-  '/parent/absence': {title:'Absence requests',href:'/dashboard/attendance',action:'View saved attendance'},
   '/teacher/smart-attendance': {title:'Smart attendance',href:'/teacher/attendance',action:'Open daily register'},
-  '/school/substitution': {title:'Staff substitutions',href:'/school/timetable',action:'View saved timetable'},
-  '/teacher/substitution': {title:'Staff substitutions',href:'/teacher/timetable',action:'View saved schedule'},
-  '/teacher/portfolio': {title:'Digital portfolios',href:'/teacher/performance',action:'View student performance'},
-  '/student/portfolio': {title:'Digital portfolios',href:'/student/grades',action:'View your grades'},
-  '/student/quizzes': {title:'Interactive quizzes',href:'/student/assignments',action:'Open assignments'},
-  '/driver': {title:'Driver tracking',href:'/login',action:'Return to sign in'},
-  '/admissions/apply': {title:'Online admission applications',href:'/login',action:'Contact your school to apply'},
-  '/admissions/track': {title:'Admission tracking',href:'/login',action:'Return to sign in'},
 };
 export function FeatureBoundary({ children, inWorkspace = false }: { children: ReactNode; inWorkspace?: boolean }) {
   const pathname = usePathname();

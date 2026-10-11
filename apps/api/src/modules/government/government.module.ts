@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { BullModule } from '@nestjs/bull';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule } from '../../database/database.module';
+import { EncryptionUtil } from '../../common/utils/encryption.util';
 
 // Services
 import { NemisService } from './services/nemis.service';
@@ -47,6 +48,7 @@ import { GovernmentSchedulerService } from './jobs/government-scheduler.service'
     ComplianceController,
   ],
   providers: [
+    EncryptionUtil,
     NemisService,
     KnecService,
     ComplianceService,

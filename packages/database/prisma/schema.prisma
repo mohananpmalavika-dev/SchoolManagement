@@ -281,11 +281,18 @@ enum UserRole {
 // ===================================
 
 model Student {
-  userId          String?                @unique
-  submissions     AssignmentSubmission[]
-  id              String                 @id @default(uuid())
-  tenantId        String
-  admissionNumber String
+  absenceRequests       AbsenceRequest[]
+  portfolioEntries      PortfolioEntry[]
+  quizAttempts          QuizAttempt[]
+  travelAssignments     TravelAssignment[]
+  tripPassengers        TripPassenger[]
+  certificates          IssuedCertificate[]
+  admissionApplications AdmissionRecord[]
+  userId                String?                @unique
+  submissions           AssignmentSubmission[]
+  id                    String                 @id @default(uuid())
+  tenantId              String
+  admissionNumber       String
 
   // Personal Information
   firstName       String
@@ -337,8 +344,8 @@ model Student {
   invoices          Invoice[]
   grades            Grade[]
   reportCards       ReportCard[]
-  activityFeeds     ActivityFeed[]       @relation("StudentActivities")
-  behaviorRecords   BehaviorRecord[]     @relation("StudentBehavior")
+  activityFeeds     ActivityFeed[]         @relation("StudentActivities")
+  behaviorRecords   BehaviorRecord[]       @relation("StudentBehavior")
   bookings          ParentTeacherBooking[] @relation("StudentBookings")
 
   @@unique([tenantId, admissionNumber])
@@ -393,7 +400,7 @@ model Guardian {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant       Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   studentLinks GuardianStudentLink[]
   bookings     ParentTeacherBooking[] @relation("GuardianBookings")
 
@@ -1350,14 +1357,16 @@ enum VehicleStatus {
 }
 
 model Route {
-  id          String  @id @default(uuid())
-  tenantId    String
-  name        String
-  vehicleId   String?
-  driverId    String?
-  pickupTime  String?
-  dropoffTime String?
-  fee         Int     @default(0) // Monthly fee in minor units
+  travelAssignments TravelAssignment[]
+  trips             TransportJourney[]
+  id                String             @id @default(uuid())
+  tenantId          String
+  name              String
+  vehicleId         String?
+  driverId          String?
+  pickupTime        String?
+  dropoffTime       String?
+  fee               Int                @default(0) // Monthly fee in minor units
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1371,11 +1380,15 @@ model Route {
 }
 
 model RouteStop {
-  id       String  @id @default(uuid())
-  routeId  String
-  name     String
-  location String?
-  sequence Int
+  latitude          Float?
+  longitude         Float?
+  scheduledTime     String?
+  travelAssignments TravelAssignment[]
+  id                String             @id @default(uuid())
+  routeId           String
+  name              String
+  location          String?
+  sequence          Int
 
   createdAt DateTime @default(now())
 
@@ -2427,4 +2440,197 @@ enum AlertStatus {
   ACKNOWLEDGED
   RESOLVED
   DISMISSED
+}
+
+// Durable extended school workflows. Every query is tenant scoped.
+model AdmissionRecord {
+  id                String   @id @default(uuid())
+  tenantId          String
+  schoolId          String
+  applicationNumber String
+  trackingHash      String   @unique
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime @db.Date
+  gender            Gender
+  grade             String
+  guardianName      String
+  guardianEmail     String
+  guardianPhone     String
+  address           String?
+  stage             String   @default("INQUIRY_RECEIVED")
+  interview         Json?
+  payment           Json?
+  notes             String?
+  studentId         String?  @unique
+  student           Student? @relation(fields: [studentId], references: [id])
+  createdBy         String?
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([tenantId, applicationNumber])
+  @@index([tenantId, stage])
+  @@map("admission_records")
+}
+
+model AbsenceRequest {
+  id          String    @id @default(uuid())
+  tenantId    String
+  studentId   String
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  startDate   DateTime  @db.Date
+  endDate     DateTime  @db.Date
+  reason      String    @db.Text
+  status      String    @default("PENDING")
+  requestedBy String
+  reviewedBy  String?
+  reviewNotes String?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, studentId, startDate, endDate])
+  @@map("absence_requests")
+}
+
+model PortfolioEntry {
+  id          String   @id @default(uuid())
+  tenantId    String
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  title       String
+  category    String
+  description String?  @db.Text
+  achievedOn  DateTime @db.Date
+  evidenceUrl String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, studentId, achievedOn])
+  @@map("portfolio_entries")
+}
+
+model SubstitutionDuty {
+  id               String   @id @default(uuid())
+  tenantId         String
+  timetableEntryId String
+  teacherId        String
+  date             DateTime @db.Date
+  notes            String?
+  assignedBy       String
+  createdAt        DateTime @default(now())
+
+  @@unique([tenantId, timetableEntryId, date])
+  @@index([tenantId, teacherId, date])
+  @@map("substitution_duties")
+}
+
+model QuizDefinition {
+  id              String        @id @default(uuid())
+  tenantId        String
+  classId         String
+  subjectId       String
+  title           String
+  instructions    String?       @db.Text
+  questions       Json
+  durationMinutes Int
+  closesAt        DateTime
+  status          String        @default("DRAFT")
+  createdBy       String
+  createdAt       DateTime      @default(now())
+  attempts        QuizAttempt[]
+
+  @@index([tenantId, classId, status])
+  @@map("quiz_definitions")
+}
+
+model QuizAttempt {
+  id          String         @id @default(uuid())
+  tenantId    String
+  quizId      String
+  quiz        QuizDefinition @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  startedAt   DateTime       @default(now())
+  expiresAt   DateTime
+  submittedAt DateTime?
+  answers     Json?
+  score       Int?
+  maximum     Int
+
+  @@unique([quizId, studentId])
+  @@index([tenantId, studentId])
+  @@map("quiz_attempts")
+}
+
+model TravelAssignment {
+  id        String    @id @default(uuid())
+  tenantId  String
+  routeId   String
+  route     Route     @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  stopId    String
+  stop      RouteStop @relation(fields: [stopId], references: [id])
+
+  @@unique([tenantId, studentId])
+  @@index([tenantId, routeId])
+  @@map("travel_assignments")
+}
+
+model TransportJourney {
+  id           String          @id @default(uuid())
+  tenantId     String
+  routeId      String
+  route        Route           @relation(fields: [routeId], references: [id])
+  driverUserId String
+  direction    String
+  status       String          @default("IN_TRANSIT")
+  latitude     Float?
+  longitude    Float?
+  accuracy     Float?
+  speed        Float?
+  heading      Float?
+  lastPingAt   DateTime?
+  startedAt    DateTime        @default(now())
+  endedAt      DateTime?
+  passengers   TripPassenger[]
+
+  @@index([tenantId, routeId, status])
+  @@map("transport_journeys")
+}
+
+model TripPassenger {
+  id        String           @id @default(uuid())
+  tenantId  String
+  tripId    String
+  trip      TransportJourney @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status    String           @default("WAITING")
+  updatedAt DateTime         @updatedAt
+
+  @@unique([tripId, studentId])
+  @@index([tenantId, studentId])
+  @@map("trip_passengers")
+}
+
+model IssuedCertificate {
+  id               String    @id @default(uuid())
+  tenantId         String
+  studentId        String
+  student          Student   @relation(fields: [studentId], references: [id])
+  type             String
+  referenceNumber  String
+  verificationHash String    @unique
+  snapshot         Json
+  issuedBy         String
+  issuedAt         DateTime  @default(now())
+  revokedAt        DateTime?
+  revocationReason String?
+
+  @@unique([tenantId, referenceNumber])
+  @@index([tenantId, studentId])
+  @@map("issued_certificates")
 }

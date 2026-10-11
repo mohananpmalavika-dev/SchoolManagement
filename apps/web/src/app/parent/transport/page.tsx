@@ -1,7 +1,3 @@
-'use client';
-
-import ParentBusTrackingPage from '@/app/dashboard/transport/page';
-
-export default function DirectParentTransportPage() {
-  return <ParentBusTrackingPage />;
-}
+import {TransportWorkspace} from "@/components/TransportWorkspace";
+import {AppShell} from "@/components/AppShell";
+export default function Page(){return <AppShell portal="parent"><TransportWorkspace family/></AppShell>;}

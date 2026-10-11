@@ -3,6 +3,14 @@ node_modules
 **/.next
 **/dist
 .git
+.aws
+.ssh
+.codex
+.agents
+**/*.pem
+**/*.key
+test-results
+playwright-report
 .npm-cache
 .env*
 !*.example

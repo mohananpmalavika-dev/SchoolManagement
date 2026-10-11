@@ -39,7 +39,6 @@ import { CreatePlanDto, UpdatePlanDto } from './dto/plan.dto';
 export class SubscriptionsController {
   constructor(
     private readonly subscriptionsService: SubscriptionsService,
-    private readonly tenantService: any, // Will be injected properly in module
   ) {}
 
   // ==================== SUBSCRIPTION ENDPOINTS ====================

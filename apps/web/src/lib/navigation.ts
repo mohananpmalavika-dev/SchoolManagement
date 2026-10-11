@@ -16,7 +16,7 @@ export function navigationFor(portal: Portal, role: string): NavigationGroup[] {
   if (portal === 'teacher') return [
     group('WORKSPACE', [['dashboard', 'Overview', LayoutDashboard], ['classes', 'My classes', Users], ['timetable', 'My schedule', CalendarDays]]),
     group('TEACHING', [['attendance', 'Attendance', ClipboardCheck], ['smart-attendance', 'Smart attendance', ShieldCheck], ['grades', 'Gradebook', BookOpen], ['learning', 'Learning management', Library], ['portfolio', 'Student portfolios', GraduationCap], ['performance', 'Performance', BarChart3]]),
-    group('TOOLS & CONNECTIONS', [['ai-studio', 'AI teaching studio', Sparkles], ['copilot', 'ERP Copilot', Bot], ['substitution', 'Substitution duties', Zap], ['ptm', 'Parent meetings', CalendarDays], ['messages', 'Messages', MessageSquare]]),
+    group('TOOLS & CONNECTIONS', [['quizzes', 'Class quizzes', ClipboardCheck], ['ai-studio', 'AI teaching studio', Sparkles], ['copilot', 'ERP Copilot', Bot], ['substitution', 'Substitution duties', Zap], ['ptm', 'Parent meetings', CalendarDays], ['messages', 'Messages', MessageSquare]]),
   ];
   if (portal === 'student') return [
     group('WORKSPACE', [['dashboard', 'Overview', LayoutDashboard], ['timetable', 'My schedule', CalendarDays], ['profile', 'My profile', Users]]),
@@ -40,6 +40,6 @@ export function navigationFor(portal: Portal, role: string): NavigationGroup[] {
     group('WORKSPACE', [['dashboard', 'Overview', LayoutDashboard], ...(predictiveAnalyticsRoles.includes(role) ? [['analytics', 'Advanced analytics', BarChart3], ['predictive-analytics', 'Student risk insights', BarChart3], ['ai-studio', 'AI teaching studio', Sparkles]] as Entry[] : []), ['copilot', 'ERP Copilot', Bot]]),
     group('PEOPLE', [['students', 'Students', Users], ['admissions', 'Admissions', GraduationCap], ['guardians', 'Guardians', Users], ['staff', 'Staff directory', Users]]),
     group('ACADEMICS', [['academics', 'Academic setup', BookOpen], ['attendance', 'Attendance', ClipboardCheck], ['grades', 'Gradebook', BookOpen], ['examinations', 'Examinations', FileCheck], ['report-cards', 'Report cards', FileCheck], ['learning', 'Learning management', Library], ['calendar', 'School calendar', CalendarDays], ['timetable', 'Timetable', CalendarDays], ['substitution', 'Staff substitutions', Zap]]),
-    group('OPERATIONS', [['fees', 'Fees & invoices', CreditCard], ['library', 'Library', Library], ['transport', 'Transport', Bus], ['inventory', 'Inventory', Library], ['messages', 'Communications', MessageSquare], ['support', 'Support', LifeBuoy]]),
+    group('OPERATIONS', [['absences','Absence requests',ClipboardCheck], ['portfolio','Student portfolios',GraduationCap], ['certificates','Certificates',FileCheck], ['quizzes','Class quizzes',ClipboardCheck], ['fees', 'Fees & invoices', CreditCard], ['library', 'Library', Library], ['transport', 'Transport', Bus], ['inventory', 'Inventory', Library], ['messages', 'Communications', MessageSquare], ['support', 'Support', LifeBuoy]]),
   ];
 }

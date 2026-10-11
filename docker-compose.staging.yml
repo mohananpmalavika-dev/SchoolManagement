@@ -1,0 +1,53 @@
+name: krypton-release-staging
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: release_test
+      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:?Set staging password}
+      POSTGRES_DB: release_test
+    ports: ["127.0.0.1:25432:5432"]
+    volumes: ["release-database:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U release_test -d release_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:26379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    ports: ["127.0.0.1:21025:1025", "127.0.0.1:28025:8025"]
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    env_file: ./qa/release/api.container.env
+    ports: ["127.0.0.1:23001:3001"]
+    volumes: ["release-backups:/app/backups"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      API_URL: http://api:3001
+    ports: ["127.0.0.1:23000:3000"]
+    depends_on:
+      api:
+        condition: service_healthy
+volumes:
+  release-database:
+  release-backups:

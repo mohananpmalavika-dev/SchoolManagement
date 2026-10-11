@@ -131,7 +131,8 @@ export class WorkspaceService{
  async register(user:any,classId:string,date:string){
   await this.authorizeClass(user,classId);if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date)))throw new BadRequestException('Choose a valid date');
   const tenantId=this.tenant();const [students,records]=await Promise.all([this.prisma.student.findMany({where:{tenantId,currentClassId:classId,status:'ACTIVE',deletedAt:null},orderBy:{firstName:'asc'}}),this.prisma.attendanceRecord.findMany({where:{tenantId,classId,date:new Date(date),period:1}})]);
-  return students.map(s=>({id:s.id,name:s.firstName+' '+s.lastName,admissionNumber:s.admissionNumber,status:records.find(r=>r.studentId===s.id)?.status||''}));
+  const approved=await this.prisma.absenceRequest.findMany({where:{tenantId,studentId:{in:students.map(s=>s.id)},status:'APPROVED',startDate:{lte:new Date(date)},endDate:{gte:new Date(date)}},select:{studentId:true}});
+  return students.map(s=>({id:s.id,name:s.firstName+' '+s.lastName,admissionNumber:s.admissionNumber,status:records.find(r=>r.studentId===s.id)?.status||(approved.some(a=>a.studentId===s.id)?'EXCUSED':'')}));
  }
  async saveRegister(user:any,dto:any){
   if(![...managers,...teacherRoles].includes(user.role))throw new ForbiddenException('Cannot save attendance');

@@ -30,19 +30,17 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
 import { PredictiveAnalyticsModule } from './modules/predictive-analytics/predictive-analytics.module';
 import { TeacherAIModule } from './modules/teacher-ai/teacher-ai.module';
 import { AdvancedAnalyticsModule } from './modules/advanced-analytics/advanced-analytics.module';
-import { TransportModule } from './modules/transport/transport.module';
 import { ActivityFeedModule } from './modules/activity-feed/activity-feed.module';
 import { MediaModule } from './modules/media/media.module';
 import { BehaviorModule } from './modules/behavior/behavior.module';
 import { HomeworkModule } from './modules/homework/homework.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { ParentPortalModule } from './modules/parent-portal/parent-portal.module';
-import { CertificatesModule } from './modules/certificates/certificates.module';
-import { AdmissionsModule } from './modules/admissions/admissions.module';
 import { GovernmentModule } from './modules/government/government.module';
 import { BackupModule } from './modules/backup/backup.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { RedisService } from './common/services/redis.service';
+import { OperationsModule } from './modules/operations/operations.module';
 
 @Module({
   imports: [
@@ -83,6 +81,7 @@ import { RedisService } from './common/services/redis.service';
     // Feature Modules
     AuthModule,
     WorkspaceModule,
+    OperationsModule,
     PlatformModule,
     StudentsModule,
     GuardiansModule,
@@ -97,15 +96,12 @@ import { RedisService } from './common/services/redis.service';
     PredictiveAnalyticsModule,
     TeacherAIModule,
     AdvancedAnalyticsModule,
-    TransportModule,
     ActivityFeedModule,
     MediaModule,
     BehaviorModule,
     HomeworkModule,
     BookingsModule,
     ParentPortalModule,
-    CertificatesModule,
-    AdmissionsModule,
     GovernmentModule,
     BackupModule,
   ],

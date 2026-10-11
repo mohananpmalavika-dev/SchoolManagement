@@ -8,16 +8,16 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 
-@Catch(HttpException)
+@Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
-  catch(exception: HttpException, host: ArgumentsHost) {
+  catch(exception: any, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest();
-    const status = exception.getStatus();
-    const exceptionResponse = exception.getResponse();
+    const status = exception instanceof HttpException ? exception.getStatus() : exception?.code === 'P2002' ? HttpStatus.CONFLICT : exception?.code === 'P2003' ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR;
+    const exceptionResponse = exception instanceof HttpException ? exception.getResponse() : exception?.code === 'P2002' ? 'A record with this reference already exists' : exception?.code === 'P2003' ? 'A referenced record is unavailable' : 'The request could not be completed';
 
     const errorResponse = {
       success: false,

@@ -1,5 +1,2 @@
-import { StudentDigitalPortfolioHub } from '@/components/portfolio/StudentDigitalPortfolioHub';
-
-export default function Page() {
-  return <StudentDigitalPortfolioHub portal="dashboard" />;
-}
+import {OperationsWorkspace} from '@/components/OperationsWorkspace';
+export default function Page(){return <OperationsWorkspace resource="portfolio"/>;}

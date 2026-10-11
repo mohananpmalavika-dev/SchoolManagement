@@ -6,6 +6,7 @@ const directModels = new Set([
   'TimetableEntry', 'SchoolEvent', 'Communication', 'MessageTemplate', 'Book', 'BookBorrowing',
   'Vehicle', 'Route', 'InventoryItem', 'AuditLog', 'SupportTicket', 'Assignment',
   'AssignmentSubmission', 'LearningMaterial',
+  'AdmissionRecord','AbsenceRequest','PortfolioEntry','SubstitutionDuty','QuizDefinition','QuizAttempt','TravelAssignment','TransportJourney','TripPassenger','IssuedCertificate',
   'ActivityFeed', 'MediaItem', 'BehaviorRecord', 'TeacherAvailability', 'ParentTeacherBooking',
   'NemisIntegration', 'NemisSyncLog', 'NemisStudentRecord', 'NemisStaffRecord',
   'KnecIntegration', 'KnecSyncLog', 'KnecExamRegistration',
