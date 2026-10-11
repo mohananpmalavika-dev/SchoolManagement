@@ -4,7 +4,7 @@ RUN corepack enable && corepack prepare pnpm@8.15.9 --activate
 COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @krypton/types build && pnpm --filter @krypton/utils build && pnpm --filter @krypton/database build && pnpm --filter @krypton/api build
-RUN pnpm --filter @krypton/api deploy --prod /runtime
+RUN pnpm --filter @krypton/api deploy --prod --ignore-scripts /runtime
 WORKDIR /app/apps/api
 RUN node -e "const fs=require('fs'),path=require('path');const client=path.dirname(require.resolve('@prisma/client/package.json'));fs.cpSync(path.resolve(client,'../../.prisma'),'/runtime/node_modules/.prisma',{recursive:true});"
 

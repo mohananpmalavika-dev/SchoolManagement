@@ -12,7 +12,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
     "db:generate": "prisma generate",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate || true",
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc --noEmit",
     "db:seed:demo": "tsx prisma/demo.ts"
