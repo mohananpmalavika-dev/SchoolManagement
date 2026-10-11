@@ -1,4 +1,5 @@
 FROM node:24-alpine AS build
+RUN apk add --no-cache openssl
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@8.15.9 --activate
 COPY . .
@@ -13,7 +14,7 @@ WORKDIR /app
 CMD ["node", "packages/database/node_modules/prisma/build/index.js", "migrate", "deploy", "--schema", "packages/database/prisma/schema.prisma"]
 
 FROM node:24-alpine AS runtime
-RUN apk add --no-cache postgresql16-client
+RUN apk add --no-cache postgresql16-client openssl
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /runtime .
