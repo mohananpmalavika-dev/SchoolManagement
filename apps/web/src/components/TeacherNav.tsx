@@ -41,6 +41,7 @@ export function TeacherNav() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4">
             <NavLink href="/teacher/dashboard">{t('common.dashboard')}</NavLink>
+            <NavLink href="/teacher/ai-studio">AI teaching studio</NavLink>
             <NavLink href="/teacher/classes">{t('teacher.myClasses')}</NavLink>
             <NavLink href="/teacher/smart-attendance">Smart Attendance</NavLink>
             <NavLink href="/teacher/attendance">{t('teacher.attendance')}</NavLink>
