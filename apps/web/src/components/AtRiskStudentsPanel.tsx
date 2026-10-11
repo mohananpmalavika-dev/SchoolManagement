@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, Calendar, MessageCircle, Sparkles, TrendingDown, UserCheck } from 'lucide-react';
+import { AlertCircle, Calendar, MessageCircle, Radar, Sparkles, TrendingDown, UserCheck } from 'lucide-react';
 import type { AIRiskReview, PredictiveAnalyticsReport, TeacherAIOptions } from '@krypton/types';
 import { apiClient } from '@/lib/api-client';
 import { fetchAtRiskStudents } from '@/lib/copilot-client';
@@ -59,9 +59,10 @@ export function AtRiskStudentsPanel() {
   }, [load]);
 
   const flagged = (report?.students ?? []).filter(s =>
-    [s.academic, s.dropout].some(r => ['HIGH', 'MODERATE'].includes(r.level)) ||
+    [s.academic, s.dropout, s.homework].some(r => r && ['HIGH', 'MODERATE'].includes(r.level)) ||
     (s.metrics.latestAverage !== null && s.metrics.projectedAverage !== null && s.metrics.latestAverage - s.metrics.projectedAverage >= 10) ||
     (s.metrics.attendanceDays >= 5 && s.metrics.attendanceRate !== null && s.metrics.attendanceRate < 80) ||
+    (s.metrics.homeworkMissingCount && s.metrics.homeworkMissingCount > 0) ||
     s.metrics.outstandingBalance > 0
   );
 

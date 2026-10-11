@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, Bot, Bus, CalendarDays, ClipboardCheck, CreditCard, FileCheck, GraduationCap, LayoutDashboard, Library, LifeBuoy, MessageSquare, School, ShieldCheck, Sparkles, Users, Zap, type LucideIcon } from 'lucide-react';
+import { BarChart3, BookOpen, Bot, Bus, CalendarDays, ClipboardCheck, CreditCard, FileCheck, GraduationCap, LayoutDashboard, Library, LifeBuoy, MessageSquare, Radar, School, ShieldCheck, Sparkles, Users, Zap, type LucideIcon } from 'lucide-react';
 import { predictiveAnalyticsRoles } from './session';
 export type Portal = 'admin' | 'school' | 'teacher' | 'parent' | 'student';
 export interface NavigationItem { href: string; label: string; icon: LucideIcon }
@@ -15,7 +15,7 @@ export function navigationFor(portal: Portal, role: string): NavigationGroup[] {
   ];
   if (portal === 'teacher') return [
     group('WORKSPACE', [['dashboard', 'Overview', LayoutDashboard], ['classes', 'My classes', Users], ['timetable', 'My schedule', CalendarDays]]),
-    group('TEACHING', [['attendance', 'Attendance', ClipboardCheck], ['smart-attendance', 'Smart attendance', ShieldCheck], ['grades', 'Gradebook', BookOpen], ['learning', 'Learning management', Library], ['portfolio', 'Student portfolios', GraduationCap], ['performance', 'Performance', BarChart3]]),
+    group('TEACHING', [['attendance', 'Attendance', ClipboardCheck], ['smart-attendance', 'Smart attendance', ShieldCheck], ['grades', 'Gradebook', BookOpen], ['/school/predictive-analytics', 'At-Risk Radar', Radar], ['learning', 'Learning management', Library], ['portfolio', 'Student portfolios', GraduationCap], ['performance', 'Performance', BarChart3]]),
     group('TOOLS & CONNECTIONS', [['chat', 'Live chat', MessageSquare], ['quizzes', 'Class quizzes', ClipboardCheck], ['ai-studio', 'AI teaching studio', Sparkles], ['copilot', 'ERP Copilot', Bot], ['substitution', 'Substitution duties', Zap], ['ptm', 'Parent meetings', CalendarDays], ['messages', 'Broadcasts', MessageSquare]]),
   ];
   if (portal === 'student') return [
@@ -37,7 +37,7 @@ export function navigationFor(portal: Portal, role: string): NavigationGroup[] {
     group('OPERATIONS', [...operations[role], ['support', 'Support', LifeBuoy]]),
   ];
   return [
-    group('WORKSPACE', [['dashboard', 'Overview', LayoutDashboard], ...(predictiveAnalyticsRoles.includes(role) ? [['analytics', 'Advanced analytics', BarChart3], ['predictive-analytics', 'Student risk insights', BarChart3], ['ai-studio', 'AI teaching studio', Sparkles]] as Entry[] : []), ['copilot', 'ERP Copilot', Bot]]),
+    group('WORKSPACE', [['dashboard', 'Overview', LayoutDashboard], ...(predictiveAnalyticsRoles.includes(role) ? [['analytics', 'Advanced analytics', BarChart3], ['predictive-analytics', 'At-Risk & Early Warning Radar', Radar], ['ai-studio', 'AI teaching studio', Sparkles]] as Entry[] : []), ['copilot', 'ERP Copilot', Bot]]),
     group('PEOPLE', [['students', 'Students', Users], ['admissions', 'Admissions', GraduationCap], ['guardians', 'Guardians', Users], ['staff', 'Staff directory', Users]]),
     group('ACADEMICS', [['academics', 'Academic setup', BookOpen], ['attendance', 'Attendance', ClipboardCheck], ['grades', 'Gradebook', BookOpen], ['examinations', 'Examinations', FileCheck], ['report-cards', 'Report cards', FileCheck], ['learning', 'Learning management', Library], ['calendar', 'School calendar', CalendarDays], ['timetable', 'Timetable', CalendarDays], ['timetable/preview', 'Timetable planner', CalendarDays], ['substitution', 'Staff substitutions', Zap]]),
     group('OPERATIONS', [['chat', 'Live campus chat', MessageSquare], ['absences','Absence requests',ClipboardCheck], ['portfolio','Student portfolios',GraduationCap], ['certificates','Certificates',FileCheck], ['quizzes','Class quizzes',ClipboardCheck], ['fees', 'Fees & invoices', CreditCard], ['library', 'Library', Library], ['transport', 'Transport', Bus], ['inventory', 'Inventory', Library], ['messages', 'Communications', MessageSquare], ['support', 'Support', LifeBuoy]]),
