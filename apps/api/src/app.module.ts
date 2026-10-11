@@ -25,6 +25,7 @@ import { AttendanceModule } from './modules/attendance/attendance.module';
 import { ExaminationsModule } from './modules/examinations/examinations.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { CommunicationsModule } from './modules/communications/communications.module';
+import { ChatModule } from './modules/chat/chat.module';
 import { TimetableModule } from './modules/timetable/timetable.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { PredictiveAnalyticsModule } from './modules/predictive-analytics/predictive-analytics.module';
@@ -91,6 +92,7 @@ import { OperationsModule } from './modules/operations/operations.module';
     ExaminationsModule,
     StaffModule,
     CommunicationsModule,
+    ChatModule,
     TimetableModule,
     SubscriptionsModule,
     PredictiveAnalyticsModule,

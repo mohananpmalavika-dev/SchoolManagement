@@ -53,6 +53,7 @@ model Tenant {
   schoolEvents      SchoolEvent[]
   communications    Communication[]
   messageTemplates  MessageTemplate[]
+  chatChannels      ChatChannel[]
   auditLogs         AuditLog[]
 
   @@index([subdomain])
@@ -249,8 +250,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant           Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdAuditLogs AuditLog[] @relation("CreatedBy")
+  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAuditLogs AuditLog[]          @relation("CreatedBy")
+  chatMemberships  ChatChannelMember[]
+  chatMessages     ChatMessage[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -2634,4 +2637,71 @@ model IssuedCertificate {
   @@unique([tenantId, referenceNumber])
   @@index([tenantId, studentId])
   @@map("issued_certificates")
+}
+
+// ===================================
+// REAL-TIME CHAT & MESSAGING MODULE
+// ===================================
+
+model ChatChannel {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  type        String   @default("GROUP") // DIRECT, GROUP, ANNOUNCEMENT, CLASS
+  classId     String?
+  avatar      String?
+  createdById String?
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant   Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members  ChatChannelMember[]
+  messages ChatMessage[]
+
+  @@index([tenantId])
+  @@index([type])
+  @@index([classId])
+  @@map("chat_channels")
+}
+
+model ChatChannelMember {
+  id         String    @id @default(uuid())
+  channelId  String
+  userId     String
+  role       String    @default("MEMBER") // ADMIN, MODERATOR, MEMBER
+  lastReadAt DateTime?
+  joinedAt   DateTime  @default(now())
+
+  channel ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([userId])
+  @@map("chat_channel_members")
+}
+
+model ChatMessage {
+  id          String    @id @default(uuid())
+  channelId   String
+  senderId    String
+  content     String    @db.Text
+  attachments Json?     // Array of { name, url, type, size }
+  reactions   Json?     // Map of emoji -> [userIds]
+  replyToId   String?
+  isDeleted   Boolean   @default(false)
+  isEdited    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  channel ChatChannel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender  User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo ChatMessage? @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies ChatMessage[] @relation("MessageReplies")
+
+  @@index([channelId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("chat_messages")
 }
