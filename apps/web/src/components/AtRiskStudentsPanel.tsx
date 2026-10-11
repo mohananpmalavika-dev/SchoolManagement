@@ -24,7 +24,9 @@ export function AtRiskStudentsPanel() {
     finally { if (!controller.signal.aborted) setLoading(false); }
   }, []);
   useEffect(() => { void load(); return () => { active.current?.abort(); generation.current?.abort(); }; }, [load]);
-  const flagged = (report?.students ?? []).filter(s => [s.academic, s.dropout].some(r => ['HIGH', 'MODERATE'].includes(r.level)));
+  const flagged = (report?.students ?? []).filter(s => [s.academic, s.dropout].some(r => ['HIGH', 'MODERATE'].includes(r.level)) ||
+    (s.metrics.latestAverage !== null && s.metrics.projectedAverage !== null && s.metrics.latestAverage - s.metrics.projectedAverage >= 10) ||
+    (s.metrics.attendanceDays >= 10 && s.metrics.attendanceRate !== null && s.metrics.attendanceRate < 85));
   const visible = flagged.slice(0, 5);
   const review = async () => {
     const controller = new AbortController(); generation.current = controller; setBusy(true); setError('');

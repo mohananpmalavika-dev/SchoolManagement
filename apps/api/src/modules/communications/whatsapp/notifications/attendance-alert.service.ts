@@ -8,7 +8,7 @@ export interface AttendanceAlertOptions {
   classId?: string; // Specific class
   studentId?: string; // Specific student
   status?: 'ABSENT' | 'LATE' | 'EXCUSED' | 'ALL'; // Alert for specific status
-  language?: 'en' | 'sw';
+  language?: 'en' | 'sw' | 'ml';
 }
 
 export interface AttendanceAlertResult {
@@ -387,7 +387,7 @@ export class AttendanceAlertService {
    */
   private buildAttendanceAlertMessage(
     attendance: any,
-    language: 'en' | 'sw',
+    language: 'en' | 'sw' | 'ml',
   ): string {
     const studentName = `${attendance.student.firstName} ${attendance.student.lastName}`;
     const className = attendance.student.class?.name || 'N/A';
@@ -395,7 +395,42 @@ export class AttendanceAlertService {
     const status = attendance.status;
     const remarks = attendance.remarks || '';
 
-    if (language === 'sw') {
+    if (language === 'ml') {
+      if (status === 'ABSENT') {
+        return (
+          `🏫 *സ്കൂൾ ഹാജർ അറിയിപ്പ് (Absence Alert)*\n\n` +
+          `പ്രിയ രക്ഷിതാവേ,\n\n` +
+          `വിദ്യാർത്ഥി: *${studentName}*\n` +
+          `ക്ലാസ്സ്: *${className}*\n` +
+          `തീയതി: *${date}*\n\n` +
+          `⚠️ നിങ്ങളുടെ കുട്ടി ഇന്ന് സ്കൂളിൽ ഹാജരായിട്ടില്ലെന്ന് ക്ലാസ്സ് ടീച്ചർ രേഖപ്പെടുത്തിയിട്ടുണ്ട്.\n\n` +
+          (remarks ? `വിശദാംശങ്ങൾ: ${remarks}\n\n` : '') +
+          `കുട്ടി സുരക്ഷിതമായി വീട്ടിൽ തന്നെയുണ്ടെന്ന് ഉറപ്പുവരുത്തുക. അപ്രതീക്ഷിതമാണെങ്കിൽ ദയവായി സ്കൂൾ ഹെൽപ്പ്‌ലൈനിൽ ബന്ധപ്പെടുക.\n\n` +
+          `നന്ദി`
+        );
+      } else if (status === 'LATE') {
+        return (
+          `🏫 *വൈകിയെത്തിയ വിവരം (Late Notice)*\n\n` +
+          `പ്രിയ രക്ഷിതാവേ,\n\n` +
+          `വിദ്യാർത്ഥി: *${studentName}*\n` +
+          `ക്ലാസ്സ്: *${className}*\n` +
+          `തീയതി: *${date}*\n\n` +
+          `ℹ️ നിങ്ങളുടെ കുട്ടി ഇന്ന് സ്കൂളിൽ വൈകിയാണ് എത്തിയത്.\n\n` +
+          (remarks ? `കാരണം: ${remarks}\n\n` : '') +
+          `നന്ദി`
+        );
+      } else {
+        return (
+          `🏫 *സ്കൂൾ ഹാജർ അറിയിപ്പ്*\n\n` +
+          `പ്രിയ രക്ഷിതാവേ,\n\n` +
+          `വിദ്യാർത്ഥി: *${studentName}*\n` +
+          `ക്ലാസ്സ്: *${className}*\n` +
+          `തീയതി: *${date}*\n` +
+          `സ്റ്റാറ്റസ്: *${status}*\n\n` +
+          `നന്ദി`
+        );
+      }
+    } else if (language === 'sw') {
       // Swahili message
       if (status === 'ABSENT') {
         return (

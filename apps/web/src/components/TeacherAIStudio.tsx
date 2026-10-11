@@ -77,7 +77,8 @@ function TeachingTools() {
           students: selected.slice(i, i + 10).map(studentId => ({ studentId, behaviourObservation: observations[studentId] || undefined })) },
         { timeout: 75000, signal: controller.signal });
         if (controller.signal.aborted) break;
-        setDrafts(current => ({ ...current, ...Object.fromEntries(data.remarks.map(r => [r.studentId, r])) })); completed += data.remarks.length;
+        setDrafts(current => ({ ...current, ...Object.fromEntries(data.remarks.map(r => [r.studentId, r])) }));
+        setSelected(current => current.filter(id => !data.remarks.some(r => r.studentId === id))); completed += data.remarks.length;
       }
       if (!controller.signal.aborted) setNotice(`${completed} AI remarks ready. Review and edit each draft before saving.`);
     } catch (err) { if (!controller.signal.aborted) { setError(messageFor(err)); setNotice(`${completed} remarks generated before the interruption. Completed drafts are available below.`); } }
@@ -86,8 +87,9 @@ function TeachingTools() {
   const prepare = async () => {
     setBusy(true); setError(''); setNotice('');
     try {
-      await apiClient.post('/teacher-ai/report-cards', { classId, termId }, { timeout: 75000 });
-      await loadRoster(); setNotice('Draft report-card preparation finished. Students with recorded marks can have draft reports; existing reports are preserved.');
+      const { data } = await apiClient.post<{ generated: number; skipped: number; errors: { student: string; error: string }[] }>('/teacher-ai/report-cards', { classId, termId }, { timeout: 75000 });
+      await loadRoster(); setNotice(`${data.generated} draft reports prepared; ${data.skipped} existing reports preserved; ${data.errors.length} could not be prepared.`);
+      if (data.errors.length) setError(data.errors.map(item => `${item.student}: ${item.error}`).join(' · '));
     } catch (err) { setError(messageFor(err)); } finally { setBusy(false); }
   };
   const save = async (id: string) => {

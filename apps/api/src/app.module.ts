@@ -29,6 +29,12 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
 import { PredictiveAnalyticsModule } from './modules/predictive-analytics/predictive-analytics.module';
 import { TeacherAIModule } from './modules/teacher-ai/teacher-ai.module';
 import { TransportModule } from './modules/transport/transport.module';
+import { ActivityFeedModule } from './modules/activity-feed/activity-feed.module';
+import { MediaModule } from './modules/media/media.module';
+import { BehaviorModule } from './modules/behavior/behavior.module';
+import { HomeworkModule } from './modules/homework/homework.module';
+import { BookingsModule } from './modules/bookings/bookings.module';
+import { ParentPortalModule } from './modules/parent-portal/parent-portal.module';
 
 @Module({
   imports: [
@@ -80,6 +86,12 @@ import { TransportModule } from './modules/transport/transport.module';
     PredictiveAnalyticsModule,
     TeacherAIModule,
     TransportModule,
+    ActivityFeedModule,
+    MediaModule,
+    BehaviorModule,
+    HomeworkModule,
+    BookingsModule,
+    ParentPortalModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: JwtAuthGuard }, { provide: APP_GUARD, useClass: RolesGuard }, { provide: APP_GUARD, useClass: PortalScopeGuard }],

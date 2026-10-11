@@ -127,7 +127,8 @@ export class TeacherAIService {
     if (remark.length < 10) throw new BadRequestException('Please review and enter a complete remark');
     return this.prisma.$transaction(async tx => {
       const updated = await tx.reportCard.updateMany({ where: { id: dto.reportCardId, tenantId, studentId: dto.studentId, termId: dto.termId,
-        OR: [{ classId: dto.classId }, { classId: null }], status: 'DRAFT', updatedAt: new Date(dto.expectedUpdatedAt) },
+        OR: [{ classId: dto.classId }, { classId: null }], student: { tenantId, currentClassId: dto.classId, status: 'ACTIVE', deletedAt: null },
+        status: 'DRAFT', updatedAt: new Date(dto.expectedUpdatedAt) },
         data: { classTeacherComments: remark, teacherComment: remark, updatedAt } });
       if (updated.count !== 1) throw new ConflictException('The report card changed or is no longer a draft. Reload the roster before saving.');
       await tx.auditLog.create({ data: { tenantId, userId: user.userId, action: 'AI_ASSISTED_REMARK_REVIEWED', entityType: 'ReportCard', entityId: dto.reportCardId,
@@ -148,6 +149,9 @@ export class TeacherAIService {
       objectSchema({ title: stringSchema, instructions: stringSchema, warnings: stringListSchema,
         questions: { type: 'array', items: objectSchema({ type: { type: 'string', enum: ['MCQ', 'SHORT_ANSWER'] }, question: stringSchema,
           options: stringListSchema, answer: stringSchema, explanation: stringSchema, marks: { type: 'integer' } }) } }));
+    if (response && typeof response === 'object' && 'questions' in response && Array.isArray(response.questions) && response.questions.length === 0) {
+      throw new BadRequestException('The supplied content cannot support ten meaningful questions. Add more chapter or syllabus content and try again.');
+    }
     return { ...questionPaper(response, dto.questionType), model: this.ai.status().model, generatedAt: new Date().toISOString() };
   }
 

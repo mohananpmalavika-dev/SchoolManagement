@@ -1,0 +1,569 @@
+{
+  "info": {
+    "name": "Parent Engagement Features API",
+    "description": "Complete API collection for Parent Engagement Features in Krypton School ERP",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "studentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "teacherId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login as Teacher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"teacher@school.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login as Parent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"parent@email.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Parent Portal",
+      "item": [
+        {
+          "name": "Get My Children",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/parent-portal/my-children",
+              "host": ["{{baseUrl}}"],
+              "path": ["parent-portal", "my-children"]
+            }
+          }
+        },
+        {
+          "name": "Get Student Dashboard",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/parent-portal/student/{{studentId}}/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["parent-portal", "student", "{{studentId}}", "dashboard"]
+            }
+          }
+        },
+        {
+          "name": "Get Student Activities",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/parent-portal/student/{{studentId}}/activities?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["parent-portal", "student", "{{studentId}}", "activities"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "activityType",
+                  "value": "PARTICIPATION",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Student Media",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/parent-portal/student/{{studentId}}/media?fileType=PHOTO",
+              "host": ["{{baseUrl}}"],
+              "path": ["parent-portal", "student", "{{studentId}}", "media"],
+              "query": [
+                {
+                  "key": "fileType",
+                  "value": "PHOTO"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Student Homework",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/parent-portal/student/{{studentId}}/homework?status=NOT_SUBMITTED",
+              "host": ["{{baseUrl}}"],
+              "path": ["parent-portal", "student", "{{studentId}}", "homework"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "NOT_SUBMITTED"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Homework Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/parent-portal/student/{{studentId}}/homework/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["parent-portal", "student", "{{studentId}}", "homework", "summary"]
+            }
+          }
+        },
+        {
+          "name": "Get Student Behavior",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/parent-portal/student/{{studentId}}/behavior",
+              "host": ["{{baseUrl}}"],
+              "path": ["parent-portal", "student", "{{studentId}}", "behavior"]
+            }
+          }
+        },
+        {
+          "name": "Get Behavior Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/parent-portal/student/{{studentId}}/behavior/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["parent-portal", "student", "{{studentId}}", "behavior", "summary"]
+            }
+          }
+        },
+        {
+          "name": "Get My Bookings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/parent-portal/bookings?status=CONFIRMED",
+              "host": ["{{baseUrl}}"],
+              "path": ["parent-portal", "bookings"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "CONFIRMED"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Available Slots",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/parent-portal/bookings/teacher/{{teacherId}}/slots/2026-10-15",
+              "host": ["{{baseUrl}}"],
+              "path": ["parent-portal", "bookings", "teacher", "{{teacherId}}", "slots", "2026-10-15"]
+            }
+          }
+        },
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"teacherId\": \"{{teacherId}}\",\n  \"bookingDate\": \"2026-10-15\",\n  \"startTime\": \"09:00\",\n  \"endTime\": \"09:30\",\n  \"purpose\": \"Discuss exam performance\",\n  \"meetingType\": \"IN_PERSON\",\n  \"parentNotes\": \"Concerned about recent Math grades\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/parent-portal/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["parent-portal", "bookings"]
+            }
+          }
+        },
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/parent-portal/notifications?limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["parent-portal", "notifications"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Activity Feed (Teacher)",
+      "item": [
+        {
+          "name": "Create Activity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"activityType\": \"PARTICIPATION\",\n  \"title\": \"Participated in Math today\",\n  \"description\": \"John actively participated in algebra lesson and answered 3 questions correctly.\",\n  \"isVisibleToParents\": true,\n  \"metadata\": {\n    \"questions_answered\": 3,\n    \"lesson_topic\": \"Algebra\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/activity-feed",
+              "host": ["{{baseUrl}}"],
+              "path": ["activity-feed"]
+            }
+          }
+        },
+        {
+          "name": "Get All Activities",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/activity-feed?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["activity-feed"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Activity by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/activity-feed/:activityId",
+              "host": ["{{baseUrl}}"],
+              "path": ["activity-feed", ":activityId"]
+            }
+          }
+        },
+        {
+          "name": "Update Activity",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated title\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/activity-feed/:activityId",
+              "host": ["{{baseUrl}}"],
+              "path": ["activity-feed", ":activityId"]
+            }
+          }
+        },
+        {
+          "name": "Delete Activity",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/activity-feed/:activityId",
+              "host": ["{{baseUrl}}"],
+              "path": ["activity-feed", ":activityId"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Media (Teacher)",
+      "item": [
+        {
+          "name": "Upload Photo/Video",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "studentId",
+                  "value": "{{studentId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "caption",
+                  "value": "John's artwork from today",
+                  "type": "text"
+                },
+                {
+                  "key": "isVisibleToParents",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/media/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["media", "upload"]
+            }
+          }
+        },
+        {
+          "name": "Get All Media",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/media?studentId={{studentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["media"],
+              "query": [
+                {
+                  "key": "studentId",
+                  "value": "{{studentId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Media",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/media/:mediaId",
+              "host": ["{{baseUrl}}"],
+              "path": ["media", ":mediaId"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Behavior (Teacher)",
+      "item": [
+        {
+          "name": "Create Positive Behavior",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"behaviorType\": \"POSITIVE\",\n  \"category\": \"ACADEMIC_EXCELLENCE\",\n  \"title\": \"Outstanding Homework Submission\",\n  \"description\": \"Submitted all homework on time this week with excellent quality\",\n  \"incidentDate\": \"2026-10-11\",\n  \"points\": 10,\n  \"parentNotified\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/behavior",
+              "host": ["{{baseUrl}}"],
+              "path": ["behavior"]
+            }
+          }
+        },
+        {
+          "name": "Create Negative Behavior",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"behaviorType\": \"NEGATIVE\",\n  \"category\": \"LATE_ARRIVAL\",\n  \"title\": \"Late to Class\",\n  \"description\": \"Arrived 15 minutes late to Math class\",\n  \"incidentDate\": \"2026-10-11\",\n  \"location\": \"Room 203\",\n  \"points\": -5,\n  \"actionTaken\": \"Verbal warning given\",\n  \"followUpRequired\": false,\n  \"parentNotified\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/behavior",
+              "host": ["{{baseUrl}}"],
+              "path": ["behavior"]
+            }
+          }
+        },
+        {
+          "name": "Get All Behavior Records",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/behavior?studentId={{studentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["behavior"],
+              "query": [
+                {
+                  "key": "studentId",
+                  "value": "{{studentId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Behavior Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/behavior/student/{{studentId}}/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["behavior", "student", "{{studentId}}", "summary"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings (Teacher)",
+      "item": [
+        {
+          "name": "Create Availability",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dayOfWeek\": 1,\n  \"startTime\": \"09:00\",\n  \"endTime\": \"17:00\",\n  \"slotDuration\": 30,\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/availability",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "availability"]
+            }
+          }
+        },
+        {
+          "name": "Get Teacher Availability",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/availability/teacher/{{teacherId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "availability", "teacher", "{{teacherId}}"]
+            }
+          }
+        },
+        {
+          "name": "Confirm Booking",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/:bookingId/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", ":bookingId", "confirm"]
+            }
+          }
+        },
+        {
+          "name": "Complete Booking",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/:bookingId/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", ":bookingId", "complete"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

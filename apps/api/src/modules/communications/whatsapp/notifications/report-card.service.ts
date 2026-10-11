@@ -8,7 +8,7 @@ export interface ReportCardDeliveryOptions {
   termId?: string; // All report cards for a term
   classId?: string; // All report cards for a class
   studentId?: string; // Report card for specific student
-  language?: 'en' | 'sw';
+  language?: 'en' | 'sw' | 'ml';
   includeRemarks?: boolean; // Include teacher's remarks in message
 }
 
@@ -347,7 +347,7 @@ export class ReportCardService {
    */
   private buildReportCardMessage(
     reportCard: any,
-    language: 'en' | 'sw',
+    language: 'en' | 'sw' | 'ml',
     includeRemarks: boolean = false,
   ): string {
     const studentName = `${reportCard.student.firstName} ${reportCard.student.lastName}`;
@@ -360,7 +360,23 @@ export class ReportCardService {
     const position = reportCard.position || 'N/A';
     const remarks = reportCard.teacherRemarks || '';
 
-    if (language === 'sw') {
+    if (language === 'ml') {
+      return (
+        `📊 *പരീക്ഷാ ഫലം ലഭ്യമാണ് (Report Card)*\n\n` +
+        `പ്രിയ രക്ഷിതാവേ,\n\n` +
+        `വിദ്യാർത്ഥി: *${studentName}*\n` +
+        `ക്ലാസ്സ്: *${className}*\n` +
+        `ടേം: *${termName}*\n\n` +
+        `📈 പരീക്ഷാ പ്രകടനം:\n` +
+        `മൊത്തം മാർക്ക്: ${obtainedMarks}/${totalMarks}\n` +
+        `ശതമാനം: ${percentage}%\n` +
+        `ഗ്രേഡ്: *${grade}*\n` +
+        `ക്ലാസ്സ് റാങ്ക്: *${position}*\n\n` +
+        (includeRemarks && remarks ? `ടീച്ചറുടെ വിലയിരുത്തൽ:\n${remarks}\n\n` : '') +
+        `ഔദ്യോഗിക ഡിജിറ്റൽ പ്രോഗ്രസ് കാർഡ് PDF താഴെ ചേർത്തിരിക്കുന്നു. ചാറ്റിൽ നിന്ന് നേരിട്ട് ഡൗൺലോഡ് ചെയ്യാം.\n\n` +
+        `അഭിനന്ദനങ്ങൾ! 🎉`
+      );
+    } else if (language === 'sw') {
       // Swahili message
       return (
         `📊 *Kadi ya Ripoti Iko Tayari*\n\n` +

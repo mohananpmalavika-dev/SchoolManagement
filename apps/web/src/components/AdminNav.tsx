@@ -59,6 +59,7 @@ export function AdminNav() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
             <NavLink href="/admin/dashboard">{t('common.dashboard')}</NavLink>
+            <NavLink href="/dashboard/whatsapp">WhatsApp Hub</NavLink>
             <NavLink href="/dashboard/smart-attendance">Smart Attendance</NavLink>
             <NavLink href="/admin/schools">{t('admin.schools')}</NavLink>
             <NavLink href="/admin/subscriptions">{t('admin.subscriptions')}</NavLink>

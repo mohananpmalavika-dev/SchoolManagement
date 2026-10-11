@@ -9,7 +9,7 @@ export interface FeeReminderOptions {
   studentId?: string; // Send reminder to specific student
   daysBeforeDue?: number; // Send reminder X days before due date
   overdueOnly?: boolean; // Only send to overdue invoices
-  language?: 'en' | 'sw';
+  language?: 'en' | 'sw' | 'ml';
 }
 
 export interface FeeReminderResult {
@@ -270,17 +270,46 @@ export class FeeReminderService {
   /**
    * Build fee reminder message
    */
-  private buildFeeReminderMessage(invoice: any, language: 'en' | 'sw'): string {
+  private buildFeeReminderMessage(invoice: any, language: 'en' | 'sw' | 'ml'): string {
     const studentName = `${invoice.student.firstName} ${invoice.student.lastName}`;
     const amount = this.formatAmount(invoice.totalAmount - invoice.paidAmount);
     const dueDate = this.formatDate(invoice.dueDate);
     const invoiceNumber = invoice.invoiceNumber;
     const className = invoice.student.class?.name || 'N/A';
     const termName = invoice.feeStructure?.term?.name || 'Current Term';
-
     const isOverdue = new Date(invoice.dueDate) < new Date();
+    const upiLink = `upi://pay?pa=schoolfees@icici&pn=School+Fees&am=${invoice.totalAmount - invoice.paidAmount}&cu=INR&tn=${invoiceNumber}`;
 
-    if (language === 'sw') {
+    if (language === 'ml') {
+      if (isOverdue) {
+        return `🏫 *സ്കൂൾ ഫീ കുടിശ്ശിക അറിയിപ്പ് (Overdue Fee)*\n\n` +
+          `പ്രിയ രക്ഷിതാവേ,\n\n` +
+          `വിദ്യാർത്ഥി: *${studentName}*\n` +
+          `ക്ലാസ്സ്: *${className}*\n` +
+          `ടേം: *${termName}*\n\n` +
+          `⚠️ നിങ്ങളുടെ കുട്ടിയുടെ സ്കൂൾ ഫീസ് അവസാന തീയതി കഴിഞ്ഞിരിക്കുന്നു.\n\n` +
+          `• അടയ്ക്കേണ്ട തുക: *${amount}*\n` +
+          `• അവസാന തീയതി: *${dueDate}*\n` +
+          `• ഇൻവോയ്സ് നമ്പർ: ${invoiceNumber}\n\n` +
+          `⚡ *1-ക്ലിക്ക് യു.പി.ഐ പേയ്‌മെന്റ് ലിങ്ക്:*\n` +
+          `${upiLink}\n\n` +
+          `താഴെയുള്ള ലിങ്കിൽ ക്ലിക്ക് ചെയ്ത് ഗൂഗിൾ പേ/ഫോൺപേ/Paytm വഴി സെക്കൻഡുകൾക്കുള്ളിൽ പണമടയ്ക്കാം.\n\n` +
+          `നന്ദി`;
+      } else {
+        return `🏫 *സ്കൂൾ ഫീ പേയ്‌മെന്റ് റിമൈൻഡർ*\n\n` +
+          `പ്രിയ രക്ഷിതാവേ,\n\n` +
+          `വിദ്യാർത്ഥി: *${studentName}*\n` +
+          `ക്ലാസ്സ്: *${className}*\n` +
+          `ടേം: *${termName}*\n\n` +
+          `• അടയ്ക്കേണ്ട തുക: *${amount}*\n` +
+          `• അവസാന തീയതി: *${dueDate}*\n` +
+          `• ഇൻവോയ്സ് നമ്പർ: ${invoiceNumber}\n\n` +
+          `⚡ *1-ക്ലിക്ക് യു.പി.ഐ പേയ്‌മെന്റ് ലിങ്ക്:*\n` +
+          `${upiLink}\n\n` +
+          `ബാങ്കിലോ സ്കൂളിലോ വരിനിൽക്കാതെ മുകളിലെ ലിങ്കിൽ ക്ലിക്ക് ചെയ്ത് യു.പി.ഐ വഴി ഉടൻ പണമടയ്ക്കാം.\n\n` +
+          `നന്ദി`;
+      }
+    } else if (language === 'sw') {
       // Swahili message
       if (isOverdue) {
         return `🏫 *Notisi ya Ada ya Shule*\n\n` +

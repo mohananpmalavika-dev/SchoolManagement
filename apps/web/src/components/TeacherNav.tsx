@@ -130,6 +130,7 @@ export function TeacherNav() {
         <div className="md:hidden border-t border-gray-200 py-2">
           <div className="flex items-center justify-around">
             <MobileNavItem href="/teacher/dashboard" icon="home" label={t('teacher.mobileNav.home')} />
+            <MobileNavItem href="/teacher/ai-studio" icon="book" label="AI studio" />
             <MobileNavItem href="/teacher/classes" icon="users" label={t('teacher.mobileNav.classes')} />
             <MobileNavItem href="/teacher/attendance" icon="check" label={t('teacher.mobileNav.attend')} />
             <MobileNavItem href="/teacher/grades" icon="book" label={t('teacher.mobileNav.grades')} />

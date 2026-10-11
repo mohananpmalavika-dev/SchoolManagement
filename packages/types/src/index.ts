@@ -16,4 +16,5 @@ export * from './predictive-analytics';
 export * from './teacher-ai';
 export * from './smart-attendance';
 export * from './substitution';
+export * from './whatsapp-cloud';
 
