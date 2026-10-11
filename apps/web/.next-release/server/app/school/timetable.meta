@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/timetable/layout,_N_T_/school/timetable/page,_N_T_/school/timetable"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/timetable/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/2613b7d7c18c606190d740e16496c201343501fcd6a9e57bdc39380e91dc56bb/$/school/timetable",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/timetable/page"
+    },
+    "isFallback": false
+  }
+}

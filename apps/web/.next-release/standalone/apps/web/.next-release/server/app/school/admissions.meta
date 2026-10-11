@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/admissions/layout,_N_T_/school/admissions/page,_N_T_/school/admissions"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/admissions/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/21fcc4cd65d2dad6ba7aba17508486fee6ddf10decdf5f1200b60c56c3cd42ae/$/school/admissions",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/admissions/page"
+    },
+    "isFallback": false
+  }
+}

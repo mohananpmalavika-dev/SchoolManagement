@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/certificates/layout,_N_T_/school/certificates/page,_N_T_/school/certificates"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/certificates/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/382cc564d5ba2239a09b8796750a266b8f0ff4eb35c75f8bc84f0feb80e966f3/$/school/certificates",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/certificates/page"
+    },
+    "isFallback": false
+  }
+}

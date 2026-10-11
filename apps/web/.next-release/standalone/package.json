@@ -1,0 +1,77 @@
+{
+  "name": "hustlertech-school-erp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HustlerTech multi-tenant school management ERP platform for Kenyan & East African schools",
+  "author": "HustlerTech",
+  "license": "PROPRIETARY",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:codegen": "playwright codegen",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:migrate": "pnpm --filter @krypton/database db:migrate",
+    "db:push": "pnpm --filter @krypton/database db:push",
+    "db:studio": "pnpm --filter @krypton/database db:studio",
+    "db:seed": "pnpm --filter @krypton/database db:seed",
+    "db:reset": "pnpm --filter database db:reset",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "prepare": "husky install",
+    "db:deploy": "pnpm --filter @krypton/database db:migrate:deploy",
+    "db:generate": "pnpm --filter @krypton/database db:generate",
+    "db:seed:demo": "pnpm --filter @krypton/database db:seed:demo",
+    "test:smoke": "node scripts/smoke-test.mjs",
+    "test:ui": "node scripts/test-ui-redesign.mjs",
+    "test:ui:meetings": "node scripts/test-meetings-ui.mjs",
+    "test:ui:signin": "node scripts/test-single-sign-in.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.1.0",
+    "playwright": "1.64.0",
+    "prettier": "^3.1.0",
+    "turbo": "^1.11.0",
+    "typescript": "^5.3.2"
+  },
+  "packageManager": "pnpm@8.15.9",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "pnpm": {
+    "overrides": {
+      "bull>uuid": "11.1.1",
+      "lodash": "^4.18.0",
+      "js-yaml": "^4.3.2",
+      "qs": "^6.16.0",
+      "postcss": "^8.5.23",
+      "multer": "^2.3.0"
+    }
+  }
+}

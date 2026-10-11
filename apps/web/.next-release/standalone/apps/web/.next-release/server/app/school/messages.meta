@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/messages/layout,_N_T_/school/messages/page,_N_T_/school/messages"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/messages/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/0093a8049563a0f6ae0af66ac10aeb97d5b48085c43f46a158fb2efac0c4a7fe/$/school/messages",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/messages/page"
+    },
+    "isFallback": false
+  }
+}

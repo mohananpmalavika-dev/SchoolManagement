@@ -46,8 +46,12 @@ async function globalSetup(config: FullConfig) {
     const healthResponse = await page.request.get(`${baseURL}/api/v1/health`);
     const health = await healthResponse.json();
     
-    if (!health.database || health.database !== 'ok') {
-      throw new Error('Database is not connected');
+    // Handle both direct and wrapped response formats
+    const checks = health.data?.checks || health.checks;
+    
+    if (!checks || checks.database !== 'healthy') {
+      console.error('Health check response:', JSON.stringify(health, null, 2));
+      throw new Error('Database is not healthy');
     }
     
     console.log('✅ Database is connected');

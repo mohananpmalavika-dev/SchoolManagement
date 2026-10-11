@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/examinations/layout,_N_T_/school/examinations/page,_N_T_/school/examinations"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/examinations/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/492651f891fa03d819b6895bfa22444b88bd020cad688cfb423198421bd0e7de/$/school/examinations",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/examinations/page"
+    },
+    "isFallback": false
+  }
+}

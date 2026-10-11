@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/dashboard/layout,_N_T_/dashboard/compliance/layout,_N_T_/dashboard/compliance/page,_N_T_/dashboard/compliance"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/dashboard/compliance/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/debc2f41c239b52d62cf2f742382b57ecb431be9a6e4b535f6ef1d878fb6764f/$/dashboard/compliance",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/dashboard/compliance/page"
+    },
+    "isFallback": false
+  }
+}

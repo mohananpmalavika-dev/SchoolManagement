@@ -1,0 +1,1 @@
+globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/api/smart-attendance/qr-scan/route"]={"moduleLoading":{"prefix":"/_next/"},"ssrModuleMapping":{},"edgeSSRModuleMapping":{},"clientModules":{},"entryCSSFiles":{"C:\\SchoolManagement\\apps\\web\\src\\app\\api\\smart-attendance\\qr-scan\\route":[]},"rscModuleMapping":{},"edgeRscModuleMapping":{}};

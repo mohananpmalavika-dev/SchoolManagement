@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/dashboard/layout,_N_T_/dashboard/grades/layout,_N_T_/dashboard/grades/page,_N_T_/dashboard/grades"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/dashboard/grades/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/f9d40d7184c36e4880533d256cb75d4b9c27011790750e80c00cea0563637367/$/dashboard/grades",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/dashboard/grades/page"
+    },
+    "isFallback": false
+  }
+}

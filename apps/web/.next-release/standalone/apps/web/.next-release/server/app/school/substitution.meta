@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/substitution/layout,_N_T_/school/substitution/page,_N_T_/school/substitution"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/substitution/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/adacb76c27d05e3263957bc699cc6d7d404e9ec9a949f614ec9503e1d94cbc34/$/school/substitution",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/substitution/page"
+    },
+    "isFallback": false
+  }
+}

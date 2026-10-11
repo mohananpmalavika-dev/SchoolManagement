@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/teacher/layout,_N_T_/teacher/portfolio/layout,_N_T_/teacher/portfolio/page,_N_T_/teacher/portfolio"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/teacher/portfolio/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/0b24a952030dc37172ad7f08150eb19b2cfc7a0620ce3aaa20977d322bb81c84/$/teacher/portfolio",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/teacher/portfolio/page"
+    },
+    "isFallback": false
+  }
+}

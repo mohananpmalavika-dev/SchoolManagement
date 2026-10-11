@@ -1,0 +1,1 @@
+globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/api/ptm/batch/route"]={"moduleLoading":{"prefix":"/_next/"},"ssrModuleMapping":{},"edgeSSRModuleMapping":{},"clientModules":{},"entryCSSFiles":{"C:\\SchoolManagement\\apps\\web\\src\\app\\api\\ptm\\batch\\route":[]},"rscModuleMapping":{},"edgeRscModuleMapping":{}};

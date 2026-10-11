@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/calendar/layout,_N_T_/school/calendar/page,_N_T_/school/calendar"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/calendar/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/7680fb677cf89f0aac3d77d6078209408da1b3240af4fa1b43dcf71768c3c923/$/school/calendar",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/calendar/page"
+    },
+    "isFallback": false
+  }
+}

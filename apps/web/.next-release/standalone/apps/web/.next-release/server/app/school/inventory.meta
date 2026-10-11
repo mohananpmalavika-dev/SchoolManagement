@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/inventory/layout,_N_T_/school/inventory/page,_N_T_/school/inventory"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/inventory/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/092a9b1808ffcacb71482164260878160183326db80dd7b0b3c9e3e2b2de460d/$/school/inventory",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/inventory/page"
+    },
+    "isFallback": false
+  }
+}

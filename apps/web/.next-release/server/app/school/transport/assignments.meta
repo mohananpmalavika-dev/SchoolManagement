@@ -1,0 +1,44 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/transport/layout,_N_T_/school/transport/assignments/layout,_N_T_/school/transport/assignments/page,_N_T_/school/transport/assignments"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/transport/assignments/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 96,
+                "slots": {
+                  "children": {
+                    "hints": 160,
+                    "slots": null
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/cb11282bb8f893e90829b70e334c5fc66d41e7ae8e1194ecd729891f3bea7331/$/school/transport/assignments",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/transport/assignments/page"
+    },
+    "isFallback": false
+  }
+}

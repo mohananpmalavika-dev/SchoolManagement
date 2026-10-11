@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/teacher/layout,_N_T_/teacher/grades/layout,_N_T_/teacher/grades/page,_N_T_/teacher/grades"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/teacher/grades/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/8d3a37ee985972b2e792b7b82b98ff6d0f749ceea1f5a550eb401c2e3e5b5160/$/teacher/grades",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/teacher/grades/page"
+    },
+    "isFallback": false
+  }
+}

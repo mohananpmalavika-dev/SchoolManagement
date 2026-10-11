@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/report-cards/layout,_N_T_/school/report-cards/page,_N_T_/school/report-cards"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/report-cards/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/5ce5bcc4e7fa27b63a58cb584d5f3a36ef17c42a3520ca57da9ab708142530c7/$/school/report-cards",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/report-cards/page"
+    },
+    "isFallback": false
+  }
+}

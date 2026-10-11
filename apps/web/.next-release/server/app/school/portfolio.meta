@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/portfolio/layout,_N_T_/school/portfolio/page,_N_T_/school/portfolio"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/portfolio/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/a61e890d23f35ac2439063cae9a55e77447144b8dcad93ade244bd4420538d8a/$/school/portfolio",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/portfolio/page"
+    },
+    "isFallback": false
+  }
+}

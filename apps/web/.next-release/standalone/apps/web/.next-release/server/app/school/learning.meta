@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/learning/layout,_N_T_/school/learning/page,_N_T_/school/learning"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/learning/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/45f1ebfb791df4ca6de7291128784d38d4f5eeeefb69fb21d06c84e31f2a9fb6/$/school/learning",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/learning/page"
+    },
+    "isFallback": false
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/teacher/layout,_N_T_/teacher/chat/layout,_N_T_/teacher/chat/page,_N_T_/teacher/chat"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/teacher/chat/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/779b20e6b6073903875aa04826261674c849c41abc914a6c8549595f56b61b13/$/teacher/chat",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/teacher/chat/page"
+    },
+    "isFallback": false
+  }
+}

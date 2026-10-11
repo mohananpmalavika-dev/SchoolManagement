@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/student/layout,_N_T_/student/materials/layout,_N_T_/student/materials/page,_N_T_/student/materials"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/student/materials/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/27546a2d9da6e6c6cc4d7258fb76fb5f3f801e4865a2ce1843240e159a2cedaf/$/student/materials",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/student/materials/page"
+    },
+    "isFallback": false
+  }
+}

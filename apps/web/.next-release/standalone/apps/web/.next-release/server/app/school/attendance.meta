@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/attendance/layout,_N_T_/school/attendance/page,_N_T_/school/attendance"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/attendance/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/9167091ee0640b5dab3cd7c47d3a467893b0f126abdeca72ae3903a9dae5887b/$/school/attendance",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/attendance/page"
+    },
+    "isFallback": false
+  }
+}

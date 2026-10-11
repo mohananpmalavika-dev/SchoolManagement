@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/dashboard/layout,_N_T_/dashboard/smart-attendance/layout,_N_T_/dashboard/smart-attendance/page,_N_T_/dashboard/smart-attendance"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/dashboard/smart-attendance/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/d6991bed89a8e9bc991e19dcdc18d1bc1669ec14ae62e5139614db3a183fe715/$/dashboard/smart-attendance",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/dashboard/smart-attendance/page"
+    },
+    "isFallback": false
+  }
+}

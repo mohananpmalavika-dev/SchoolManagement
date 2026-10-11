@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/admissions/layout,_N_T_/admissions/apply/layout,_N_T_/admissions/apply/page,_N_T_/admissions/apply"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/admissions/apply/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/8a3d4615062ecd124fc097fc81699b73dff2994d1ee95a047d6292506a85612d/$/admissions/apply",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/admissions/apply/page"
+    },
+    "isFallback": false
+  }
+}

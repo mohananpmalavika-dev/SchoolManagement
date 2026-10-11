@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/copilot/layout,_N_T_/school/copilot/page,_N_T_/school/copilot"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/copilot/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/01a48e89c60f3c567eaca10337f2c802eec3c2dd8e9f705b203f97faaf17f9e0/$/school/copilot",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/copilot/page"
+    },
+    "isFallback": false
+  }
+}

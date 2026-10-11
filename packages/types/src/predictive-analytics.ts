@@ -1,11 +1,27 @@
 export type RiskLevel = 'HIGH' | 'MODERATE' | 'LOW' | 'INSUFFICIENT_DATA';
-export type RiskKind = 'academic' | 'feeDefault' | 'dropout';
+export type RiskKind = 'academic' | 'feeDefault' | 'dropout' | 'homework';
 export interface RiskAssessment {
   score: number | null;
   level: RiskLevel;
   basis: 'SCHOOL_MODEL' | 'EARLY_WARNING';
   evidence: string[];
   actions: string[];
+}
+export interface RadarMetrics {
+  academicScore: number;
+  attendanceScore: number;
+  homeworkScore: number;
+  financialScore: number;
+  compositeRiskScore: number;
+}
+export interface StudentInterventionPlan {
+  teacherActions: string[];
+  parentGuidance: string[];
+  malayalamSummary: {
+    riskTitle: string;
+    teacherAdvice: string[];
+    parentAdvice: string[];
+  };
 }
 export interface StudentRiskProfile {
   studentId: string;
@@ -18,6 +34,7 @@ export interface StudentRiskProfile {
   academic: RiskAssessment;
   feeDefault: RiskAssessment;
   dropout: RiskAssessment;
+  homework: RiskAssessment;
   metrics: {
     latestAverage: number | null;
     projectedAverage: number | null;
@@ -25,7 +42,12 @@ export interface StudentRiskProfile {
     attendanceDays: number;
     outstandingBalance: number;
     overdueBalance: number;
+    homeworkCompletionRate: number | null;
+    homeworkMissingCount: number;
+    homeworkAverageScore: number | null;
   };
+  radarMetrics: RadarMetrics;
+  interventions: StudentInterventionPlan;
 }
 export interface PredictiveModelInfo {
   status: 'ACTIVE' | 'INSUFFICIENT_HISTORY' | 'VALIDATION_FAILED';
@@ -46,6 +68,7 @@ export interface PredictiveAnalyticsReport {
     academicHigh: number;
     feeDefaultHigh: number;
     dropoutHigh: number;
+    homeworkHigh: number;
     incompleteData: number;
     overdueBalance: number;
   };

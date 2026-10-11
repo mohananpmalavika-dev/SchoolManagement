@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/student/layout,_N_T_/student/academics/layout,_N_T_/student/academics/page,_N_T_/student/academics"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/student/academics/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/f6d93fc564e1c9df2e0c8c79f414ce227d75094079eb9c4618d00f68be93a06d/$/student/academics",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/student/academics/page"
+    },
+    "isFallback": false
+  }
+}

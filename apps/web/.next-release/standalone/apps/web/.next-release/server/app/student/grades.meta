@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/student/layout,_N_T_/student/grades/layout,_N_T_/student/grades/page,_N_T_/student/grades"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/student/grades/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/d5a76f583ab051505ae163204600e95dcd1fcdb85d201190d37ecb08000e97b9/$/student/grades",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/student/grades/page"
+    },
+    "isFallback": false
+  }
+}

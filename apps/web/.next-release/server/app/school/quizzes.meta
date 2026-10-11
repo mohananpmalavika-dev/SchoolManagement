@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/quizzes/layout,_N_T_/school/quizzes/page,_N_T_/school/quizzes"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/quizzes/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/1ba81991d13ed2344b0e20d0639797349438b0b88bcc05987b43b95b0d9d8169/$/school/quizzes",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/quizzes/page"
+    },
+    "isFallback": false
+  }
+}

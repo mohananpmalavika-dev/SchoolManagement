@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/guardians/layout,_N_T_/school/guardians/page,_N_T_/school/guardians"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/guardians/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/0920affcb6cafadfcc5dbc0cf662270bdab267e48c88715a7167ec9f857597ed/$/school/guardians",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/guardians/page"
+    },
+    "isFallback": false
+  }
+}

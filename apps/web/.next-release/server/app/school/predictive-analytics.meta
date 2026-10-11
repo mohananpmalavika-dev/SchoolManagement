@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/predictive-analytics/layout,_N_T_/school/predictive-analytics/page,_N_T_/school/predictive-analytics"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/predictive-analytics/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/70b263e422d2d7a69bd8defe9765c021d6c3612d8935850321606861c2fc275e/$/school/predictive-analytics",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/predictive-analytics/page"
+    },
+    "isFallback": false
+  }
+}

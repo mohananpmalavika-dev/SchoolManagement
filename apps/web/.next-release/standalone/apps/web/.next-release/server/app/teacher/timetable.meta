@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/teacher/layout,_N_T_/teacher/timetable/layout,_N_T_/teacher/timetable/page,_N_T_/teacher/timetable"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/teacher/timetable/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/b82b41a662ff5aaa9559539d656ce66bdff1061952798631b6003b2e7c63f0a4/$/teacher/timetable",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/teacher/timetable/page"
+    },
+    "isFallback": false
+  }
+}

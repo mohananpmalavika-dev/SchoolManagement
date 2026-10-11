@@ -1,0 +1,44 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/transport/layout,_N_T_/school/transport/driver/layout,_N_T_/school/transport/driver/page,_N_T_/school/transport/driver"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/transport/driver/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 96,
+                "slots": {
+                  "children": {
+                    "hints": 160,
+                    "slots": null
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/99221565dbcd5c913eb58998cbfead82ca14d38ccab818d86a50c9a6055d3d82/$/school/transport/driver",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/transport/driver/page"
+    },
+    "isFallback": false
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/school/layout,_N_T_/school/ai-studio/layout,_N_T_/school/ai-studio/page,_N_T_/school/ai-studio"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/school/ai-studio/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/88ed68b31ed1fca922eba34a9a092b5be3af2e89a5f22fd5cd5ee9b2ab0b33d6/$/school/ai-studio",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/school/ai-studio/page"
+    },
+    "isFallback": false
+  }
+}

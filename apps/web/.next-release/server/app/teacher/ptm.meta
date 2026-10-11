@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/teacher/layout,_N_T_/teacher/ptm/layout,_N_T_/teacher/ptm/page,_N_T_/teacher/ptm"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/teacher/ptm/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/e403c0507124948d4115c0c5b98ba12b280044872e1c5a7afa75115d282f6b24/$/teacher/ptm",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/teacher/ptm/page"
+    },
+    "isFallback": false
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/dashboard/layout,_N_T_/dashboard/attendance/layout,_N_T_/dashboard/attendance/page,_N_T_/dashboard/attendance"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/dashboard/attendance/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/1c04dbc19fce6f1b87aa49318e3c180a08e57ee0e4726b78da7eb39a43564e3f/$/dashboard/attendance",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/dashboard/attendance/page"
+    },
+    "isFallback": false
+  }
+}

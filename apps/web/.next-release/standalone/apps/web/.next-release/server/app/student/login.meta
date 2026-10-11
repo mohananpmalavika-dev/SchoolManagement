@@ -1,0 +1,41 @@
+{
+  "status": 307,
+  "headers": {
+    "location": "/login",
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/student/layout,_N_T_/student/login/layout,_N_T_/student/login/page,_N_T_/student/login"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/student/login/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/acadea1514396e27c7a7b5464e8fb7866c0299bfcad6abe99b4fa5a87dd2e4e1/$/student/login",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/student/login/page"
+    },
+    "isFallback": false
+  }
+}

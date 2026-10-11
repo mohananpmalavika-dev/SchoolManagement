@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/student/layout,_N_T_/student/check-in/layout,_N_T_/student/check-in/page,_N_T_/student/check-in"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/student/check-in/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/df2a2ade1f28e4edb96dc5333066c5666f5ea63bdd4b8d1ffc8630d93b79d6eb/$/student/check-in",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/student/check-in/page"
+    },
+    "isFallback": false
+  }
+}

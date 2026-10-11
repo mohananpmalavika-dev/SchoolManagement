@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/teacher/layout,_N_T_/teacher/smart-attendance/layout,_N_T_/teacher/smart-attendance/page,_N_T_/teacher/smart-attendance"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/teacher/smart-attendance/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/f493b805ad0c7508e0734b523c9e6c9594e6c6566113b7313ff4a792450d4742/$/teacher/smart-attendance",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/teacher/smart-attendance/page"
+    },
+    "isFallback": false
+  }
+}

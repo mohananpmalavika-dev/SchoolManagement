@@ -99,6 +99,66 @@ describe('predictive early-warning engine', () => {
     const upcoming = { ...bill(), dueDate: new Date('2026-10-18'), createdAt: new Date('2026-10-01') };
     expect(profile(student({ invoices: [old, upcoming] })).feeDefault.level).toBe('HIGH');
   });
+  it('flags missing homework assignments, calculates radar metrics and provides tailored teacher/parent interventions', () => {
+    const classAssignments = [
+      { id: 'hw-1', classId: 'class-1', subjectId: 'math', title: 'Algebra Equations', dueDate: new Date('2026-09-20'), maxMarks: 50, subject: { name: 'Mathematics' } },
+      { id: 'hw-2', classId: 'class-1', subjectId: 'eng', title: 'Essay Writing', dueDate: new Date('2026-09-25'), maxMarks: 100, subject: { name: 'English' } },
+      { id: 'hw-3', classId: 'class-1', subjectId: 'sci', title: 'Biology Cells', dueDate: new Date('2026-10-02'), maxMarks: 40, subject: { name: 'Science' } },
+    ];
+    // Student only submitted 1 out of 3, and scored poorly
+    const submissions = [
+      { id: 'sub-1', assignmentId: 'hw-1', status: 'GRADED', score: 15, submittedAt: new Date('2026-09-21'), assignment: classAssignments[0] },
+    ];
+    const result = profile(student({
+      grades: exams([45, 40]),
+      attendanceRecords: attendance('PRESENT', 12),
+      invoices: [bill(10000)],
+      classAssignments,
+      submissions,
+    }));
+    expect(result.homework.level).toBe('HIGH');
+    expect(result.metrics.homeworkCompletionRate).toBe(33);
+    expect(result.metrics.homeworkMissingCount).toBe(2);
+    expect(result.metrics.homeworkAverageScore).toBe(30);
+    expect(result.homework.evidence.join(' ')).toContain('1 of 3 assignments submitted');
+    expect(result.homework.evidence.join(' ')).toContain('2 overdue/unsubmitted');
+
+    // Verify Early Warning Radar metrics
+    expect(result.radarMetrics).toBeDefined();
+    expect(result.radarMetrics.homeworkScore).toBeLessThan(50);
+    expect(result.radarMetrics.attendanceScore).toBe(100);
+    expect(result.radarMetrics.compositeRiskScore).toBeGreaterThanOrEqual(65);
+
+    // Verify Teacher & Parent Interventions in English and Malayalam
+    expect(result.interventions.teacherActions.length).toBeGreaterThan(0);
+    expect(result.interventions.parentGuidance.length).toBeGreaterThan(0);
+    expect(result.interventions.malayalamSummary).toBeDefined();
+    expect(result.interventions.malayalamSummary.riskTitle).toContain('ശ്രദ്ധ');
+    expect(result.interventions.malayalamSummary.teacherAdvice.length).toBeGreaterThan(0);
+    expect(result.interventions.malayalamSummary.parentAdvice.length).toBeGreaterThan(0);
+  });
+  it('rewards consistent homework completion with low risk and high radar score', () => {
+    const classAssignments = [
+      { id: 'hw-1', classId: 'class-1', subjectId: 'math', title: 'Geometry', dueDate: new Date('2026-09-20'), maxMarks: 50, subject: { name: 'Mathematics' } },
+      { id: 'hw-2', classId: 'class-1', subjectId: 'eng', title: 'Grammar', dueDate: new Date('2026-09-25'), maxMarks: 50, subject: { name: 'English' } },
+    ];
+    const submissions = [
+      { id: 'sub-1', assignmentId: 'hw-1', status: 'GRADED', score: 48, submittedAt: new Date('2026-09-19'), assignment: classAssignments[0] },
+      { id: 'sub-2', assignmentId: 'hw-2', status: 'GRADED', score: 45, submittedAt: new Date('2026-09-24'), assignment: classAssignments[1] },
+    ];
+    const result = profile(student({
+      grades: exams([80, 85, 90]),
+      attendanceRecords: attendance('PRESENT', 15),
+      invoices: [bill(10000)],
+      classAssignments,
+      submissions,
+    }));
+    expect(result.homework.level).toBe('LOW');
+    expect(result.metrics.homeworkCompletionRate).toBe(100);
+    expect(result.metrics.homeworkMissingCount).toBe(0);
+    expect(result.radarMetrics.homeworkScore).toBeGreaterThanOrEqual(90);
+    expect(result.overall).toBe('LOW');
+  });
 });
 
 describe('school-trained logistic model validation gate', () => {
