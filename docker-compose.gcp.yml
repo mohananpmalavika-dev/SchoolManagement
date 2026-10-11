@@ -1,5 +1,6 @@
 services:
   postgres:
+    container_name: krypton-school-postgres
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
@@ -14,7 +15,9 @@ services:
       timeout: 5s
       retries: 20
     networks:
-      - default
+      default:
+        aliases:
+          - krypton-school-postgres
 
   migrate:
     build:
@@ -22,7 +25,7 @@ services:
       dockerfile: apps/api/Dockerfile
       target: migrations
     environment:
-      DATABASE_URL: postgresql://krypton:${DB_PASSWORD}@postgres:5432/krypton
+      DATABASE_URL: postgresql://krypton:${DB_PASSWORD}@krypton-school-postgres:5432/krypton
     depends_on:
       postgres:
         condition: service_healthy
@@ -31,6 +34,7 @@ services:
       - default
 
   redis:
+    container_name: krypton-school-redis
     image: redis:7-alpine
     restart: unless-stopped
     environment:
@@ -44,7 +48,9 @@ services:
       timeout: 5s
       retries: 20
     networks:
-      - default
+      default:
+        aliases:
+          - krypton-school-redis
 
   api:
     container_name: krypton-school-api
@@ -56,12 +62,12 @@ services:
     init: true
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://krypton:${DB_PASSWORD}@postgres:5432/krypton
+      DATABASE_URL: postgresql://krypton:${DB_PASSWORD}@krypton-school-postgres:5432/krypton
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET}
       CORS_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN to your HTTPS origin}
       WEB_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN to your HTTPS origin}
-      REDIS_HOST: redis
+      REDIS_HOST: krypton-school-redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
       ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:?Set ENCRYPTION_MASTER_KEY}
@@ -84,12 +90,12 @@ services:
       MPESA_BASE_URL: ${MPESA_BASE_URL:-https://sandbox.safaricom.co.ke}
       MPESA_CALLBACK_URL: ${MPESA_CALLBACK_URL:-}
       MPESA_CALLBACK_TOKEN: ${MPESA_CALLBACK_TOKEN:-}
-      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_SECURE: ${SMTP_SECURE:-false}
-      EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@kryptonlogic.com}
       SMS_API_KEY: ${SMS_API_KEY:-}
       SMS_USERNAME: ${SMS_USERNAME:-}
     depends_on:
@@ -102,8 +108,10 @@ services:
     ports:
       - "127.0.0.1:3001:3001"
     networks:
-      - default
-      - gcp_default
+      default:
+        aliases:
+          - krypton-school-api
+      gcp_default:
 
   web:
     container_name: krypton-school-web
@@ -113,7 +121,7 @@ services:
     restart: unless-stopped
     init: true
     environment:
-      API_URL: http://api:3001
+      API_URL: http://krypton-school-api:3001
       PORT: 3000
       HOSTNAME: 0.0.0.0
     depends_on:
@@ -122,8 +130,10 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     networks:
-      - default
-      - gcp_default
+      default:
+        aliases:
+          - krypton-school-web
+      gcp_default:
 
 networks:
   default:
