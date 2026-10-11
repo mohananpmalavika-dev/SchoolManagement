@@ -1,3 +1,5 @@
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { UserRole } from '@krypton/types';
 import {
   Controller,
   Post,
@@ -12,6 +14,7 @@ import { WhatsAppService } from './whatsapp.service';
 import { SendMessageDto, SendBulkMessageDto } from './dto/send-message.dto';
 
 @ApiTags('WhatsApp')
+@Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
 @Controller('whatsapp')
 // @UseGuards(JwtAuthGuard) // Uncomment when auth is set up
 export class WhatsAppController {

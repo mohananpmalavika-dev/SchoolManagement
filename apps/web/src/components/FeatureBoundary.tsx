@@ -6,14 +6,10 @@ import { PageHeading, Panel } from './WorkspaceUI';
 import { usePathname } from 'next/navigation';
 interface PreviewFeature { title: string; href: string; action: string }
 const previews: Record<string, PreviewFeature> = {
-  '/ptm/room': {title:'Virtual parent meetings',href:'/login',action:'Return to sign in'},
   '/school/fees/preview': {title:'Advanced finance studio',href:'/school/fees',action:'Open invoices and payments'},
   '/school/timetable/preview': {title:'Automatic timetable studio',href:'/school/timetable',action:'Open saved timetable'},
   '/dashboard/compliance': {title:'Compliance studio',href:'/dashboard',action:'Return to workspace'},
   '/dashboard/whatsapp': {title:'WhatsApp automation',href:'/dashboard/notifications',action:'View school updates'},
-  '/dashboard/smart-attendance': {title:'Smart attendance',href:'/dashboard/attendance',action:'View attendance'},
-  '/dashboard/substitution': {title:'Staff substitutions',href:'/dashboard',action:'Return to workspace'},
-  '/teacher/smart-attendance': {title:'Smart attendance',href:'/teacher/attendance',action:'Open daily register'},
 };
 export function FeatureBoundary({ children, inWorkspace = false }: { children: ReactNode; inWorkspace?: boolean }) {
   const pathname = usePathname();

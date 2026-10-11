@@ -53,6 +53,8 @@ export interface LessonPlanRequest {
   classId: string;
   subject: string;
   chapter: string;
+  strand?: string;
+  subStrand?: string;
   durationMinutes: number;
   curriculum: 'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT';
   language?: TeachingLanguage;
@@ -84,10 +86,14 @@ export interface LessonPlanResponse {
   gradeLevel: string;
   subject: string;
   topic: string;
+  strand?: string;
+  subStrand?: string;
   durationMinutes: number;
   curriculum: string;
   learningObjectives: string[];
   coreCompetencies: string[];
+  values?: string[];
+  pcis?: string[];
   keyInquiryQuestions: string[];
   materials: string[];
   steps: LessonPlanStep[];
@@ -97,8 +103,72 @@ export interface LessonPlanResponse {
   };
   assessmentRubrics: LessonPlanRubricCriterion[];
   homeworkAssignment: string;
+  reflectionPrompt?: string;
   model: string;
   generatedAt: string;
+}
+
+export interface CBCSchemeOfWorkWeekLesson {
+  week: number;
+  lessonNumber: number;
+  strand: string;
+  subStrand: string;
+  specificLearningOutcomes: string[];
+  keyInquiryQuestions: string[];
+  learningExperiences: string[];
+  learningResources: string[];
+  assessmentMethods: string[];
+  reflection?: string;
+}
+
+export interface CBCSchemeOfWorkRequest {
+  classId: string;
+  subject: string;
+  strand: string;
+  subStrand?: string;
+  termNumber?: number;
+  weeksCount?: number;
+  lessonsPerWeek?: number;
+  curriculum?: 'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT';
+  language?: TeachingLanguage;
+  additionalNotes?: string;
+}
+
+export interface CBCSchemeOfWorkResponse {
+  title: string;
+  gradeLevel: string;
+  subject: string;
+  strand: string;
+  term: string;
+  academicYear: string;
+  curriculum: string;
+  generalOutcomes: string[];
+  coreCompetencies: string[];
+  values: string[];
+  pcis: string[];
+  weeks: CBCSchemeOfWorkWeekLesson[];
+  assessmentRubrics: LessonPlanRubricCriterion[];
+  model: string;
+  generatedAt: string;
+}
+
+export interface ShareLessonToChatRequest {
+  classId: string;
+  channelId?: string;
+  title: string;
+  summary: string;
+  type?: 'LESSON_PLAN' | 'SCHEME_OF_WORK';
+  learningObjectives?: string[];
+  keyInquiryQuestions?: string[];
+  homeworkOrTask?: string;
+}
+
+export interface ShareLessonToChatResponse {
+  success: boolean;
+  messageId: string;
+  channelId: string;
+  channelName: string;
+  sentAt: string;
 }
 
 export interface RemarksBatchRequest {
@@ -111,3 +181,4 @@ export interface RemarksBatchRequest {
     behaviourObservation?: string;
   }[];
 }
+

@@ -21,7 +21,7 @@ export default defineConfig({
   
   // Reporter settings
   reporter: [
-    ['html', { outputFolder: 'test-results/playwright-report' }],
+    ['html', { outputFolder: 'playwright-report' }],
     ['json', { outputFile: 'test-results/test-results.json' }],
     ['list'], // Console output
   ],
@@ -60,7 +60,7 @@ export default defineConfig({
   // Web server configuration (auto-start API for tests)
   webServer: process.env.CI ? undefined : {
     command: 'cd apps/api && pnpm run start:dev',
-    url: 'http://localhost:3001/health',
+    url: 'http://localhost:3001/api/v1/health',
     reuseExistingServer: true,
     timeout: 120000, // 2 minutes to start
     stdout: 'pipe',

@@ -24,7 +24,7 @@ async function globalSetup(config: FullConfig) {
     let retries = 30;
     while (retries > 0) {
       try {
-        const response = await page.request.get(`${baseURL}/health`);
+        const response = await page.request.get(`${baseURL}/api/v1/health`);
         if (response.ok()) {
           console.log('✅ API is ready');
           break;
@@ -43,7 +43,7 @@ async function globalSetup(config: FullConfig) {
 
     // Check database connection
     console.log('📊 Checking database connection...');
-    const healthResponse = await page.request.get(`${baseURL}/health`);
+    const healthResponse = await page.request.get(`${baseURL}/api/v1/health`);
     const health = await healthResponse.json();
     
     if (!health.database || health.database !== 'ok') {

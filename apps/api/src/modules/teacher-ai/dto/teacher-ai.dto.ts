@@ -40,13 +40,37 @@ export class GenerateLessonPlanDto {
   @IsUUID() classId: string;
   @IsString() @MinLength(2) @MaxLength(100) subject: string;
   @IsString() @MinLength(2) @MaxLength(150) chapter: string;
+  @IsOptional() @IsString() @MaxLength(150) strand?: string;
+  @IsOptional() @IsString() @MaxLength(150) subStrand?: string;
   @IsOptional() @Type(() => Number) durationMinutes?: number;
   @IsOptional() @IsIn(['CBC', 'STANDARD', 'CAMBRIDGE', 'NCERT']) curriculum?: 'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT';
   @IsOptional() @IsIn(['English', 'Malayalam', 'Swahili']) language?: TeachingLanguage;
   @IsOptional() @IsString() @MaxLength(1000) additionalNotes?: string;
 }
 
+export class GenerateSchemeOfWorkDto {
+  @IsUUID() classId: string;
+  @IsString() @MinLength(2) @MaxLength(100) subject: string;
+  @IsString() @MinLength(2) @MaxLength(150) strand: string;
+  @IsOptional() @IsString() @MaxLength(150) subStrand?: string;
+  @IsOptional() @Type(() => Number) termNumber?: number;
+  @IsOptional() @Type(() => Number) weeksCount?: number;
+  @IsOptional() @Type(() => Number) lessonsPerWeek?: number;
+  @IsOptional() @IsIn(['CBC', 'STANDARD', 'CAMBRIDGE', 'NCERT']) curriculum?: 'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT';
+  @IsOptional() @IsIn(['English', 'Malayalam', 'Swahili']) language?: TeachingLanguage;
+  @IsOptional() @IsString() @MaxLength(1000) additionalNotes?: string;
+}
+
+export class ShareLessonToChatDto {
+  @IsUUID() classId: string;
+  @IsOptional() @IsUUID() channelId?: string;
+  @IsString() @MinLength(3) @MaxLength(200) title: string;
+  @IsString() @MinLength(10) @MaxLength(5000) content: string;
+  @IsOptional() @IsIn(['LESSON_PLAN', 'SCHEME_OF_WORK']) type?: 'LESSON_PLAN' | 'SCHEME_OF_WORK';
+}
+
 export class CopilotQueryDto {
   @IsString() @MinLength(3) @MaxLength(500) query: string;
   @IsOptional() @IsIn(['English', 'Malayalam', 'Swahili']) language?: TeachingLanguage;
 }
+

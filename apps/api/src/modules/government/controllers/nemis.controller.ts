@@ -1,3 +1,5 @@
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { UserRole } from '@krypton/types';
 import { 
   Controller, 
   Post, 
@@ -24,6 +26,7 @@ import {
 
 @ApiTags('Government - NEMIS Integration')
 @ApiBearerAuth()
+@Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
 @Controller('government/nemis')
 export class NemisController {
   constructor(private readonly nemisService: NemisService) {}

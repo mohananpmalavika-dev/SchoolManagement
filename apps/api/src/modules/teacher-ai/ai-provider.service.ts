@@ -208,6 +208,9 @@ export class AIProviderService {
     if (name === 'lesson_plan') {
       return this.generateBuiltinLessonPlan(input);
     }
+    if (name === 'scheme_of_work') {
+      return this.generateBuiltinSchemeOfWork(input);
+    }
     throw new BadGatewayException('Unknown teaching artifact requested');
   }
 
@@ -582,25 +585,276 @@ export class AIProviderService {
       },
     ];
 
-    const homeworkAssignment = isMalayalam
-      ? `${chapter} എന്ന അധ്യായത്തിലെ വർക്ക്ഷീറ്റിലെ 5 പ്രായോഗിക ചോദ്യങ്ങൾക്ക് ഉത്തരം കണ്ടെത്തുക. അടുത്ത ക്ലാസ്സിൽ ചർച്ച ചെയ്യാൻ 1 ചിന്തോദ്ദീപകമായ ചോദ്യം എഴുതിക്കൊണ്ടുവരിക.`
-      : `Complete the contextual problem set on ${chapter} (Questions 1 through 5). Formulate one non-routine inquiry question based on today's concepts for tomorrow's opening debate.`;
+    const strand = input?.strand || 'Foundational Strand';
+    const subStrand = input?.subStrand || chapter;
+
+    const values = isMalayalam ? [
+      'പരസ്പര ബഹുമാനവും സഹകരണവും',
+      'സത്യസന്ധതയും ശാസ്ത്രീയ കൃത്യതയും',
+      'ഉത്തരവാദിത്തബോധം',
+      'പരിസ്ഥിതി സംരക്ഷണ മനോഭാവം',
+    ] : lang === 'Swahili' ? [
+      'Heshima kwa wengine na ushirikiano',
+      'Uadilifu na ukweli katika tathmini',
+      'Uwajibikaji wa kibinafsi na kijamii',
+      'Uzendo na utunzaji wa mazingira',
+    ] : [
+      'Respect for diverse perspectives',
+      'Integrity in experimental reporting',
+      'Responsibility for learning resources',
+      'Unity and collaborative teamwork',
+    ];
+
+    const pcis = isMalayalam ? [
+      'പരിസ്ഥിതി സംരക്ഷണവും സുസ്ഥിര വികസനവും',
+      'സാമ്പത്തിക വിവേകവും വിഭവ സംരക്ഷണവും',
+      'ആരോഗ്യ-ശുചിത്വ ശീലങ്ങൾ',
+    ] : lang === 'Swahili' ? [
+      'Uhifadhi wa mazingira na mabadiliko ya tabianchi',
+      'Ujuzi wa kifedha na matumizi endelevu',
+      'Elimu ya afya, usalama na usafi',
+    ] : [
+      'Environmental conservation and climate change awareness',
+      'Financial literacy and resource stewardship',
+      'Health and safety education in learning spaces',
+    ];
+
+    const reflectionPrompt = isMalayalam
+      ? `${chapter} എന്ന പാഠഭാഗത്തിൽ കുട്ടികൾ ലക്ഷ്യമിട്ട നിർദ്ദിഷ്ട പഠനഫലങ്ങൾ (Specific Learning Outcomes) എത്രത്തോളം നേടി? അടുത്ത ഘട്ടത്തിൽ എന്ത് പരിഹാരബോധനമാണ് ആവശ്യമായുള്ളത്?`
+      : lang === 'Swahili'
+      ? `Je, wanafunzi walifikia matokeo maalum ya ujifunzaji kwa mada ya ${chapter}? Ni marekebisho gani ya kifalsafa yanahitajika kwa hatua inayofuata?`
+      : `To what extent did learners attain the specific learning outcomes for ${chapter}? What targeted interventions or extension activities should follow in subsequent sessions?`;
 
     return {
       title,
       gradeLevel,
       subject,
       topic: chapter,
+      strand,
+      subStrand,
       durationMinutes: duration,
       curriculum,
       learningObjectives,
       coreCompetencies,
+      values,
+      pcis,
       keyInquiryQuestions,
       materials,
       steps,
       differentiatedInstruction,
       assessmentRubrics,
       homeworkAssignment,
+      reflectionPrompt,
+    };
+  }
+
+  private generateBuiltinSchemeOfWork(input: any) {
+    const subject = input?.subject || 'Integrated Science';
+    const strand = input?.strand || 'Science & Living World';
+    const gradeLevel = input?.classLevel ? `Grade/Class ${input.classLevel}` : 'Grade 7 Junior School';
+    const termNum = typeof input?.termNumber === 'number' ? input.termNumber : 1;
+    const term = `Term ${termNum}`;
+    const academicYear = '2026';
+    const curriculum = input?.curriculum || 'CBC';
+    const lang = input?.language || 'English';
+    const isMalayalam = lang === 'Malayalam';
+    const isSwahili = lang === 'Swahili';
+
+    const weeksCount = typeof input?.weeksCount === 'number' && input.weeksCount >= 1 && input.weeksCount <= 14 ? input.weeksCount : 10;
+    const lessonsPerWeek = typeof input?.lessonsPerWeek === 'number' && input.lessonsPerWeek >= 1 && input.lessonsPerWeek <= 6 ? input.lessonsPerWeek : 4;
+
+    const title = isMalayalam
+      ? `${gradeLevel} - ${subject}: സമഗ്ര പ്രവർത്തനപദ്ധതി (CBC Scheme of Work) - ${term}`
+      : isSwahili
+      ? `${gradeLevel} - ${subject}: Mpango wa Kazi wa CBC (Scheme of Work) - Muhula wa ${termNum}`
+      : `${gradeLevel} - ${subject}: Official KICD CBC Scheme of Work (${term})`;
+
+    const generalOutcomes = isMalayalam ? [
+      `${subject} വിഷയത്തിലെ പ്രധാന ആശയങ്ങളും സിദ്ധാന്തങ്ങളും തിരിച്ചറിഞ്ഞ് പ്രയോഗിക്കുക.`,
+      `സാമൂഹിക-പരിസ്ഥിതി പ്രശ്നങ്ങൾക്ക് യുക്തിസഹമായ പരിഹാരങ്ങൾ കണ്ടെത്താൻ ശാസ്ത്രീയ രീതികൾ ഉപയോഗിക്കുക.`,
+      `കൂട്ടായ പഠനത്തിലൂടെയും പരീക്ഷണങ്ങളിലൂടെയും സഹകരണ മനോഭാവവും നേതൃത്വപാടവവും വികസിപ്പിക്കുക.`,
+      `സാങ്കേതിക വിദ്യയും ഡിജിറ്റൽ ഉപകരണങ്ങളും പ്രയോജനപ്പെടുത്തി സ്വയം പഠനശേഷി ആർജ്ജിക്കുക.`,
+    ] : isSwahili ? [
+      `Kutambua na kutumia dhana msingi za ${subject} katika miktadha ya maisha halisi.`,
+      `Kutumia mbinu za kiuchunguzi katika kutatua changamoto za kijamii na kimazingira.`,
+      `Kujenga ustadi wa ushirikiano, uongozi na mawasiliano kupitia kazi za vikundi.`,
+      `Kutumia zana za kidijitali na nyenzo halisi katika kukuza ujifunzaji endelevu.`,
+    ] : [
+      `Demonstrate mastery of core principles and analytical frameworks in ${subject}.`,
+      `Apply inquiry-based problem solving to investigate contemporary community challenges.`,
+      `Collaborate productively in diverse teams while exhibiting ethical responsibility.`,
+      `Leverage digital literacy and locally available resources for independent discovery.`,
+    ];
+
+    const coreCompetencies = [
+      'Communication and Collaboration',
+      'Critical Thinking and Problem Solving',
+      'Imagination and Creativity',
+      'Digital Literacy',
+      'Learning to Learn',
+      'Self-Efficacy',
+      'Citizenship',
+    ];
+
+    const values = isMalayalam ? [
+      'പരസ്പര ബഹുമാനം (Respect)',
+      'ഉത്തരവാദിത്തം (Responsibility)',
+      'ഐക്യം (Unity)',
+      'സത്യസന്ധത (Integrity)',
+      'സ്നേഹം (Love)',
+      'സമാധാനം (Peace)',
+    ] : isSwahili ? [
+      'Heshima (Respect)',
+      'Uwajibikaji (Responsibility)',
+      'Umoja (Unity)',
+      'Uadilifu (Integrity)',
+      'Upendo (Love)',
+      'Amani (Peace)',
+    ] : [
+      'Respect',
+      'Responsibility',
+      'Unity',
+      'Integrity',
+      'Love',
+      'Peace',
+    ];
+
+    const pcis = isMalayalam ? [
+      'പരിസ്ഥിതി സംരക്ഷണവും കാലാവസ്ഥാ വ്യതിയാനവും (Environmental Conservation)',
+      'സാമ്പത്തിക സാക്ഷരതയും വിഭവ വിനിയോഗവും (Financial Literacy)',
+      'ആരോഗ്യ-സുരക്ഷാ വിദ്യാഭ്യാസം (Health & Safety Education)',
+      'ദുരന്ത നിവാരണ ബോധവൽക്കരണം (Disaster Risk Reduction)',
+    ] : isSwahili ? [
+      'Uhifadhi wa Mazingira na Mabadiliko ya Tabianchi',
+      'Ujuzi wa Kifedha na Usimamizi wa Rasilimali',
+      'Elimu ya Afya, Usafi na Usalama',
+      'Uwezo wa Kukabiliana na Majanga',
+    ] : [
+      'Environmental Awareness and Climate Action',
+      'Financial Literacy and Resource Management',
+      'Health, Hygiene and Safety Education',
+      'Disaster Risk Reduction and Emergency Preparedness',
+    ];
+
+    const topicTemplates = isMalayalam ? [
+      { subStrand: 'അടിസ്ഥാന ആശയങ്ങളും ആമുഖവും', outcomes: ['പ്രധാന സങ്കല്പങ്ങൾ വിശദീകരിക്കുക', 'ദൈനംദിന ജീവിതത്തിലെ ഉദാഹരണങ്ങൾ പട്ടികപ്പെടുത്തുക'], kiqs: ['ഈ ആശയം നിത്യജീവിതത്തിൽ എവിടെയെല്ലാം കാണാം?'] },
+      { subStrand: 'ഘടകങ്ങളും വർഗ്ഗീകരണവും', outcomes: ['വിവിധ ഘടകങ്ങളെ തിരിച്ചറിഞ്ഞ് തരംതിരിക്കുക', 'തുലനാത്മക പഠനം നടത്തുക'], kiqs: ['ഘടകങ്ങൾ തമ്മിലുള്ള പ്രധാന വ്യത്യാസങ്ങൾ എന്തെല്ലാം?'] },
+      { subStrand: 'പ്രായോഗിക പരീക്ഷണങ്ങളും നിരീക്ഷണവും', outcomes: ['സുരക്ഷിതമായി ഉപകരണങ്ങൾ കൈകാര്യം ചെയ്യുക', 'നിരീക്ഷണ ഫലങ്ങൾ രേഖപ്പെടുത്തുക'], kiqs: ['പരീക്ഷണത്തിൽ നിന്ന് എന്ത് നിഗമനത്തിലാണ് എത്തുന്നത്?'] },
+      { subStrand: 'ഡാറ്റാ വിശകലനവും ചിത്രീകരണവും', outcomes: ['വിവരങ്ങൾ ചാർട്ടുകളിലും ഗ്രാഫുകളിലും ചിത്രീകരിക്കുക', 'നിഗമനങ്ങൾ സമർത്ഥിക്കുക'], kiqs: ['വിവരങ്ങൾ സൂചിപ്പിക്കുന്ന പ്രധാന പ്രവണതകൾ എന്തൊക്കെയാണ്?'] },
+      { subStrand: 'പരിസ്ഥിതി-സാമൂഹിക ബന്ധങ്ങൾ', outcomes: ['സമൂഹത്തിൽ ഈ വിഷയത്തിന്റെ പ്രാധാന്യം വിലയിരുത്തുക', 'സുസ്ഥിര പരിഹാരങ്ങൾ നിർദ്ദേശിക്കുക'], kiqs: ['പരിസ്ഥിതിയെ ദോഷകരമായി ബാധിക്കാതെ ഇത് എങ്ങനെ പ്രയോജനപ്പെടുത്താം?'] },
+      { subStrand: 'ഡിജിറ്റൽ സിമുലേഷനും അന്വേഷണവും', outcomes: ['ഡിജിറ്റൽ ടൂളുകൾ ഉപയോഗിച്ച് മോഡലുകൾ നിർമ്മിക്കുക', 'സാങ്കേതിക ധാരണ മെച്ചപ്പെടുത്തുക'], kiqs: ['ഡിജിറ്റൽ മാതൃകകൾ പഠനത്തെ എങ്ങനെ എളുപ്പമാക്കുന്നു?'] },
+      { subStrand: 'ടേം മിഡ്-അസസ്മെന്റും പുനരവലോകനവും', outcomes: ['കഴിഞ്ഞ അധ്യായങ്ങളിലെ സംശയങ്ങൾ ദൂരീകരിക്കുക', 'സ്വയം വിലയിരുത്തൽ നടത്തുക'], kiqs: ['നമ്മുടെ പഠന പുരോഗതി എത്രത്തോളമുണ്ട്?'] },
+      { subStrand: 'നൂതന സാങ്കേതിക വിദ്യകളും പ്രയോഗങ്ങളും', outcomes: ['ആധുനിക സങ്കേതങ്ങൾ തിരിച്ചറിയുക', 'നൂതന പ്രോജക്ടുകൾ ആസൂത്രണം ചെയ്യുക'], kiqs: ['ഭാവിയിൽ ഈ സാങ്കേതികവിദ്യ എങ്ങനെ മാറും?'] },
+      { subStrand: 'കമ്യൂണിറ്റി പ്രോജക്ടും പ്രായോഗിക പ്രവർത്തനവും', outcomes: ['കമ്മ്യൂണിറ്റി സേവന പ്രവർത്തനങ്ങളിൽ പങ്കാളികളാവുക', 'റിപ്പോർട്ട് തയ്യാറാക്കുക'], kiqs: ['ഈ അറിവ് സമൂഹത്തിന് എങ്ങനെ ഗുണകരമാക്കാം?'] },
+      { subStrand: 'ടേം സംഗ്രഹവും സമ്പൂർണ്ണ വിലയിരുത്തലും', outcomes: ['ടേം പഠനനേട്ടങ്ങൾ അവലോകനം ചെയ്യുക', 'പോർട്ട്ഫോളിയോ പൂർത്തിയാക്കുക'], kiqs: ['ഈ ടേമിൽ ആർജ്ജിച്ച പ്രധാന കഴിവുകൾ എന്തെല്ലാം?'] },
+    ] : isSwahili ? [
+      { subStrand: 'Utangulizi na Dhana za Msingi', outcomes: ['Kueleza dhana za msingi na maneno maalum', 'Kutambua mifano kutoka mazingira ya kila siku'], kiqs: ['Dhana hii inajidhihirishaje katika jamii yetu?'] },
+      { subStrand: 'Uainishaji na Vipengele Muhimu', outcomes: ['Kuainisha vipengele mbalimbali kwa usahihi', 'Kulinganisha tabia na sifa za kimsingi'], kiqs: ['Kuna tofauti gani kuu kati ya makundi haya?'] },
+      { subStrand: 'Uchunguzi wa Vitendo na Majaribio', outcomes: ['Kutumia vifaa vya maabara kwa usalama', 'Kurekodi matokeo ya uchunguzi kwenye daftari'], kiqs: ['Tunaweza kujifunza nini kutokana na matokeo haya?'] },
+      { subStrand: 'Uchambuzi wa Data na Michoro', outcomes: ['Kuchora vielelezo na majedwali ya data', 'Kutoa tafsiri sahihi ya ushahidi uliokusanywa'], kiqs: ['Data hizi zinaonyesha mwelekeo gani?'] },
+      { subStrand: 'Mazingira na Maisha ya Jamii', outcomes: ['Kutathmini athari za somo hili kwa jamii', 'Kupendekeza suluhu endelevu za kimazingira'], kiqs: ['Tunawezaje kulinda mazingira yetu tunapotumia rasilimali hizi?'] },
+      { subStrand: 'Ujifunzaji wa Kidijitali na Modeli', outcomes: ['Kutumia vifaa vya kidijitali kuunda modeli', 'Kuwasilisha kazi kwa njia ya mtandao'], kiqs: ['Teknolojia inatusaidiaje kuelewa dhana ngumu?'] },
+      { subStrand: 'Tathmini ya Kati ya Muhula na Marudio', outcomes: ['Kupitia dhana zilizofundishwa awali', 'Kufanya tathmini binafsi ya maendeleo'], kiqs: ['Tumepiga hatua gani katika kufikia malengo yetu?'] },
+      { subStrand: 'Ubunifu na Miradi ya Vitendo', outcomes: ['Kubuni suluhisho za kiubunifu kwa changamoto zilizopo', 'Kutengeneza mifano halisi darasani'], kiqs: ['Tunawezaje kutumia ubunifu kuboresha maisha?'] },
+      { subStrand: 'Huduma kwa Jamii (CSL) na Ushirikiano', outcomes: ['Kushiriki katika shughuli za kijamii zinazohusiana na mada', 'Kuandika ripoti ya uchunguzi'], kiqs: ['Elimu yetu inasaidiaje jamii inayotuzunguka?'] },
+      { subStrand: 'Muhtasari wa Muhula na Tathmini Kamili', outcomes: ['Kujumuisha maarifa yote yaliyopatikana muhula huu', 'Kukamilisha na kuwasilisha faili ya kazi (portfolio)'], kiqs: ['Ni ujuzi gani mkuu tulioupata muhula huu?'] },
+    ] : [
+      { subStrand: 'Foundations & Core Conceptualization', outcomes: [`Define core terminology related to ${strand}`, `Identify everyday authentic applications in learners' community`], kiqs: [`How do baseline principles of ${strand} govern everyday phenomena?`, `Why is systematic observation vital in ${subject}?`] },
+      { subStrand: 'Component Analysis & Structural Inquiry', outcomes: [`Classify structural components systematically`, `Investigate interrelationships between internal and external variables`], kiqs: [`What patterns emerge when comparing different specimens?`, `How do changes in one component affect the whole system?`] },
+      { subStrand: 'Hands-on Experimental Investigation', outcomes: [`Demonstrate safe and ethical handling of investigation apparatus`, `Collect and tabulate accurate observational data in inquiry notebooks`], kiqs: [`How do we verify the validity of our experimental findings?`, `What safety precautions are critical during testing?`] },
+      { subStrand: 'Data Interpretation & Graphic Modeling', outcomes: [`Translate quantitative observations into analytical tables and graphs`, `Synthesize evidence-based deductions and justify claims`], kiqs: [`What do our charts reveal about underlying cause-and-effect relationships?`] },
+      { subStrand: 'Socio-Environmental Impact & Stewardship', outcomes: [`Evaluate human environmental impact related to ${strand}`, `Formulate sustainable mitigation strategies for local ecosystems`], kiqs: [`In what ways can sustainable practices conserve local natural resources?`] },
+      { subStrand: 'Digital Simulation & Virtual Explorations', outcomes: [`Navigate digital learning simulations to test abstract models`, `Document digital findings collaboratively in team portfolios`], kiqs: [`How do digital tools extend our sensory observational capacity?`] },
+      { subStrand: 'Mid-Term Diagnostic Review & Remediation', outcomes: [`Consolidate mastery of preceding concepts and address misconceptions`, `Engage in peer assessment and metacognitive target setting`], kiqs: [`Where are our strongest competencies, and which areas require reinforcement?`] },
+      { subStrand: 'Engineering Design & Creative Problem Solving', outcomes: [`Prototype a functional model addressing a real-world community need`, `Test prototype durability and iterate on design flaws`], kiqs: [`How does engineering design transform scientific principles into practical solutions?`] },
+      { subStrand: 'Community Service Learning (CSL) Linkage', outcomes: [`Participate in a contextual community-focused application activity`, `Record reflective journals demonstrating social responsibility`], kiqs: [`How can learners share these practical skills with parents and community members?`] },
+      { subStrand: 'Termly Synthesis, Portfolio Defense & Evaluation', outcomes: [`Present comprehensive portfolio of evidence demonstrating core competency growth`, `Complete summative formative assessment tasks`], kiqs: [`How has mastery of ${strand} transformed our understanding of the world?`] },
+    ];
+
+    const weeks: any[] = [];
+    for (let w = 1; w <= weeksCount; w++) {
+      const template = topicTemplates[(w - 1) % topicTemplates.length];
+      const weekSubStrand = `${template.subStrand} (Unit ${w})`;
+
+      for (let l = 1; l <= lessonsPerWeek; l++) {
+        weeks.push({
+          week: w,
+          lessonNumber: l,
+          strand: strand,
+          subStrand: weekSubStrand,
+          specificLearningOutcomes: [
+            ...template.outcomes,
+            isMalayalam ? `സഹപാഠികളുമായി ചർച്ച ചെയ്ത് നിഗമനങ്ങൾ പങ്കുവെക്കുക.` : isSwahili ? `Kushirikiana na wenzake na kuwasilisha matokeo.` : `Collaborate constructively in small-group station investigations.`,
+          ],
+          keyInquiryQuestions: template.kiqs,
+          learningExperiences: isMalayalam ? [
+            `ചെറുകൂട്ടങ്ങളായി തിരിഞ്ഞ് നിരീക്ഷണ പ്രവർത്തനങ്ങളിൽ ഏർപ്പെടുന്നു.`,
+            `ലഭ്യമായ വിവരങ്ങൾ താരതമ്യം ചെയ്ത് വർക്ക്ഷീറ്റിൽ രേഖപ്പെടുത്തുന്നു.`,
+            `ക്ലാസ്സ് ചർച്ചയിൽ കണ്ടെത്തിയ ആശയങ്ങൾ വിശദീകരിക്കുന്നു.`,
+          ] : isSwahili ? [
+            `Katika vikundi, wanafunzi wanachunguza vielelezo na vifaa halisi.`,
+            `Kujadili na kurekodi matokeo ya uchunguzi kwenye majedwali.`,
+            `Kuwasilisha matokeo ya kazi ya kikundi mbele ya darasa lote.`,
+          ] : [
+            `In collaborative pairs, learners observe physical specimens and interactive demonstrations.`,
+            `Record observations systematically in structured inquiry task sheets.`,
+            `Present group consensus in plenary session and reflect against success criteria.`,
+          ],
+          learningResources: [
+            `KICD Approved ${subject} Learner\'s Book & Teacher\'s Guide (${gradeLevel})`,
+            'Manipulative realia, illustrated wall charts, and experimental materials',
+            'Digital tablets / Projector, Internet research access, and Formative assessment rubrics',
+          ],
+          assessmentMethods: [
+            'Teacher Observation Checklist',
+            'Oral Socratic Questioning',
+            'Learner Inquiry Portfolio Review',
+            'Peer Assessment Rubric',
+          ],
+          reflection: isMalayalam
+            ? `പാഠ്യലക്ഷ്യങ്ങൾ കൈവരിച്ചുവെന്ന് പരിശോധിച്ചു. ആവശ്യമായ കുട്ടികൾക്ക് അധിക പിന്തുണ ഉറപ്പാക്കും.`
+            : isSwahili
+            ? `Malengo ya somo yalifikiwa kwa ufanisi. Ufuatiliaji utafanywa kwa wanafunzi wanaohitaji mwongozo zaidi.`
+            : `Specific learning outcomes attained by majority of learners. Differentiated follow-up noted for guided support.`,
+        });
+      }
+    }
+
+    const assessmentRubrics = [
+      {
+        criterion: `Knowledge & Understanding of ${strand}`,
+        levels: [
+          { level: 'EXCEEDING', descriptor: 'Deep, comprehensive understanding; consistently explains complex concepts and synthesizes cross-curricular links.', scoreRange: '80% - 100% (Exceeding Expectation)' },
+          { level: 'MEETING', descriptor: 'Accurately defines terms, describes processes, and solves syllabus problems independently.', scoreRange: '65% - 79% (Meeting Expectation)' },
+          { level: 'APPROACHING', descriptor: 'Understands basic facts but exhibits minor procedural slips; requires occasional teacher prompting.', scoreRange: '50% - 64% (Approaching Expectation)' },
+          { level: 'BELOW', descriptor: 'Struggles with core terminology; requires continuous guided support to complete basic tasks.', scoreRange: 'Below 50% (Below Expectation)' },
+        ],
+      },
+      {
+        criterion: `Practical Inquiry, Core Competencies & Skills`,
+        levels: [
+          { level: 'EXCEEDING', descriptor: 'Exemplary execution of experiments; records meticulous data and defends conclusions with empirical evidence.', scoreRange: 'Level 4 Mastery' },
+          { level: 'MEETING', descriptor: 'Follows investigation steps accurately, cooperates effectively in teams, and records organized findings.', scoreRange: 'Level 3 Proficient' },
+          { level: 'APPROACHING', descriptor: 'Participates in group work with basic compliance; data recording requires formatting assistance.', scoreRange: 'Level 2 Developing' },
+          { level: 'BELOW', descriptor: 'Reluctant participation; unable to operate apparatus or articulate inquiry results.', scoreRange: 'Level 1 Beginning' },
+        ],
+      },
+    ];
+
+    return {
+      title,
+      gradeLevel,
+      subject,
+      strand,
+      term,
+      academicYear,
+      curriculum,
+      generalOutcomes,
+      coreCompetencies,
+      values,
+      pcis,
+      weeks,
+      assessmentRubrics,
     };
   }
 }
