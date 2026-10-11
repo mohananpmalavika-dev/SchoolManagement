@@ -17,14 +17,10 @@ describe('PasswordResetService', () => {
   const mockPrismaService = {
     user: {
       findUnique: jest.fn(),
-      update: jest.fn(),
-    },
-    passwordResetToken: {
-      create: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
-      deleteMany: jest.fn(),
     },
+    $executeRaw: jest.fn(),
   };
 
   const mockRedisService = {
