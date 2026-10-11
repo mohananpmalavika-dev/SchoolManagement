@@ -7,6 +7,7 @@ import {
   KnecExamLevel,
   RegistrationStatus 
 } from '@prisma/client';
+import { EncryptionUtil } from '../../../common/utils/encryption.util';
 
 /**
  * KNEC Integration Service
@@ -19,6 +20,7 @@ export class KnecService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly encryptionUtil: EncryptionUtil,
   ) {}
 
   /**
@@ -34,15 +36,15 @@ export class KnecService {
       const integration = await this.prisma.knecIntegration.upsert({
         where: { knecCentreNumber },
         update: {
-          apiKey: apiKey ? this.encryptCredential(apiKey) : undefined,
-          apiSecret: apiSecret ? this.encryptCredential(apiSecret) : undefined,
+          apiKey: apiKey ? await this.encryptionUtil.encrypt(apiKey) : undefined,
+          apiSecret: apiSecret ? await this.encryptionUtil.encrypt(apiSecret) : undefined,
           isEnabled: true,
         },
         create: {
           tenantId,
           knecCentreNumber,
-          apiKey: apiKey ? this.encryptCredential(apiKey) : null,
-          apiSecret: apiSecret ? this.encryptCredential(apiSecret) : null,
+          apiKey: apiKey ? await this.encryptionUtil.encrypt(apiKey) : null,
+          apiSecret: apiSecret ? await this.encryptionUtil.encrypt(apiSecret) : null,
           isEnabled: true,
         },
       });
@@ -710,8 +712,8 @@ export class KnecService {
     method: string,
     data?: any,
   ) {
-    const apiKey = this.decryptCredential(integration.apiKey);
-    const apiSecret = this.decryptCredential(integration.apiSecret);
+    const apiKey = integration.apiKey ? await this.encryptionUtil.decrypt(integration.apiKey) : null;
+    const apiSecret = integration.apiSecret ? await this.encryptionUtil.decrypt(integration.apiSecret) : null;
 
     this.logger.debug(`KNEC API Call: ${method} ${endpoint}`);
     
@@ -766,20 +768,5 @@ export class KnecService {
         duration: Math.floor(Math.random() * 1000) + 100,
       },
     });
-  }
-
-  /**
-   * Encrypt credential
-   */
-  private encryptCredential(credential: string): string {
-    return Buffer.from(credential).toString('base64');
-  }
-
-  /**
-   * Decrypt credential
-   */
-  private decryptCredential(encryptedCredential: string | null): string | null {
-    if (!encryptedCredential) return null;
-    return Buffer.from(encryptedCredential, 'base64').toString('utf-8');
   }
 }

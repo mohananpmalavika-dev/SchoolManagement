@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AIRemarkResult, AIRiskReview, TeacherAIOptions, TeacherAIRoster } from '@krypton/types';
+import { AIRemarkResult, AIRiskReview, ERPCopilotFilterBadge, ERPCopilotQueryResponse, ERPCopilotStudentMatch, LessonPlanResponse, TeacherAIOptions, TeacherAIRoster } from '@krypton/types';
 import { PrismaService } from '../../database/prisma.service';
 import { TenantService } from '../../database/tenant.service';
 import { CurrentUserData } from '../../common/decorators/current-user.decorator';
@@ -7,7 +7,7 @@ import { ExaminationsService } from '../examinations/examinations.service';
 import { PredictiveAnalyticsService } from '../predictive-analytics/predictive-analytics.service';
 import { AIProviderService } from './ai-provider.service';
 import { aiList, aiText, keyedItems, objectSchema, questionPaper, stringListSchema, stringSchema } from './ai-output';
-import { ClassTermDto, GenerateQuizDto, GenerateRemarksDto, RiskReviewDto, SaveRemarkDto } from './dto/teacher-ai.dto';
+import { ClassTermDto, CopilotQueryDto, GenerateLessonPlanDto, GenerateQuizDto, GenerateRemarksDto, RiskReviewDto, SaveRemarkDto } from './dto/teacher-ai.dto';
 
 const leaders = ['SCHOOL_OWNER', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'SCHOOL_ADMIN'];
 const teacherRoles = ['TEACHER', 'CLASS_TEACHER', 'EXAM_OFFICER'];
@@ -179,5 +179,362 @@ export class TeacherAIService {
       return { studentId: student.studentId, priority: (student.academic.score === null && student.dropout.score === null ? 'INSUFFICIENT_DATA' : priority) as AIRiskReview['students'][number]['priority'], reasons, supportPlan };
     });
     return { students: reviews, model: this.ai.status().model, generatedAt: new Date().toISOString() };
+  }
+
+  async lessonPlan(user: CurrentUserData, dto: GenerateLessonPlanDto): Promise<LessonPlanResponse> {
+    const cls = await this.authorizeClass(user, dto.classId);
+    const response = await this.ai.generate('lesson_plan',
+      'You are a master curriculum planner. Create a thorough 5E lesson plan for this class and topic.',
+      { ...dto, classLevel: cls.level },
+      objectSchema({
+        title: stringSchema, gradeLevel: stringSchema, subject: stringSchema, topic: stringSchema,
+        durationMinutes: { type: 'integer' }, curriculum: stringSchema,
+        learningObjectives: stringListSchema, coreCompetencies: stringListSchema,
+        keyInquiryQuestions: stringListSchema, materials: stringListSchema,
+        steps: { type: 'array', items: objectSchema({ phase: stringSchema, title: stringSchema, durationMinutes: { type: 'integer' }, teacherActivity: stringSchema, studentActivity: stringSchema, resourcesNeeded: stringListSchema }) },
+        differentiatedInstruction: objectSchema({ supportForStruggling: stringListSchema, extensionForAdvanced: stringListSchema }),
+        assessmentRubrics: { type: 'array', items: objectSchema({ criterion: stringSchema, levels: { type: 'array', items: objectSchema({ level: stringSchema, descriptor: stringSchema, scoreRange: stringSchema }) } }) },
+        homeworkAssignment: stringSchema,
+      }));
+    return { ...(response as any), model: this.ai.status().model, generatedAt: new Date().toISOString() };
+  }
+
+  async classAtRisk(user: CurrentUserData) {
+    this.tenant(user);
+    const report = await this.analytics.report();
+    const allowed = await this.assignedClasses(user);
+    if (!allowed) return report;
+    const filteredStudents = report.students.filter(s => s.classId && allowed.includes(s.classId));
+    return {
+      ...report,
+      summary: {
+        ...report.summary,
+        students: filteredStudents.length,
+        atRisk: filteredStudents.filter(s => s.overall === 'HIGH' || s.overall === 'MODERATE').length,
+        academicHigh: filteredStudents.filter(s => s.academic.level === 'HIGH').length,
+        feeDefaultHigh: filteredStudents.filter(s => s.feeDefault.level === 'HIGH').length,
+        dropoutHigh: filteredStudents.filter(s => s.dropout.level === 'HIGH').length,
+      },
+      students: filteredStudents,
+    };
+  }
+
+  async copilotQuery(user: CurrentUserData, dto: CopilotQueryDto): Promise<ERPCopilotQueryResponse> {
+    const tenantId = this.tenant(user);
+    const tenant = await this.prisma.tenant.findFirst({ where: { id: tenantId }, select: { currency: true, name: true } });
+    const currency = tenant?.currency ?? 'KES';
+    const query = dto.query.trim();
+
+    const parsedFilters: ERPCopilotFilterBadge[] = [];
+    const queryLower = query.toLowerCase();
+
+    // Grade / Class matching: e.g. "grade 9", "form 4", "class 7"
+    let classFilter: string | null = null;
+    const gradeMatch = queryLower.match(/\b(grade|form|class|std|standard)\s*(\d+|[a-z]+)\b/i);
+    if (gradeMatch) {
+      classFilter = gradeMatch[2].trim();
+      parsedFilters.push({
+        label: 'Class Filter',
+        value: `${gradeMatch[1].toUpperCase()} ${classFilter}`,
+        badgeType: 'class',
+      });
+    }
+
+    // Attendance condition: e.g. "attendance < 80%", "attendance below 75%", "under 80% attendance"
+    let attendanceOperator: '<' | '<=' | '>' | '>=' | '=' | null = null;
+    let attendanceThreshold: number | null = null;
+    const attMatch = queryLower.match(/attendance\s*(<|<=|>|>=|=|below|under|less than|greater than|above|over)?\s*(\d+)%?/i) ||
+                     queryLower.match(/(below|under|less than|greater than|above|over)\s*(\d+)%?\s*attendance/i);
+    if (attMatch) {
+      const opRaw = (attMatch[1] || '').trim().toLowerCase();
+      const numRaw = parseInt(attMatch[2], 10);
+      if (!isNaN(numRaw)) {
+        attendanceThreshold = numRaw;
+        if (['<', '<=', 'below', 'under', 'less than'].includes(opRaw)) attendanceOperator = '<';
+        else if (['>', '>=', 'above', 'over', 'greater than'].includes(opRaw)) attendanceOperator = '>';
+        else attendanceOperator = '<';
+        parsedFilters.push({
+          label: 'Attendance',
+          value: `${attendanceOperator} ${attendanceThreshold}%`,
+          badgeType: 'attendance',
+        });
+      }
+    }
+
+    // Fee condition: e.g. "unpaid fee", "fee balance > 5000", "overdue fee", "fee arrears"
+    let requireUnpaidFee = false;
+    let feeMinThreshold: number | null = null;
+    if (/\b(unpaid|fee balance|arrears|overdue|pending fee|fee debt|unpaid fee balance)\b/i.test(queryLower)) {
+      requireUnpaidFee = true;
+      const feeNumMatch = queryLower.match(/(?:>|above|over|more than|greater than|exceeding)\s*(?:kes|inr|\$)?\s*(\d+)/i);
+      if (feeNumMatch) {
+        feeMinThreshold = parseInt(feeNumMatch[1], 10);
+        parsedFilters.push({
+          label: 'Fee Arrears',
+          value: `> ${currency} ${feeMinThreshold.toLocaleString()}`,
+          badgeType: 'fee',
+        });
+      } else {
+        parsedFilters.push({
+          label: 'Fee Status',
+          value: 'Unpaid / Overdue Balance',
+          badgeType: 'fee',
+        });
+      }
+    }
+
+    // Academic / Grade condition: e.g. "marks < 40", "average below 50%", "failing"
+    let academicOperator: '<' | '>' | null = null;
+    let academicThreshold: number | null = null;
+    const acadMatch = queryLower.match(/(?:marks?|grades?|score|average)\s*(<|<=|>|>=|below|under|above|over)?\s*(\d+)%?/i);
+    if (acadMatch) {
+      const opRaw = (acadMatch[1] || '').trim().toLowerCase();
+      const numRaw = parseInt(acadMatch[2], 10);
+      if (!isNaN(numRaw)) {
+        academicThreshold = numRaw;
+        academicOperator = ['>', '>=', 'above', 'over'].includes(opRaw) ? '>' : '<';
+        parsedFilters.push({
+          label: 'Academic Average',
+          value: `${academicOperator} ${academicThreshold}%`,
+          badgeType: 'grades',
+        });
+      }
+    } else if (/\b(failing|poor marks|struggling|low performance)\b/i.test(queryLower)) {
+      academicOperator = '<';
+      academicThreshold = 40;
+      parsedFilters.push({
+        label: 'Academic Performance',
+        value: '< 40% (At-Risk / Failing)',
+        badgeType: 'grades',
+      });
+    }
+
+    let filterRisk = false;
+    if (/\b(at[- ]?risk|dropout|warning|flagged)\b/i.test(queryLower)) {
+      filterRisk = true;
+      parsedFilters.push({
+        label: 'Risk Priority',
+        value: 'High & Moderate Support Signals',
+        badgeType: 'risk',
+      });
+    }
+
+    // Fetch classes
+    const assigned = await this.assignedClasses(user);
+    const classes = await this.prisma.class.findMany({
+      where: {
+        tenantId,
+        ...(assigned ? { id: { in: assigned } } : {}),
+      },
+      select: { id: true, name: true, level: true },
+    });
+
+    let targetClassIds: string[] = classes.map(c => c.id);
+    if (classFilter) {
+      const matched = classes.filter(c =>
+        c.name.toLowerCase().includes(classFilter!.toLowerCase()) ||
+        String(c.level).toLowerCase() === classFilter!.toLowerCase()
+      );
+      if (matched.length > 0) {
+        targetClassIds = matched.map(m => m.id);
+      }
+    }
+
+    const now = new Date();
+    const attendanceStart = new Date(now.getTime() - 90 * 86_400_000);
+
+    const students = await this.prisma.student.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: 'ACTIVE',
+        ...(targetClassIds.length ? { currentClassId: { in: targetClassIds } } : {}),
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        admissionNumber: true,
+        currentClassId: true,
+        currentClass: { select: { id: true, name: true } },
+        parent: { select: { firstName: true, lastName: true, phone: true, email: true } },
+        attendanceRecords: {
+          where: { tenantId, date: { gte: attendanceStart, lte: now } },
+          select: { date: true, status: true },
+        },
+        grades: {
+          where: { tenantId, createdAt: { lte: now } },
+          select: { score: true, marks: true, totalMarks: true },
+        },
+        invoices: {
+          where: { tenantId, status: { notIn: ['CANCELLED', 'DRAFT'] } },
+          select: { totalAmount: true, paidAmount: true, balanceAmount: true, dueDate: true, status: true },
+        },
+      },
+      take: 300,
+    });
+
+    const matches: ERPCopilotStudentMatch[] = [];
+
+    for (const student of students) {
+      // Calculate attendance rate
+      const dayStatus = new Map<string, number>();
+      for (const rec of student.attendanceRecords) {
+        if (!['PRESENT', 'LATE', 'ABSENT', 'HALF_DAY'].includes(rec.status)) continue;
+        const d = rec.date.toISOString().slice(0, 10);
+        const val = rec.status === 'ABSENT' ? 0 : rec.status === 'HALF_DAY' ? 0.5 : 1;
+        dayStatus.set(d, val);
+      }
+      const attendanceDays = dayStatus.size;
+      const attendanceRate = attendanceDays > 0
+        ? Math.round(([...dayStatus.values()].reduce((a, b) => a + b, 0) / attendanceDays) * 1000) / 10
+        : null;
+
+      // Calculate academic average
+      const validGrades = student.grades.filter(g => g.totalMarks > 0 && (g.marks ?? g.score) >= 0);
+      const latestAverage = validGrades.length > 0
+        ? Math.round((validGrades.reduce((sum, g) => sum + ((g.marks ?? g.score) / g.totalMarks * 100), 0) / validGrades.length) * 10) / 10
+        : null;
+
+      // Calculate outstanding & overdue fees
+      let outstandingBalance = 0;
+      let overdueBalance = 0;
+      for (const inv of student.invoices) {
+        if (inv.balanceAmount > 0) {
+          outstandingBalance += inv.balanceAmount;
+          if (inv.dueDate && inv.dueDate < now) {
+            overdueBalance += inv.balanceAmount;
+          }
+        }
+      }
+
+      const reasons: string[] = [];
+      let riskLevel: 'HIGH' | 'MODERATE' | 'LOW' | 'NORMAL' = 'NORMAL';
+
+      if (attendanceRate !== null && attendanceRate < 75) {
+        riskLevel = 'HIGH';
+        reasons.push(`Attendance critically low at ${attendanceRate}% (${attendanceDays} recorded days).`);
+      } else if (attendanceRate !== null && attendanceRate < 82) {
+        if (riskLevel !== 'HIGH') riskLevel = 'MODERATE';
+        reasons.push(`Attendance dropping below 82% (${attendanceRate}%).`);
+      }
+
+      if (latestAverage !== null && latestAverage < 40) {
+        riskLevel = 'HIGH';
+        reasons.push(`Academic average critically low at ${latestAverage}%.`);
+      } else if (latestAverage !== null && latestAverage < 50) {
+        if (riskLevel !== 'HIGH') riskLevel = 'MODERATE';
+        reasons.push(`Academic average needs improvement (${latestAverage}%).`);
+      }
+
+      if (outstandingBalance > 0) {
+        if (overdueBalance > 0 && attendanceRate !== null && attendanceRate < 80) {
+          riskLevel = 'HIGH';
+        } else if (riskLevel === 'NORMAL') {
+          riskLevel = 'MODERATE';
+        }
+        reasons.push(`Pending fee arrears of ${currency} ${(outstandingBalance / 100).toLocaleString()}${overdueBalance > 0 ? ' (past due date)' : ''}.`);
+      }
+
+      let passes = true;
+
+      if (attendanceOperator && attendanceThreshold !== null) {
+        if (attendanceRate === null) passes = false;
+        else if (attendanceOperator === '<' && attendanceRate >= attendanceThreshold) passes = false;
+        else if (attendanceOperator === '<=' && attendanceRate > attendanceThreshold) passes = false;
+        else if (attendanceOperator === '>' && attendanceRate <= attendanceThreshold) passes = false;
+        else if (attendanceOperator === '>=' && attendanceRate < attendanceThreshold) passes = false;
+      }
+
+      if (requireUnpaidFee) {
+        if (outstandingBalance <= 0) passes = false;
+        if (feeMinThreshold !== null && (outstandingBalance / 100) < feeMinThreshold) passes = false;
+      }
+
+      if (academicOperator && academicThreshold !== null) {
+        if (latestAverage === null) passes = false;
+        else if (academicOperator === '<' && latestAverage >= academicThreshold) passes = false;
+        else if (academicOperator === '>' && latestAverage <= academicThreshold) passes = false;
+      }
+
+      if (filterRisk && riskLevel !== 'HIGH' && riskLevel !== 'MODERATE') {
+        passes = false;
+      }
+
+      if (!gradeMatch && !attMatch && !requireUnpaidFee && !acadMatch && !filterRisk) {
+        const text = `${student.firstName} ${student.lastName} ${student.admissionNumber} ${student.currentClass?.name ?? ''}`.toLowerCase();
+        passes = queryLower.split(/\s+/).some(term => term.length > 2 && text.includes(term));
+      }
+
+      if (passes) {
+        matches.push({
+          studentId: student.id,
+          name: `${student.firstName} ${student.lastName}`,
+          admissionNumber: student.admissionNumber,
+          className: student.currentClass?.name ?? 'Unassigned',
+          classId: student.currentClassId ?? '',
+          attendanceRate,
+          attendanceDays,
+          latestAverage,
+          outstandingBalance,
+          overdueBalance,
+          riskLevel,
+          parentName: student.parent ? `${student.parent.firstName} ${student.parent.lastName}` : undefined,
+          parentPhone: student.parent?.phone || undefined,
+          parentEmail: student.parent?.email || undefined,
+          reasons: reasons.length ? reasons : ['Matches current search parameters.'],
+        });
+      }
+    }
+
+    matches.sort((a, b) => {
+      const pMap = { HIGH: 3, MODERATE: 2, LOW: 1, NORMAL: 0 };
+      if (pMap[b.riskLevel] !== pMap[a.riskLevel]) return pMap[b.riskLevel] - pMap[a.riskLevel];
+      return b.outstandingBalance - a.outstandingBalance;
+    });
+
+    const totalOutstanding = matches.reduce((sum, m) => sum + m.outstandingBalance, 0);
+    const validAtt = matches.filter(m => m.attendanceRate !== null);
+    const averageAttendance = validAtt.length > 0
+      ? Math.round(validAtt.reduce((sum, m) => sum + (m.attendanceRate || 0), 0) / validAtt.length * 10) / 10
+      : 0;
+    const validScores = matches.filter(m => m.latestAverage !== null);
+    const averageScore = validScores.length > 0
+      ? Math.round(validScores.reduce((sum, m) => sum + (m.latestAverage || 0), 0) / validScores.length * 10) / 10
+      : 0;
+    const highRiskCount = matches.filter(m => m.riskLevel === 'HIGH').length;
+
+    const interpretedIntent = parsedFilters.length > 0
+      ? `Filtered ${matches.length} students matching: ${parsedFilters.map(f => `${f.label} (${f.value})`).join(', ')}`
+      : `Searched students for "${query}" across active records`;
+
+    const naturalLanguageSummary = matches.length > 0
+      ? `Found ${matches.length} students meeting your criteria. Across this cohort, total outstanding fee arrears amount to ${currency} ${(totalOutstanding / 100).toLocaleString()}, with an average attendance rate of ${averageAttendance}% and average exam score of ${averageScore}%. ${highRiskCount} students are currently flagged as High Priority for staff intervention.`
+      : `No students in the active roster matched the combination of "${query}". Try adjusting the attendance threshold or class parameters.`;
+
+    const suggestedActions = [
+      'Send instant WhatsApp attendance & fee notices to parents',
+      'Schedule proactive Virtual PTM conferences with Class Teachers',
+      'Export cohort audit list for the School Leadership & Finance Committee',
+      'Assign academic mentors to high-risk students',
+    ];
+
+    return {
+      originalQuery: query,
+      interpretedIntent,
+      parsedFilters,
+      matches,
+      totalCount: matches.length,
+      currency,
+      summary: {
+        totalOutstanding,
+        averageAttendance,
+        averageScore,
+        highRiskCount,
+      },
+      suggestedActions,
+      naturalLanguageSummary,
+      generatedAt: new Date().toISOString(),
+    };
   }
 }

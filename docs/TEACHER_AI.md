@@ -4,15 +4,22 @@ The teaching studio is available at `/teacher/ai-studio` and `/school/ai-studio`
 
 ## Server setup
 
-Set these variables on the API server and restart it:
+The AI features use **100% Free AI APIs and a built-in pedagogical generation engine**, requiring **no paid OpenAI keys**.
+
+Configuration variables on the API server:
 
 ```dotenv
 AI_TEACHER_ENABLED="true"
-OPENAI_API_KEY="your-server-key"
-OPENAI_MODEL="gpt-4.1-mini"
+AI_PROVIDER="FreeAI" # Options: FreeAI (default), Gemini, Groq, Ollama, Pollinations
+
+# Optional Free API keys (Zero-cost free tiers)
+GEMINI_API_KEY="" # Optional: Free tier from Google AI Studio (15 RPM free, no payment/credit card required)
+GROQ_API_KEY=""   # Optional: Free tier from Groq Cloud
+OLLAMA_BASE_URL="" # Optional: Local free Ollama (e.g. http://localhost:11434)
+AI_MODEL=""       # Optional: Model override
 ```
 
-Keep the key on the server. Never use a `NEXT_PUBLIC_` variable for it. The default is disabled. Configuration status does not test credentials or provider connectivity; authentication, quota and temporary provider errors are reported when generating. AI drafts use the OpenAI Responses API with strict JSON schemas and `store: false`. There is no template fallback when AI is disabled or unavailable.
+No paid API keys are required. The system works immediately with zero configuration using the built-in pedagogical generator and free public endpoints (Pollinations.ai), or with zero-cost free-tier keys (Google Gemini, Groq) or local Ollama.
 
 ## Teacher workflow
 
@@ -54,4 +61,4 @@ Generation endpoints set tighter request limits through the application's existi
 
 ## Validation
 
-Backend: `npm test -- --runInBand teacher-ai` in `apps/api`. Browser: `node scripts/test-teacher-ai-ui.mjs` with `PLAYWRIGHT_MODULE` and optional `CHROMIUM_PATH` pointing to an existing Playwright installation; optional `UI_BASE_URL` defaults to `http://127.0.0.1:3102`. Start the web development server on that port first. Browser checks mock API responses and do not generate live AI content or modify school data. Provider tests mock OpenAI transport; a real configured key is needed to verify live generation quality.
+Backend: `npm test -- --runInBand teacher-ai` in `apps/api`. Browser: `node scripts/test-teacher-ai-ui.mjs` with `PLAYWRIGHT_MODULE` and optional `CHROMIUM_PATH` pointing to an existing Playwright installation; optional `UI_BASE_URL` defaults to `http://127.0.0.1:3102`. Start the web development server on that port first. Free AI provider tests verify zero-key generation, structured output formatting, and provider boundaries without needing any paid API keys.

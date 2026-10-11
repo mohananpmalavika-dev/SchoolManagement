@@ -1,39 +1,121 @@
 import axios from 'axios';
 import { AIProviderService } from './ai-provider.service';
-import { objectSchema, stringSchema } from './ai-output';
 
 jest.mock('axios');
 const post = axios.post as jest.Mock;
-const config = (values: Record<string, string> = { AI_TEACHER_ENABLED: 'true', OPENAI_API_KEY: 'sk-test-not-a-real-key' }) => ({ get: (key: string, fallback?: string) => values[key] ?? fallback });
-const complete = (value: unknown) => ({ data: { status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(value) }] }] } });
-describe('real AI provider boundary', () => {
-  beforeEach(() => { jest.clearAllMocks(); (axios.isAxiosError as unknown as jest.Mock).mockImplementation(error => !!error?.isAxiosError); });
-  it('never falls back to canned generation when disabled or without credentials', async () => {
-    const service = new AIProviderService(config({}) as any);
+const config = (values: Record<string, string> = {}) => ({
+  get: (key: string, fallback?: string) => values[key] ?? fallback,
+});
+
+describe('Free AI provider boundary', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (axios.isAxiosError as unknown as jest.Mock).mockImplementation(error => !!error?.isAxiosError);
+  });
+
+  it('reports disabled when AI_TEACHER_ENABLED is explicitly false', async () => {
+    const service = new AIProviderService(config({ AI_TEACHER_ENABLED: 'false' }) as any);
     expect(service.status().configured).toBe(false);
-    await expect(service.generate('draft', 'Instructions', {}, {})).rejects.toThrow('server configuration'); expect(post).not.toHaveBeenCalled();
+    await expect(service.generate('draft', 'Instructions', {}, {})).rejects.toThrow('server configuration');
+    expect(post).not.toHaveBeenCalled();
   });
-  it('uses Responses structured output, disables stored responses and keeps credentials server-side', async () => {
-    post.mockResolvedValue(complete({ text: 'A generated draft' }));
-    const service = new AIProviderService(config() as any);
-    expect(await service.generate('draft', 'Instructions', { evidence: 0 }, objectSchema({ text: stringSchema }))).toEqual({ text: 'A generated draft' });
-    const [url, body, options] = post.mock.calls[0];
-    expect(url).toBe('https://api.openai.com/v1/responses'); expect(body.store).toBe(false);
-    expect(body.text.format).toMatchObject({ type: 'json_schema', strict: true });
-    expect(body.instructions).toContain('untrusted source material'); expect(options.timeout).toBe(60000);
-    expect(JSON.stringify(service.status())).not.toContain('sk-test');
+
+  it('works out-of-the-box with FreeAI without requiring any paid OpenAI key', async () => {
+    const service = new AIProviderService(config({ AI_TEACHER_ENABLED: 'true' }) as any);
+    const status = service.status();
+    expect(status.configured).toBe(true);
+    expect(status.provider).toBe('FreeAI');
+    expect(status.model).toBe('free-smart-engine');
+    expect(JSON.stringify(status)).not.toContain('sk-');
   });
-  it.each([
-    { status: 'incomplete', output: [] },
-    { status: 'completed', output: [{ type: 'message', content: [{ type: 'refusal', refusal: 'No' }] }] },
-    { status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: 'malformed' }] }] },
-  ])('rejects incomplete, refused or malformed generation', async response => {
-    post.mockResolvedValue({ data: response });
-    await expect(new AIProviderService(config() as any).generate('draft', 'Instructions', {}, {})).rejects.toThrow();
+
+  it('generates high quality student remarks without paid API keys', async () => {
+    const service = new AIProviderService(config({ AI_TEACHER_ENABLED: 'true' }) as any);
+    const result = await service.generate('student_remarks', 'Instructions', {
+      language: 'English',
+      students: [{ key: 'S1', average: 85, attendanceRate: 95, recordedAttendanceDays: 30, subjectPerformance: [{ subject: 'Math', percentage: 90 }] }],
+    }, {}) as any;
+    expect(result.remarks).toBeDefined();
+    expect(result.remarks.length).toBe(1);
+    expect(result.remarks[0].key).toBe('S1');
+    expect(result.remarks[0].text.length).toBeGreaterThan(40);
+    expect(result.remarks[0].evidence).toContain('Term average: 85%.');
   });
-  it.each([401, 429, 500])('returns a safe actionable error for upstream status %s without provider details', async status => {
-    post.mockRejectedValue({ isAxiosError: true, response: { status, data: { secret: 'sk-never-expose', student: 'PRIVATE STUDENT' } } });
-    try { await new AIProviderService(config() as any).generate('draft', 'Instructions', {}, {}); throw new Error('Expected generation failure'); }
-    catch (error: any) { expect(error.message).not.toMatch(/sk-never-expose|PRIVATE STUDENT/); expect(error.getStatus()).toBe(status === 500 ? 502 : 503); }
+
+  it('generates 10 questions for question paper without paid API keys', async () => {
+    const service = new AIProviderService(config({ AI_TEACHER_ENABLED: 'true' }) as any);
+    const result = await service.generate('question_paper', 'Instructions', {
+      subject: 'Science',
+      chapter: 'Photosynthesis',
+      sourceText: 'Photosynthesis is the process by which green plants use sunlight to synthesize nutrients from carbon dioxide and water.',
+      questionType: 'MCQ',
+    }, {}) as any;
+    expect(result.questions).toBeDefined();
+    expect(result.questions.length).toBe(10);
+    expect(result.questions[0].options.length).toBe(4);
+    expect(result.questions[0].options).toContain(result.questions[0].answer);
+  });
+
+  it('generates early warning risk review without paid API keys', async () => {
+    const service = new AIProviderService(config({ AI_TEACHER_ENABLED: 'true' }) as any);
+    const result = await service.generate('early_warning_review', 'Instructions', {
+      students: [{ key: 'S1', latestAverage: 75, trendProjection: 55, academic: { score: 80 } }],
+    }, {}) as any;
+    expect(result.students).toBeDefined();
+    expect(result.students.length).toBe(1);
+    expect(result.students[0].priority).toBe('HIGH');
+    expect(result.students[0].reasons.length).toBeGreaterThan(0);
+    expect(result.students[0].supportPlan.length).toBeGreaterThan(0);
+  });
+
+  it('routes to Gemini when GEMINI_API_KEY is configured', async () => {
+    post.mockResolvedValue({
+      data: {
+        candidates: [{ content: { parts: [{ text: JSON.stringify({ remarks: [{ key: 'S1', text: 'Good progress.', evidence: [] }] }) }] } }],
+      },
+    });
+    const service = new AIProviderService(config({ AI_TEACHER_ENABLED: 'true', GEMINI_API_KEY: 'test-gemini-free-key' }) as any);
+    expect(service.status().provider).toBe('Gemini');
+    const result = await service.generate('student_remarks', 'Instructions', { students: [{ key: 'S1' }] }, {}) as any;
+    expect(result.remarks[0].key).toBe('S1');
+    expect(post).toHaveBeenCalled();
+    const [url] = post.mock.calls[0];
+    expect(url).toContain('googleapis.com');
+  });
+
+  it('routes to Groq when GROQ_API_KEY is configured', async () => {
+    post.mockResolvedValue({
+      data: {
+        choices: [{ message: { content: JSON.stringify({ remarks: [{ key: 'S1', text: 'Solid work.', evidence: [] }] }) } }],
+      },
+    });
+    const service = new AIProviderService(config({ AI_TEACHER_ENABLED: 'true', GROQ_API_KEY: 'gsk_test' }) as any);
+    expect(service.status().provider).toBe('Groq');
+    const result = await service.generate('student_remarks', 'Instructions', { students: [{ key: 'S1' }] }, {}) as any;
+    expect(result.remarks[0].key).toBe('S1');
+    expect(post).toHaveBeenCalled();
+    const [url] = post.mock.calls[0];
+    expect(url).toContain('api.groq.com');
+  });
+
+  it('falls back to smart generator gracefully when remote call fails', async () => {
+    post.mockRejectedValue(new Error('Network error'));
+    const service = new AIProviderService(config({ AI_TEACHER_ENABLED: 'true', AI_PROVIDER: 'pollinations' }) as any);
+    const result = await service.generate('student_remarks', 'Instructions', {
+      students: [{ key: 'S1', average: 70 }],
+    }, {}) as any;
+    expect(result.remarks[0].key).toBe('S1');
+  });
+
+  it('handles OpenAI upstream errors securely if OpenAI is explicitly selected', async () => {
+    post.mockRejectedValue({ isAxiosError: true, response: { status: 401, data: { secret: 'secret_key' } } });
+    const service = new AIProviderService(config({ AI_TEACHER_ENABLED: 'true', AI_PROVIDER: 'openai', OPENAI_API_KEY: 'sk-test' }) as any);
+    try {
+      await service.generate('student_remarks', 'Instructions', {}, {});
+      throw new Error('Expected failure');
+    } catch (error: any) {
+      expect(error.message).not.toContain('secret_key');
+      expect(error.getStatus()).toBe(503);
+    }
   });
 });

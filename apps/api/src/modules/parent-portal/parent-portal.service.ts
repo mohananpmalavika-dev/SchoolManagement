@@ -196,7 +196,6 @@ export class ParentPortalService {
                 id: true,
                 firstName: true,
                 lastName: true,
-                relationship: false,
                 phone: true,
                 email: true,
               },
@@ -237,7 +236,7 @@ export class ParentPortalService {
     const notifications: any[] = [];
 
     // 1. Recent behavior records (especially negative ones)
-    const behaviorRecords = await this.prisma.behaviorRecord.findMany({
+    const behaviorRecords = (await this.prisma.behaviorRecord?.findMany({
       where: {
         tenantId,
         studentId: { in: studentIds },
@@ -256,9 +255,9 @@ export class ParentPortalService {
         incidentDate: 'desc',
       },
       take: limit,
-    });
+    })) || [];
 
-    behaviorRecords.forEach((record) => {
+    behaviorRecords.forEach((record: any) => {
       notifications.push({
         type: 'BEHAVIOR',
         priority: record.behaviorType === 'NEGATIVE' ? 'HIGH' : 'NORMAL',
@@ -326,7 +325,7 @@ export class ParentPortalService {
     const threeDaysFromNow = new Date();
     threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
 
-    const upcomingBookings = await this.prisma.parentTeacherBooking.findMany({
+    const upcomingBookings = (await this.prisma.parentTeacherBooking?.findMany({
       where: {
         tenantId,
         guardianId,
@@ -335,7 +334,7 @@ export class ParentPortalService {
           gte: today,
           lte: threeDaysFromNow,
         },
-        status: 'CONFIRMED',
+        status: 'CONFIRMED' as const,
       },
       include: {
         student: {
@@ -345,9 +344,9 @@ export class ParentPortalService {
           },
         },
       },
-    });
+    })) || [];
 
-    upcomingBookings.forEach((booking) => {
+    upcomingBookings.forEach((booking: any) => {
       notifications.push({
         type: 'BOOKING_REMINDER',
         priority: 'NORMAL',

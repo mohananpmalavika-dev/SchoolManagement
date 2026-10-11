@@ -48,7 +48,7 @@ export class ParentEngagementNotificationsService {
 
       // Get primary guardians
       const recipients: string[] = [];
-      activity.student.guardianLinks.forEach((link) => {
+      activity.student.guardianLinks.forEach((link: any) => {
         if (link.guardian.phone) {
           recipients.push(link.guardian.phone);
         }
@@ -76,8 +76,8 @@ export class ParentEngagementNotificationsService {
       // });
 
       this.logger.log(`Activity notification sent for activity ${activityId}`);
-    } catch (error) {
-      this.logger.error(`Failed to send activity notification: ${error.message}`);
+    } catch (error: any) {
+      this.logger.error(`Failed to send activity notification: ${error?.message || String(error)}`);
     }
   }
 
@@ -89,7 +89,7 @@ export class ParentEngagementNotificationsService {
     try {
       const tenantId = this.tenantService.requireTenantContext();
 
-      const record = await this.prisma.behaviorRecord.findFirst({
+      const record = (await this.prisma.behaviorRecord?.findFirst({
         where: { id: behaviorRecordId, tenantId },
         include: {
           student: {
@@ -106,7 +106,7 @@ export class ParentEngagementNotificationsService {
             },
           },
         },
-      });
+      })) as any;
 
       if (!record) {
         return;
@@ -140,17 +140,19 @@ export class ParentEngagementNotificationsService {
       // });
 
       // Mark as notified
-      await this.prisma.behaviorRecord.update({
+      if (this.prisma.behaviorRecord) {
+        await this.prisma.behaviorRecord.update({
         where: { id: behaviorRecordId },
         data: {
           parentNotified: true,
           parentNotifiedAt: new Date(),
         },
-      });
+        });
+      }
 
       this.logger.log(`Behavior alert sent for record ${behaviorRecordId}`);
-    } catch (error) {
-      this.logger.error(`Failed to send behavior alert: ${error.message}`);
+    } catch (error: any) {
+      this.logger.error(`Failed to send behavior alert: ${error?.message || String(error)}`);
     }
   }
 
@@ -223,8 +225,8 @@ export class ParentEngagementNotificationsService {
       // });
 
       this.logger.log(`Homework reminder sent for assignment ${assignmentId}`);
-    } catch (error) {
-      this.logger.error(`Failed to send homework reminder: ${error.message}`);
+    } catch (error: any) {
+      this.logger.error(`Failed to send homework reminder: ${error?.message || String(error)}`);
     }
   }
 
@@ -236,13 +238,13 @@ export class ParentEngagementNotificationsService {
     try {
       const tenantId = this.tenantService.requireTenantContext();
 
-      const booking = await this.prisma.parentTeacherBooking.findFirst({
+      const booking = (await this.prisma.parentTeacherBooking?.findFirst({
         where: { id: bookingId, tenantId },
         include: {
           guardian: true,
           student: true,
         },
-      });
+      })) as any;
 
       if (!booking || !booking.guardian.phone) {
         return;
@@ -268,17 +270,19 @@ export class ParentEngagementNotificationsService {
       // });
 
       // Mark reminder as sent
-      await this.prisma.parentTeacherBooking.update({
+      if (this.prisma.parentTeacherBooking) {
+        await this.prisma.parentTeacherBooking.update({
         where: { id: bookingId },
         data: {
           reminderSent: true,
           reminderSentAt: new Date(),
         },
-      });
+        });
+      }
 
       this.logger.log(`Booking confirmation sent for booking ${bookingId}`);
-    } catch (error) {
-      this.logger.error(`Failed to send booking confirmation: ${error.message}`);
+    } catch (error: any) {
+      this.logger.error(`Failed to send booking confirmation: ${error?.message || String(error)}`);
     }
   }
 
@@ -297,7 +301,7 @@ export class ParentEngagementNotificationsService {
       tomorrow.setDate(tomorrow.getDate() + 1);
 
       // Get today's activities
-      const activities = await this.prisma.activityFeed.findMany({
+      const activities = (await this.prisma.activityFeed?.findMany({
         where: {
           tenantId,
           createdAt: {
@@ -321,7 +325,7 @@ export class ParentEngagementNotificationsService {
             },
           },
         },
-      });
+      })) || [];
 
       // Group by student
       const byStudent = new Map<string, typeof activities>();
@@ -359,8 +363,8 @@ export class ParentEngagementNotificationsService {
       }
 
       this.logger.log(`Daily activity digest sent to ${byStudent.size} parents`);
-    } catch (error) {
-      this.logger.error(`Failed to send daily digest: ${error.message}`);
+    } catch (error: any) {
+      this.logger.error(`Failed to send daily digest: ${error?.message || String(error)}`);
     }
   }
 

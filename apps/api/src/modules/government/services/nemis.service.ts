@@ -8,6 +8,7 @@ import {
   ValidationStatus 
 } from '@prisma/client';
 import axios, { AxiosInstance } from 'axios';
+import { EncryptionUtil } from '../../../common/utils/encryption.util';
 
 /**
  * NEMIS Integration Service
@@ -21,6 +22,7 @@ export class NemisService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly encryptionUtil: EncryptionUtil,
   ) {}
 
   /**
@@ -36,15 +38,15 @@ export class NemisService {
       const integration = await this.prisma.nemisIntegration.upsert({
         where: { nemisSchoolCode },
         update: {
-          apiKey: apiKey ? this.encryptCredential(apiKey) : undefined,
-          apiSecret: apiSecret ? this.encryptCredential(apiSecret) : undefined,
+          apiKey: apiKey ? await this.encryptionUtil.encrypt(apiKey) : undefined,
+          apiSecret: apiSecret ? await this.encryptionUtil.encrypt(apiSecret) : undefined,
           isEnabled: true,
         },
         create: {
           tenantId,
           nemisSchoolCode,
-          apiKey: apiKey ? this.encryptCredential(apiKey) : null,
-          apiSecret: apiSecret ? this.encryptCredential(apiSecret) : null,
+          apiKey: apiKey ? await this.encryptionUtil.encrypt(apiKey) : null,
+          apiSecret: apiSecret ? await this.encryptionUtil.encrypt(apiSecret) : null,
           isEnabled: true,
           autoSync: true,
           syncFrequency: 'DAILY',
@@ -701,8 +703,8 @@ export class NemisService {
     method: string,
     data?: any,
   ) {
-    const apiKey = this.decryptCredential(integration.apiKey);
-    const apiSecret = this.decryptCredential(integration.apiSecret);
+    const apiKey = integration.apiKey ? await this.encryptionUtil.decrypt(integration.apiKey) : null;
+    const apiSecret = integration.apiSecret ? await this.encryptionUtil.decrypt(integration.apiSecret) : null;
 
     // In production, implement actual API calls
     // For now, simulate successful response
@@ -744,22 +746,5 @@ export class NemisService {
         duration: Math.floor(Math.random() * 1000) + 100,
       },
     });
-  }
-
-  /**
-   * Encrypt credential (simplified - use proper encryption in production)
-   */
-  private encryptCredential(credential: string): string {
-    // TODO: Implement proper encryption using crypto
-    return Buffer.from(credential).toString('base64');
-  }
-
-  /**
-   * Decrypt credential (simplified - use proper decryption in production)
-   */
-  private decryptCredential(encryptedCredential: string | null): string | null {
-    if (!encryptedCredential) return null;
-    // TODO: Implement proper decryption using crypto
-    return Buffer.from(encryptedCredential, 'base64').toString('utf-8');
   }
 }

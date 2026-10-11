@@ -6,6 +6,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { PortalScopeGuard } from './common/guards/portal-scope.guard';
 import { TenantService } from './database/tenant.service';
 import { TenantResolutionMiddleware } from './common/middleware/tenant-resolution.middleware';
+import { EncryptionUtil } from './common/utils/encryption.util';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -36,6 +37,9 @@ import { BehaviorModule } from './modules/behavior/behavior.module';
 import { HomeworkModule } from './modules/homework/homework.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { ParentPortalModule } from './modules/parent-portal/parent-portal.module';
+import { CertificatesModule } from './modules/certificates/certificates.module';
+import { AdmissionsModule } from './modules/admissions/admissions.module';
+import { GovernmentModule } from './modules/government/government.module';
 
 @Module({
   imports: [
@@ -94,9 +98,19 @@ import { ParentPortalModule } from './modules/parent-portal/parent-portal.module
     HomeworkModule,
     BookingsModule,
     ParentPortalModule,
+    CertificatesModule,
+    AdmissionsModule,
+    GovernmentModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: JwtAuthGuard }, { provide: APP_GUARD, useClass: RolesGuard }, { provide: APP_GUARD, useClass: PortalScopeGuard }],
+  providers: [
+    AppService,
+    EncryptionUtil, // Global encryption utility for sensitive credentials
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: PortalScopeGuard },
+  ],
 })
 export class AppModule implements NestModule {
  constructor(private tenants:TenantService){}

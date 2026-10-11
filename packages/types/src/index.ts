@@ -21,3 +21,5 @@ export * from './whatsapp-cloud';
 export * from './lms';
 export * from './virtual-ptm';
 export * from './certificate';
+export * from './admissions';
+export * from './copilot';

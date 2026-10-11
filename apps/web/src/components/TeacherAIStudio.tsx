@@ -2,9 +2,32 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { BookOpen, Download, FileCheck, Printer, Sparkles } from 'lucide-react';
-import type { AIQuestionPaper, AIRemarkResult, GeneratedRemark, TeacherAIOptions, TeacherAIRoster, TeachingLanguage } from '@krypton/types';
+import {
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  Copy,
+  Download,
+  FileCheck,
+  FileText,
+  HelpCircle,
+  Layers,
+  Printer,
+  Sparkles,
+  Zap,
+} from 'lucide-react';
+import type {
+  AIQuestionPaper,
+  AIRemarkResult,
+  GeneratedRemark,
+  LessonPlanResponse,
+  RemarksTone,
+  TeacherAIOptions,
+  TeacherAIRoster,
+  TeachingLanguage,
+} from '@krypton/types';
 import { apiClient } from '@/lib/api-client';
+import { generateLessonPlan } from '@/lib/copilot-client';
 import { exportCsv, messageFor } from '@/lib/workspace';
 import { predictiveAnalyticsRoles, teacherRoles } from '@/lib/session';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,151 +37,1277 @@ import { Button } from './ui';
 
 function downloadText(filename: string, text: string) {
   const url = URL.createObjectURL(new Blob(['\ufeff' + text], { type: 'text/plain;charset=utf-8' }));
-  const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
+
 function paperText(paper: AIQuestionPaper, key = false) {
-  return [paper.title, key ? 'TEACHER ANSWER KEY' : paper.instructions, '', ...paper.questions.map((q, i) => key ?
-    `${i + 1}. ${q.answer}\n${q.explanation}\n` : `${i + 1}. ${q.question} (${q.marks} marks)\n${q.options.map((o, n) => `${String.fromCharCode(65 + n)}. ${o}`).join('\n')}\n`)].join('\n');
+  return [
+    paper.title,
+    key ? 'TEACHER ANSWER KEY & RUBRIC' : paper.instructions,
+    '',
+    ...paper.questions.map((q, i) =>
+      key
+        ? `${i + 1}. ${q.answer}\nExplanation: ${q.explanation}\nMarks: ${q.marks}\n`
+        : `${i + 1}. ${q.question} (${q.marks} marks)\n${q.options.map((o, n) => `   ${String.fromCharCode(65 + n)}. ${o}`).join('\n')}\n`
+    ),
+  ].join('\n');
 }
+
+function lessonPlanText(lp: LessonPlanResponse): string {
+  return [
+    `LESSON PLAN: ${lp.title}`,
+    `Subject: ${lp.subject} | Grade Level: ${lp.gradeLevel} | Duration: ${lp.durationMinutes} mins | Curriculum: ${lp.curriculum}`,
+    '='.repeat(70),
+    '',
+    '1. LEARNING OBJECTIVES:',
+    ...lp.learningObjectives.map((o, i) => `  ${i + 1}. ${o}`),
+    '',
+    '2. CORE COMPETENCIES & VALUES:',
+    ...lp.coreCompetencies.map(c => `  • ${c}`),
+    '',
+    '3. KEY INQUIRY QUESTIONS:',
+    ...lp.keyInquiryQuestions.map(q => `  ? ${q}`),
+    '',
+    '4. TEACHING AIDS & MATERIALS:',
+    ...lp.materials.map(m => `  - ${m}`),
+    '',
+    '5. 5E INSTRUCTIONAL SEQUENCE:',
+    ...lp.steps.flatMap(s => [
+      `  [${s.phase}] ${s.title} (${s.durationMinutes} mins)`,
+      `   Teacher: ${s.teacherActivity}`,
+      `   Student: ${s.studentActivity}`,
+      `   Resources: ${s.resourcesNeeded.join(', ')}`,
+      '',
+    ]),
+    '6. DIFFERENTIATED LEARNING SUPPORT:',
+    '  For Struggling Learners:',
+    ...lp.differentiatedInstruction.supportForStruggling.map(s => `   - ${s}`),
+    '  For Advanced Learners:',
+    ...lp.differentiatedInstruction.extensionForAdvanced.map(e => `   - ${e}`),
+    '',
+    '7. ASSESSMENT RUBRIC:',
+    ...lp.assessmentRubrics.flatMap(r => [
+      `  Criterion: ${r.criterion}`,
+      ...r.levels.map(l => `    [${l.level}] (${l.scoreRange}): ${l.descriptor}`),
+      '',
+    ]),
+    '8. HOMEWORK / EXTENSION TASK:',
+    `  ${lp.homeworkAssignment}`,
+  ].join('\n');
+}
+
 const languages: TeachingLanguage[] = ['English', 'Malayalam', 'Swahili'];
+
+const TONE_PRESETS: { key: RemarksTone; label: string; desc: string }[] = [
+  { key: 'CBC', label: 'CBC Competency-Based', desc: 'Curriculum descriptors (Exceeding, Meeting, Approaching)' },
+  { key: 'HOLISTIC', label: 'Holistic & Balanced', desc: 'Balances academic achievement with social and emotional growth' },
+  { key: 'ACADEMIC_RIGOR', label: 'Academic Rigor', desc: 'Detailed subject mastery, exam trends, and target scores' },
+  { key: 'GROWTH_MINDSET', label: 'Growth Mindset', desc: 'Encouraging, celebrates effort and perseverance' },
+];
+
+const SYLLABUS_PRESETS = [
+  { subject: 'Integrated Science', topic: 'Photosynthesis & Plant Respiration' },
+  { subject: 'Mathematics', topic: 'Quadratic Equations & Parabolic Graphs' },
+  { subject: 'Chemistry', topic: 'Acids, Bases, Indicators & Salt Formation' },
+  { subject: 'Biology', topic: 'Cell Division, Mitosis & Genetic Inheritance' },
+  { subject: 'Physics', topic: 'Newtonian Motion, Force & Momentum' },
+  { subject: 'English', topic: 'Argumentative Essay Writing & Persuasive Devices' },
+];
+
 export function TeacherAIStudio() {
-  return <ProtectedRoute allowedRoles={[...teacherRoles, ...predictiveAnalyticsRoles]}><TeachingTools /></ProtectedRoute>;
+  return (
+    <ProtectedRoute allowedRoles={[...teacherRoles, ...predictiveAnalyticsRoles]}>
+      <TeachingTools />
+    </ProtectedRoute>
+  );
 }
 
 function TeachingTools() {
   const { user } = useAuth();
   const [options, setOptions] = useState<TeacherAIOptions | null>(null);
   const [roster, setRoster] = useState<TeacherAIRoster | null>(null);
-  const [classId, setClassId] = useState(''); const [termId, setTermId] = useState('');
+  const [classId, setClassId] = useState('');
+  const [termId, setTermId] = useState('');
   const [language, setLanguage] = useState<TeachingLanguage>('English');
-  const [tab, setTab] = useState<'remarks' | 'quiz'>('remarks');
+  const [tone, setTone] = useState<RemarksTone>('CBC');
+  const [tab, setTab] = useState<'remarks' | 'lesson-plan' | 'quiz'>('remarks');
   const [selected, setSelected] = useState<string[]>([]);
   const [observations, setObservations] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, GeneratedRemark>>({});
-  const [page, setPage] = useState(1); const [rosterLoading, setRosterLoading] = useState(false);
-  const [busy, setBusy] = useState(false); const [saving, setSaving] = useState('');
-  const [error, setError] = useState(''); const [notice, setNotice] = useState('');
-  const [paper, setPaper] = useState<AIQuestionPaper | null>(null); const [showAnswers, setShowAnswers] = useState(false);
-  const [subject, setSubject] = useState(''); const [chapter, setChapter] = useState(''); const [sourceText, setSourceText] = useState('');
-  const [format, setFormat] = useState('QUIZ'); const [questionType, setQuestionType] = useState('MCQ'); const [difficulty, setDifficulty] = useState('STANDARD');
+  const [page, setPage] = useState(1);
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  // Lesson Plan state
+  const [lpSubject, setLpSubject] = useState('Integrated Science');
+  const [lpChapter, setLpChapter] = useState('Photosynthesis & Plant Respiration');
+  const [lpDuration, setLpDuration] = useState(45);
+  const [lpCurriculum, setLpCurriculum] = useState<'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT'>('CBC');
+  const [lessonPlan, setLessonPlan] = useState<LessonPlanResponse | null>(null);
+
+  // Quiz state
+  const [paper, setPaper] = useState<AIQuestionPaper | null>(null);
+  const [showAnswers, setShowAnswers] = useState(false);
+  const [subject, setSubject] = useState('Mathematics');
+  const [chapter, setChapter] = useState('Quadratic Equations');
+  const [sourceText, setSourceText] = useState(
+    'Quadratic equations are second-degree polynomial equations of the form ax^2 + bx + c = 0, where a is non-zero. ' +
+    'The roots can be determined using factorization, completing the square, or the quadratic formula x = (-b ± √(b^2 - 4ac)) / (2a). ' +
+    'The discriminant D = b^2 - 4ac determines the nature of the roots: if D > 0, there are two distinct real roots; ' +
+    'if D = 0, there is one repeated real root; if D < 0, roots are complex. ' +
+    'Applications include trajectory modeling, projectile motions, optimization of profit margins, and area maximization problems in geometry.'
+  );
+  const [format, setFormat] = useState('QUIZ');
+  const [questionType, setQuestionType] = useState('MCQ');
+  const [difficulty, setDifficulty] = useState('STANDARD');
+
   const generation = useRef<AbortController | null>(null);
   const optionsRequest = useRef<AbortController | null>(null);
+
   const loadOptions = useCallback(async () => {
-    optionsRequest.current?.abort(); const controller = new AbortController(); optionsRequest.current = controller;
+    optionsRequest.current?.abort();
+    const controller = new AbortController();
+    optionsRequest.current = controller;
     setError('');
     try {
       const { data } = await apiClient.get<TeacherAIOptions>('/teacher-ai/options', { signal: controller.signal });
-      if (!controller.signal.aborted) { setOptions(data); setClassId(data.classes[0]?.id ?? ''); setTermId(data.terms.find(t => t.isCurrent)?.id ?? data.terms[0]?.id ?? ''); }
-    } catch (err) { if (!controller.signal.aborted) setError(messageFor(err)); }
+      if (!controller.signal.aborted) {
+        setOptions(data);
+        setClassId(data.classes[0]?.id ?? '');
+        setTermId(data.terms.find(t => t.isCurrent)?.id ?? data.terms[0]?.id ?? '');
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) setError(messageFor(err));
+    }
   }, []);
-  useEffect(() => { void loadOptions(); return () => { optionsRequest.current?.abort(); generation.current?.abort(); }; }, [loadOptions]);
+
+  useEffect(() => {
+    void loadOptions();
+    return () => {
+      optionsRequest.current?.abort();
+      generation.current?.abort();
+    };
+  }, [loadOptions]);
+
   const loadRoster = useCallback(async (signal?: AbortSignal) => {
     if (!classId || !termId) return;
     setRosterLoading(true);
     try {
       const { data } = await apiClient.get<TeacherAIRoster>('/teacher-ai/roster', { params: { classId, termId }, signal });
-      if (!signal?.aborted) { setRoster(data); setSelected(data.students.map(s => s.id)); }
-    } catch (err) { if (!signal?.aborted) setError(messageFor(err)); }
-    finally { if (!signal?.aborted) setRosterLoading(false); }
+      if (!signal?.aborted) {
+        setRoster(data);
+        setSelected(data.students.map(s => s.id));
+      }
+    } catch (err) {
+      if (!signal?.aborted) setError(messageFor(err));
+    } finally {
+      if (!signal?.aborted) setRosterLoading(false);
+    }
   }, [classId, termId]);
+
   useEffect(() => {
-    const controller = new AbortController(); setRoster(null); setDrafts({}); setObservations({}); setPaper(null); setSelected([]); setPage(1); setError(''); setNotice('');
-    void loadRoster(controller.signal); return () => controller.abort();
+    const controller = new AbortController();
+    setRoster(null);
+    setDrafts({});
+    setObservations({});
+    setPaper(null);
+    setLessonPlan(null);
+    setSelected([]);
+    setPage(1);
+    setError('');
+    setNotice('');
+    void loadRoster(controller.signal);
+    return () => controller.abort();
   }, [loadRoster]);
+
   const configured = options?.status.configured ?? false;
+
+  // 1-Click bulk generate remarks
   const generateRemarks = async () => {
     if (!selected.length) return;
-    const controller = new AbortController(); generation.current = controller; setBusy(true); setError(''); let completed = 0;
+    const controller = new AbortController();
+    generation.current = controller;
+    setBusy(true);
+    setError('');
+    let completed = 0;
+
     try {
       for (let i = 0; i < selected.length; i += 10) {
         if (controller.signal.aborted) break;
-        setNotice(`Generating remarks: ${completed} of ${selected.length} students complete…`);
-        const { data } = await apiClient.post<AIRemarkResult>('/teacher-ai/remarks', { classId, termId, language,
-          students: selected.slice(i, i + 10).map(studentId => ({ studentId, behaviourObservation: observations[studentId] || undefined })) },
-        { timeout: 75000, signal: controller.signal });
+        setNotice(`AI is analyzing evidence & drafting remarks: ${completed} of ${selected.length} students complete…`);
+        const { data } = await apiClient.post<AIRemarkResult>(
+          '/teacher-ai/remarks',
+          {
+            classId,
+            termId,
+            language,
+            students: selected.slice(i, i + 10).map(studentId => ({
+              studentId,
+              behaviourObservation: observations[studentId] || undefined,
+            })),
+          },
+          { timeout: 75000, signal: controller.signal }
+        );
         if (controller.signal.aborted) break;
         setDrafts(current => ({ ...current, ...Object.fromEntries(data.remarks.map(r => [r.studentId, r])) }));
-        setSelected(current => current.filter(id => !data.remarks.some(r => r.studentId === id))); completed += data.remarks.length;
+        completed += data.remarks.length;
       }
-      if (!controller.signal.aborted) setNotice(`${completed} AI remarks ready. Review and edit each draft before saving.`);
-    } catch (err) { if (!controller.signal.aborted) { setError(messageFor(err)); setNotice(`${completed} remarks generated before the interruption. Completed drafts are available below.`); } }
-    finally { setBusy(false); }
+      if (!controller.signal.aborted) {
+        setNotice(`🎉 ${completed} personalized ${tone} remarks drafted in 1 click! Review, edit as needed, and approve.`);
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        setError(messageFor(err));
+        setNotice(`${completed} remarks generated before interruption. Completed drafts are saved below.`);
+      }
+    } finally {
+      setBusy(false);
+    }
   };
+
   const prepare = async () => {
-    setBusy(true); setError(''); setNotice('');
+    setBusy(true);
+    setError('');
+    setNotice('');
     try {
-      const { data } = await apiClient.post<{ generated: number; skipped: number; errors: { student: string; error: string }[] }>('/teacher-ai/report-cards', { classId, termId }, { timeout: 75000 });
-      await loadRoster(); setNotice(`${data.generated} draft reports prepared; ${data.skipped} existing reports preserved; ${data.errors.length} could not be prepared.`);
-      if (data.errors.length) setError(data.errors.map(item => `${item.student}: ${item.error}`).join(' · '));
-    } catch (err) { setError(messageFor(err)); } finally { setBusy(false); }
+      const { data } = await apiClient.post<{ generated: number; skipped: number; errors: { student: string; error: string }[] }>(
+        '/teacher-ai/report-cards',
+        { classId, termId },
+        { timeout: 75000 }
+      );
+      await loadRoster();
+      setNotice(`${data.generated} draft report cards prepared; ${data.skipped} preserved; ${data.errors.length} skipped.`);
+    } catch (err) {
+      setError(messageFor(err));
+    } finally {
+      setBusy(false);
+    }
   };
+
   const save = async (id: string) => {
-    const student = roster?.students.find(s => s.id === id), draft = drafts[id];
+    const student = roster?.students.find(s => s.id === id);
+    const draft = drafts[id];
     if (!student?.reportCard || !draft) return;
-    setSaving(id); setError('');
+    setSaving(id);
+    setError('');
     try {
       const { data } = await apiClient.post<{ updatedAt: string; comment: string }>('/teacher-ai/remarks/save', {
-        classId, termId, studentId: id, reportCardId: student.reportCard.id, expectedUpdatedAt: student.reportCard.updatedAt, remark: draft.text,
+        classId,
+        termId,
+        studentId: id,
+        reportCardId: student.reportCard.id,
+        expectedUpdatedAt: student.reportCard.updatedAt,
+        remark: draft.text,
       });
-      setRoster(current => current ? { ...current, students: current.students.map(s => s.id === id && s.reportCard ? { ...s, reportCard: { ...s.reportCard, updatedAt: data.updatedAt, comment: data.comment } } : s) } : current);
-      setNotice(`Reviewed remark saved to ${student.name}'s draft report card.`);
-    } catch (err) { setError(messageFor(err)); } finally { setSaving(''); }
+      setRoster(current =>
+        current
+          ? {
+              ...current,
+              students: current.students.map(s =>
+                s.id === id && s.reportCard ? { ...s, reportCard: { ...s.reportCard, updatedAt: data.updatedAt, comment: data.comment } } : s
+              ),
+            }
+          : current
+      );
+      setNotice(`Reviewed remark saved to ${student.name}'s official report card.`);
+    } catch (err) {
+      setError(messageFor(err));
+    } finally {
+      setSaving('');
+    }
   };
-  const generateQuiz = async () => {
-    const controller = new AbortController(); generation.current = controller; setBusy(true); setError(''); setNotice(''); setPaper(null); setShowAnswers(false);
+
+  // Lesson Plan Generator
+  const handleGenerateLessonPlan = async () => {
+    if (!lpSubject.trim() || !lpChapter.trim() || !classId) return;
+    const controller = new AbortController();
+    generation.current = controller;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    setLessonPlan(null);
+
     try {
-      const { data } = await apiClient.post<AIQuestionPaper>('/teacher-ai/quiz', { classId, subject: subject.trim(), chapter: chapter.trim(), sourceText: sourceText.trim(), language, format, questionType, difficulty }, { timeout: 75000, signal: controller.signal });
-      if (!controller.signal.aborted) { setPaper(data); setNotice('Ten questions are ready. Check the questions and answer key before using them with students.'); }
-    } catch (err) { if (!controller.signal.aborted) setError(messageFor(err)); } finally { setBusy(false); }
+      const data = await generateLessonPlan(
+        {
+          classId,
+          subject: lpSubject.trim(),
+          chapter: lpChapter.trim(),
+          durationMinutes: lpDuration,
+          curriculum: lpCurriculum,
+          language,
+        },
+        controller.signal
+      );
+      if (!controller.signal.aborted) {
+        setLessonPlan(data);
+        setNotice('✨ Complete 5E Lesson Plan generated in under 10 seconds! Ready to teach and print.');
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) setError(messageFor(err));
+    } finally {
+      setBusy(false);
+    }
   };
-  const exportRemarks = () => exportCsv('reviewed-student-remarks', [
-    { key: 'name', label: 'Student' }, { key: 'admission', label: 'Admission number' }, { key: 'remark', label: 'AI-assisted draft remark' }, { key: 'evidence', label: 'Evidence' },
-  ], (roster?.students ?? []).filter(s => drafts[s.id]).map(s => ({ name: s.name, admission: s.admissionNumber, remark: drafts[s.id].text, evidence: drafts[s.id].evidence.join(' | ') })));
-  const students = roster?.students ?? [], pages = Math.max(1, Math.ceil(students.length / 8)), currentPage = Math.min(page, pages);
+
+  // Quiz Generator
+  const generateQuiz = async () => {
+    const controller = new AbortController();
+    generation.current = controller;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    setPaper(null);
+    setShowAnswers(false);
+    try {
+      const { data } = await apiClient.post<AIQuestionPaper>(
+        '/teacher-ai/quiz',
+        {
+          classId,
+          subject: subject.trim(),
+          chapter: chapter.trim(),
+          sourceText: sourceText.trim(),
+          language,
+          format,
+          questionType,
+          difficulty,
+        },
+        { timeout: 75000, signal: controller.signal }
+      );
+      if (!controller.signal.aborted) {
+        setPaper(data);
+        setNotice('✨ 10 Objective questions and teacher grading master ready in seconds!');
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) setError(messageFor(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const exportRemarks = () =>
+    exportCsv(
+      'reviewed-student-remarks',
+      [
+        { key: 'name', label: 'Student Name' },
+        { key: 'admission', label: 'Admission Number' },
+        { key: 'average', label: 'Term Average %' },
+        { key: 'attendance', label: 'Attendance %' },
+        { key: 'remark', label: 'Personalized Teacher Remark' },
+        { key: 'evidence', label: 'Factual Evidence' },
+      ],
+      (roster?.students ?? [])
+        .filter(s => drafts[s.id])
+        .map(s => ({
+          name: s.name,
+          admission: s.admissionNumber,
+          average: s.average !== null ? `${s.average}%` : 'N/A',
+          attendance: s.attendanceRate !== null ? `${s.attendanceRate}%` : 'N/A',
+          remark: drafts[s.id].text,
+          evidence: drafts[s.id].evidence.join(' | '),
+        }))
+    );
+
+  const students = roster?.students ?? [];
+  const pages = Math.max(1, Math.ceil(students.length / 8));
+  const currentPage = Math.min(page, pages);
   const visible = students.slice((currentPage - 1) * 8, currentPage * 8);
   const base = user && predictiveAnalyticsRoles.includes(user.role) ? '/school' : '/teacher';
-  return <div className="ai-studio"><div className="ai-screen content-stack">
-    <PageHeading eyebrow="MORE TIME FOR TEACHING" title="AI teaching studio" description="Thoughtful report-card remarks and classroom-ready questions, drafted from your evidence." />
-    {error && <div className="state-box" role="alert">{error}{!options && <Button variant="outline" size="sm" onClick={() => void loadOptions()}>Try again</Button>}</div>}
-    {notice && <div className="state-box success" role="status">{notice}</div>}
-    {!options ? !error && <div className="panel panel-body" role="status">Loading your teaching workspace…</div> : <>
-      <div className="analytics-intro"><Sparkles size={25} /><div><strong>{configured ? 'AI drafts. Your professional judgement.' : 'AI teaching tools need configuration'}</strong><p>{options.status.message}</p><small>Use classroom observations and leave out health or family details. Check every draft before saving or sharing.</small></div></div>
-      {!options.classes.length ? <EmptyState title="No assigned classes" description="Ask your administrator to link your staff account and timetable assignments." /> : <>
-        <div className="ai-controls panel panel-body"><label className="field">Class<select aria-label="Class" value={classId} disabled={busy || !!saving} onChange={e => setClassId(e.target.value)}>{options.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <label className="field">Report-card term<select aria-label="Report-card term" value={termId} disabled={busy || !!saving} onChange={e => setTermId(e.target.value)}><option value="">Select term</option>{options.terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
-          <label className="field">Output language<select aria-label="Output language" value={language} disabled={busy} onChange={e => setLanguage(e.target.value as TeachingLanguage)}>{languages.map(l => <option key={l}>{l}</option>)}</select></label></div>
-        <div className="section-tabs" role="group" aria-label="Teaching tools"><button className={tab === 'remarks' ? 'selected' : ''} aria-pressed={tab === 'remarks'} disabled={busy} onClick={() => setTab('remarks')}><FileCheck size={16} className="inline mr-2" />Student remarks</button><button className={tab === 'quiz' ? 'selected' : ''} aria-pressed={tab === 'quiz'} disabled={busy} onClick={() => setTab('quiz')}><BookOpen size={16} className="inline mr-2" />Quiz & question paper maker</button></div>
-        {tab === 'remarks' ? <Panel title="Professional student remarks" subtitle="Marks and attendance come from saved records. Add a classroom observation when useful.">
-          <div className="panel-body ai-action-row"><Button size="sm" isLoading={busy} disabled={!configured || !selected.length || rosterLoading || !!saving} leftIcon={<Sparkles size={15} />} onClick={() => void generateRemarks()}>Generate selected remarks ({selected.length})</Button>
-            <Button size="sm" variant="outline" disabled={busy || !termId || !classId || rosterLoading || !!saving} onClick={() => void prepare()}>Prepare draft report cards</Button>
-            <Button size="sm" variant="outline" leftIcon={<Download size={15} />} disabled={!Object.keys(drafts).length || busy} onClick={exportRemarks}>Export drafts</Button>
-            <Button size="sm" variant="ghost" disabled={busy || rosterLoading} onClick={() => { setError(''); void loadRoster(); }}>Reload roster</Button></div>
-          {rosterLoading ? <div className="panel-body" role="status">Loading class evidence…</div> : !termId ? <EmptyState title="Select a term" description="Choose a term to load saved marks and attendance." /> : !students.length ? <EmptyState title="No active students in this class" /> : <>
-            <div className="ai-selection"><label><input type="checkbox" aria-label="Select all students" checked={selected.length === students.length} disabled={busy} onChange={e => setSelected(e.target.checked ? students.map(s => s.id) : [])} /> Select all {students.length} students</label><span>Saved reports stay in the normal approval workflow.</span></div>
-            <div className="ai-remark-list">{visible.map(student => <section className="ai-remark" key={student.id}>
-              <div className="ai-remark-heading"><label><input type="checkbox" checked={selected.includes(student.id)} aria-label={`Select ${student.name}`} disabled={busy} onChange={e => setSelected(current => e.target.checked ? [...current, student.id] : current.filter(id => id !== student.id))} /><strong>{student.name}</strong></label><span className="pill neutral">{student.reportCard?.status.replaceAll('_', ' ').toLowerCase() ?? 'No report card'}</span></div>
-              <p className="muted ai-evidence-summary">{student.admissionNumber} · Term average: {student.average === null ? 'No marks' : `${student.average}%`} · Recorded attendance: {student.attendanceRate === null ? 'No records' : `${student.attendanceRate}% across ${student.attendanceDays} days`}</p>
-              <div className="ai-remark-fields"><label className="field">Classroom behaviour observation (optional)<textarea aria-label={`Behaviour observation for ${student.name}`} maxLength={800} value={observations[student.id] || ''} disabled={busy} placeholder="For example: participates in group work and is building confidence when presenting." onChange={e => setObservations(current => ({ ...current, [student.id]: e.target.value }))} /></label>
-                <label className="field">{drafts[student.id] ? 'AI draft — edit before saving' : 'Current report-card remark'}<textarea aria-label={`Remark for ${student.name}`} maxLength={2000} disabled={busy || !drafts[student.id] || saving === student.id} value={drafts[student.id]?.text ?? student.reportCard?.comment ?? ''} placeholder="Generate a draft from this student's evidence." onChange={e => setDrafts(current => ({ ...current, [student.id]: { ...current[student.id], text: e.target.value } }))} /></label></div>
-              {drafts[student.id] && <><ul className="ai-source-list">{drafts[student.id].evidence.map((e, i) => <li key={i}>{e}</li>)}</ul><div className="ai-action-row"><Button size="sm" isLoading={saving === student.id} disabled={busy || !!saving || student.reportCard?.status !== 'DRAFT' || drafts[student.id].text.trim().length < 10} onClick={() => void save(student.id)}>Save reviewed remark</Button>{student.reportCard?.status !== 'DRAFT' && <span className="muted">{student.reportCard ? 'Approved or published reports are locked.' : 'Prepare a draft report card first.'}</span>}</div></>}
-            </section>)}</div>
-            <div className="table-pagination"><span>{(currentPage - 1) * 8 + 1}–{Math.min(currentPage * 8, students.length)} of {students.length} students</span><div className="flex gap-3"><Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</Button><Button size="sm" variant="outline" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>Next</Button></div></div>
-          </>}
-        </Panel> : <Panel title="Quiz & question paper maker" subtitle="Paste chapter or syllabus text. AI will draft ten questions and a separate teacher answer key.">
-          <form className="panel-body content-stack" onSubmit={e => { e.preventDefault(); void generateQuiz(); }}>
-            <div className="form-grid"><label className="field">Subject<input aria-label="Subject" required minLength={2} maxLength={100} value={subject} disabled={busy} onChange={e => setSubject(e.target.value)} /></label><label className="field">Chapter or topic<input aria-label="Chapter or topic" required minLength={2} maxLength={150} value={chapter} disabled={busy} onChange={e => setChapter(e.target.value)} /></label></div>
-            <div className="ai-controls"><label className="field">Format<select aria-label="Format" value={format} disabled={busy} onChange={e => setFormat(e.target.value)}><option value="QUIZ">Quiz</option><option value="WORKSHEET">Worksheet</option><option value="QUESTION_PAPER">Question paper</option></select></label><label className="field">Question type<select aria-label="Question type" value={questionType} disabled={busy} onChange={e => setQuestionType(e.target.value)}><option value="MCQ">Multiple choice</option><option value="SHORT_ANSWER">Short answer</option><option value="MIXED">Mixed</option></select></label><label className="field">Difficulty<select aria-label="Difficulty" value={difficulty} disabled={busy} onChange={e => setDifficulty(e.target.value)}><option value="FOUNDATION">Foundation</option><option value="STANDARD">Standard</option><option value="CHALLENGE">Challenge</option></select></label></div>
-            <label className="field">Chapter or syllabus content<textarea aria-label="Chapter or syllabus content" className="ai-source-input" required minLength={80} maxLength={20000} value={sourceText} disabled={busy} placeholder="Paste the lesson content you want assessed. Questions will be based on this source." onChange={e => setSourceText(e.target.value)} /><small className="muted">{sourceText.length.toLocaleString()} / 20,000 characters · minimum 80</small></label>
-            <div><Button type="submit" isLoading={busy} disabled={!configured || !classId} leftIcon={<Sparkles size={16} />}>Generate 10 questions</Button></div>
-          </form>
-        </Panel>}
-        {tab === 'quiz' && paper && <Panel title={paper.title} subtitle={`${paper.questions.length} questions · ${paper.questions.reduce((n, q) => n + q.marks, 0)} marks · AI draft for teacher review`}>
-          <div className="panel-body content-stack"><p>{paper.instructions}</p>{paper.warnings.map((warning, i) => <div key={i} className="state-box">{warning}</div>)}<div className="ai-action-row"><Button variant="outline" size="sm" leftIcon={<Download size={15} />} onClick={() => downloadText('student-question-paper.txt', paperText(paper))}>Download student copy</Button><Button variant="outline" size="sm" onClick={() => downloadText('teacher-answer-key.txt', paperText(paper, true))}>Download answer key</Button><Button variant="outline" size="sm" leftIcon={<Printer size={15} />} onClick={() => window.print()}>Print student copy</Button><label><input type="checkbox" checked={showAnswers} onChange={e => setShowAnswers(e.target.checked)} /> Show answer key</label></div>
-            {paper.questions.map((q, i) => <article className="ai-question" key={i}><div className="ai-question-heading"><h3>{i + 1}. {q.question}</h3><span>{q.marks} marks</span></div>{q.options.length > 0 && <ol type="A">{q.options.map(option => <li key={option}>{option}</li>)}</ol>}{showAnswers && <div className="ai-answer"><strong>Answer: {q.answer}</strong><p>{q.explanation}</p></div>}</article>)}
+
+  return (
+    <div className="ai-studio">
+      <div className="ai-screen content-stack">
+        <PageHeading
+          eyebrow="AI & INTELLIGENT ACADEMIC COPILOT"
+          title="AI Teaching & Academic Studio"
+          description="Automate term-end report card remarks, generate 5E lesson plans in 10 seconds, and produce printable student worksheets."
+          actions={
+            <div className="flex items-center gap-2">
+              <Link
+                href="/dashboard/copilot"
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md shadow-sm transition-all flex items-center gap-1.5"
+              >
+                <Sparkles size={14} />
+                Ask ERP Copilot
+              </Link>
+            </div>
+          }
+        />
+
+        {error && (
+          <div className="state-box" role="alert">
+            {error}
+            {!options && (
+              <Button variant="outline" size="sm" onClick={() => void loadOptions()}>
+                Try again
+              </Button>
+            )}
           </div>
-        </Panel>}
-        <div className="ai-action-row muted"><Link className="panel-link" href={`${base}/grades`}>Open gradebook →</Link>{base === '/school' && <Link className="panel-link" href="/school/report-cards">Report-card approval & publishing →</Link>}</div>
-      </>}
-    </>}
-  </div>{paper && <section className="ai-print-paper"><h1>{paper.title}</h1><p>Name: ____________________  Class: __________  Date: __________</p><p>{paper.instructions}</p>{paper.questions.map((q, i) => <article key={i}><h3>{i + 1}. {q.question} ({q.marks} marks)</h3><ol type="A">{q.options.map(option => <li key={option}>{option}</li>)}</ol>{q.type === 'SHORT_ANSWER' && <p>________________________________________________________________</p>}</article>)}</section>}</div>;
+        )}
+        {notice && <div className="state-box success" role="status">{notice}</div>}
+
+        {!options ? (
+          !error && <div className="panel panel-body" role="status">Loading your teaching workspace…</div>
+        ) : (
+          <>
+            <div className="analytics-intro">
+              <Sparkles size={25} />
+              <div>
+                <strong>
+                  {configured ? 'Intelligent Academic Copilot Active' : 'AI teaching tools need configuration'}
+                </strong>
+                <p>{options.status.message}</p>
+                <small>
+                  Uses real attendance, exam scores, and classroom observations. Review and approve before finalizing report cards.
+                </small>
+              </div>
+            </div>
+
+            {!options.classes.length ? (
+              <EmptyState
+                title="No assigned classes"
+                description="Ask your administrator to link your staff account and timetable assignments."
+              />
+            ) : (
+              <>
+                {/* Global Controls */}
+                <div className="ai-controls panel panel-body">
+                  <label className="field">
+                    Class
+                    <select
+                      aria-label="Class"
+                      value={classId}
+                      disabled={busy || !!saving}
+                      onChange={e => setClassId(e.target.value)}
+                    >
+                      {options.classes.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    Report-card term
+                    <select
+                      aria-label="Report-card term"
+                      value={termId}
+                      disabled={busy || !!saving}
+                      onChange={e => setTermId(e.target.value)}
+                    >
+                      <option value="">Select term</option>
+                      {options.terms.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    Language
+                    <select
+                      aria-label="Language"
+                      value={language}
+                      disabled={busy}
+                      onChange={e => setLanguage(e.target.value as TeachingLanguage)}
+                    >
+                      {languages.map(l => (
+                        <option key={l} value={l}>
+                          {l === 'Malayalam' ? 'Malayalam (മലയാളം)' : l}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                {/* Main Tabs */}
+                <div className="section-tabs" role="group" aria-label="Teaching tools">
+                  <button
+                    className={tab === 'remarks' ? 'selected' : ''}
+                    aria-pressed={tab === 'remarks'}
+                    disabled={busy}
+                    onClick={() => setTab('remarks')}
+                  >
+                    <FileCheck size={16} className="inline mr-2" />
+                    1-Click Report Card Remarks
+                  </button>
+                  <button
+                    className={tab === 'lesson-plan' ? 'selected' : ''}
+                    aria-pressed={tab === 'lesson-plan'}
+                    disabled={busy}
+                    onClick={() => setTab('lesson-plan')}
+                  >
+                    <Layers size={16} className="inline mr-2" />
+                    10-Sec 5E Lesson Plan Generator
+                  </button>
+                  <button
+                    className={tab === 'quiz' ? 'selected' : ''}
+                    aria-pressed={tab === 'quiz'}
+                    disabled={busy}
+                    onClick={() => setTab('quiz')}
+                  >
+                    <BookOpen size={16} className="inline mr-2" />
+                    Quiz & Worksheet Maker (PDF)
+                  </button>
+                </div>
+
+                {/* TAB 1: REPORT CARD REMARKS GENERATOR */}
+                {tab === 'remarks' && (
+                  <Panel
+                    title="AI Automated Report Card Remarks Generator"
+                    subtitle="Analyzes marks, attendance, and behavior in 1 click to produce personalized CBC/curriculum feedback for every student."
+                  >
+                    {/* Tone Selector */}
+                    <div className="bg-gray-50 border-b border-gray-200 p-4">
+                      <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">
+                        Pedagogical Feedback Framework:
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                        {TONE_PRESETS.map(t => (
+                          <button
+                            key={t.key}
+                            type="button"
+                            onClick={() => setTone(t.key)}
+                            className={`p-2.5 rounded-lg border text-left transition-all text-xs ${
+                              tone === t.key
+                                ? 'bg-indigo-50 border-indigo-400 text-indigo-950 shadow-sm font-semibold'
+                                : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            <span className="block">{t.label}</span>
+                            <span className="text-[11px] text-gray-500 font-normal leading-tight block mt-0.5">
+                              {t.desc}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="panel-body ai-action-row">
+                      <Button
+                        size="sm"
+                        isLoading={busy}
+                        disabled={!configured || !selected.length || rosterLoading || !!saving}
+                        leftIcon={<Sparkles size={15} />}
+                        onClick={() => void generateRemarks()}
+                      >
+                        1-Click Generate Selected Remarks ({selected.length})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy || !termId || !classId || rosterLoading || !!saving}
+                        onClick={() => void prepare()}
+                      >
+                        Prepare Draft Report Cards
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        leftIcon={<Download size={15} />}
+                        disabled={!Object.keys(drafts).length || busy}
+                        onClick={exportRemarks}
+                      >
+                        Export Drafts CSV
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy || rosterLoading}
+                        onClick={() => {
+                          setError('');
+                          void loadRoster();
+                        }}
+                      >
+                        Reload Roster
+                      </Button>
+                    </div>
+
+                    {rosterLoading ? (
+                      <div className="panel-body" role="status">Loading class evidence…</div>
+                    ) : !termId ? (
+                      <EmptyState title="Select a term" description="Choose a term to load saved marks and attendance." />
+                    ) : !students.length ? (
+                      <EmptyState title="No active students in this class" />
+                    ) : (
+                      <>
+                        <div className="ai-selection">
+                          <label>
+                            <input
+                              type="checkbox"
+                              aria-label="Select all students"
+                              checked={selected.length === students.length}
+                              disabled={busy}
+                              onChange={e => setSelected(e.target.checked ? students.map(s => s.id) : [])}
+                            />{' '}
+                            Select all {students.length} students
+                          </label>
+                          <span>Saves hours of typing: review and approve with one click.</span>
+                        </div>
+
+                        <div className="ai-remark-list">
+                          {visible.map(student => (
+                            <section className="ai-remark" key={student.id}>
+                              <div className="ai-remark-heading">
+                                <label>
+                                  <input
+                                    type="checkbox"
+                                    checked={selected.includes(student.id)}
+                                    aria-label={`Select ${student.name}`}
+                                    disabled={busy}
+                                    onChange={e =>
+                                      setSelected(current =>
+                                        e.target.checked
+                                          ? [...current, student.id]
+                                          : current.filter(id => id !== student.id)
+                                      )
+                                    }
+                                  />
+                                  <strong>{student.name}</strong>
+                                </label>
+                                <span className="pill neutral">
+                                  {student.reportCard?.status.replaceAll('_', ' ').toLowerCase() ?? 'No report card'}
+                                </span>
+                              </div>
+
+                              <p className="muted ai-evidence-summary">
+                                {student.admissionNumber} · Term average: {student.average === null ? 'No marks' : `${student.average}%`} ·
+                                Recorded attendance: {student.attendanceRate === null ? 'No records' : `${student.attendanceRate}% across ${student.attendanceDays} days`}
+                              </p>
+
+                              <div className="ai-remark-fields">
+                                <label className="field">
+                                  Classroom behaviour & observation (optional)
+                                  <textarea
+                                    aria-label={`Behaviour observation for ${student.name}`}
+                                    maxLength={800}
+                                    value={observations[student.id] || ''}
+                                    disabled={busy}
+                                    placeholder="e.g. Shows exceptional teamwork, highly inquisitive during labs, builds confidence in public speaking."
+                                    onChange={e => setObservations(current => ({ ...current, [student.id]: e.target.value }))}
+                                  />
+                                </label>
+                                <label className="field">
+                                  {drafts[student.id] ? 'AI Draft Remark (Edit before saving)' : 'Current Report Card Remark'}
+                                  <textarea
+                                    aria-label={`Remark for ${student.name}`}
+                                    maxLength={2000}
+                                    disabled={busy || (!drafts[student.id] && !student.reportCard) || saving === student.id}
+                                    value={drafts[student.id]?.text ?? student.reportCard?.comment ?? ''}
+                                    placeholder="Click 'Generate Remarks' to create a personalized draft from student evidence."
+                                    onChange={e =>
+                                      setDrafts(current => ({
+                                        ...current,
+                                        [student.id]: {
+                                          studentId: student.id,
+                                          evidence: current[student.id]?.evidence || [],
+                                          text: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </label>
+                              </div>
+
+                              {drafts[student.id] && (
+                                <>
+                                  <ul className="ai-source-list">
+                                    {drafts[student.id].evidence.map((e, i) => (
+                                      <li key={i}>{e}</li>
+                                    ))}
+                                  </ul>
+                                  <div className="ai-action-row">
+                                    <Button
+                                      size="sm"
+                                      isLoading={saving === student.id}
+                                      disabled={busy || !!saving || student.reportCard?.status !== 'DRAFT' || drafts[student.id].text.trim().length < 10}
+                                      onClick={() => void save(student.id)}
+                                    >
+                                      Approve & Save Remark
+                                    </Button>
+                                    {student.reportCard?.status !== 'DRAFT' && (
+                                      <span className="muted text-xs">
+                                        {student.reportCard ? 'Approved reports are locked.' : 'Prepare a draft report card first.'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </section>
+                          ))}
+                        </div>
+
+                        <div className="table-pagination">
+                          <span>
+                            {(currentPage - 1) * 8 + 1}–{Math.min(currentPage * 8, students.length)} of {students.length} students
+                          </span>
+                          <div className="flex gap-3">
+                            <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>
+                              Previous
+                            </Button>
+                            <Button size="sm" variant="outline" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </Panel>
+                )}
+
+                {/* TAB 2: LESSON PLAN GENERATOR */}
+                {tab === 'lesson-plan' && (
+                  <Panel
+                    title="10-Second AI 5E Lesson Plan Generator"
+                    subtitle="Select subject and topic to generate a comprehensive 5E lesson plan with objectives, inquiry flow, differentiation, and rubrics."
+                  >
+                    <div className="panel-body content-stack">
+                      {/* Topic Presets */}
+                      <div className="bg-indigo-50/70 p-3.5 rounded-xl border border-indigo-100">
+                        <span className="text-xs font-semibold text-indigo-950 uppercase tracking-wider block mb-2">
+                          Quick Syllabus Chapter Presets:
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {SYLLABUS_PRESETS.map((p, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => {
+                                setLpSubject(p.subject);
+                                setLpChapter(p.topic);
+                              }}
+                              className="text-xs bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 px-3 py-1.5 rounded-lg transition-all"
+                            >
+                              <strong>{p.subject}:</strong> {p.topic}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="form-grid">
+                        <label className="field">
+                          Subject
+                          <input
+                            required
+                            value={lpSubject}
+                            disabled={busy}
+                            onChange={e => setLpSubject(e.target.value)}
+                            placeholder="e.g. Integrated Science, Mathematics, Biology"
+                          />
+                        </label>
+                        <label className="field">
+                          Chapter or Topic
+                          <input
+                            required
+                            value={lpChapter}
+                            disabled={busy}
+                            onChange={e => setLpChapter(e.target.value)}
+                            placeholder="e.g. Photosynthesis, Quadratic Equations"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="ai-controls">
+                        <label className="field">
+                          Lesson Duration
+                          <select
+                            value={lpDuration}
+                            disabled={busy}
+                            onChange={e => setLpDuration(Number(e.target.value))}
+                          >
+                            <option value={40}>40 Minutes (Standard Period)</option>
+                            <option value={45}>45 Minutes (Extended Period)</option>
+                            <option value={60}>60 Minutes (Double Period)</option>
+                            <option value={80}>80 Minutes (Lab Block)</option>
+                          </select>
+                        </label>
+
+                        <label className="field">
+                          Curriculum Framework
+                          <select
+                            value={lpCurriculum}
+                            disabled={busy}
+                            onChange={e => setLpCurriculum(e.target.value as any)}
+                          >
+                            <option value="CBC">CBC (Competency-Based Curriculum)</option>
+                            <option value="STANDARD">Standard National Curriculum</option>
+                            <option value="CAMBRIDGE">Cambridge / IGCSE Framework</option>
+                            <option value="NCERT">NCERT / CBSE Curriculum</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <div>
+                        <Button
+                          isLoading={busy}
+                          disabled={!configured || !classId || !lpSubject.trim() || !lpChapter.trim()}
+                          leftIcon={<Zap size={16} />}
+                          onClick={() => void handleGenerateLessonPlan()}
+                        >
+                          Generate 5E Lesson Plan in 10s
+                        </Button>
+                      </div>
+
+                      {/* Display Generated Lesson Plan */}
+                      {lessonPlan && (
+                        <div className="mt-6 border border-gray-200 rounded-2xl bg-white p-6 shadow-sm space-y-6">
+                          <div className="flex items-start justify-between border-b pb-4">
+                            <div>
+                              <span className="text-xs font-bold text-primary-600 uppercase tracking-widest">
+                                5E INSTRUCTIONAL MODEL · {lessonPlan.curriculum}
+                              </span>
+                              <h2 className="text-2xl font-bold text-gray-900 mt-1">{lessonPlan.title}</h2>
+                              <p className="text-sm text-gray-500">
+                                {lessonPlan.subject} · {lessonPlan.gradeLevel} · {lessonPlan.durationMinutes} Minutes
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                leftIcon={<Download size={14} />}
+                                onClick={() => downloadText(`${lpChapter.toLowerCase().replace(/\s+/g, '-')}-lesson-plan.txt`, lessonPlanText(lessonPlan))}
+                              >
+                                Download TXT
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                leftIcon={<Printer size={14} />}
+                                onClick={() => window.print()}
+                              >
+                                Print Plan
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Objectives & Competencies */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                              <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                🎯 Specific Learning Objectives
+                              </h3>
+                              <ul className="text-sm text-gray-800 space-y-1.5 list-disc list-inside">
+                                {lessonPlan.learningObjectives.map((obj, i) => (
+                                  <li key={i}>{obj}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                              <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                💡 Core Competencies & Values
+                              </h3>
+                              <ul className="text-sm text-gray-800 space-y-1.5 list-disc list-inside">
+                                {lessonPlan.coreCompetencies.map((comp, i) => (
+                                  <li key={i}>{comp}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+
+                          {/* Key Inquiry Questions & Teaching Materials */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/50">
+                              <h3 className="text-xs font-bold text-indigo-950 uppercase tracking-wider mb-2">
+                                ❓ Key Inquiry Questions
+                              </h3>
+                              <ul className="text-sm text-indigo-900 space-y-1.5 list-disc list-inside">
+                                {lessonPlan.keyInquiryQuestions.map((q, i) => (
+                                  <li key={i}>{q}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="p-4 rounded-xl border border-gray-100 bg-gray-50">
+                              <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                📦 Teaching Aids & Resources
+                              </h3>
+                              <ul className="text-sm text-gray-800 space-y-1.5 list-disc list-inside">
+                                {lessonPlan.materials.map((mat, i) => (
+                                  <li key={i}>{mat}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+
+                          {/* 5E Instructional Sequence */}
+                          <div>
+                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                              <Clock size={16} className="text-primary-600" />
+                              5E Instructional Phase Breakdown ({lessonPlan.durationMinutes} Minutes)
+                            </h3>
+                            <div className="space-y-3">
+                              {lessonPlan.steps.map((step, idx) => (
+                                <div
+                                  key={idx}
+                                  className="p-4 rounded-xl border border-gray-200 bg-white hover:border-indigo-300 transition-all shadow-sm"
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-primary-100 text-primary-800 font-mono">
+                                        {step.phase}
+                                      </span>
+                                      <strong className="text-gray-900 text-sm">{step.title}</strong>
+                                    </div>
+                                    <span className="text-xs font-semibold text-gray-500">
+                                      ⏱ {step.durationMinutes} mins
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-700 mt-2">
+                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                      <span className="font-semibold text-gray-900 block mb-1">Teacher Activity:</span>
+                                      {step.teacherActivity}
+                                    </div>
+                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                      <span className="font-semibold text-gray-900 block mb-1">Student Activity:</span>
+                                      {step.studentActivity}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Differentiated Instruction */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/60">
+                              <h3 className="text-xs font-bold text-amber-900 uppercase tracking-wider mb-2">
+                                🤝 Support for Struggling Learners
+                              </h3>
+                              <ul className="text-xs text-amber-950 space-y-1 list-disc list-inside">
+                                {lessonPlan.differentiatedInstruction.supportForStruggling.map((s, i) => (
+                                  <li key={i}>{s}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60">
+                              <h3 className="text-xs font-bold text-emerald-900 uppercase tracking-wider mb-2">
+                                🚀 Extension for Advanced Learners
+                              </h3>
+                              <ul className="text-xs text-emerald-950 space-y-1 list-disc list-inside">
+                                {lessonPlan.differentiatedInstruction.extensionForAdvanced.map((e, i) => (
+                                  <li key={i}>{e}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+
+                          {/* 4-Level Assessment Rubric */}
+                          <div>
+                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3">
+                              📊 Assessment Rubrics & Evaluation Criteria
+                            </h3>
+                            <div className="space-y-4">
+                              {lessonPlan.assessmentRubrics.map((rubric, rIdx) => (
+                                <div key={rIdx} className="border border-gray-200 rounded-xl overflow-hidden">
+                                  <div className="bg-gray-100 px-4 py-2 text-xs font-bold text-gray-800">
+                                    Criterion: {rubric.criterion}
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-gray-200 text-xs">
+                                    {rubric.levels.map((lvl, lIdx) => (
+                                      <div key={lIdx} className="p-3 bg-white">
+                                        <span className={`pill mb-1 inline-block ${
+                                          lvl.level === 'EXCEEDING' ? '' : lvl.level === 'MEETING' ? 'neutral' : lvl.level === 'APPROACHING' ? 'warning' : 'danger'
+                                        }`}>
+                                          {lvl.level}
+                                        </span>
+                                        <span className="block text-[11px] font-semibold text-gray-500 mb-1">
+                                          {lvl.scoreRange}
+                                        </span>
+                                        <p className="text-gray-700 leading-relaxed">{lvl.descriptor}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Homework Assignment */}
+                          <div className="bg-primary-50 p-4 rounded-xl border border-primary-200 text-xs text-primary-950">
+                            <strong className="block font-bold text-primary-900 mb-1">
+                              📝 Homework & Extension Assignment:
+                            </strong>
+                            <p>{lessonPlan.homeworkAssignment}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Panel>
+                )}
+
+                {/* TAB 3: QUIZ & WORKSHEET MAKER */}
+                {tab === 'quiz' && (
+                  <Panel
+                    title="10-Second Quiz & Worksheet Maker"
+                    subtitle="Generates 10 objective questions with rubrics and separate teacher answer key, ready to export or print as PDF."
+                  >
+                    <form
+                      className="panel-body content-stack"
+                      onSubmit={e => {
+                        e.preventDefault();
+                        void generateQuiz();
+                      }}
+                    >
+                      <div className="form-grid">
+                        <label className="field">
+                          Subject
+                          <input
+                            aria-label="Subject"
+                            required
+                            minLength={2}
+                            maxLength={100}
+                            value={subject}
+                            disabled={busy}
+                            onChange={e => setSubject(e.target.value)}
+                          />
+                        </label>
+                        <label className="field">
+                          Chapter or topic
+                          <input
+                            aria-label="Chapter or topic"
+                            required
+                            minLength={2}
+                            maxLength={150}
+                            value={chapter}
+                            disabled={busy}
+                            onChange={e => setChapter(e.target.value)}
+                          />
+                        </label>
+                      </div>
+
+                      <div className="ai-controls">
+                        <label className="field">
+                          Format
+                          <select
+                            aria-label="Format"
+                            value={format}
+                            disabled={busy}
+                            onChange={e => setFormat(e.target.value)}
+                          >
+                            <option value="QUIZ">Quiz</option>
+                            <option value="WORKSHEET">Worksheet</option>
+                            <option value="QUESTION_PAPER">Question paper</option>
+                          </select>
+                        </label>
+                        <label className="field">
+                          Question type
+                          <select
+                            aria-label="Question type"
+                            value={questionType}
+                            disabled={busy}
+                            onChange={e => setQuestionType(e.target.value)}
+                          >
+                            <option value="MCQ">Multiple choice (MCQs)</option>
+                            <option value="SHORT_ANSWER">Short answer</option>
+                            <option value="MIXED">Mixed</option>
+                          </select>
+                        </label>
+                        <label className="field">
+                          Difficulty
+                          <select
+                            aria-label="Difficulty"
+                            value={difficulty}
+                            disabled={busy}
+                            onChange={e => setDifficulty(e.target.value)}
+                          >
+                            <option value="FOUNDATION">Foundation</option>
+                            <option value="STANDARD">Standard</option>
+                            <option value="CHALLENGE">Challenge</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <label className="field">
+                        Chapter or syllabus content
+                        <textarea
+                          aria-label="Chapter or syllabus content"
+                          className="ai-source-input"
+                          required
+                          minLength={80}
+                          maxLength={20000}
+                          value={sourceText}
+                          disabled={busy}
+                          placeholder="Paste lesson or textbook content. Questions will be strictly grounded in this source."
+                          onChange={e => setSourceText(e.target.value)}
+                        />
+                        <small className="muted">
+                          {sourceText.length.toLocaleString()} / 20,000 characters · minimum 80
+                        </small>
+                      </label>
+
+                      <div>
+                        <Button
+                          type="submit"
+                          isLoading={busy}
+                          disabled={!configured || !classId}
+                          leftIcon={<Sparkles size={16} />}
+                        >
+                          Generate 10 Objective Questions
+                        </Button>
+                      </div>
+                    </form>
+                  </Panel>
+                )}
+
+                {tab === 'quiz' && paper && (
+                  <Panel
+                    title={paper.title}
+                    subtitle={`${paper.questions.length} questions · ${paper.questions.reduce((n, q) => n + q.marks, 0)} marks · Formatted Worksheet`}
+                  >
+                    <div className="panel-body content-stack">
+                      <p className="text-sm text-gray-700">{paper.instructions}</p>
+                      {paper.warnings.map((warning, i) => (
+                        <div key={i} className="state-box">{warning}</div>
+                      ))}
+
+                      <div className="ai-action-row">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          leftIcon={<Download size={15} />}
+                          onClick={() => downloadText('student-question-paper.txt', paperText(paper))}
+                        >
+                          Download Student Copy
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadText('teacher-answer-key.txt', paperText(paper, true))}
+                        >
+                          Download Answer Key
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          leftIcon={<Printer size={15} />}
+                          onClick={() => window.print()}
+                        >
+                          Print Student Worksheet
+                        </Button>
+                        <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={showAnswers}
+                            onChange={e => setShowAnswers(e.target.checked)}
+                          />{' '}
+                          Show Teacher Answer Key & Explanations
+                        </label>
+                      </div>
+
+                      {/* Questions List */}
+                      <div className="space-y-4 pt-2">
+                        {paper.questions.map((q, i) => (
+                          <article className="ai-question p-4 rounded-xl border border-gray-200 bg-white" key={i}>
+                            <div className="ai-question-heading flex items-center justify-between mb-2">
+                              <h3 className="font-semibold text-gray-900 text-sm">
+                                {i + 1}. {q.question}
+                              </h3>
+                              <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                {q.marks} marks
+                              </span>
+                            </div>
+
+                            {q.options.length > 0 && (
+                              <ol className="list-[upper-alpha] list-inside space-y-1 text-xs text-gray-700 my-2 pl-2">
+                                {q.options.map((option, oIdx) => (
+                                  <li key={oIdx} className="leading-relaxed">
+                                    {option}
+                                  </li>
+                                ))}
+                              </ol>
+                            )}
+
+                            {showAnswers && (
+                              <div className="ai-answer mt-3 p-3 bg-emerald-50 rounded-lg text-xs border border-emerald-200">
+                                <strong className="text-emerald-900 block mb-0.5">Correct Answer: {q.answer}</strong>
+                                <p className="text-emerald-800">{q.explanation}</p>
+                              </div>
+                            )}
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  </Panel>
+                )}
+
+                <div className="ai-action-row muted text-xs pt-4">
+                  <Link className="panel-link" href={`${base}/grades`}>
+                    Open gradebook →
+                  </Link>
+                  <Link className="panel-link" href="/dashboard/copilot">
+                    Ask ERP Copilot →
+                  </Link>
+                  {base === '/school' && (
+                    <Link className="panel-link" href="/school/report-cards">
+                      Report-card approval & publishing →
+                    </Link>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Printable Sheet for Student Questions */}
+      {paper && (
+        <section className="ai-print-paper hidden print:block">
+          <div className="border-b-2 border-black pb-4 mb-6">
+            <h1 className="text-xl font-bold uppercase">{paper.title}</h1>
+            <div className="flex justify-between text-xs mt-3">
+              <span>Student Name: ____________________________________</span>
+              <span>Class: __________</span>
+              <span>Date: __________</span>
+              <span>Max Marks: {paper.questions.reduce((n, q) => n + q.marks, 0)}</span>
+            </div>
+            <p className="text-xs italic mt-2">{paper.instructions}</p>
+          </div>
+
+          <div className="space-y-6">
+            {paper.questions.map((q, i) => (
+              <article key={i} className="text-xs">
+                <div className="flex justify-between font-bold mb-1">
+                  <span>{i + 1}. {q.question}</span>
+                  <span>[{q.marks} Marks]</span>
+                </div>
+                {q.options.length > 0 ? (
+                  <ol className="list-[upper-alpha] list-inside space-y-1 ml-4">
+                    {q.options.map((option, oIdx) => (
+                      <li key={oIdx}>{option}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <div className="h-16 border-b border-dashed border-gray-400 mt-2" />
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Printable Sheet for Lesson Plan */}
+      {lessonPlan && (
+        <section className="hidden print:block p-8">
+          <h1 className="text-2xl font-bold">{lessonPlan.title}</h1>
+          <p className="text-sm">{lessonPlan.subject} · {lessonPlan.gradeLevel} · {lessonPlan.durationMinutes} Minutes</p>
+          <hr className="my-4" />
+          <h2 className="font-bold text-sm uppercase">Learning Objectives:</h2>
+          <ul className="list-disc list-inside text-xs mb-4">
+            {lessonPlan.learningObjectives.map((o, i) => <li key={i}>{o}</li>)}
+          </ul>
+          <h2 className="font-bold text-sm uppercase">5E Instructional Cycle:</h2>
+          {lessonPlan.steps.map((s, i) => (
+            <div key={i} className="mb-3 text-xs">
+              <strong>[{s.phase}] {s.title} ({s.durationMinutes} min)</strong>
+              <p>Teacher: {s.teacherActivity}</p>
+              <p>Student: {s.studentActivity}</p>
+            </div>
+          ))}
+        </section>
+      )}
+    </div>
+  );
 }

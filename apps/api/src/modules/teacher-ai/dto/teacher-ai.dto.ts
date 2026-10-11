@@ -35,3 +35,18 @@ export class RiskReviewDto {
   @IsIn(['English', 'Malayalam', 'Swahili']) language: TeachingLanguage;
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(10) @ArrayUnique() @IsUUID('all', { each: true }) studentIds: string[];
 }
+
+export class GenerateLessonPlanDto {
+  @IsUUID() classId: string;
+  @IsString() @MinLength(2) @MaxLength(100) subject: string;
+  @IsString() @MinLength(2) @MaxLength(150) chapter: string;
+  @IsOptional() @Type(() => Number) durationMinutes?: number;
+  @IsOptional() @IsIn(['CBC', 'STANDARD', 'CAMBRIDGE', 'NCERT']) curriculum?: 'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT';
+  @IsOptional() @IsIn(['English', 'Malayalam', 'Swahili']) language?: TeachingLanguage;
+  @IsOptional() @IsString() @MaxLength(1000) additionalNotes?: string;
+}
+
+export class CopilotQueryDto {
+  @IsString() @MinLength(3) @MaxLength(500) query: string;
+  @IsOptional() @IsIn(['English', 'Malayalam', 'Swahili']) language?: TeachingLanguage;
+}
