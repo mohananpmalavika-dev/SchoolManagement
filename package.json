@@ -41,7 +41,8 @@
     "db:seed:demo": "pnpm --filter @krypton/database db:seed:demo",
     "test:smoke": "node scripts/smoke-test.mjs",
     "test:ui": "node scripts/test-ui-redesign.mjs",
-    "test:ui:meetings": "node scripts/test-meetings-ui.mjs"
+    "test:ui:meetings": "node scripts/test-meetings-ui.mjs",
+    "test:ui:signin": "node scripts/test-single-sign-in.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",

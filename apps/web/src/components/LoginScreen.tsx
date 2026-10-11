@@ -1,13 +1,17 @@
 'use client';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, Eye, EyeOff, GraduationCap, ShieldCheck, Users, BookOpen } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, ShieldCheck, Users, BookOpen } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button, Input, Alert } from './ui';
+import { Button, Input, Alert, PageLoader } from './ui';
 import { useTranslation } from '@/hooks/useTranslation';
 import LanguageSwitcher from './LanguageSwitcher';
-export function LoginScreen({portal = 'school'}: {portal?: string}) {
-  const { login, verifyMfa } = useAuth();
+import { CampusArtwork } from './CampusArtwork';
+import { homeForRole } from '@/lib/session';
+export function LoginScreen() {
+  const { login, verifyMfa, user, isLoading } = useAuth();
+  const router = useRouter();
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,6 +20,9 @@ export function LoginScreen({portal = 'school'}: {portal?: string}) {
   const [error, setError] = useState('');
   const [mfaSession, setMfaSession] = useState<string | null>(null);
   const [code, setCode] = useState('');
+  useEffect(() => {
+    if (!isLoading && user) router.replace(homeForRole(user.role));
+  }, [isLoading, user, router]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -35,14 +42,10 @@ export function LoginScreen({portal = 'school'}: {portal?: string}) {
     }
   }
 
-  const portalLabel = portal === 'admin' ? t('admin.administration') 
-    : portal === 'teacher' ? t('teacher.teaching') 
-    : portal === 'parent' ? t('parent.family') 
-    : portal === 'student' ? 'Student'
-    : t('common.school');
+  if (isLoading || user) return <PageLoader/>;
 
   return (
-    <div className="login-page">
+    <div className="login-page" data-portal="school">
       <section className="login-story">
         <Link href="/" className="brand">
           <img src="/hustlertech-logo.png" alt="HustlerTech Logo" className="brand-logo-img" />
@@ -76,15 +79,7 @@ export function LoginScreen({portal = 'school'}: {portal?: string}) {
               <span>{t('common.accessProtected')}</span>
             </div>
           </div>
-          <div className="story-art" aria-hidden="true">
-            <div className="art-orbit" />
-            <div className="art-book">
-              <GraduationCap size={68} strokeWidth={1} />
-              <span>{t('common.placeToGrow')}</span>
-            </div>
-            <div className="art-dot one" />
-            <div className="art-dot two" />
-          </div>
+          <CampusArtwork />
           <small>{t('common.oneCommunity')}</small>
         </div>
       </section>
@@ -96,28 +91,13 @@ export function LoginScreen({portal = 'school'}: {portal?: string}) {
         </div>
 
         <div className="login-form-wrap">
+          <div className="login-portal-emblem"><ShieldCheck size={26} strokeWidth={1.7}/></div>
           <span className="eyebrow">{t('common.welcomeToKrypton')}</span>
           <h2>{t('auth.goodToSeeYou')}</h2>
           <p className="muted">
-            {t('auth.signInToWorkspace', { workspace: portalLabel })}
+            {t('auth.signInToWorkspace')}
           </p>
-          <div className="portal-tabs">
-            <Link className={portal === 'school' ? 'selected' : ''} href="/login">
-              {t('common.school')}
-            </Link>
-            <Link className={portal === 'teacher' ? 'selected' : ''} href="/teacher/login">
-              {t('teacher.teacher')}
-            </Link>
-            <Link className={portal === 'student' ? 'selected' : ''} href="/student/login">
-              Student
-            </Link>
-            <Link className={portal === 'parent' ? 'selected' : ''} href="/parent/login">
-              {t('parent.family')}
-            </Link>
-            <Link className={portal === 'admin' ? 'selected' : ''} href="/admin/login">
-              {t('admin.platform')}
-            </Link>
-          </div>
+          <p className="login-routing-note">{t('auth.workspaceRouting')}</p>
 
           <form onSubmit={submit} className="space-y-5">
             {error && <Alert variant="danger">{error}</Alert>}

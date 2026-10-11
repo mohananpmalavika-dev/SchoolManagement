@@ -160,6 +160,7 @@ try {
   assert.ok(!login.page.url().includes('token='));
   assert.equal(requests.find(r=>r.path==='/api/auth/password-reset/reset')?.body.token,'secret-reset-token');
   checks.push('Password recovery sends API requests, checks confirmation, and removes reset token from the URL');
+  await login.page.evaluate(() => localStorage.clear());
   await login.page.goto(base+'/login');
   await login.page.screenshot({path:fileURLToPath(new URL('login-desktop.png',output)),fullPage:true});
   await login.page.setViewportSize({width:390,height:844});

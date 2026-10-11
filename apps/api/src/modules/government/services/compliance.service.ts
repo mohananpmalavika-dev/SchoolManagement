@@ -403,38 +403,7 @@ export class ComplianceService {
   /**
    * Submit report to government body
    */
-  async submitReport(reportId: string, userId: string) {
-    const report = await this.prisma.complianceReport.findUnique({
-      where: { id: reportId },
-    });
-
-    if (!report) {
-      throw new HttpException('Report not found', HttpStatus.NOT_FOUND);
-    }
-
-    if (report.status !== ReportStatus.APPROVED) {
-      throw new HttpException(
-        'Report must be approved before submission',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    // In production, actually submit to government API
-    const submittedTo = this.getSubmissionDestination(report.reportType);
-
-    const updatedReport = await this.prisma.complianceReport.update({
-      where: { id: reportId },
-      data: {
-        status: ReportStatus.SUBMITTED,
-        submittedTo,
-        submittedAt: new Date(),
-        submittedBy: userId,
-      },
-    });
-
-    this.logger.log(`Report ${reportId} submitted to ${submittedTo}`);
-    return updatedReport;
-  }
+  async submitReport(reportId: string, userId: string): Promise<{submittedTo:string}> {throw new HttpException('Automatic government submission is not configured. Export and submit the reviewed report through the official portal', HttpStatus.NOT_IMPLEMENTED);}
 
   /**
    * Approve report
@@ -453,6 +422,8 @@ export class ComplianceService {
   /**
    * Get all reports for tenant
    */
+  async getReport(tenantId:string,id:string){const report=await this.prisma.complianceReport.findFirst({where:{id,tenantId}});if(!report)throw new HttpException('Report not found',HttpStatus.NOT_FOUND);return report;}
+
   async getReports(
     tenantId: string,
     reportType?: ComplianceReportType,

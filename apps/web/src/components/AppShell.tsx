@@ -2,12 +2,13 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowUpRight, ChevronRight, GraduationCap, LogOut, Menu, Search, Settings, X } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, LogOut, Menu, Search, Settings, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { navigationFor, portalLabels, type Portal } from '@/lib/navigation';
 import { teacherRoles, schoolRoles } from '@/lib/session';
 import { ProtectedRoute } from './ProtectedRoute';
 import { FeatureBoundary } from './FeatureBoundary';
+import { portalDesign } from '@/lib/portal-design';
 
 export function AppShell({ portal, children }: { portal: Portal; children: ReactNode }) {
   const pathname = usePathname();
@@ -19,6 +20,8 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
   const sidebar = useRef<HTMLElement>(null);
   const menu = useRef<HTMLButtonElement>(null);
   const base = portal === 'parent' ? '/dashboard' : '/' + portal;
+  const design = portalDesign[portal];
+  const PortalIcon = design.icon;
   const groups = navigationFor(portal, user?.role || '');
   const links = groups.flatMap(group => group.items);
   const selected = (href: string) => pathname === href || (href !== base && pathname.startsWith(href + '/'));
@@ -57,12 +60,12 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
   }, [open]);
 
   if (pathname.endsWith('/login')) return <>{children}</>;
-  return <ProtectedRoute allowedRoles={roles}><div className="workspace">
+  return <ProtectedRoute allowedRoles={roles}><div className="workspace" data-portal={portal}>
     <a className="skip-link" href="#main-content">Skip to content</a>
     {open && <button className="nav-scrim" aria-label="Close navigation" onClick={() => { setOpen(false); menu.current?.focus(); }}/>}
     <aside ref={sidebar} id="workspace-navigation" className={'sidebar ' + (open ? 'is-open' : '')} aria-label="Main navigation">
       <div className="sidebar-brand-row"><Link href={base + (portal === 'parent' ? '' : '/dashboard')} className="brand"><img src="/hustlertech-logo.png" alt="HustlerTech" className="brand-logo-img" /><span>HustlerTech<small>SCHOOL OPERATING SYSTEM</small></span></Link><button className="icon-button sidebar-close" aria-label="Close navigation" onClick={() => {setOpen(false);menu.current?.focus();}}><X size={20}/></button></div>
-      <div className="workspace-label"><span className="workspace-portal-icon"><GraduationCap size={18}/></span><span><strong>{portalLabels[portal]}</strong><small>Your connected workspace</small></span></div>
+      <div className="workspace-label"><span className="workspace-portal-icon"><PortalIcon size={20}/></span><span><strong>{portalLabels[portal]}</strong><small>People. Learning. Possibility.</small></span></div>
       <nav>{groups.map(group => <div className="nav-group" key={group.label}><p className="nav-caption">{group.label}</p>{group.items.map(({href, label, icon: Icon}) => <Link key={href} href={href} className={'nav-link ' + (selected(href) ? 'active' : '')} aria-current={selected(href) ? 'page' : undefined}><Icon size={18}/><span>{label}</span>{selected(href) && <ChevronRight size={14}/>}</Link>)}</div>)}</nav>
       <div className="sidebar-bottom"><Link href="/account" className="sidebar-account"><span className="avatar">{user?.firstName?.[0]}{user?.lastName?.[0]}</span><span><strong>{user?.firstName} {user?.lastName}</strong><small>Account & security</small></span><Settings size={16}/></Link><button className="signout" disabled={signingOut} onClick={async () => {setSigningOut(true);try {await logout();} finally {setSigningOut(false);}}}><LogOut size={17}/>{signingOut ? 'Signing out…' : 'Sign out'}</button></div>
     </aside>

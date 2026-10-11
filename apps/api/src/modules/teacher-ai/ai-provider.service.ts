@@ -619,6 +619,8 @@ export class AIProviderService {
       'Health and safety education in learning spaces',
     ];
 
+    const homeworkAssignment = `Complete a short practice task on ${chapter} and explain your reasoning. The teacher should adapt this task to the learners and language of instruction.`;
+
     const reflectionPrompt = isMalayalam
       ? `${chapter} എന്ന പാഠഭാഗത്തിൽ കുട്ടികൾ ലക്ഷ്യമിട്ട നിർദ്ദിഷ്ട പഠനഫലങ്ങൾ (Specific Learning Outcomes) എത്രത്തോളം നേടി? അടുത്ത ഘട്ടത്തിൽ എന്ത് പരിഹാരബോധനമാണ് ആവശ്യമായുള്ളത്?`
       : lang === 'Swahili'

@@ -9,16 +9,16 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          50: '#f0f7f4',
-          100: '#d9ede4',
-          200: '#b5dacc',
-          300: '#89bda7',
-          400: '#60a58c',
-          500: '#378b74',
-          600: '#0f766e',
-          700: '#115e59',
-          800: '#134e4a',
-          900: '#102c36',
+          50: 'var(--accent-soft)',
+          100: 'var(--accent-soft)',
+          200: 'var(--accent-line)',
+          300: 'rgb(var(--accent-rgb) / 0.4)',
+          400: 'rgb(var(--accent-rgb) / 0.7)',
+          500: 'rgb(var(--accent-rgb) / <alpha-value>)',
+          600: 'rgb(var(--accent-rgb) / <alpha-value>)',
+          700: 'var(--accent-hover)',
+          800: 'var(--hero-ink)',
+          900: 'var(--ink)',
         },
         success: {
           50: '#f0fdf4',

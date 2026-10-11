@@ -30,9 +30,11 @@ export class TimetableService {
 
   async createEntry(dto: CreateTimetableEntryDto) {
     const tenantId = this.tenantService.requireTenantContext();
+    return this.prisma.$transaction(async tx => {
+      await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});
 
     // Validate class exists
-    const classExists = await this.prisma.class.findFirst({
+    const classExists = await tx.class.findFirst({
       where: { id: dto.classId, tenantId },
     });
 
@@ -42,7 +44,7 @@ export class TimetableService {
 
     // Validate stream if provided
     if (dto.streamId) {
-      const streamExists = await this.prisma.stream.findFirst({
+      const streamExists = await tx.stream.findFirst({
         where: { id: dto.streamId, tenantId, classId: dto.classId },
       });
 
@@ -52,7 +54,7 @@ export class TimetableService {
     }
 
     // Validate subject exists
-    const subjectExists = await this.prisma.subject.findFirst({
+    const subjectExists = await tx.subject.findFirst({
       where: { id: dto.subjectId, tenantId },
     });
 
@@ -61,7 +63,7 @@ export class TimetableService {
     }
 
     // Validate teacher exists
-    const teacherExists = await this.prisma.staff.findFirst({
+    const teacherExists = await tx.staff.findFirst({
       where: { id: dto.teacherId, tenantId },
     });
 
@@ -87,7 +89,7 @@ export class TimetableService {
     );
 
     // Create entry
-    const entry = await this.prisma.timetableEntry.create({
+    const entry = await tx.timetableEntry.create({
       data: {
         tenantId,
         classId: dto.classId,
@@ -117,6 +119,7 @@ export class TimetableService {
     });
 
     return entry;
+  });
   }
 
   async bulkCreate(dto: BulkCreateTimetableDto) {
@@ -206,8 +209,10 @@ export class TimetableService {
 
   async update(id: string, dto: UpdateTimetableEntryDto) {
     const tenantId = this.tenantService.requireTenantContext();
+    return this.prisma.$transaction(async tx => {
+      await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});
 
-    const existing = await this.prisma.timetableEntry.findFirst({
+    const existing = await tx.timetableEntry.findFirst({
       where: { id, tenantId },
     });
 
@@ -217,7 +222,7 @@ export class TimetableService {
 
     // Validate subject if changed
     if (dto.subjectId) {
-      const subjectExists = await this.prisma.subject.findFirst({
+      const subjectExists = await tx.subject.findFirst({
         where: { id: dto.subjectId, tenantId },
       });
 
@@ -228,7 +233,7 @@ export class TimetableService {
 
     // Validate teacher if changed
     if (dto.teacherId) {
-      const teacherExists = await this.prisma.staff.findFirst({
+      const teacherExists = await tx.staff.findFirst({
         where: { id: dto.teacherId, tenantId },
       });
 
@@ -260,7 +265,7 @@ export class TimetableService {
       );
     }
 
-    const entry = await this.prisma.timetableEntry.update({
+    const entry = await tx.timetableEntry.update({
       where: { id },
       data: dto,
       include: {
@@ -272,12 +277,15 @@ export class TimetableService {
     });
 
     return entry;
+  });
   }
 
   async remove(id: string) {
     const tenantId = this.tenantService.requireTenantContext();
+    return this.prisma.$transaction(async tx => {
+      await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});
 
-    const entry = await this.prisma.timetableEntry.findFirst({
+    const entry = await tx.timetableEntry.findFirst({
       where: { id, tenantId },
     });
 
@@ -285,9 +293,10 @@ export class TimetableService {
       throw new NotFoundException('Timetable entry not found');
     }
 
-    await this.prisma.timetableEntry.delete({ where: { id } });
+    await tx.timetableEntry.delete({ where: { id } });
 
     return { success: true, message: 'Timetable entry deleted' };
+  });
   }
 
   async getClassTimetable(classId: string, streamId?: string) {
@@ -618,125 +627,7 @@ export class TimetableService {
 
   // ==================== AUTO GENERATOR & CONFLICT AUDIT ====================
 
-  async autoGenerateTimetable(dto: AutoGenerateTimetableDto) {
-    const tenantId = this.tenantService.requireTenantContext();
-    const startTime = Date.now();
-
-    const classes = await this.prisma.class.findMany({
-      where: { tenantId },
-      include: { streams: true },
-      take: 20,
-    });
-
-    const subjects = await this.prisma.subject.findMany({
-      where: { tenantId },
-      take: 20,
-    });
-
-    const teachers = await this.prisma.staff.findMany({
-      where: { tenantId },
-      take: 30,
-    });
-
-    const daysCount = dto.daysPerWeek || 5;
-    const periodsCount = dto.periodsPerDay || 8;
-    const maxTeacherDaily = dto.maxTeacherDailyPeriods || 5;
-
-    // Standard period timing table
-    const periodTimes = [
-      { period: '1', start: '08:30', end: '09:15' },
-      { period: '2', start: '09:15', end: '10:00' },
-      { period: '3', start: '10:15', end: '11:00' },
-      { period: '4', start: '11:00', end: '11:45' },
-      { period: '5', start: '12:30', end: '13:15' },
-      { period: '6', start: '13:15', end: '14:00' },
-      { period: '7', start: '14:00', end: '14:45' },
-      { period: '8', start: '14:45', end: '15:30' },
-    ];
-
-    const generatedEntries: any[] = [];
-    const teacherBusy = new Set<string>();
-    const classBusy = new Set<string>();
-    const roomBusy = new Set<string>();
-    const teacherDailyLoad = new Map<string, number>();
-
-    const getSlotKey = (day: number, period: string) => `${day}-${period}`;
-
-    // Generate conflict-free schedule across classes
-    for (let cIdx = 0; cIdx < classes.length; cIdx++) {
-      const cls = classes[cIdx];
-      const classRoom = `Room ${101 + cIdx}`;
-
-      for (let day = 1; day <= daysCount; day++) {
-        for (let pIdx = 0; pIdx < periodsCount; pIdx++) {
-          const pMeta = periodTimes[pIdx] || { period: String(pIdx + 1), start: '08:30', end: '09:15' };
-          const slotKey = getSlotKey(day, pMeta.period);
-
-          // Find available subject & teacher
-          let assigned = false;
-          for (let sIdx = 0; sIdx < subjects.length; sIdx++) {
-            const subj = subjects[(sIdx + pIdx + day) % subjects.length];
-            const teacher = teachers[(sIdx + cIdx) % teachers.length];
-
-            if (!teacher) continue;
-
-            const teacherKey = `${teacher.id}-${slotKey}`;
-            const classKey = `${cls.id}-${slotKey}`;
-            const roomKey = `${classRoom}-${slotKey}`;
-
-            const tDayKey = `${teacher.id}-${day}`;
-            const currentTLoad = teacherDailyLoad.get(tDayKey) || 0;
-
-            if (
-              !teacherBusy.has(teacherKey) &&
-              !classBusy.has(classKey) &&
-              !roomBusy.has(roomKey) &&
-              currentTLoad < maxTeacherDaily
-            ) {
-              teacherBusy.add(teacherKey);
-              classBusy.add(classKey);
-              roomBusy.add(roomKey);
-              teacherDailyLoad.set(tDayKey, currentTLoad + 1);
-
-              generatedEntries.push({
-                classId: cls.id,
-                className: cls.name,
-                subjectId: subj.id,
-                subjectName: subj.name,
-                teacherId: teacher.id,
-                teacherName: `${teacher.firstName} ${teacher.lastName}`,
-                dayOfWeek: day,
-                period: pMeta.period,
-                startTime: pMeta.start,
-                endTime: pMeta.end,
-                room: classRoom,
-              });
-
-              assigned = true;
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    const durationMs = Date.now() - startTime;
-
-    return {
-      status: 'SUCCESS',
-      isConflictFree: true,
-      totalEntriesGenerated: generatedEntries.length,
-      generationDurationMs: durationMs,
-      audit: {
-        teacherConflicts: 0,
-        roomConflicts: 0,
-        classConflicts: 0,
-        workloadFairnessIndex: 96,
-        morningStemRatio: 94,
-      },
-      entries: generatedEntries,
-    };
-  }
+  async autoGenerateTimetable(dto: AutoGenerateTimetableDto) {throw new BadRequestException('Choose explicit subject and teacher requirements in the automatic timetable planner');}
 
   async auditConflicts() {
     const tenantId = this.tenantService.requireTenantContext();

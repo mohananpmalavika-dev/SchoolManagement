@@ -1,2 +1,5 @@
-import { LoginScreen } from '@/components/LoginScreen';
-export default function Page(){return <LoginScreen portal="teacher"/>;}
+import { redirect } from 'next/navigation';
+
+export default function Page() {
+  redirect('/login');
+}

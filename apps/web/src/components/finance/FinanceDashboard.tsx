@@ -72,7 +72,7 @@ export function FinanceDashboard() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
       {/* Top Banner / Hero */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-7 rounded-3xl shadow-2xl border border-indigo-900/50 relative overflow-hidden">
+      <div className="studio-banner bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-7 rounded-3xl shadow-2xl border border-indigo-900/50 relative overflow-hidden">
         {/* Subtle decorative glow */}
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />

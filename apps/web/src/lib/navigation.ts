@@ -20,7 +20,7 @@ export function navigationFor(portal: Portal, role: string): NavigationGroup[] {
   ];
   if (portal === 'student') return [
     group('WORKSPACE', [['dashboard', 'Overview', LayoutDashboard], ['timetable', 'My schedule', CalendarDays], ['profile', 'My profile', Users]]),
-    group('MY LEARNING', [['academics', 'Academic results', BookOpen], ['assignments', 'Assignments', ClipboardCheck], ['quizzes', 'Quizzes', Zap], ['materials', 'Learning materials', Library], ['grades', 'My grades', BarChart3], ['report-cards', 'Report cards', FileCheck], ['attendance', 'My attendance', ClipboardCheck], ['portfolio', 'My portfolio', GraduationCap], ['library', 'Library', Library]]),
+    group('MY LEARNING', [['academics', 'Academic results', BookOpen], ['assignments', 'Assignments', ClipboardCheck], ['quizzes', 'Quizzes', Zap], ['materials', 'Learning materials', Library], ['grades', 'My grades', BarChart3], ['report-cards', 'Report cards', FileCheck], ['attendance', 'My attendance', ClipboardCheck], ['check-in', 'Classroom check-in', ShieldCheck], ['portfolio', 'My portfolio', GraduationCap], ['library', 'Library', Library]]),
   ];
   if (portal === 'parent') return [
     group('FAMILY', [['', 'Overview', LayoutDashboard], ['/dashboard/chat', 'Teacher chat', MessageSquare], ['fees', 'Fees & payments', CreditCard], ['attendance', 'Attendance', ClipboardCheck], ['grades', 'Learning progress', BookOpen], ['notifications', 'School updates', MessageSquare]]),
@@ -29,7 +29,7 @@ export function navigationFor(portal: Portal, role: string): NavigationGroup[] {
   const operations: Record<string, Entry[]> = {
     ACCOUNTANT: [['guardians', 'Guardians', Users], ['fees', 'Fees & invoices', CreditCard]],
     LIBRARIAN: [['library', 'Library', Library]],
-    TRANSPORT_OFFICER: [['transport/setup', 'Vehicles & routes', Bus]],
+    TRANSPORT_OFFICER: [['transport', 'Driver workspace', Bus], ['transport/setup', 'Vehicles & routes', Bus]],
     RECEPTIONIST: [['guardians', 'Guardians', Users]],
   };
   if (operations[role]) return [
@@ -39,7 +39,7 @@ export function navigationFor(portal: Portal, role: string): NavigationGroup[] {
   return [
     group('WORKSPACE', [['dashboard', 'Overview', LayoutDashboard], ...(predictiveAnalyticsRoles.includes(role) ? [['analytics', 'Advanced analytics', BarChart3], ['predictive-analytics', 'Student risk insights', BarChart3], ['ai-studio', 'AI teaching studio', Sparkles]] as Entry[] : []), ['copilot', 'ERP Copilot', Bot]]),
     group('PEOPLE', [['students', 'Students', Users], ['admissions', 'Admissions', GraduationCap], ['guardians', 'Guardians', Users], ['staff', 'Staff directory', Users]]),
-    group('ACADEMICS', [['academics', 'Academic setup', BookOpen], ['attendance', 'Attendance', ClipboardCheck], ['grades', 'Gradebook', BookOpen], ['examinations', 'Examinations', FileCheck], ['report-cards', 'Report cards', FileCheck], ['learning', 'Learning management', Library], ['calendar', 'School calendar', CalendarDays], ['timetable', 'Timetable', CalendarDays], ['substitution', 'Staff substitutions', Zap]]),
+    group('ACADEMICS', [['academics', 'Academic setup', BookOpen], ['attendance', 'Attendance', ClipboardCheck], ['grades', 'Gradebook', BookOpen], ['examinations', 'Examinations', FileCheck], ['report-cards', 'Report cards', FileCheck], ['learning', 'Learning management', Library], ['calendar', 'School calendar', CalendarDays], ['timetable', 'Timetable', CalendarDays], ['timetable/preview', 'Timetable planner', CalendarDays], ['substitution', 'Staff substitutions', Zap]]),
     group('OPERATIONS', [['chat', 'Live campus chat', MessageSquare], ['absences','Absence requests',ClipboardCheck], ['portfolio','Student portfolios',GraduationCap], ['certificates','Certificates',FileCheck], ['quizzes','Class quizzes',ClipboardCheck], ['fees', 'Fees & invoices', CreditCard], ['library', 'Library', Library], ['transport', 'Transport', Bus], ['inventory', 'Inventory', Library], ['messages', 'Communications', MessageSquare], ['support', 'Support', LifeBuoy]]),
   ];
 }

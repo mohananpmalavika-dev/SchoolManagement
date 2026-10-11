@@ -142,7 +142,7 @@ export function WhatsAppAutomationHub() {
     <div className="min-h-screen bg-slate-50/70 p-4 sm:p-6 lg:p-8 font-sans">
       {/* Top Banner & Header */}
       <div className="max-w-7xl mx-auto mb-6">
-        <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+        <div className="studio-banner bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
           <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-[#00A859]/10 skew-x-12 pointer-events-none"></div>
 
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 relative z-10">

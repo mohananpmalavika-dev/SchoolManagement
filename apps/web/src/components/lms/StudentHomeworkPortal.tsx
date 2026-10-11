@@ -138,7 +138,7 @@ export function StudentHomeworkPortal({ onNotify }: StudentHomeworkPortalProps) 
   return (
     <div className="space-y-6">
       {/* Student Banner */}
-      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
+      <div className="studio-banner bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold mb-2">

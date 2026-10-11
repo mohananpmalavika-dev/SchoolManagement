@@ -20,7 +20,7 @@ export function AdminNav() {
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
-    router.push('/admin/login');
+    router.push('/login');
   };
 
   return (

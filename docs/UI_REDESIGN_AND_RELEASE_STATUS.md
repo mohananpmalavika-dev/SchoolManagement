@@ -1,10 +1,24 @@
 # UI redesign and release status
 
-Reviewed on 11 October 2026. This report supersedes historical percentage-complete and production-ready claims in the repository.
+Visual redesign updated on 12 October 2026. The backend and release evidence below retains the 11 October 2026 snapshot; it is not a new deployment certification.
 
 ## Current outcome
 
-The shared administration, school, teacher, family, and student workspaces now use a consistent navy, white, and teal visual system. The redesign includes grouped role-aware navigation, keyboard page search, mobile navigation, dashboard hierarchy, forms, tables, loading states, recoverable errors, empty states, and print styles. The existing advanced feature designs remain available as development previews.
+The application now uses a light navigation shell, larger typography, rounded panels, clearer tables and forms, colored metric icons, and locally rendered campus illustrations. The shared styles apply across the administration, school, teacher, family, and student workspaces. Specialty finance, teaching, timetable, homework, Copilot, and automation screens use the same portal design tokens.
+
+| Portal | Visual identity |
+| --- | --- |
+| School management | Violet and lavender |
+| Teaching | Ocean blue |
+| Family | Forest green |
+| Student | Terracotta and peach |
+| Platform administration | Indigo |
+
+There is **one sign-in screen at `/login`**. Portal selection has been removed. The authenticated account role determines the destination: platform administration, school management, teaching, family, or student workspace. Existing `/admin/login`, `/teacher/login`, `/parent/login`, and `/student/login` bookmarks redirect to `/login`. Signed-in accounts return to their assigned workspace automatically. Password recovery and MFA remain part of the same authentication flow, and the entry screen supports English and Kiswahili.
+
+The redesign also covers mobile navigation, keyboard search, account forms, loading and empty states, document print styles, the offline page, and the page-not-found screen. Portal-specific layouts retain the same permission checks and connected data workflows.
+
+## Release scope (11 October snapshot)
 
 This is a hardened core release candidate, **not certification that every module is production ready**. Several advanced workflows still need durable implementations. Live deployment and third-party integrations have not been certified in this work.
 

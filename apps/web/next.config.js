@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const path = require('node:path');
 module.exports = {
+  // Isolated QA builds can run without locking an existing .next server.
+  distDir: process.env.WEB_BUILD_DIR || '.next',
   outputFileTracingRoot: path.join(__dirname, '../..'),
   reactStrictMode: true, poweredByHeader: false, output: 'standalone',
   transpilePackages: ['@krypton/types', '@krypton/utils'],

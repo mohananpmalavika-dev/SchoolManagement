@@ -66,3 +66,6 @@ qa
 dependency-audit*.json
 *.tsbuildinfo
 .env.qa
+
+# Isolated redesign verification build
+.next-redesign/

@@ -23,6 +23,9 @@ function setup() {
     class: { findFirst: jest.fn().mockResolvedValue({ id: id(3), name: 'Grade 5', level: 'Grade 5' }), findMany: jest.fn().mockResolvedValue([]) },
     term: { findFirst: jest.fn().mockResolvedValue({ id: id(4), name: 'Term 1', startDate: new Date('2026-01-01'), endDate: new Date('2026-04-01') }), findMany: jest.fn().mockResolvedValue([]) },
     student: { findMany: jest.fn().mockResolvedValue([learner()]) }, $transaction: jest.fn().mockImplementation(async operation => operation(tx)),
+    chatChannel: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: id(10), name: 'Grade 5 Class Channel' }) },
+    chatChannelMember: { create: jest.fn().mockResolvedValue({}) },
+    chatMessage: { create: jest.fn().mockResolvedValue({ id: id(11), createdAt: new Date('2026-01-20T10:00:00.000Z') }) },
   };
   const ai = { status: () => ({ configured: true, provider: 'OpenAI', model: 'test-model', message: 'Configured' }), generate: jest.fn().mockResolvedValue({ remarks: [{ key: 'S1', text: 'The learner can build confidence through regular guided mathematics practice.', evidence: ['Mathematics: 0%.'] }] }) };
   const exams = { bulkGenerateReportCards: jest.fn().mockResolvedValue({ generated: 1, skipped: 0, errors: [] }) };
@@ -104,6 +107,36 @@ describe('AI teaching scope, evidence and reviewed saves', () => {
     const result = await service.riskReview({ ...user, role: 'PRINCIPAL' }, { studentIds: [id(5)], language: 'English' });
     expect(result.students[0].priority).toBe('INSUFFICIENT_DATA');
     expect(JSON.stringify(ai.generate.mock.calls[0][2])).not.toMatch(/Amina|feeDefault|outstandingBalance/);
+  });
+  it('generates a full CBC scheme of work for authorized teacher', async () => {
+    const { service, ai } = setup();
+    ai.generate.mockResolvedValue({
+      title: 'Grade 5 Integrated Science Scheme', gradeLevel: 'Grade 5', subject: 'Integrated Science',
+      strand: 'Living Things', term: 'Term 1', academicYear: '2026', curriculum: 'CBC',
+      generalOutcomes: ['Understand living things.'], coreCompetencies: ['Critical Thinking'],
+      values: ['Respect'], pcis: ['Environmental Conservation'], weeks: [], assessmentRubrics: [],
+    } as any);
+    const res = await service.schemeOfWork(user, { classId: id(3), subject: 'Integrated Science', strand: 'Living Things' });
+    expect(res.curriculum).toBe('CBC');
+    expect(ai.generate).toHaveBeenCalledWith('scheme_of_work', expect.any(String), expect.objectContaining({ subject: 'Integrated Science', strand: 'Living Things' }), expect.any(Object));
+  });
+  it('shares lesson plan to class chat channel creating channel if not existing', async () => {
+    const { service, prisma } = setup();
+    const result = await service.shareToChat(user, {
+      classId: id(3),
+      title: 'Photosynthesis Lesson',
+      content: 'Here are the key inquiry questions.',
+      type: 'LESSON_PLAN',
+    });
+    expect(result.success).toBe(true);
+    expect(result.messageId).toBe(id(11));
+    expect(prisma.chatChannel.create).toHaveBeenCalled();
+    expect(prisma.chatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        senderId: id(1),
+        content: 'Here are the key inquiry questions.',
+      }),
+    }));
   });
 });
 

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: 'One connected workspace for school teams and families.',
   manifest: '/manifest.json', icons: { icon: '/hustlertech-logo.png', apple: '/hustlertech-logo.png', shortcut: '/hustlertech-logo.png' },
 };
-export const viewport: Viewport = { themeColor: '#132435', width: 'device-width', initialScale: 1 };
+export const viewport: Viewport = { themeColor: '#6952bc', width: 'device-width', initialScale: 1 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return <html lang="en"><body><LanguageProvider><AuthProvider><FeatureBoundary>{children}</FeatureBoundary></AuthProvider></LanguageProvider></body></html>;
 }

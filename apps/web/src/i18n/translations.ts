@@ -75,6 +75,7 @@ export interface Translations {
     signingIn: string;
     goodToSeeYou: string;
     signInToWorkspace: string;
+    workspaceRouting: string;
     unableToSignIn: string;
     showPassword: string;
     hidePassword: string;
@@ -409,7 +410,8 @@ export const translations: Record<'en' | 'sw', Translations> = {
       password: "Password",
       signingIn: "Signing in…",
       goodToSeeYou: "Good to see you.",
-      signInToWorkspace: "Sign in to your {{workspace}} workspace.",
+      signInToWorkspace: "One account. Your school workspace.",
+      workspaceRouting: "Sign in and we?ll take you to the workspace assigned to your account.",
       unableToSignIn: "Unable to sign in. Check your details and try again.",
       showPassword: "Show password",
       hidePassword: "Hide password",
@@ -734,7 +736,8 @@ export const translations: Record<'en' | 'sw', Translations> = {
       password: "Nenosiri",
       signingIn: "Unaingia…",
       goodToSeeYou: "Karibu tena.",
-      signInToWorkspace: "Ingia katika mazingira yako ya {{workspace}}.",
+      signInToWorkspace: "Akaunti moja. Mazingira yako ya shule.",
+      workspaceRouting: "Ingia kisha utaelekezwa kwenye mazingira yaliyopangiwa akaunti yako.",
       unableToSignIn: "Imeshindikana kuingia. Hakiki taarifa zako na ujaribu tena.",
       showPassword: "Onyesha nenosiri",
       hidePassword: "Ficha nenosiri",

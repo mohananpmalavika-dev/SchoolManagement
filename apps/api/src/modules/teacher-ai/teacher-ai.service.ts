@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AIRemarkResult, AIRiskReview, ERPCopilotFilterBadge, ERPCopilotQueryResponse, ERPCopilotStudentMatch, LessonPlanResponse, TeacherAIOptions, TeacherAIRoster } from '@krypton/types';
+import { AIRemarkResult, AIRiskReview, CBCSchemeOfWorkResponse, ERPCopilotFilterBadge, ERPCopilotQueryResponse, ERPCopilotStudentMatch, LessonPlanResponse, ShareLessonToChatResponse, TeacherAIOptions, TeacherAIRoster } from '@krypton/types';
 import { PrismaService } from '../../database/prisma.service';
 import { TenantService } from '../../database/tenant.service';
 import { CurrentUserData } from '../../common/decorators/current-user.decorator';
@@ -7,7 +7,7 @@ import { ExaminationsService } from '../examinations/examinations.service';
 import { PredictiveAnalyticsService } from '../predictive-analytics/predictive-analytics.service';
 import { AIProviderService } from './ai-provider.service';
 import { aiList, aiText, keyedItems, objectSchema, questionPaper, stringListSchema, stringSchema } from './ai-output';
-import { ClassTermDto, CopilotQueryDto, GenerateLessonPlanDto, GenerateQuizDto, GenerateRemarksDto, RiskReviewDto, SaveRemarkDto } from './dto/teacher-ai.dto';
+import { ClassTermDto, CopilotQueryDto, GenerateLessonPlanDto, GenerateQuizDto, GenerateRemarksDto, GenerateSchemeOfWorkDto, RiskReviewDto, SaveRemarkDto, ShareLessonToChatDto } from './dto/teacher-ai.dto';
 
 const leaders = ['SCHOOL_OWNER', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'SCHOOL_ADMIN'];
 const teacherRoles = ['TEACHER', 'CLASS_TEACHER', 'EXAM_OFFICER'];
@@ -184,19 +184,134 @@ export class TeacherAIService {
   async lessonPlan(user: CurrentUserData, dto: GenerateLessonPlanDto): Promise<LessonPlanResponse> {
     const cls = await this.authorizeClass(user, dto.classId);
     const response = await this.ai.generate('lesson_plan',
-      'You are a master curriculum planner. Create a thorough 5E lesson plan for this class and topic.',
+      'You are a master curriculum planner. Create a thorough 5E lesson plan for this class and topic aligned with CBC / KICD standards.',
       { ...dto, classLevel: cls.level },
       objectSchema({
         title: stringSchema, gradeLevel: stringSchema, subject: stringSchema, topic: stringSchema,
+        strand: stringSchema, subStrand: stringSchema,
         durationMinutes: { type: 'integer' }, curriculum: stringSchema,
         learningObjectives: stringListSchema, coreCompetencies: stringListSchema,
+        values: stringListSchema, pcis: stringListSchema,
         keyInquiryQuestions: stringListSchema, materials: stringListSchema,
         steps: { type: 'array', items: objectSchema({ phase: stringSchema, title: stringSchema, durationMinutes: { type: 'integer' }, teacherActivity: stringSchema, studentActivity: stringSchema, resourcesNeeded: stringListSchema }) },
         differentiatedInstruction: objectSchema({ supportForStruggling: stringListSchema, extensionForAdvanced: stringListSchema }),
         assessmentRubrics: { type: 'array', items: objectSchema({ criterion: stringSchema, levels: { type: 'array', items: objectSchema({ level: stringSchema, descriptor: stringSchema, scoreRange: stringSchema }) } }) },
         homeworkAssignment: stringSchema,
+        reflectionPrompt: stringSchema,
       }));
     return { ...(response as any), model: this.ai.status().model, generatedAt: new Date().toISOString() };
+  }
+
+  async schemeOfWork(user: CurrentUserData, dto: GenerateSchemeOfWorkDto): Promise<CBCSchemeOfWorkResponse> {
+    const cls = await this.authorizeClass(user, dto.classId);
+    const response = await this.ai.generate('scheme_of_work',
+      'You are a master Kenyan CBC / KICD curriculum developer. Generate a comprehensive, professional termly Scheme of Work matrix.',
+      { ...dto, classLevel: cls.level },
+      objectSchema({
+        title: stringSchema, gradeLevel: stringSchema, subject: stringSchema, strand: stringSchema,
+        term: stringSchema, academicYear: stringSchema, curriculum: stringSchema,
+        generalOutcomes: stringListSchema, coreCompetencies: stringListSchema,
+        values: stringListSchema, pcis: stringListSchema,
+        weeks: {
+          type: 'array',
+          items: objectSchema({
+            week: { type: 'integer' },
+            lessonNumber: { type: 'integer' },
+            strand: stringSchema,
+            subStrand: stringSchema,
+            specificLearningOutcomes: stringListSchema,
+            keyInquiryQuestions: stringListSchema,
+            learningExperiences: stringListSchema,
+            learningResources: stringListSchema,
+            assessmentMethods: stringListSchema,
+            reflection: stringSchema,
+          }),
+        },
+        assessmentRubrics: {
+          type: 'array',
+          items: objectSchema({
+            criterion: stringSchema,
+            levels: {
+              type: 'array',
+              items: objectSchema({
+                level: stringSchema,
+                descriptor: stringSchema,
+                scoreRange: stringSchema,
+              }),
+            },
+          }),
+        },
+      }));
+    return { ...(response as any), model: this.ai.status().model, generatedAt: new Date().toISOString() };
+  }
+
+  async shareToChat(user: CurrentUserData, dto: ShareLessonToChatDto): Promise<ShareLessonToChatResponse> {
+    const tenantId = this.tenant(user);
+    const cls = await this.authorizeClass(user, dto.classId);
+
+    // Look for existing class channel
+    let channel = dto.channelId ? await this.prisma.chatChannel.findFirst({
+      where: { id: dto.channelId, tenantId, isArchived: false },
+    }) : null;
+
+    if (!channel) {
+      channel = await this.prisma.chatChannel.findFirst({
+        where: { tenantId, classId: dto.classId, isArchived: false },
+      });
+    }
+
+    if (!channel) {
+      channel = await this.prisma.chatChannel.findFirst({
+        where: { tenantId, name: { contains: cls.name }, isArchived: false },
+      });
+    }
+
+    if (!channel) {
+      channel = await this.prisma.chatChannel.create({
+        data: {
+          tenantId,
+          name: `📚 ${cls.name} Class Channel`,
+          description: `Interactive learning, curriculum updates and class inquiries for ${cls.name}`,
+          type: 'CLASS',
+          classId: dto.classId,
+          createdById: user.userId,
+        },
+      });
+
+      await this.prisma.chatChannelMember.create({
+        data: {
+          channelId: channel.id,
+          userId: user.userId,
+          role: 'ADMIN',
+        },
+      });
+    }
+
+    const createdMessage = await this.prisma.chatMessage.create({
+      data: {
+        channelId: channel.id,
+        senderId: user.userId,
+        content: dto.content.trim(),
+        attachments: [
+          {
+            name: `${dto.title}.pdf`,
+            type: dto.type || 'LESSON_PLAN',
+            title: dto.title,
+            classId: dto.classId,
+            className: cls.name,
+            sharedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+
+    return {
+      success: true,
+      messageId: createdMessage.id,
+      channelId: channel.id,
+      channelName: channel.name,
+      sentAt: createdMessage.createdAt.toISOString(),
+    };
   }
 
   async classAtRisk(user: CurrentUserData) {

@@ -180,7 +180,7 @@ export function ERPCopilotView({ portal = 'school' }: ERPCopilotViewProps) {
       />
 
       {/* Main NLP Search Bar */}
-      <div className="bg-gradient-to-r from-indigo-900 via-primary-900 to-indigo-950 p-6 rounded-2xl shadow-xl text-white">
+      <div className="studio-banner bg-gradient-to-r from-indigo-900 via-primary-900 to-indigo-950 p-6 rounded-2xl shadow-xl text-white">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
             <Bot size={22} className="animate-pulse" />

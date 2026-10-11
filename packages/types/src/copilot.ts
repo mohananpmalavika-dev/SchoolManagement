@@ -156,7 +156,8 @@ export interface ShareLessonToChatRequest {
   classId: string;
   channelId?: string;
   title: string;
-  summary: string;
+  content: string;
+  summary?: string;
   type?: 'LESSON_PLAN' | 'SCHEME_OF_WORK';
   learningObjectives?: string[];
   keyInquiryQuestions?: string[];

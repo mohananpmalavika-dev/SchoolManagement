@@ -12,22 +12,29 @@ import {
   FileText,
   HelpCircle,
   Layers,
+  MessageSquare,
   Printer,
+  Send,
+  Share2,
   Sparkles,
   Zap,
 } from 'lucide-react';
 import type {
   AIQuestionPaper,
   AIRemarkResult,
+  CBCSchemeOfWorkRequest,
+  CBCSchemeOfWorkResponse,
   GeneratedRemark,
   LessonPlanResponse,
   RemarksTone,
+  ShareLessonToChatRequest,
+  ShareLessonToChatResponse,
   TeacherAIOptions,
   TeacherAIRoster,
   TeachingLanguage,
 } from '@krypton/types';
 import { apiClient } from '@/lib/api-client';
-import { generateLessonPlan } from '@/lib/copilot-client';
+import { generateLessonPlan, generateSchemeOfWork, shareLessonToChat } from '@/lib/copilot-client';
 import { exportCsv, messageFor } from '@/lib/workspace';
 import { predictiveAnalyticsRoles, teacherRoles } from '@/lib/session';
 import { useAuth } from '@/contexts/AuthContext';
@@ -190,6 +197,206 @@ function openPrintableWorksheet(paper: AIQuestionPaper, includeAnswerKey: boolea
   win.document.close();
 }
 
+function openPrintableSchemeOfWork(sow: CBCSchemeOfWorkResponse) {
+  const win = window.open('', '_blank');
+  if (!win) {
+    window.print();
+    return;
+  }
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>CBC Scheme of Work - ${escapeHtml(sow.title)}</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; line-height: 1.35; padding: 10px; margin: 0; }
+    .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 10px; }
+    .national-title { font-size: 13px; font-weight: 800; letter-spacing: 1.2px; color: #047857; text-transform: uppercase; }
+    .school-title { font-size: 17px; font-weight: 800; text-transform: uppercase; margin-top: 2px; }
+    .sow-title { font-size: 15px; font-weight: 700; color: #1e1b4b; margin-top: 4px; }
+    .meta-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 11px; }
+    .meta-table td { padding: 4px 6px; border: 1px solid #cbd5e1; background: #f8fafc; }
+    .competency-box { display: flex; gap: 8px; margin: 8px 0; font-size: 10.5px; }
+    .competency-card { flex: 1; border: 1px solid #cbd5e1; border-radius: 4px; padding: 5px 8px; background: #ffffff; }
+    .competency-card strong { color: #0f172a; display: block; margin-bottom: 2px; font-size: 10.5px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; }
+    .sow-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 8px; }
+    .sow-table th, .sow-table td { border: 1px solid #64748b; padding: 5px 6px; text-align: left; vertical-align: top; }
+    .sow-table th { background: #0f172a; color: #ffffff; font-weight: 700; text-transform: uppercase; font-size: 9.5px; }
+    .sow-table tr:nth-child(even) { background: #f8fafc; }
+    ul { margin: 2px 0 2px 14px; padding: 0; }
+    li { margin-bottom: 2px; }
+    .rubric-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 12px; page-break-inside: avoid; }
+    .rubric-table th, .rubric-table td { border: 1px solid #94a3b8; padding: 5px 6px; }
+    .rubric-table th { background: #f1f5f9; color: #0f172a; font-weight: 700; }
+    .footer-signatures { margin-top: 20px; display: flex; justify-content: space-between; font-size: 11px; page-break-inside: avoid; }
+    .sig-line { border-top: 1px solid #334155; width: 200px; text-align: center; padding-top: 4px; }
+    @media print {
+      body { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="national-title">REPUBLIC OF KENYA · MINISTRY OF EDUCATION · KICD CBC CURRICULUM</div>
+    <div class="school-title">OFFICIAL SCHEME OF WORK</div>
+    <div class="sow-title">${escapeHtml(sow.title)}</div>
+    <table class="meta-table">
+      <tr>
+        <td><strong>Learning Area / Subject:</strong> ${escapeHtml(sow.subject)}</td>
+        <td><strong>Grade Level:</strong> ${escapeHtml(sow.gradeLevel)}</td>
+        <td><strong>Strand:</strong> ${escapeHtml(sow.strand)}</td>
+      </tr>
+      <tr>
+        <td><strong>Term & Year:</strong> ${escapeHtml(sow.term)} · ${escapeHtml(sow.academicYear)}</td>
+        <td><strong>Curriculum Standard:</strong> ${escapeHtml(sow.curriculum)} (KICD Compliant)</td>
+        <td><strong>Total Lessons Planned:</strong> ${sow.weeks.length} Lessons</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="competency-box">
+    <div class="competency-card">
+      <strong>🎯 General Learning Outcomes</strong>
+      <ul>
+        ${sow.generalOutcomes.map(o => `<li>${escapeHtml(o)}</li>`).join('')}
+      </ul>
+    </div>
+    <div class="competency-card">
+      <strong>✨ Core Competencies & Values & PCIs</strong>
+      <div><strong>Competencies:</strong> ${escapeHtml(sow.coreCompetencies.join(', '))}</div>
+      <div style="margin-top: 3px;"><strong>Values:</strong> ${escapeHtml(sow.values.join(', '))}</div>
+      <div style="margin-top: 3px;"><strong>PCIs:</strong> ${escapeHtml(sow.pcis.join(', '))}</div>
+    </div>
+  </div>
+
+  <table class="sow-table">
+    <thead>
+      <tr>
+        <th style="width: 4%;">Wk</th>
+        <th style="width: 4%;">Les</th>
+        <th style="width: 14%;">Strand & Sub-Strand</th>
+        <th style="width: 22%;">Specific Learning Outcomes (SLOs)</th>
+        <th style="width: 14%;">Key Inquiry Questions</th>
+        <th style="width: 18%;">Learning Experiences</th>
+        <th style="width: 12%;">Resources</th>
+        <th style="width: 12%;">Assessment Methods</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${sow.weeks.map(w => `
+        <tr>
+          <td style="text-align: center; font-weight: bold;">${w.week}</td>
+          <td style="text-align: center; font-weight: bold;">${w.lessonNumber}</td>
+          <td><strong>${escapeHtml(w.strand)}</strong><br/><span style="color: #475569;">${escapeHtml(w.subStrand)}</span></td>
+          <td>
+            <ul>
+              ${w.specificLearningOutcomes.map(slo => `<li>${escapeHtml(slo)}</li>`).join('')}
+            </ul>
+          </td>
+          <td>
+            <ul>
+              ${w.keyInquiryQuestions.map(kiq => `<li>${escapeHtml(kiq)}</li>`).join('')}
+            </ul>
+          </td>
+          <td>
+            <ul>
+              ${w.learningExperiences.map(le => `<li>${escapeHtml(le)}</li>`).join('')}
+            </ul>
+          </td>
+          <td>${escapeHtml(w.learningResources.join('; '))}</td>
+          <td>${escapeHtml(w.assessmentMethods.join(', '))}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <h4 style="font-size: 11px; text-transform: uppercase; margin-top: 14px; margin-bottom: 4px;">Assessment Rubrics & Mastery Standards (CBC / KNEC Framework)</h4>
+  ${sow.assessmentRubrics.map(r => `
+    <table class="rubric-table">
+      <thead>
+        <tr>
+          <th colspan="4">Criterion: ${escapeHtml(r.criterion)}</th>
+        </tr>
+        <tr>
+          <th style="width: 25%;">Exceeding Expectation (Level 4)</th>
+          <th style="width: 25%;">Meeting Expectation (Level 3)</th>
+          <th style="width: 25%;">Approaching Expectation (Level 2)</th>
+          <th style="width: 25%;">Below Expectation (Level 1)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          ${r.levels.map(l => `
+            <td>
+              <strong>${escapeHtml(l.scoreRange)}:</strong><br/>
+              ${escapeHtml(l.descriptor)}
+            </td>
+          `).join('')}
+        </tr>
+      </tbody>
+    </table>
+  `).join('')}
+
+  <div class="footer-signatures">
+    <div class="sig-line">Subject Teacher Signature & Date</div>
+    <div class="sig-line">Head of Department (HOD) Approval</div>
+    <div class="sig-line">Principal / Headteacher Stamp & Sign</div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 250);
+    };
+  </script>
+</body>
+</html>`;
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
+function schemeOfWorkText(sow: CBCSchemeOfWorkResponse): string {
+  return [
+    `REPUBLIC OF KENYA - MINISTRY OF EDUCATION`,
+    `KICD CBC SCHEME OF WORK: ${sow.title}`,
+    `Subject: ${sow.subject} | Grade Level: ${sow.gradeLevel} | Term: ${sow.term} | Year: ${sow.academicYear}`,
+    `Curriculum: ${sow.curriculum} | Strand: ${sow.strand}`,
+    '='.repeat(80),
+    '',
+    'GENERAL LEARNING OUTCOMES:',
+    ...sow.generalOutcomes.map((o, i) => `  ${i + 1}. ${o}`),
+    '',
+    'CORE COMPETENCIES & VALUES & PCIS:',
+    ...sow.coreCompetencies.map(c => `  • Competency: ${c}`),
+    ...sow.values.map(v => `  • Value: ${v}`),
+    ...sow.pcis.map(p => `  • PCI: ${p}`),
+    '',
+    'WEEKLY SCHEME OF WORK BREAKDOWN:',
+    '='.repeat(80),
+    ...sow.weeks.flatMap(w => [
+      `WEEK ${w.week}, LESSON ${w.lessonNumber}: [${w.strand} > ${w.subStrand}]`,
+      `  Specific Learning Outcomes:`,
+      ...w.specificLearningOutcomes.map(slo => `    - ${slo}`),
+      `  Key Inquiry Questions:`,
+      ...w.keyInquiryQuestions.map(kiq => `    ? ${kiq}`),
+      `  Learning Experiences:`,
+      ...w.learningExperiences.map(le => `    * ${le}`),
+      `  Resources: ${w.learningResources.join('; ')}`,
+      `  Assessment Methods: ${w.assessmentMethods.join(', ')}`,
+      `  Teacher Reflection: ${w.reflection || 'Reviewed and achieved.'}`,
+      '-'.repeat(60),
+    ]),
+    '',
+    'ASSESSMENT RUBRICS (4 LEVELS - KNEC / CBC STANDARD):',
+    ...sow.assessmentRubrics.flatMap(r => [
+      `Criterion: ${r.criterion}`,
+      ...r.levels.map(l => `  [${l.level}] (${l.scoreRange}): ${l.descriptor}`),
+      '',
+    ]),
+  ].join('\n');
+}
+
 function openPrintableLessonPlan(lp: LessonPlanResponse) {
   const win = window.open('', '_blank');
   if (!win) {
@@ -205,6 +412,7 @@ function openPrintableLessonPlan(lp: LessonPlanResponse) {
     @page { size: A4 portrait; margin: 15mm; }
     body { font-family: 'Georgia', 'Times New Roman', serif; color: #111827; line-height: 1.45; padding: 20px; max-width: 850px; margin: 0 auto; }
     .header { border-bottom: 2px solid #1e1b4b; padding-bottom: 12px; margin-bottom: 18px; text-align: center; }
+    .national-tag { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #047857; text-transform: uppercase; font-family: sans-serif; }
     .school-title { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
     .lp-title { font-size: 20px; font-weight: 800; color: #312e81; margin-top: 6px; }
     .meta { font-size: 12px; font-family: sans-serif; color: #4b5563; margin-top: 6px; }
@@ -216,6 +424,8 @@ function openPrintableLessonPlan(lp: LessonPlanResponse) {
     .rubric-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; font-family: sans-serif; page-break-inside: avoid; }
     .rubric-table th, .rubric-table td { border: 1px solid #9ca3af; padding: 6px 8px; text-align: left; }
     .rubric-table th { background: #f3f4f6; font-weight: 700; }
+    .footer-signatures { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; font-family: sans-serif; page-break-inside: avoid; }
+    .sig-line { border-top: 1px solid #111; width: 180px; text-align: center; padding-top: 4px; }
     @media print {
       body { padding: 0; }
     }
@@ -223,21 +433,25 @@ function openPrintableLessonPlan(lp: LessonPlanResponse) {
 </head>
 <body>
   <div class="header">
+    <div class="national-tag">KICD CBC STANDARDS · DAILY LESSON PLAN</div>
     <div class="school-title">AL-AMEEN INTERNATIONAL ACADEMY</div>
     <div class="lp-title">5E INSTRUCTIONAL LESSON PLAN: ${escapeHtml(lp.title)}</div>
     <div class="meta">
-      <strong>Subject:</strong> ${escapeHtml(lp.subject)} | <strong>Grade Level:</strong> ${escapeHtml(lp.gradeLevel)} | <strong>Duration:</strong> ${lp.durationMinutes} Mins | <strong>Curriculum:</strong> ${escapeHtml(lp.curriculum)}
+      <strong>Subject:</strong> ${escapeHtml(lp.subject)} | <strong>Grade:</strong> ${escapeHtml(lp.gradeLevel)} | <strong>Duration:</strong> ${lp.durationMinutes} Mins | <strong>Curriculum:</strong> ${escapeHtml(lp.curriculum)}
+      ${lp.strand ? `<br/><strong>Strand:</strong> ${escapeHtml(lp.strand)} | <strong>Sub-Strand:</strong> ${escapeHtml(lp.subStrand || lp.topic)}` : ''}
     </div>
   </div>
 
-  <h3>1. Learning Objectives</h3>
+  <h3>1. Specific Learning Outcomes (SLOs)</h3>
   <ul>
     ${lp.learningObjectives.map(o => `<li>${escapeHtml(o)}</li>`).join('')}
   </ul>
 
-  <h3>2. Core Competencies & Values</h3>
+  <h3>2. Core Competencies & Values & PCIs</h3>
   <ul>
-    ${lp.coreCompetencies.map(c => `<li>${escapeHtml(c)}</li>`).join('')}
+    ${lp.coreCompetencies.map(c => `<li><strong>Competency:</strong> ${escapeHtml(c)}</li>`).join('')}
+    ${lp.values ? lp.values.map(v => `<li><strong>Value:</strong> ${escapeHtml(v)}</li>`).join('') : ''}
+    ${lp.pcis ? lp.pcis.map(p => `<li><strong>PCI:</strong> ${escapeHtml(p)}</li>`).join('') : ''}
   </ul>
 
   <h3>3. Key Inquiry Questions & Teaching Aids</h3>
@@ -278,7 +492,7 @@ function openPrintableLessonPlan(lp: LessonPlanResponse) {
     </div>
   </div>
 
-  <h3>6. Assessment Rubrics & Criteria</h3>
+  <h3>6. Assessment Rubrics & Criteria (4 Levels - KNEC Standard)</h3>
   ${lp.assessmentRubrics.map(r => `
     <table class="rubric-table" style="margin-bottom: 12px;">
       <thead>
@@ -286,17 +500,18 @@ function openPrintableLessonPlan(lp: LessonPlanResponse) {
           <th colspan="4">Criterion: ${escapeHtml(r.criterion)}</th>
         </tr>
         <tr>
-          <th>Exceeding</th>
-          <th>Meeting</th>
-          <th>Approaching</th>
-          <th>Below</th>
+          <th>Exceeding (Level 4)</th>
+          <th>Meeting (Level 3)</th>
+          <th>Approaching (Level 2)</th>
+          <th>Below (Level 1)</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           ${r.levels.map(l => `
             <td>
-              <strong>${escapeHtml(l.scoreRange)}:</strong> ${escapeHtml(l.descriptor)}
+              <strong>${escapeHtml(l.scoreRange)}:</strong><br/>
+              ${escapeHtml(l.descriptor)}
             </td>
           `).join('')}
         </tr>
@@ -304,8 +519,18 @@ function openPrintableLessonPlan(lp: LessonPlanResponse) {
     </table>
   `).join('')}
 
-  <h3>7. Homework & Extension Task</h3>
+  <h3>7. Homework & Community Service Learning (CSL) Task</h3>
   <p style="font-size: 13px; font-style: italic;">${escapeHtml(lp.homeworkAssignment)}</p>
+
+  ${lp.reflectionPrompt ? `
+    <h3>8. Teacher's Self-Reflection Prompt</h3>
+    <p style="font-size: 12px; color: #4b5563; border-left: 3px solid #6366f1; padding-left: 8px;">${escapeHtml(lp.reflectionPrompt)}</p>
+  ` : ''}
+
+  <div class="footer-signatures">
+    <div class="sig-line">Subject Teacher Signature</div>
+    <div class="sig-line">Senior Teacher / HOD Approval</div>
+  </div>
 
   <script>
     window.onload = function() {
@@ -393,6 +618,16 @@ const SYLLABUS_PRESETS = [
   { subject: 'English', topic: 'Argumentative Essay Writing & Persuasive Devices' },
 ];
 
+const CBC_SCHEME_PRESETS = [
+  { subject: 'Integrated Science', strand: 'Living Things and Their Environment', subStrand: 'Plant and Animal Adaptations' },
+  { subject: 'Mathematics', strand: 'Numbers and Operations', subStrand: 'Fractions, Decimals and Percentages' },
+  { subject: 'Social Studies', strand: 'Natural and Built Environment', subStrand: 'Weather Systems and Climate Impact' },
+  { subject: 'Agriculture & Nutrition', strand: 'Conserving Agricultural Environment', subStrand: 'Soil Conservation & Water Harvesting' },
+  { subject: 'Pre-Technical Studies', strand: 'Materials for Production', subStrand: 'Metallic and Non-Metallic Materials' },
+  { subject: 'Creative Arts & Sports', strand: 'Visual Arts and Design', subStrand: 'Drawing and Color Application' },
+  { subject: 'Kiswahili', strand: 'Kusikiliza na Kuzungumza', subStrand: 'Mazingira na Uhifadhi' },
+];
+
 export function TeacherAIStudio() {
   return (
     <ProtectedRoute allowedRoles={[...teacherRoles, ...predictiveAnalyticsRoles]}>
@@ -409,7 +644,7 @@ function TeachingTools() {
   const [termId, setTermId] = useState('');
   const [language, setLanguage] = useState<TeachingLanguage>('English');
   const [tone, setTone] = useState<RemarksTone>('CBC');
-  const [tab, setTab] = useState<'remarks' | 'lesson-plan' | 'quiz'>('remarks');
+  const [tab, setTab] = useState<'scheme-of-work' | 'lesson-plan' | 'remarks' | 'quiz'>('scheme-of-work');
   const [selected, setSelected] = useState<string[]>([]);
   const [observations, setObservations] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, GeneratedRemark>>({});
@@ -420,12 +655,29 @@ function TeachingTools() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
+  // CBC Scheme of Work state
+  const [sowSubject, setSowSubject] = useState('Integrated Science');
+  const [sowStrand, setSowStrand] = useState('Living Things and Their Environment');
+  const [sowSubStrand, setSowSubStrand] = useState('Plant and Animal Adaptations');
+  const [sowTermNumber, setSowTermNumber] = useState(1);
+  const [sowWeeksCount, setSowWeeksCount] = useState(10);
+  const [sowLessonsPerWeek, setSowLessonsPerWeek] = useState(4);
+  const [sowCurriculum, setSowCurriculum] = useState<'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT'>('CBC');
+  const [schemeOfWork, setSchemeOfWork] = useState<CBCSchemeOfWorkResponse | null>(null);
+
   // Lesson Plan state
   const [lpSubject, setLpSubject] = useState('Integrated Science');
   const [lpChapter, setLpChapter] = useState('Photosynthesis & Plant Respiration');
+  const [lpStrand, setLpStrand] = useState('Living Things and Their Environment');
+  const [lpSubStrand, setLpSubStrand] = useState('Plant Respiration & Photosynthesis');
   const [lpDuration, setLpDuration] = useState(45);
   const [lpCurriculum, setLpCurriculum] = useState<'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT'>('CBC');
   const [lessonPlan, setLessonPlan] = useState<LessonPlanResponse | null>(null);
+
+  // Chat sharing state
+  const [chatModalOpen, setChatModalOpen] = useState(false);
+  const [chatPayload, setChatPayload] = useState<{ title: string; content: string; type: 'LESSON_PLAN' | 'SCHEME_OF_WORK' } | null>(null);
+  const [sharingChat, setSharingChat] = useState(false);
 
   // Quiz state
   const [paper, setPaper] = useState<AIQuestionPaper | null>(null);
@@ -630,6 +882,42 @@ function TeachingTools() {
     }
   };
 
+  // Scheme of Work Generator
+  const handleGenerateSchemeOfWork = async () => {
+    if (!sowSubject.trim() || !sowStrand.trim() || !classId) return;
+    const controller = new AbortController();
+    generation.current = controller;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    setSchemeOfWork(null);
+
+    try {
+      const data = await generateSchemeOfWork(
+        {
+          classId,
+          subject: sowSubject.trim(),
+          strand: sowStrand.trim(),
+          subStrand: sowSubStrand.trim() || undefined,
+          termNumber: sowTermNumber,
+          weeksCount: sowWeeksCount,
+          lessonsPerWeek: sowLessonsPerWeek,
+          curriculum: sowCurriculum,
+          language,
+        },
+        controller.signal
+      );
+      if (!controller.signal.aborted) {
+        setSchemeOfWork(data);
+        setNotice('🎉 Kenyan CBC Scheme of Work successfully created in under 10 seconds! Ready to print PDF or send to chat.');
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) setError(messageFor(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   // Lesson Plan Generator
   const handleGenerateLessonPlan = async () => {
     if (!lpSubject.trim() || !lpChapter.trim() || !classId) return;
@@ -646,6 +934,8 @@ function TeachingTools() {
           classId,
           subject: lpSubject.trim(),
           chapter: lpChapter.trim(),
+          strand: lpStrand.trim() || undefined,
+          subStrand: lpSubStrand.trim() || undefined,
           durationMinutes: lpDuration,
           curriculum: lpCurriculum,
           language,
@@ -654,12 +944,37 @@ function TeachingTools() {
       );
       if (!controller.signal.aborted) {
         setLessonPlan(data);
-        setNotice('✨ Complete 5E Lesson Plan generated in under 10 seconds! Ready to teach and print.');
+        setNotice('✨ Complete 5E Lesson Plan generated in under 10 seconds! Ready to teach, print as PDF or send to chat.');
       }
     } catch (err) {
       if (!controller.signal.aborted) setError(messageFor(err));
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Share to Class Chat
+  const handleShareToChat = async (payload: { title: string; content: string; type: 'LESSON_PLAN' | 'SCHEME_OF_WORK' }) => {
+    if (!classId) {
+      setError('Please select a class first.');
+      return;
+    }
+    setSharingChat(true);
+    setError('');
+    try {
+      const res = await shareLessonToChat({
+        classId,
+        title: payload.title,
+        summary: payload.title,
+        content: payload.content,
+        type: payload.type,
+      });
+      setNotice(`🚀 Successfully posted to ${res.channelName}! Learners & parents can immediately see the outcomes and inquiries in chat.`);
+      setChatModalOpen(false);
+    } catch (err) {
+      setError(messageFor(err));
+    } finally {
+      setSharingChat(false);
     }
   };
 
@@ -832,13 +1147,13 @@ function TeachingTools() {
                 {/* Main Tabs */}
                 <div className="section-tabs" role="group" aria-label="Teaching tools">
                   <button
-                    className={tab === 'remarks' ? 'selected' : ''}
-                    aria-pressed={tab === 'remarks'}
+                    className={tab === 'scheme-of-work' ? 'selected' : ''}
+                    aria-pressed={tab === 'scheme-of-work'}
                     disabled={busy}
-                    onClick={() => setTab('remarks')}
+                    onClick={() => setTab('scheme-of-work')}
                   >
-                    <FileCheck size={16} className="inline mr-2" />
-                    1-Click Report Card Remarks
+                    <BookOpen size={16} className="inline mr-2 text-emerald-600" />
+                    🇰🇪 CBC Scheme of Work (KICD)
                   </button>
                   <button
                     className={tab === 'lesson-plan' ? 'selected' : ''}
@@ -846,8 +1161,17 @@ function TeachingTools() {
                     disabled={busy}
                     onClick={() => setTab('lesson-plan')}
                   >
-                    <Layers size={16} className="inline mr-2" />
-                    10-Sec 5E Lesson Plan Generator
+                    <Layers size={16} className="inline mr-2 text-indigo-600" />
+                    ⚡ Daily Lesson Plan (10s)
+                  </button>
+                  <button
+                    className={tab === 'remarks' ? 'selected' : ''}
+                    aria-pressed={tab === 'remarks'}
+                    disabled={busy}
+                    onClick={() => setTab('remarks')}
+                  >
+                    <FileCheck size={16} className="inline mr-2 text-blue-600" />
+                    1-Click Report Card Remarks
                   </button>
                   <button
                     className={tab === 'quiz' ? 'selected' : ''}
@@ -855,7 +1179,7 @@ function TeachingTools() {
                     disabled={busy}
                     onClick={() => setTab('quiz')}
                   >
-                    <BookOpen size={16} className="inline mr-2" />
+                    <HelpCircle size={16} className="inline mr-2 text-amber-600" />
                     Quiz & Worksheet Maker (PDF)
                   </button>
                 </div>
@@ -1073,6 +1397,294 @@ function TeachingTools() {
                   </Panel>
                 )}
 
+                {/* TAB 1: CBC SCHEME OF WORK GENERATOR (KICD) */}
+                {tab === 'scheme-of-work' && (
+                  <Panel
+                    title="🇰🇪 Kenyan CBC / KICD Scheme of Work Generator"
+                    subtitle="Generate a complete termly Scheme of Work matrix compliant with KICD standards in 10 seconds. Includes Strands, Sub-strands, Specific Learning Outcomes, Key Inquiry Questions, Learning Experiences, Resources, and Assessment Rubrics."
+                  >
+                    <div className="panel-body content-stack">
+                      {/* Presets */}
+                      <div className="bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-100">
+                        <span className="text-xs font-semibold text-emerald-950 uppercase tracking-wider block mb-2">
+                          Quick Kenyan CBC Syllabus Presets:
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {CBC_SCHEME_PRESETS.map((p, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => {
+                                setSowSubject(p.subject);
+                                setSowStrand(p.strand);
+                                setSowSubStrand(p.subStrand);
+                              }}
+                              className="text-xs bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-200 px-3 py-1.5 rounded-lg transition-all"
+                            >
+                              <strong>{p.subject}:</strong> {p.strand}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="form-grid">
+                        <label className="field">
+                          Learning Area / Subject
+                          <input
+                            required
+                            value={sowSubject}
+                            disabled={busy}
+                            onChange={e => setSowSubject(e.target.value)}
+                            placeholder="e.g. Integrated Science, Mathematics, Agriculture & Nutrition"
+                          />
+                        </label>
+                        <label className="field">
+                          Strand (Main Topic Theme)
+                          <input
+                            required
+                            value={sowStrand}
+                            disabled={busy}
+                            onChange={e => setSowStrand(e.target.value)}
+                            placeholder="e.g. Living Things, Numbers and Operations, Soil Conservation"
+                          />
+                        </label>
+                        <label className="field">
+                          Sub-Strand (Specific Unit)
+                          <input
+                            value={sowSubStrand}
+                            disabled={busy}
+                            onChange={e => setSowSubStrand(e.target.value)}
+                            placeholder="e.g. Plant and Animal Adaptations (Optional)"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="ai-controls">
+                        <label className="field">
+                          Term
+                          <select
+                            value={sowTermNumber}
+                            disabled={busy}
+                            onChange={e => setSowTermNumber(Number(e.target.value))}
+                          >
+                            <option value={1}>Term 1 (Opening Term)</option>
+                            <option value={2}>Term 2 (Mid-Year Term)</option>
+                            <option value={3}>Term 3 (Culmination Term)</option>
+                          </select>
+                        </label>
+
+                        <label className="field">
+                          Weeks Planned
+                          <select
+                            value={sowWeeksCount}
+                            disabled={busy}
+                            onChange={e => setSowWeeksCount(Number(e.target.value))}
+                          >
+                            <option value={6}>6 Weeks (Short Term)</option>
+                            <option value={8}>8 Weeks</option>
+                            <option value={10}>10 Weeks (Standard KICD Term)</option>
+                            <option value={12}>12 Weeks (Extended Term)</option>
+                          </select>
+                        </label>
+
+                        <label className="field">
+                          Lessons / Week
+                          <select
+                            value={sowLessonsPerWeek}
+                            disabled={busy}
+                            onChange={e => setSowLessonsPerWeek(Number(e.target.value))}
+                          >
+                            <option value={3}>3 Lessons / Week</option>
+                            <option value={4}>4 Lessons / Week (Standard)</option>
+                            <option value={5}>5 Lessons / Week</option>
+                          </select>
+                        </label>
+
+                        <label className="field">
+                          Curriculum Framework
+                          <select
+                            value={sowCurriculum}
+                            disabled={busy}
+                            onChange={e => setSowCurriculum(e.target.value as any)}
+                          >
+                            <option value="CBC">Kenyan CBC (KICD Framework)</option>
+                            <option value="STANDARD">Standard National Curriculum</option>
+                            <option value="CAMBRIDGE">Cambridge Lower Secondary</option>
+                            <option value="NCERT">NCERT / CBSE Framework</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <div>
+                        <Button
+                          isLoading={busy}
+                          disabled={!configured || !classId || !sowSubject.trim() || !sowStrand.trim()}
+                          leftIcon={<Zap size={16} />}
+                          onClick={() => void handleGenerateSchemeOfWork()}
+                        >
+                          Generate CBC Scheme of Work in 10s
+                        </Button>
+                      </div>
+
+                      {/* Generated Scheme of Work Display */}
+                      {schemeOfWork && (
+                        <div className="mt-6 border border-emerald-200 rounded-2xl bg-white p-6 shadow-sm space-y-6">
+                          <div className="flex flex-col md:flex-row items-start justify-between border-b pb-4 gap-4">
+                            <div>
+                              <span className="text-xs font-bold text-emerald-700 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                REPUBLIC OF KENYA · {schemeOfWork.curriculum} · {schemeOfWork.term} ({schemeOfWork.academicYear})
+                              </span>
+                              <h2 className="text-2xl font-bold text-gray-900 mt-2">{schemeOfWork.title}</h2>
+                              <p className="text-sm text-gray-600 mt-0.5">
+                                <strong>Strand:</strong> {schemeOfWork.strand} · <strong>Level:</strong> {schemeOfWork.gradeLevel} · <strong>Total Lessons:</strong> {schemeOfWork.weeks.length} Lessons Planned
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                leftIcon={<Printer size={14} />}
+                                onClick={() => openPrintableSchemeOfWork(schemeOfWork)}
+                              >
+                                Print / Save PDF (Landscape)
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                leftIcon={<Send size={14} />}
+                                onClick={() => {
+                                  const sowMsg = `📋 **${schemeOfWork.title}**\n\n🏛️ **Strand:** ${schemeOfWork.strand} | **Term:** ${schemeOfWork.term} (${schemeOfWork.academicYear})\n\n🎯 **General Outcomes (പഠന ലക്ഷ്യങ്ങൾ):**\n${schemeOfWork.generalOutcomes.map((o, i) => `${i + 1}. ${o}`).join('\n')}\n\n✨ **Core Competencies & Values:** ${schemeOfWork.coreCompetencies.slice(0, 4).join(', ')}\n\n📅 **Weekly Overview:** ${schemeOfWork.weeks.length} Lessons scheduled. Inquiry tasks and materials will be shared as each unit begins.`;
+                                  setChatPayload({
+                                    title: schemeOfWork.title,
+                                    content: sowMsg,
+                                    type: 'SCHEME_OF_WORK',
+                                  });
+                                  setChatModalOpen(true);
+                                }}
+                              >
+                                Share to Class Chat
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                leftIcon={<Download size={14} />}
+                                onClick={() => downloadText(`${sowStrand.toLowerCase().replace(/\\s+/g, '-')}-scheme-of-work.txt`, schemeOfWorkText(schemeOfWork))}
+                              >
+                                Download TXT
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* General Outcomes & Competencies */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                              <h3 className="text-xs font-bold text-emerald-900 uppercase tracking-wider mb-2">
+                                🎯 General Learning Outcomes (പഠന ലക്ഷ്യങ്ങൾ)
+                              </h3>
+                              <ul className="text-xs text-gray-800 space-y-1.5 list-disc list-inside">
+                                {schemeOfWork.generalOutcomes.map((obj, i) => (
+                                  <li key={i}>{obj}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
+                                ✨ Core Competencies, Values & PCIs
+                              </h3>
+                              <div className="space-y-1.5 text-xs text-slate-700">
+                                <div><strong>Competencies:</strong> {schemeOfWork.coreCompetencies.join(', ')}</div>
+                                <div><strong>Values:</strong> {schemeOfWork.values.join(', ')}</div>
+                                <div><strong>PCIs:</strong> {schemeOfWork.pcis.join(', ')}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Weekly Lessons Table */}
+                          <div>
+                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3">
+                              📅 Weekly Scheme Breakdown ({schemeOfWork.weeks.length} Lessons)
+                            </h3>
+                            <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                              <table className="w-full text-left text-xs border-collapse">
+                                <thead>
+                                  <tr className="bg-gray-100 text-gray-800 border-b font-semibold">
+                                    <th className="p-2.5 w-12 text-center">Wk</th>
+                                    <th className="p-2.5 w-12 text-center">Les</th>
+                                    <th className="p-2.5 w-44">Sub-Strand</th>
+                                    <th className="p-2.5 min-w-[200px]">Specific Learning Outcomes (SLOs)</th>
+                                    <th className="p-2.5 min-w-[160px]">Key Inquiry Questions</th>
+                                    <th className="p-2.5 min-w-[180px]">Learning Experiences</th>
+                                    <th className="p-2.5 min-w-[140px]">Resources</th>
+                                    <th className="p-2.5 min-w-[120px]">Assessment</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                  {schemeOfWork.weeks.map((w, idx) => (
+                                    <tr key={idx} className="hover:bg-gray-50/60 transition-colors">
+                                      <td className="p-2.5 text-center font-bold text-gray-700">{w.week}</td>
+                                      <td className="p-2.5 text-center font-semibold text-gray-600">{w.lessonNumber}</td>
+                                      <td className="p-2.5 font-medium text-emerald-950">{w.subStrand}</td>
+                                      <td className="p-2.5">
+                                        <ul className="list-disc list-inside space-y-0.5 text-gray-700">
+                                          {w.specificLearningOutcomes.map((slo, sIdx) => (
+                                            <li key={sIdx}>{slo}</li>
+                                          ))}
+                                        </ul>
+                                      </td>
+                                      <td className="p-2.5 text-indigo-900 italic">
+                                        {w.keyInquiryQuestions.map((q, qIdx) => (
+                                          <div key={qIdx} className="mb-1">? {q}</div>
+                                        ))}
+                                      </td>
+                                      <td className="p-2.5 text-gray-600">
+                                        {w.learningExperiences.map((le, lIdx) => (
+                                          <div key={lIdx} className="mb-0.5">• {le}</div>
+                                        ))}
+                                      </td>
+                                      <td className="p-2.5 text-gray-500 text-[11px]">{w.learningResources.join('; ')}</td>
+                                      <td className="p-2.5 text-gray-600 font-medium">{w.assessmentMethods.join(', ')}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* Assessment Rubrics */}
+                          <div>
+                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-2">
+                              📊 CBC / KNEC 4-Level Assessment Rubrics
+                            </h3>
+                            <div className="space-y-3">
+                              {schemeOfWork.assessmentRubrics.map((r, rIdx) => (
+                                <div key={rIdx} className="border border-gray-200 rounded-xl overflow-hidden">
+                                  <div className="bg-gray-100 px-3.5 py-2 font-bold text-xs text-gray-800">
+                                    Criterion: {r.criterion}
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-200 text-xs">
+                                    {r.levels.map((lvl, lIdx) => (
+                                      <div key={lIdx} className="p-3 bg-white">
+                                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-1 ${
+                                          lvl.level === 'EXCEEDING' ? 'bg-emerald-100 text-emerald-800' :
+                                          lvl.level === 'MEETING' ? 'bg-blue-100 text-blue-800' :
+                                          lvl.level === 'APPROACHING' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                                        }`}>
+                                          {lvl.level} ({lvl.scoreRange})
+                                        </span>
+                                        <p className="text-gray-700 text-[11px] leading-relaxed mt-1">{lvl.descriptor}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Panel>
+                )}
+
                 {/* TAB 2: LESSON PLAN GENERATOR */}
                 {tab === 'lesson-plan' && (
                   <Panel
@@ -1179,7 +1791,7 @@ function TeachingTools() {
                                 {lessonPlan.subject} · {lessonPlan.gradeLevel} · {lessonPlan.durationMinutes} Minutes
                               </p>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               <Button
                                 size="sm"
                                 variant="primary"
@@ -1187,6 +1799,22 @@ function TeachingTools() {
                                 onClick={() => openPrintableLessonPlan(lessonPlan)}
                               >
                                 Print / Save PDF Plan
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                leftIcon={<Send size={14} />}
+                                onClick={() => {
+                                  const lpMsg = `📚 **${lessonPlan.title}**\n\n🎯 **Specific Learning Outcomes (പഠന ലക്ഷ്യങ്ങൾ):**\n${lessonPlan.learningObjectives.map((o, i) => `${i + 1}. ${o}`).join('\n')}\n\n❓ **Key Inquiry Questions (ഇൻക്വയറി ചോദ്യങ്ങൾ):**\n${lessonPlan.keyInquiryQuestions.map(q => `• ${q}`).join('\n')}\n\n📝 **Homework / Inquiry Task:**\n${lessonPlan.homeworkAssignment}\n\n💡 **Resources Needed:** ${lessonPlan.materials.join(', ')}`;
+                                  setChatPayload({
+                                    title: lessonPlan.title,
+                                    content: lpMsg,
+                                    type: 'LESSON_PLAN',
+                                  });
+                                  setChatModalOpen(true);
+                                }}
+                              >
+                                Share to Class Chat
                               </Button>
                               <Button
                                 size="sm"
@@ -1624,6 +2252,63 @@ function TeachingTools() {
           ))}
         </section>
       )}
+
+      {/* Class Chat Sharing Modal */}
+      {chatModalOpen && chatPayload && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="text-primary-600" size={20} />
+                <h3 className="font-bold text-gray-900">Share to Class Chat (കുട്ടികൾക്ക് അയക്കുക)</h3>
+              </div>
+              <button
+                onClick={() => setChatModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-4 space-y-4">
+              <p className="text-xs text-gray-600">
+                This will post the lesson plan or scheme of work summary, learning outcomes, inquiry questions, and tasks directly into the class chat channel for students and parents to view.
+              </p>
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1">Title</label>
+                <input
+                  className="w-full text-sm border rounded-lg p-2.5 bg-gray-50 text-gray-800 font-medium"
+                  value={chatPayload.title}
+                  onChange={e => setChatPayload({ ...chatPayload, title: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1">Message Preview</label>
+                <textarea
+                  rows={8}
+                  className="w-full text-xs font-mono border rounded-lg p-2.5 text-gray-800 focus:ring-2 focus:ring-primary-500"
+                  value={chatPayload.content}
+                  onChange={e => setChatPayload({ ...chatPayload, content: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3 pt-3 border-t">
+              <Button variant="outline" size="sm" onClick={() => setChatModalOpen(false)} disabled={sharingChat}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                isLoading={sharingChat}
+                leftIcon={<Send size={14} />}
+                onClick={() => void handleShareToChat(chatPayload)}
+              >
+                Send to Class Chat Now
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

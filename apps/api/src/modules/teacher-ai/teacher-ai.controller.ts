@@ -6,7 +6,7 @@ import { CurrentUser, CurrentUserData } from '../../common/decorators/current-us
 import { Roles } from '../../common/decorators/roles.decorator';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { TeacherAIService } from './teacher-ai.service';
-import { ClassTermDto, CopilotQueryDto, GenerateLessonPlanDto, GenerateQuizDto, GenerateRemarksDto, RiskReviewDto, SaveRemarkDto } from './dto/teacher-ai.dto';
+import { ClassTermDto, CopilotQueryDto, GenerateLessonPlanDto, GenerateQuizDto, GenerateRemarksDto, GenerateSchemeOfWorkDto, RiskReviewDto, SaveRemarkDto, ShareLessonToChatDto } from './dto/teacher-ai.dto';
 
 @ApiTags('teacher-ai')
 @ApiBearerAuth()
@@ -23,6 +23,8 @@ export class TeacherAIController {
   @Post('remarks/save') save(@CurrentUser() user: CurrentUserData, @Body() dto: SaveRemarkDto) { return this.service.saveRemark(user, dto); }
   @Post('quiz') @Throttle({ default: { limit: 8, ttl: 60000 } }) quiz(@CurrentUser() user: CurrentUserData, @Body() dto: GenerateQuizDto) { return this.service.quiz(user, dto); }
   @Post('lesson-plan') @Throttle({ default: { limit: 8, ttl: 60000 } }) lessonPlan(@CurrentUser() user: CurrentUserData, @Body() dto: GenerateLessonPlanDto) { return this.service.lessonPlan(user, dto); }
+  @Post('scheme-of-work') @Throttle({ default: { limit: 8, ttl: 60000 } }) schemeOfWork(@CurrentUser() user: CurrentUserData, @Body() dto: GenerateSchemeOfWorkDto) { return this.service.schemeOfWork(user, dto); }
+  @Post('share-to-chat') @Throttle({ default: { limit: 20, ttl: 60000 } }) shareToChat(@CurrentUser() user: CurrentUserData, @Body() dto: ShareLessonToChatDto) { return this.service.shareToChat(user, dto); }
   @Post('copilot-query') @Throttle({ default: { limit: 20, ttl: 60000 } }) copilotQuery(@CurrentUser() user: CurrentUserData, @Body() dto: CopilotQueryDto) { return this.service.copilotQuery(user, dto); }
   @Post('risk-review') @Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.DEPUTY_PRINCIPAL, UserRole.SCHOOL_ADMIN)
   @Throttle({ default: { limit: 8, ttl: 60000 } }) risk(@CurrentUser() user: CurrentUserData, @Body() dto: RiskReviewDto) { return this.service.riskReview(user, dto); }

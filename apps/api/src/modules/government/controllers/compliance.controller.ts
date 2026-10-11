@@ -137,7 +137,7 @@ export class ComplianceController {
     @Param('reportId') reportId: string,
   ) {
     // Implementation would fetch from database
-    return { message: 'Not implemented yet' };
+    return this.complianceService.getReport(req.user.tenantId,reportId);
   }
 
   @Post('reports/approve')
@@ -147,7 +147,7 @@ export class ComplianceController {
     @Request() req: any,
     @Body() dto: ApproveReportDto,
   ) {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     return this.complianceService.approveReport(dto.reportId, userId);
   }
 
@@ -158,7 +158,7 @@ export class ComplianceController {
     @Request() req: any,
     @Body() dto: SubmitReportDto,
   ) {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     return this.complianceService.submitReport(dto.reportId, userId);
   }
 
@@ -226,7 +226,7 @@ export class ComplianceController {
     @Request() req: any,
     @Body() dto: CompleteChecklistDto,
   ) {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     return this.complianceService.completeChecklist(
       dto.checklistId,
       userId,
@@ -329,7 +329,7 @@ export class ComplianceController {
     @Request() req: any,
     @Body() dto: AcknowledgeAlertDto,
   ) {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     return this.complianceService.acknowledgeAlert(dto.alertId, userId);
   }
 
@@ -340,7 +340,7 @@ export class ComplianceController {
     @Request() req: any,
     @Body() dto: ResolveAlertDto,
   ) {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     return this.complianceService.resolveAlert(
       dto.alertId,
       userId,
