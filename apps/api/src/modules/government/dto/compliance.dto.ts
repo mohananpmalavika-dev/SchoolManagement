@@ -434,3 +434,55 @@ export class AlertResponseDto {
   @ApiProperty()
   updatedAt: Date;
 }
+
+export class ExportPortalDataDto {
+  @ApiProperty({
+    description: 'Target Government Board Template',
+    enum: [
+      'CBSE_OASIS_LOC',
+      'STATE_BOARD_ANNUAL_RETURN',
+      'UDISE_PLUS_SDMIS',
+      'NEMIS_STUDENT_MASTER',
+      'TEACHER_MANDATORY_DISCLOSURE',
+      'EXAM_BOARD_REGISTER',
+    ],
+  })
+  @IsString()
+  templateId: string;
+
+  @ApiPropertyOptional({ enum: ['xlsx', 'csv'], default: 'xlsx' })
+  @IsOptional()
+  @IsString()
+  format?: 'xlsx' | 'csv';
+}
+
+export class LogAuditRecordOverrideDto {
+  @ApiProperty({ description: 'Target entity type', enum: ['GRADE', 'FEE_PAYMENT', 'STUDENT_RECORD', 'CERTIFICATE'] })
+  @IsString()
+  entityType: string;
+
+  @ApiProperty({ description: 'Target entity identifier' })
+  @IsString()
+  entityId: string;
+
+  @ApiProperty({ description: 'Human readable label of entity' })
+  @IsString()
+  entityName: string;
+
+  @ApiProperty({ description: 'Audit action taken' })
+  @IsString()
+  action: string;
+
+  @ApiProperty({ description: 'Mandatory reason for override' })
+  @IsString()
+  reason: string;
+
+  @ApiPropertyOptional({ description: 'Official reference / order number' })
+  @IsOptional()
+  @IsString()
+  approvalRef?: string;
+
+  @ApiProperty({ description: 'Array of diff field modifications' })
+  @IsObject({ each: true })
+  changes: any[];
+}

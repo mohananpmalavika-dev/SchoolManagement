@@ -78,4 +78,36 @@ export class AuthController {
  checkLockoutStatus(@Param('email') email:string){
    return this.auth.checkLockoutStatus(email);
  }
+ 
+ @Public() @Post('password-reset/request') @HttpCode(200)
+ @Throttle({default:{limit:3,ttl:3600000}}) // 3 requests per hour
+ @ApiOperation({ summary: 'Request password reset link via email' })
+ @ApiResponse({ status: 200, description: 'Password reset email sent (if account exists)' })
+ @ApiResponse({ status: 429, description: 'Too many password reset requests' })
+ requestPasswordReset(@Body() dto:RequestPasswordResetDto){
+   return this.passwordReset.requestPasswordReset(dto.email);
+ }
+ 
+ @Public() @Post('password-reset/verify') @HttpCode(200)
+ @ApiOperation({ summary: 'Verify password reset token validity' })
+ @ApiResponse({ status: 200, description: 'Token is valid' })
+ @ApiResponse({ status: 400, description: 'Token is invalid or expired' })
+ verifyResetToken(@Body() dto:VerifyResetTokenDto){
+   return this.passwordReset.verifyToken(dto.token);
+ }
+ 
+ @Public() @Post('password-reset/reset') @HttpCode(200)
+ @ApiOperation({ summary: 'Reset password using valid token' })
+ @ApiResponse({ status: 200, description: 'Password successfully reset' })
+ @ApiResponse({ status: 400, description: 'Token is invalid, expired, or password is weak' })
+ resetPassword(@Body() dto:ResetPasswordDto){
+   return this.passwordReset.resetPassword(dto.token, dto.newPassword);
+ }
+ 
+ @Public() @Get('password-reset/attempts/:email')
+ @ApiOperation({ summary: 'Get remaining password reset attempts for email' })
+ @ApiResponse({ status: 200, description: 'Remaining attempts retrieved' })
+ getRemainingAttempts(@Param('email') email:string){
+   return this.passwordReset.getRemainingAttempts(email);
+ }
 }

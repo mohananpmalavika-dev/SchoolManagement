@@ -63,6 +63,7 @@ export function AdminNav() {
             <NavLink href="/dashboard/ptm">Virtual PTM</NavLink>
             <NavLink href="/dashboard/whatsapp">WhatsApp Hub</NavLink>
             <NavLink href="/school/admissions">Admissions CRM</NavLink>
+            <NavLink href="/dashboard/compliance">Govt Compliance</NavLink>
             <NavLink href="/dashboard/smart-attendance">Smart Attendance</NavLink>
             <NavLink href="/admin/schools">{t('admin.schools')}</NavLink>
             <NavLink href="/admin/subscriptions">{t('admin.subscriptions')}</NavLink>

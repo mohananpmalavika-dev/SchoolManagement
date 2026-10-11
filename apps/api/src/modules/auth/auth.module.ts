@@ -5,9 +5,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AccountLockoutService } from './services/account-lockout.service';
+import { PasswordResetService } from './services/password-reset.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { RedisService } from '../../common/services/redis.service';
+import { EmailService } from '../../common/services/email.service';
 
 @Module({
   imports: [
@@ -24,7 +26,15 @@ import { RedisService } from '../../common/services/redis.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AccountLockoutService, RedisService, JwtStrategy, LocalStrategy],
+  providers: [
+    AuthService, 
+    AccountLockoutService, 
+    PasswordResetService,
+    EmailService,
+    RedisService, 
+    JwtStrategy, 
+    LocalStrategy
+  ],
   exports: [AuthService, AccountLockoutService],
 })
 export class AuthModule {}

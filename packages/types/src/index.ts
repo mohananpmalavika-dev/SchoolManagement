@@ -25,3 +25,4 @@ export * from './admissions';
 export * from './copilot';
 export * from './timetable-generator';
 export * from './finance';
+export * from './compliance-engine';

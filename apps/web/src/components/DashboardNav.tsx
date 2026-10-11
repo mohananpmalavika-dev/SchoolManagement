@@ -50,6 +50,7 @@ export function DashboardNav() {
             <NavLink href="/dashboard/substitution">Proxy Engine</NavLink>
             <NavLink href="/school/admissions">Admissions CRM</NavLink>
             <NavLink href="/dashboard/certificates">Certificates & IDs</NavLink>
+            <NavLink href="/dashboard/compliance">Govt Compliance</NavLink>
             <NavLink href="/dashboard/fees">{t('parent.fees')}</NavLink>
             <NavLink href="/dashboard/attendance">{t('parent.attendance')}</NavLink>
             <NavLink href="/dashboard/grades">{t('parent.grades')}</NavLink>
