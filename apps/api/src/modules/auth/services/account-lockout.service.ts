@@ -130,7 +130,8 @@ export class AccountLockoutService {
     const lockoutKey = this.getLockoutKey(email);
 
     // Increment attempt counter
-    const attempts = await this.redis.getClient().incr(attemptsKey);
+    const client = await this.redis.getClient();
+    const attempts = await client.incr(attemptsKey);
 
     // Set TTL on first attempt
     if (attempts === 1) {
@@ -210,7 +211,8 @@ export class AccountLockoutService {
     const unlockRateKey = this.getUnlockRateKey(email);
 
     // Rate limiting on unlock attempts (prevent abuse)
-    const unlockAttempts = await this.redis.getClient().incr(unlockRateKey);
+    const client = await this.redis.getClient();
+    const unlockAttempts = await client.incr(unlockRateKey);
     if (unlockAttempts === 1) {
       await this.redis.expire(unlockRateKey, 300); // 5-minute window
     }

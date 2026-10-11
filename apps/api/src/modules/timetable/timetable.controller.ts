@@ -32,6 +32,7 @@ import {
   UpdateSchoolEventDto,
   QuerySchoolEventsDto,
 } from './dto/create-school-event.dto';
+import { AutoGenerateTimetableDto } from './dto/auto-generate-timetable.dto';
 
 @ApiTags('Timetable & Calendar')
 @ApiBearerAuth()
@@ -309,5 +310,39 @@ export class TimetableController {
   })
   async removeEvent(@Param('id') id: string) {
     return this.timetableService.removeEvent(id);
+  }
+
+  // ==================== AUTO GENERATE & AUDIT ====================
+
+  @Post('auto-generate')
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.PRINCIPAL,
+    Role.DEPUTY_PRINCIPAL,
+    Role.SCHOOL_ADMIN,
+  )
+  @ApiOperation({ summary: 'Auto-generate conflict-free timetable using constraint engine' })
+  @ApiResponse({
+    status: 200,
+    description: 'Conflict-free timetable generated successfully',
+  })
+  async autoGenerate(@Body() dto: AutoGenerateTimetableDto) {
+    return this.timetableService.autoGenerateTimetable(dto);
+  }
+
+  @Get('conflicts/audit')
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.PRINCIPAL,
+    Role.DEPUTY_PRINCIPAL,
+    Role.SCHOOL_ADMIN,
+  )
+  @ApiOperation({ summary: 'Perform 3-way conflict collision audit on timetable' })
+  @ApiResponse({
+    status: 200,
+    description: 'Collision audit completed',
+  })
+  async auditConflicts() {
+    return this.timetableService.auditConflicts();
   }
 }

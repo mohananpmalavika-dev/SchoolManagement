@@ -2,6 +2,7 @@ import {Controller,Get,Post,Body,Request,HttpCode,Query,Param} from '@nestjs/com
 import {ApiTags,ApiOperation,ApiResponse} from '@nestjs/swagger';
 import {IsString,MinLength,MaxLength,IsEmail,IsOptional} from 'class-validator';
 import {AuthService} from './auth.service';
+import {PasswordResetService} from './services/password-reset.service';
 import {Public} from '../../common/decorators/public.decorator';
 import {Roles} from '../../common/decorators/roles.decorator';
 import {LoginDto} from './dto/login.dto';
@@ -18,10 +19,26 @@ class UnlockAccountDto {
  @IsOptional() @IsString() @MaxLength(500) reason?:string;
 }
 
+class RequestPasswordResetDto {
+ @IsEmail() email:string;
+}
+
+class ResetPasswordDto {
+ @IsString() token:string;
+ @IsString() @MinLength(12) @MaxLength(128) newPassword:string;
+}
+
+class VerifyResetTokenDto {
+ @IsString() token:string;
+}
+
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
- constructor(private auth:AuthService){}
+ constructor(
+   private auth:AuthService,
+   private passwordReset:PasswordResetService,
+ ){}
  
  @Public() @Post('login') @HttpCode(200) @Throttle({default:{limit:10,ttl:60000}})
  @ApiOperation({ summary: 'Login with email and password' })

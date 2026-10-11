@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Delete,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,6 +19,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { AttendanceService } from './attendance.service';
+import { QRAttendanceService, QRSessionConfig, QRScanRequest } from './services/qr-attendance.service';
 import {
   BulkMarkAttendanceDto,
   MarkSingleAttendanceDto,
@@ -45,7 +47,10 @@ import { UserRole } from '@krypton/types';
 @Controller('attendance')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class AttendanceController {
-  constructor(private readonly attendanceService: AttendanceService) {}
+  constructor(
+    private readonly attendanceService: AttendanceService,
+    private readonly qrAttendanceService: QRAttendanceService,
+  ) {}
 
   // ==================== STUDENT ATTENDANCE ====================
 
@@ -251,5 +256,122 @@ export class AttendanceController {
   @ApiResponse({ status: 200, description: 'Statistics retrieved' })
   getStaffAttendanceStats(@Query('staffId') staffId?: string) {
     return this.attendanceService.getStaffAttendanceStats(staffId);
+  }
+
+  // ==================== QR CODE ATTENDANCE ====================
+
+  @Post('qr/generate-token')
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.SCHOOL_OWNER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY_PRINCIPAL,
+    UserRole.SCHOOL_ADMIN,
+    UserRole.TEACHER,
+    UserRole.CLASS_TEACHER,
+  )
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ 
+    summary: 'Generate secure QR attendance token',
+    description: 'Creates a time-limited JWT token for QR code attendance. Token expires after configured time (default 5 minutes).'
+  })
+  @ApiResponse({ status: 201, description: 'QR token generated successfully' })
+  generateQRToken(
+    @Body() config: Omit<QRSessionConfig, 'tenantId'>,
+    @CurrentUser() user: any,
+  ) {
+    return this.qrAttendanceService.generateQRToken({
+      ...config,
+      tenantId: user.tenantId,
+      createdBy: user.userId,
+    });
+  }
+
+  @Post('qr/scan')
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.SCHOOL_OWNER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY_PRINCIPAL,
+    UserRole.SCHOOL_ADMIN,
+    UserRole.TEACHER,
+    UserRole.CLASS_TEACHER,
+    UserRole.STUDENT,
+  )
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Process QR code scan for attendance',
+    description: 'Verifies QR token and marks student attendance. Prevents replay attacks and duplicate scans.'
+  })
+  @ApiResponse({ status: 200, description: 'Attendance marked successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid QR code or already scanned' })
+  @ApiResponse({ status: 401, description: 'QR code expired or invalid' })
+  scanQRCode(
+    @Body() request: QRScanRequest,
+    @CurrentUser() user: any,
+  ) {
+    return this.qrAttendanceService.verifyAndMarkAttendance(request, user.tenantId);
+  }
+
+  @Get('qr/session/:sessionId')
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.SCHOOL_OWNER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY_PRINCIPAL,
+    UserRole.SCHOOL_ADMIN,
+    UserRole.TEACHER,
+    UserRole.CLASS_TEACHER,
+  )
+  @ApiOperation({ summary: 'Get QR session information' })
+  @ApiParam({ name: 'sessionId', description: 'QR session ID' })
+  @ApiResponse({ status: 200, description: 'Session information retrieved' })
+  getQRSession(@Param('sessionId') sessionId: string) {
+    return this.qrAttendanceService.getSessionInfo(sessionId);
+  }
+
+  @Get('qr/session/:sessionId/stats')
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.SCHOOL_OWNER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY_PRINCIPAL,
+    UserRole.SCHOOL_ADMIN,
+    UserRole.TEACHER,
+    UserRole.CLASS_TEACHER,
+  )
+  @ApiOperation({ summary: 'Get QR session statistics' })
+  @ApiParam({ name: 'sessionId', description: 'QR session ID' })
+  @ApiResponse({ status: 200, description: 'Session statistics retrieved' })
+  getQRSessionStats(
+    @Param('sessionId') sessionId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.qrAttendanceService.getSessionStats(sessionId, user.tenantId);
+  }
+
+  @Delete('qr/session/:sessionId')
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.SCHOOL_OWNER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY_PRINCIPAL,
+    UserRole.SCHOOL_ADMIN,
+    UserRole.TEACHER,
+    UserRole.CLASS_TEACHER,
+  )
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ 
+    summary: 'Invalidate QR session (emergency stop)',
+    description: 'Immediately invalidates a QR session to prevent further scans'
+  })
+  @ApiParam({ name: 'sessionId', description: 'QR session ID to invalidate' })
+  @ApiResponse({ status: 204, description: 'Session invalidated successfully' })
+  async invalidateQRSession(
+    @Param('sessionId') sessionId: string,
+    @CurrentUser() user: any,
+  ) {
+    await this.qrAttendanceService.invalidateSession(sessionId, user.tenantId);
+    return;
   }
 }

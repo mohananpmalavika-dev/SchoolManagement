@@ -449,7 +449,35 @@ class SmartSubstitutionService {
     return TEACHER_PROFILES.find((t) => t.id === id);
   }
 
-  public getTeacherRegularSchedule(teacherId: string): TeacherTimetableSlot[] {
+  public getTeacherRegularSchedule(teacherId: string, dayOfWeek?: number): TeacherTimetableSlot[] {
+    // Check if auto-generated timetable exists in localStorage
+    if (this.isClient()) {
+      try {
+        const stored = localStorage.getItem('krypton_auto_timetable_result');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const day = new Date().getDay();
+          const targetDay = dayOfWeek || (day === 0 || day === 6 ? 1 : day); // Default to current weekday (or Mon on weekend)
+          const slots = parsed.slots?.filter(
+            (s: any) => s.teacherId === teacherId && s.dayOfWeek === targetDay
+          );
+          if (slots && slots.length > 0) {
+            return slots.map((s: any) => ({
+              periodNumber: s.periodNumber,
+              periodName: s.periodName,
+              timeSlot: s.timeSlot,
+              classId: s.classId,
+              className: s.className,
+              subjectName: s.subjectName,
+              room: s.roomName,
+              lessonPlanNote: s.lessonPlanNote,
+            }));
+          }
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
     return MASTER_TIMETABLE[teacherId] || [];
   }
 

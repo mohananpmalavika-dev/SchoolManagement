@@ -23,3 +23,5 @@ export * from './virtual-ptm';
 export * from './certificate';
 export * from './admissions';
 export * from './copilot';
+export * from './timetable-generator';
+export * from './finance';
