@@ -48,8 +48,11 @@ export class WorkspaceService{
   this.staffRole(user);const tenantId=this.tenant();const classes=await this.classIds(user);
   const scope=classes?{currentClassId:{in:classes}}:{};
   if(teacherRoles.includes(user.role)&&!['classes','students','examinations','subjects','timetable','messages','recipients'].includes(resource))throw new ForbiddenException('Resource is not available to teachers');
+  if(resource==='users'){if(!managers.includes(user.role))throw new ForbiddenException('Administrator access required');return this.prisma.user.findMany({where:{tenantId,isActive:true},select:{id:true,firstName:true,lastName:true,role:true}});}
   if(resource==='recipients')return this.prisma.guardian.findMany({where:{tenantId,studentLinks:{some:{student:scope}}},select:{id:true,firstName:true,lastName:true,userId:true}});
   if(resource==='messages')return this.prisma.communication.findMany({where:{tenantId,...(classes?{sentBy:user.userId}:{})},orderBy:{createdAt:'desc'},take:500});
+  const limited:Record<string,string[]>={ACCOUNTANT:['students','guardians','classes','terms','invoices','payments','examinations','tickets'],LIBRARIAN:['students','classes','books','borrowings','tickets'],TRANSPORT_OFFICER:['students','classes','vehicles','routes','tickets'],RECEPTIONIST:['students','guardians','guardian-links','classes','schools','tickets']};
+  if(limited[user.role]&&!limited[user.role].includes(resource))throw new ForbiddenException('Resource is not available to your role');
   const spec=recordSpecs[resource];if(!spec)throw new NotFoundException('Unknown resource');
   let rows:any[];
   const db=this.prisma as any;
@@ -65,6 +68,7 @@ export class WorkspaceService{
   return rows.map(r=>({...r,name:r.name||(r.firstName?r.firstName+' '+r.lastName:undefined),studentName:r.student?r.student.firstName+' '+r.student.lastName:undefined,className:r.currentClass?.name||r.class?.name,termName:r.term?.name,bookTitle:r.book?.title,guardianName:r.guardian?r.guardian.firstName+' '+r.guardian.lastName:undefined,subjectName:r.subject?.name,teacherName:r.teacher?r.teacher.firstName+' '+r.teacher.lastName:undefined,studentCount:r._count?.currentStudents,day:r.dayOfWeek?['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][r.dayOfWeek-1]:undefined}));
  }
  async write(user:any,resource:string,input:Record<string,unknown>,id?:string){
+  if(resource==='messages')return this.sendMessage(user,input);
   const spec=this.writer(user,resource);const tenantId=this.tenant();const data=parseRecord(spec,input,!!id);const db=this.prisma as any;
   for(const [key,rule] of Object.entries(spec.fields))if(rule.startsWith('ref:')&&data[key]){
    const model=rule.replace(/!$/,'').slice(4);const ref=await db[model].findFirst({where:{id:data[key],tenantId}});
@@ -145,10 +149,20 @@ export class WorkspaceService{
   const announcements=await this.prisma.announcement.findMany({where:{status:'PUBLISHED'},orderBy:{publishedAt:'desc'},take:20});
   return [...logs.map(l=>({id:l.id,title:l.communication.subject,body:l.communication.body,createdAt:l.createdAt,read:!!l.readAt})),...announcements.map(a=>({id:a.id,title:a.title,body:a.body,createdAt:a.publishedAt,read:true,platform:true}))].sort((a,b)=>new Date(b.createdAt!).getTime()-new Date(a.createdAt!).getTime());
  }
+ async sendMessage(user:any,input:Record<string,unknown>){
+  const data=parseRecord({model:'communication',fields:{classId:'ref:class!',subject:'text!',body:'long!'}},input);
+  await this.authorizeClass(user,data.classId);
+  if(![...managers,...teacherRoles].includes(user.role))throw new ForbiddenException('Cannot send messages');
+  const guardians=await this.prisma.guardian.findMany({where:{tenantId:this.tenant(),userId:{not:null},studentLinks:{some:{student:{currentClassId:data.classId,deletedAt:null},receiveUpdates:true}}},select:{userId:true}});
+  const users=await this.prisma.user.findMany({where:{tenantId:this.tenant(),id:{in:guardians.map(g=>g.userId!).filter(Boolean)},role:'PARENT',isActive:true},select:{id:true}});
+  const recipients=[...new Set(users.map(u=>u.id))];if(!recipients.length)throw new BadRequestException('No linked parent accounts in this class');
+  await this.prisma.communication.create({data:{tenantId:this.tenant(),channel:'IN_APP',messageType:'ANNOUNCEMENT',subject:data.subject,body:data.body,status:'SENT',sentBy:user.userId,recipientCount:recipients.length,deliveredCount:recipients.length,sentAt:new Date(),logs:{create:recipients.map(id=>({recipient:id,channel:'IN_APP',status:'SENT',sentAt:new Date()}))}}});
+  await this.audit(user,'MESSAGE_SENT','class',data.classId);return {recipients:recipients.length};
+ }
  async readNotification(user:any,id:string){const result=await this.prisma.communicationLog.updateMany({where:{id,recipient:user.userId,channel:'IN_APP',communication:{tenantId:this.tenant()}},data:{readAt:new Date(),status:'READ'}});if(!result.count)throw new NotFoundException('Message not found');return {message:'Marked as read'};}
  async overview(user:any){
   this.staffRole(user);const tenantId=this.tenant();const classes=await this.classIds(user);const classFilter=classes?{classId:{in:classes}}:{};
-  const today=new Date();today.setUTCHours(0,0,0,0);
+  const today=new Date(new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Nairobi',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
   const [students,staff,classCount,examinations,balance,attendance,events,activities,records]=await Promise.all([
    this.prisma.student.count({where:{tenantId,status:'ACTIVE',deletedAt:null,...(classes?{currentClassId:{in:classes}}:{})}}),
    this.prisma.staff.count({where:{tenantId,status:'ACTIVE'}}),this.prisma.class.count({where:{tenantId,...(classes?{id:{in:classes}}:{})}}),

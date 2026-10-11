@@ -4,6 +4,7 @@ export function homeForRole(role: string) {
   if (role === 'SUPER_ADMIN') return '/admin/dashboard';
   if (teacherRoles.includes(role)) return '/teacher/dashboard';
   if (schoolRoles.includes(role)) return '/school/dashboard';
+  if (role === 'STUDENT') return '/student/dashboard';
   return '/dashboard';
 }
 export function clearSession() {

@@ -1,3 +1,4 @@
+import * as nodemailer from 'nodemailer';
 import {
   Injectable,
   NotFoundException,
@@ -46,7 +47,7 @@ export class CommunicationsService {
     this.smtpHost = this.configService.get('SMTP_HOST', '');
     this.smtpPort = this.configService.get<number>('SMTP_PORT', 1025);
     this.smtpUser = this.configService.get('SMTP_USER', '');
-    this.smtpPassword = this.configService.get('SMTP_PASSWORD', '');
+    this.smtpPassword = this.configService.get('SMTP_PASSWORD', this.configService.get('SMTP_PASS', ''));
   }
 
   // ==================== MESSAGING ====================
@@ -54,6 +55,9 @@ export class CommunicationsService {
   async sendMessage(dto: SendMessageDto, userId?: string) {
     const tenantId = this.tenantService.requireTenantContext();
 
+    if(dto.scheduledAt) throw new BadRequestException('Scheduled delivery requires a configured job queue');
+    if(dto.channel===MessageChannel.PUSH) throw new BadRequestException('Push delivery is not configured');
+    if(!dto.recipients.length||dto.recipients.length>500) throw new BadRequestException('Select between 1 and 500 recipients');
     // Create communication record
     const communication = await this.prisma.communication.create({
       data: {
@@ -75,7 +79,7 @@ export class CommunicationsService {
       await this.processMessage(communication.id, dto.recipients);
     }
 
-    return communication;
+    return this.prisma.communication.findUnique({where:{id:communication.id}});
   }
 
   async sendBulkMessage(dto: SendBulkMessageDto, userId?: string) {
@@ -387,7 +391,7 @@ export class CommunicationsService {
     await this.prisma.communication.update({
       where: { id: communicationId },
       data: {
-        status: results.failed > 0 ? 'PARTIALLY_SENT' : 'SENT',
+        status: results.success === 0 ? 'FAILED' : results.failed > 0 ? 'PARTIALLY_SENT' : 'SENT',
         sentAt: new Date(),
         deliveredCount: results.success,
         failedCount: results.failed,
@@ -425,18 +429,20 @@ export class CommunicationsService {
         },
       );
 
-      // Log each recipient
+      const reports = response.data?.SMSMessageData?.Recipients || [];
       for (const recipient of recipients) {
+        const report = reports.find((item:any) => item.number === recipient);
+        const accepted = report?.status === 'Success';
         await this.prisma.communicationLog.create({
           data: {
             communicationId: communication.id,
             recipient,
             channel: MessageChannel.SMS,
-            status: 'SENT',
+            status: accepted ? 'SENT' : 'FAILED',
             sentAt: new Date(),
           },
         });
-        results.success++;
+        if(accepted) results.success++; else results.failed++;
       }
 
       this.logger.log(`SMS sent to ${recipients.length} recipients`);
@@ -447,31 +453,19 @@ export class CommunicationsService {
     }
   }
 
-  private async sendEmail(
-    communication: any,
-    recipients: string[],
-    results: any,
-  ) {
-    // Email sending would use nodemailer or similar
-    // For now, log and mark as sent
-    for (const recipient of recipients) {
-      try {
-        // TODO: Implement actual email sending
-        await this.prisma.communicationLog.create({
-          data: {
-            communicationId: communication.id,
-            recipient,
-            channel: MessageChannel.EMAIL,
-            status: 'SENT',
-            sentAt: new Date(),
-          },
-        });
-        results.success++;
-      } catch (error: any) {
-        results.failed++;
-        results.errors.push({ recipient, error: error.message });
+  private async sendEmail(communication:any,recipients:string[],results:any){
+    if(!this.smtpHost){results.failed=recipients.length;return;}
+    const transport=nodemailer.createTransport({host:this.smtpHost,port:Number(this.smtpPort),secure:this.configService.get('SMTP_SECURE')==='true',auth:this.smtpUser?{user:this.smtpUser,pass:this.smtpPassword}:undefined,connectionTimeout:10000,socketTimeout:20000,disableFileAccess:true,disableUrlAccess:true});
+    for(const recipient of recipients){
+      try{
+        const response=await transport.sendMail({from:this.configService.get('EMAIL_FROM'),to:recipient,subject:communication.subject||'School update',text:communication.body});
+        if(!response.accepted?.length)throw new Error('SMTP server rejected recipient');
+        await this.prisma.communicationLog.create({data:{communicationId:communication.id,recipient,channel:'EMAIL',status:'SENT',sentAt:new Date()}});results.success++;
+      }catch(error:any){
+        await this.prisma.communicationLog.create({data:{communicationId:communication.id,recipient,channel:'EMAIL',status:'FAILED',errorMessage:'Email delivery failed'}});results.failed++;results.errors.push({recipient,error:'Email delivery failed'});
       }
     }
+    transport.close();
   }
 
   private async sendInApp(

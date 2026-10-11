@@ -1,0 +1,12 @@
+from pathlib import Path
+p=Path('apps/api/src/modules/communications/communications.service.ts');s=p.read_text().replace("import * as nodemailer from 'nodemailer';\nimport * as nodemailer from 'nodemailer';","import * as nodemailer from 'nodemailer';");p.write_text(s)
+p=Path('apps/web/src/lib/api-client.ts');s=p.read_text().replace("!request.url?.startsWith('/auth/')","!['/auth/login','/auth/refresh'].includes(request.url||'')");p.write_text(s)
+p=Path('apps/web/src/components/OverviewPage.tsx');s=p.read_text().replace("href={base+(portal==='admin'?'/schools':'/attendance')}","href={base+(portal==='admin'?'/schools':'/attendance')}");p.write_text(s)
+p=Path('apps/api/src/modules/workspace/workspace.service.ts');s=p.read_text()
+s=s.replace('const today=new Date();today.setUTCHours(0,0,0,0);',"const today=new Date(new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Nairobi',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));")
+s=s.replace("  else if(resource==='examinations'&&action==='publish'){if(!await this.prisma.examination.findFirst({where:{id,tenantId}}))throw new NotFoundException('Assessment not found');await this.prisma.examination.update({where:{id,tenantId},data:{isPublished:true}});}","  else if(resource==='examinations'&&action==='publish'){if(!await this.prisma.examination.findFirst({where:{id,tenantId}}))throw new NotFoundException('Assessment not found');await this.prisma.examination.update({where:{id,tenantId},data:{isPublished:true}});}")
+# Role-specific reading permissions supplement the tenant boundary.
+s=s.replace("  const spec=recordSpecs[resource];if(!spec)","  const limited:Record<string,string[]>={ACCOUNTANT:['students','guardians','classes','terms','invoices','payments','examinations','tickets'],LIBRARIAN:['students','classes','books','borrowings','tickets'],TRANSPORT_OFFICER:['students','classes','vehicles','routes','tickets'],RECEPTIONIST:['students','guardians','guardian-links','classes','schools','tickets']};\n  if(limited[user.role]&&!limited[user.role].includes(resource))throw new ForbiddenException('Resource is not available to your role');\n  const spec=recordSpecs[resource];if(!spec)",1)
+p.write_text(s)
+# Register the safe static-only service worker and show connectivity status.
+p=Path('apps/web/src/contexts/AuthContext.tsx');s=p.read_text().replace('  useEffect(() => {\n    refreshUser()',"  useEffect(() => {\n    if ('serviceWorker' in navigator) void navigator.serviceWorker.register('/sw.js').catch(() => undefined);\n    refreshUser()");p.write_text(s)

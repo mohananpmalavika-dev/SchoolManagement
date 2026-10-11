@@ -594,8 +594,8 @@ export class AttendanceService {
             date: attendanceDate,
             status: item.status,
             remarks: item.remarks,
-            checkInTime: item.checkInTime ? new Date(item.checkInTime) : null,
-            checkOutTime: item.checkOutTime
+            timeIn: item.checkInTime ? new Date(item.checkInTime) : null,
+            timeOut: item.checkOutTime
               ? new Date(item.checkOutTime)
               : null,
             markedBy: userId,
@@ -656,8 +656,8 @@ export class AttendanceService {
         date: attendanceDate,
         status: dto.status,
         remarks: dto.remarks,
-        checkInTime: dto.checkInTime ? new Date(dto.checkInTime) : null,
-        checkOutTime: dto.checkOutTime ? new Date(dto.checkOutTime) : null,
+        timeIn: dto.checkInTime ? new Date(dto.checkInTime) : null,
+        timeOut: dto.checkOutTime ? new Date(dto.checkOutTime) : null,
         markedBy: userId,
       },
       include: {

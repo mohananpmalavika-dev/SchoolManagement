@@ -28,19 +28,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
         details: this.getErrorDetails(exceptionResponse),
       },
       timestamp: new Date().toISOString(),
-      path: request.url,
+      path: request.path,
     };
 
     // Log error
     if (status >= 500) {
       this.logger.error(
-        `${request.method} ${request.url}`,
+        `${request.method} ${request.path}`,
         exception.stack,
         'HttpExceptionFilter'
       );
     } else {
       this.logger.warn(
-        `${request.method} ${request.url} - ${status}`,
+        `${request.method} ${request.path} - ${status}`,
         'HttpExceptionFilter'
       );
     }

@@ -10,7 +10,7 @@ apiClient.interceptors.response.use(response=>{
 },async(error:AxiosError<any>)=>{
  const request=error.config as (InternalAxiosRequestConfig&{_retry?:boolean})|undefined;
  if(error.response?.data?.error?.message)error.response.data.message=error.response.data.error.message;
- if(typeof window!=='undefined'&&error.response?.status===401&&request&&!request._retry&&!request.url?.startsWith('/auth/')){
+ if(typeof window!=='undefined'&&error.response?.status===401&&request&&!request._retry&&!['/auth/login','/auth/refresh'].includes(request.url||'')){
   request._retry=true;const token=localStorage.getItem('refreshToken');
   if(token){try{
    refresh ||= axios.post((apiClient.defaults.baseURL||'/api')+'/auth/refresh',{refreshToken:token},{timeout:15000}).then(res=>{const data=res.data.data||res.data;if(!data.accessToken)throw new Error('Invalid session');localStorage.setItem('accessToken',data.accessToken);return data.accessToken as string;}).finally(()=>{refresh=null;});

@@ -6,7 +6,7 @@
   "author": "KryptonLogic",
   "license": "PROPRIETARY",
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=22.0.0",
     "pnpm": ">=8.0.0"
   },
   "scripts": {
@@ -22,15 +22,19 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "type-check": "turbo run type-check",
     "clean": "turbo run clean && rm -rf node_modules",
-    "db:migrate": "pnpm --filter database db:migrate",
-    "db:push": "pnpm --filter database db:push",
-    "db:studio": "pnpm --filter database db:studio",
-    "db:seed": "pnpm --filter database db:seed",
+    "db:migrate": "pnpm --filter @krypton/database db:migrate",
+    "db:push": "pnpm --filter @krypton/database db:push",
+    "db:studio": "pnpm --filter @krypton/database db:studio",
+    "db:seed": "pnpm --filter @krypton/database db:seed",
     "db:reset": "pnpm --filter database db:reset",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "db:deploy": "pnpm --filter @krypton/database db:migrate:deploy",
+    "db:generate": "pnpm --filter @krypton/database db:generate",
+    "db:seed:demo": "pnpm --filter @krypton/database db:seed:demo",
+    "test:smoke": "node scripts/smoke-test.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
@@ -49,5 +53,14 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "pnpm": {
+    "overrides": {
+      "lodash": "^4.18.0",
+      "js-yaml": "^4.3.2",
+      "qs": "^6.16.0",
+      "postcss": "^8.5.23",
+      "multer": "^2.3.0"
+    }
+  }
 }

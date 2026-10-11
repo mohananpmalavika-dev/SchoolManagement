@@ -87,6 +87,7 @@ export interface Translations {
 
   // Parent Portal
   parent: {
+    family: string;
     portalLogin: string;
     dashboard: string;
     fees: string;
@@ -348,6 +349,23 @@ export const translations: Record<'en' | 'sw', Translations> = {
   // ENGLISH
   en: {
     common: {
+      dashboard: "Dashboard",
+      profileSettings: "Account settings",
+      helpSupport: "Help & support",
+      school: "School",
+      schoolWorkspace: "SCHOOL WORKSPACE",
+      connectedSchool: "THE CONNECTED SCHOOL",
+      betterSchoolDays: "Better school days.",
+      brighterFutures: "Brighter futures.",
+      workspaceDescription: "A thoughtful workspace for the people who make education happen. Stay connected, simplify the everyday, and keep learning at the heart of it all.",
+      peopleConnected: "People, connected",
+      learningSupported: "Learning, supported",
+      accessProtected: "Access, protected",
+      placeToGrow: "A place to grow.",
+      oneCommunity: "One school. One community. One workspace.",
+      welcomeToKrypton: "WELCOME TO KRYPTON",
+      organizedSchools: "Organized schools. Empowered people.",
+
       appName: 'Krypton School ERP',
       welcome: 'Welcome',
       login: 'Login',
@@ -387,6 +405,20 @@ export const translations: Record<'en' | 'sw', Translations> = {
       settings: 'Settings',
     },
     auth: {
+      email: "Email address",
+      password: "Password",
+      signingIn: "Signing in…",
+      goodToSeeYou: "Good to see you.",
+      signInToWorkspace: "Sign in to your {{workspace}} workspace.",
+      unableToSignIn: "Unable to sign in. Check your details and try again.",
+      showPassword: "Show password",
+      hidePassword: "Hide password",
+      accessAssigned: "Access is assigned by your school administrator.",
+      needHelpContact: "Need help signing in? Contact your school office.",
+      needHelp: "Need help?",
+      contactSupport: "Contact your school office.",
+      demoCredentials: "Local demo accounts",
+
       signIn: 'Sign In',
       signOut: 'Sign Out',
       forgotPassword: 'Forgot Password?',
@@ -399,6 +431,9 @@ export const translations: Record<'en' | 'sw', Translations> = {
       sessionExpired: 'Your session has expired',
     },
     parent: {
+      portalLogin: "Family portal sign-in",
+      family: "family",
+
       dashboard: 'Dashboard',
       fees: 'Fees',
       attendance: 'Attendance',
@@ -442,6 +477,15 @@ export const translations: Record<'en' | 'sw', Translations> = {
       schoolAnnouncement: 'School Announcement',
     },
     teacher: {
+      portalLogin: "Teacher portal sign-in",
+      teacherPortal: "Teacher portal",
+      teacher: "Teacher",
+      teaching: "teaching",
+      onlyTeachersAllowed: "This workspace is for teachers.",
+      notATeacher: "Choose the portal for your role.",
+      parentPortal: "Family portal",
+      mobileNav: {"home": "Home", "classes": "Classes", "attend": "Attendance", "grades": "Grades", "messages": "Messages"},
+
       dashboard: 'Dashboard',
       myClasses: 'My Classes',
       attendance: 'Attendance',
@@ -501,6 +545,14 @@ export const translations: Record<'en' | 'sw', Translations> = {
       replyReceived: 'Reply received',
     },
     admin: {
+      superAdmin: "SUPER ADMIN",
+      administration: "administration",
+      platform: "Platform",
+      platformAdministrator: "Platform administrator",
+      securityMFA: "Security & MFA",
+      auditLogs: "Audit logs",
+      mobileNav: {"dashboard": "Dashboard", "schools": "Schools", "billing": "Billing", "system": "System"},
+
       platformAdmin: 'Platform Admin',
       dashboard: 'Dashboard',
       schools: 'Schools',
@@ -622,6 +674,23 @@ export const translations: Record<'en' | 'sw', Translations> = {
   // SWAHILI (KISWAHILI)
   sw: {
     common: {
+      dashboard: "Dashibodi",
+      profileSettings: "Mipangilio ya akaunti",
+      helpSupport: "Msaada",
+      school: "Shule",
+      schoolWorkspace: "MAZINGIRA YA SHULE",
+      connectedSchool: "SHULE ILIYOUNGANISHWA",
+      betterSchoolDays: "Siku bora za shule.",
+      brighterFutures: "Mustakabali mzuri.",
+      workspaceDescription: "Mazingira ya kazi kwa watu wanaowezesha elimu. Unganisha jamii ya shule na kurahisisha kazi za kila siku.",
+      peopleConnected: "Watu wameunganishwa",
+      learningSupported: "Masomo yanaungwa mkono",
+      accessProtected: "Ufikiaji umelindwa",
+      placeToGrow: "Mahali pa kukua.",
+      oneCommunity: "Shule moja. Jamii moja. Mazingira moja.",
+      welcomeToKrypton: "KARIBU KRYPTON",
+      organizedSchools: "Shule zilizopangwa. Watu waliowezeshwa.",
+
       appName: 'Krypton Mfumo wa Shule',
       welcome: 'Karibu',
       login: 'Ingia',
@@ -661,6 +730,20 @@ export const translations: Record<'en' | 'sw', Translations> = {
       settings: 'Mipangilio',
     },
     auth: {
+      email: "Barua pepe",
+      password: "Nenosiri",
+      signingIn: "Unaingia…",
+      goodToSeeYou: "Karibu tena.",
+      signInToWorkspace: "Ingia katika mazingira yako ya {{workspace}}.",
+      unableToSignIn: "Imeshindikana kuingia. Hakiki taarifa zako na ujaribu tena.",
+      showPassword: "Onyesha nenosiri",
+      hidePassword: "Ficha nenosiri",
+      accessAssigned: "Ufikiaji hutolewa na msimamizi wa shule.",
+      needHelpContact: "Unahitaji msaada kuingia? Wasiliana na ofisi ya shule.",
+      needHelp: "Unahitaji msaada?",
+      contactSupport: "Wasiliana na ofisi ya shule.",
+      demoCredentials: "Akaunti za majaribio",
+
       signIn: 'Ingia',
       signOut: 'Toka',
       forgotPassword: 'Umesahau Nywila?',
@@ -673,6 +756,9 @@ export const translations: Record<'en' | 'sw', Translations> = {
       sessionExpired: 'Kipindi chako kimeisha',
     },
     parent: {
+      portalLogin: "Kuingia kwa familia",
+      family: "familia",
+
       dashboard: 'Dashibodi',
       fees: 'Ada',
       attendance: 'Mahudhurio',
@@ -716,6 +802,15 @@ export const translations: Record<'en' | 'sw', Translations> = {
       schoolAnnouncement: 'Tangazo la Shule',
     },
     teacher: {
+      portalLogin: "Kuingia kwa mwalimu",
+      teacherPortal: "Mazingira ya mwalimu",
+      teacher: "Mwalimu",
+      teaching: "ufundishaji",
+      onlyTeachersAllowed: "Mazingira haya ni ya walimu.",
+      notATeacher: "Chagua mazingira ya jukumu lako.",
+      parentPortal: "Mazingira ya familia",
+      mobileNav: {"home": "Nyumbani", "classes": "Madarasa", "attend": "Mahudhurio", "grades": "Alama", "messages": "Ujumbe"},
+
       dashboard: 'Dashibodi',
       myClasses: 'Madarasa Yangu',
       attendance: 'Mahudhurio',
@@ -775,6 +870,14 @@ export const translations: Record<'en' | 'sw', Translations> = {
       replyReceived: 'Jibu limepokelewa',
     },
     admin: {
+      superAdmin: "MSIMAMIZI MKUU",
+      administration: "usimamizi",
+      platform: "Jukwaa",
+      platformAdministrator: "Msimamizi wa jukwaa",
+      securityMFA: "Usalama na MFA",
+      auditLogs: "Kumbukumbu za ukaguzi",
+      mobileNav: {"dashboard": "Dashibodi", "schools": "Shule", "billing": "Malipo", "system": "Mfumo"},
+
       platformAdmin: 'Msimamizi wa Mfumo',
       dashboard: 'Dashibodi',
       schools: 'Shule',

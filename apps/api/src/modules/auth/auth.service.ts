@@ -18,7 +18,7 @@ export class AuthService {
  private publicUser(user:any){return {id:user.id,email:user.email,firstName:user.firstName,lastName:user.lastName,role:user.role,tenantId:user.tenantId};}
  private issue(user:any){
   const payload={sub:user.id,tenantId:user.tenantId,ver:user.tokenVersion};
-  return {accessToken:this.jwt.sign({...payload,type:'access'}),refreshToken:this.jwt.sign({...payload,type:'refresh'},{secret:this.config.getOrThrow('JWT_REFRESH_SECRET'),expiresIn:this.config.get('JWT_REFRESH_EXPIRES_IN','7d')}),user:this.publicUser(user)};
+  return {accessToken:this.jwt.sign({...payload,type:'access'}),refreshToken:this.jwt.sign({...payload,type:'refresh'},{secret:this.config.getOrThrow('JWT_REFRESH_SECRET'),expiresIn:Number(this.config.get('JWT_REFRESH_TTL_SECONDS',604800))}),user:this.publicUser(user)};
  }
  async login(dto:LoginDto){const user=await this.validateUser(dto.email,dto.password);if(!user)throw new UnauthorizedException('Invalid email or password');if(user.mfaEnabled)throw new UnauthorizedException('This account requires MFA. Contact your administrator to configure a supported sign-in provider.');await this.prisma.user.update({where:{id:user.id},data:{lastLoginAt:new Date()}});return this.issue(user);}
  async refreshToken(token:string){

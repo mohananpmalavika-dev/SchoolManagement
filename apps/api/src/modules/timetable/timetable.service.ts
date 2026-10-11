@@ -254,7 +254,7 @@ export class TimetableService {
         existing.period,
         startTime,
         endTime,
-        dto.room || existing.room,
+        dto.room || existing.room || undefined,
         id, // Exclude current entry
       );
     }

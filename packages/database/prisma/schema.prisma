@@ -512,6 +512,7 @@ enum StaffStatus {
 }
 
 model StaffAttendance {
+  markedBy String?
   remarks String?
   id                String   @id @default(uuid())
   tenantId          String

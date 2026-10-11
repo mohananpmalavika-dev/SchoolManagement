@@ -31,6 +31,7 @@ export function LoginScreen({portal = 'school'}: {portal?: string}) {
   const portalLabel = portal === 'admin' ? t('admin.administration') 
     : portal === 'teacher' ? t('teacher.teaching') 
     : portal === 'parent' ? t('parent.family') 
+    : portal === 'student' ? 'Student'
     : t('common.school');
 
   return (
@@ -99,6 +100,9 @@ export function LoginScreen({portal = 'school'}: {portal?: string}) {
             </Link>
             <Link className={portal === 'teacher' ? 'selected' : ''} href="/teacher/login">
               {t('teacher.teacher')}
+            </Link>
+            <Link className={portal === 'student' ? 'selected' : ''} href="/student/login">
+              Student
             </Link>
             <Link className={portal === 'parent' ? 'selected' : ''} href="/parent/login">
               {t('parent.family')}

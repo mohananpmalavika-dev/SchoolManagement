@@ -1,3 +1,4 @@
+import { validateEnvironment } from './config/environment';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -30,6 +31,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
+      validate: validateEnvironment,
       envFilePath: ['.env.local', '.env'],
     }),
 
@@ -65,6 +67,6 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
 export class AppModule implements NestModule {
  constructor(private tenants:TenantService){}
  configure(consumer:MiddlewareConsumer){
-  consumer.apply((req:any,res:any,next:()=>void)=>this.tenants.run(next),TenantResolutionMiddleware).forRoutes('*');
+  consumer.apply((req:any,res:any,next:()=>void)=>this.tenants.run(next),TenantResolutionMiddleware).forRoutes('{*path}');
  }
 }

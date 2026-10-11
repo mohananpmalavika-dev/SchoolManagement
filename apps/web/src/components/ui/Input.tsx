@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, forwardRef, ReactNode } from 'react';
+import { InputHTMLAttributes, forwardRef, ReactNode, useId } from 'react';
 import { clsx } from 'clsx';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -23,7 +23,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = useId();
+    const inputId = id || generatedId;
 
     return (
       <div className="w-full">
@@ -46,6 +47,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             id={inputId}
+            aria-invalid={!!error}
+            aria-describedby={error || helpText ? inputId + '-help' : undefined}
             className={clsx(
               'w-full px-4 py-2.5 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed',
               error
@@ -66,11 +69,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         </div>
 
         {error && (
-          <p className="mt-1.5 text-sm text-danger-600">{error}</p>
+          <p id={inputId + '-help'} className="mt-1.5 text-sm text-danger-600">{error}</p>
         )}
 
         {helpText && !error && (
-          <p className="mt-1.5 text-sm text-gray-500">{helpText}</p>
+          <p id={inputId + '-help'} className="mt-1.5 text-sm text-gray-500">{helpText}</p>
         )}
       </div>
     );

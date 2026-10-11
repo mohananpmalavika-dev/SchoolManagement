@@ -1,0 +1,218 @@
+{
+  "common": {
+    "dashboard": [
+      "Dashboard",
+      "Dashibodi"
+    ],
+    "profileSettings": [
+      "Account settings",
+      "Mipangilio ya akaunti"
+    ],
+    "helpSupport": [
+      "Help & support",
+      "Msaada"
+    ],
+    "school": [
+      "School",
+      "Shule"
+    ],
+    "schoolWorkspace": [
+      "SCHOOL WORKSPACE",
+      "MAZINGIRA YA SHULE"
+    ],
+    "connectedSchool": [
+      "THE CONNECTED SCHOOL",
+      "SHULE ILIYOUNGANISHWA"
+    ],
+    "betterSchoolDays": [
+      "Better school days.",
+      "Siku bora za shule."
+    ],
+    "brighterFutures": [
+      "Brighter futures.",
+      "Mustakabali mzuri."
+    ],
+    "workspaceDescription": [
+      "A thoughtful workspace for the people who make education happen. Stay connected, simplify the everyday, and keep learning at the heart of it all.",
+      "Mazingira ya kazi kwa watu wanaowezesha elimu. Unganisha jamii ya shule na kurahisisha kazi za kila siku."
+    ],
+    "peopleConnected": [
+      "People, connected",
+      "Watu wameunganishwa"
+    ],
+    "learningSupported": [
+      "Learning, supported",
+      "Masomo yanaungwa mkono"
+    ],
+    "accessProtected": [
+      "Access, protected",
+      "Ufikiaji umelindwa"
+    ],
+    "placeToGrow": [
+      "A place to grow.",
+      "Mahali pa kukua."
+    ],
+    "oneCommunity": [
+      "One school. One community. One workspace.",
+      "Shule moja. Jamii moja. Mazingira moja."
+    ],
+    "welcomeToKrypton": [
+      "WELCOME TO KRYPTON",
+      "KARIBU KRYPTON"
+    ],
+    "organizedSchools": [
+      "Organized schools. Empowered people.",
+      "Shule zilizopangwa. Watu waliowezeshwa."
+    ]
+  },
+  "auth": {
+    "email": [
+      "Email address",
+      "Barua pepe"
+    ],
+    "password": [
+      "Password",
+      "Nenosiri"
+    ],
+    "signingIn": [
+      "Signing in…",
+      "Unaingia…"
+    ],
+    "goodToSeeYou": [
+      "Good to see you.",
+      "Karibu tena."
+    ],
+    "signInToWorkspace": [
+      "Sign in to your {{workspace}} workspace.",
+      "Ingia katika mazingira yako ya {{workspace}}."
+    ],
+    "unableToSignIn": [
+      "Unable to sign in. Check your details and try again.",
+      "Imeshindikana kuingia. Hakiki taarifa zako na ujaribu tena."
+    ],
+    "showPassword": [
+      "Show password",
+      "Onyesha nenosiri"
+    ],
+    "hidePassword": [
+      "Hide password",
+      "Ficha nenosiri"
+    ],
+    "accessAssigned": [
+      "Access is assigned by your school administrator.",
+      "Ufikiaji hutolewa na msimamizi wa shule."
+    ],
+    "needHelpContact": [
+      "Need help signing in? Contact your school office.",
+      "Unahitaji msaada kuingia? Wasiliana na ofisi ya shule."
+    ],
+    "needHelp": [
+      "Need help?",
+      "Unahitaji msaada?"
+    ],
+    "contactSupport": [
+      "Contact your school office.",
+      "Wasiliana na ofisi ya shule."
+    ],
+    "demoCredentials": [
+      "Local demo accounts",
+      "Akaunti za majaribio"
+    ]
+  },
+  "parent": {
+    "portalLogin": [
+      "Family portal sign-in",
+      "Kuingia kwa familia"
+    ],
+    "family": [
+      "family",
+      "familia"
+    ]
+  },
+  "teacher": {
+    "portalLogin": [
+      "Teacher portal sign-in",
+      "Kuingia kwa mwalimu"
+    ],
+    "teacherPortal": [
+      "Teacher portal",
+      "Mazingira ya mwalimu"
+    ],
+    "teacher": [
+      "Teacher",
+      "Mwalimu"
+    ],
+    "teaching": [
+      "teaching",
+      "ufundishaji"
+    ],
+    "onlyTeachersAllowed": [
+      "This workspace is for teachers.",
+      "Mazingira haya ni ya walimu."
+    ],
+    "notATeacher": [
+      "Choose the portal for your role.",
+      "Chagua mazingira ya jukumu lako."
+    ],
+    "parentPortal": [
+      "Family portal",
+      "Mazingira ya familia"
+    ],
+    "mobileNav": [
+      {
+        "home": "Home",
+        "classes": "Classes",
+        "attend": "Attendance",
+        "grades": "Grades",
+        "messages": "Messages"
+      },
+      {
+        "home": "Nyumbani",
+        "classes": "Madarasa",
+        "attend": "Mahudhurio",
+        "grades": "Alama",
+        "messages": "Ujumbe"
+      }
+    ]
+  },
+  "admin": {
+    "superAdmin": [
+      "SUPER ADMIN",
+      "MSIMAMIZI MKUU"
+    ],
+    "administration": [
+      "administration",
+      "usimamizi"
+    ],
+    "platform": [
+      "Platform",
+      "Jukwaa"
+    ],
+    "platformAdministrator": [
+      "Platform administrator",
+      "Msimamizi wa jukwaa"
+    ],
+    "securityMFA": [
+      "Security & MFA",
+      "Usalama na MFA"
+    ],
+    "auditLogs": [
+      "Audit logs",
+      "Kumbukumbu za ukaguzi"
+    ],
+    "mobileNav": [
+      {
+        "dashboard": "Dashboard",
+        "schools": "Schools",
+        "billing": "Billing",
+        "system": "System"
+      },
+      {
+        "dashboard": "Dashibodi",
+        "schools": "Shule",
+        "billing": "Malipo",
+        "system": "Mfumo"
+      }
+    ]
+  }
+}

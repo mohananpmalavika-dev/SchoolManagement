@@ -58,7 +58,9 @@ export class MpesaService {
     this.consumerSecret = this.configService.get('MPESA_CONSUMER_SECRET', '');
     this.shortCode = this.configService.get('MPESA_SHORT_CODE', '');
     this.passkey = this.configService.get('MPESA_PASSKEY', '');
-    this.callbackUrl = this.configService.get('MPESA_CALLBACK_URL', '');
+    const callbackBase = this.configService.get('MPESA_CALLBACK_URL', '');
+    const callbackToken = this.configService.get('MPESA_CALLBACK_TOKEN', '');
+    this.callbackUrl = callbackBase && callbackToken ? callbackBase + (callbackBase.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(callbackToken) : ''; 
     this.validationUrl = this.configService.get('MPESA_VALIDATION_URL', '');
     this.confirmationUrl = this.configService.get('MPESA_CONFIRMATION_URL', '');
   }
@@ -119,6 +121,7 @@ export class MpesaService {
     userId?: string,
   ): Promise<STKPushResponseDto> {
     const tenantId = this.tenantService.requireTenantContext();
+    if (!this.consumerKey || !this.consumerSecret || !this.passkey || !this.callbackUrl) throw new BadRequestException('M-Pesa is not configured. Contact your school office.');
 
     // Validate invoice exists and get details
     const invoice = await this.feesService.findOneInvoice(dto.invoiceId);
@@ -152,7 +155,8 @@ export class MpesaService {
     ).toString('base64');
 
     // Convert amount from cents to shillings
-    const amountInShillings = Math.floor(dto.amount / 100);
+    if (dto.amount % 100 !== 0) throw new BadRequestException('M-Pesa payments must use whole shilling amounts');
+    const amountInShillings = dto.amount / 100;
 
     const accountReference =
       dto.accountReference || invoice.invoiceNumber || 'SCHOOL_FEE';
@@ -280,6 +284,7 @@ export class MpesaService {
         return acc;
       }, {} as any);
 
+      if (Math.round(Number(metadata.Amount) * 100) !== transaction.amount || String(metadata.PhoneNumber) !== transaction.phoneNumber) throw new BadRequestException('Payment callback does not match the original request');
       const mpesaReceiptNumber = metadata.MpesaReceiptNumber;
       const transactionDate = this.parseProviderDate(metadata.TransactionDate);
       const phoneNumber = metadata.PhoneNumber?.toString();
@@ -312,7 +317,7 @@ export class MpesaService {
               paymentDate: transactionDate.toISOString(),
               notes: `M-Pesa payment from ${phoneNumber}`,
             },
-            transaction.initiatedBy,
+            transaction.initiatedBy || undefined,
           );
 
           // Link payment to transaction
@@ -419,7 +424,9 @@ export class MpesaService {
   ): Promise<C2BConfirmationResponseDto> {
     this.logger.log(`C2B Confirmation: ${dto.TransID}`);
 
-    const tenantId = this.tenantService.getTenantContext();
+    const invoices = await this.prisma.executeWithoutTenantFilter(() => this.prisma.invoice.findMany({ where: { invoiceNumber: dto.BillRefNumber }, take: 2 }));
+    const tenantId = invoices.length === 1 ? invoices[0].tenantId : null;
+    if (tenantId) this.tenantService.setTenantId(tenantId);
 
     if (!tenantId) {
       this.logger.error('No tenant context for C2B callback');
@@ -708,6 +715,7 @@ export class MpesaService {
         data: {
           tenantId,
           transactionType: 'MANUAL',
+          accountReference: dto.invoiceId,
           mpesaReceiptNumber: dto.mpesaReference,
           phoneNumber: dto.customerPhone || '',
           amount: dto.amount,

@@ -1,3 +1,4 @@
+import { PaymentCallbackGuard } from '../../common/guards/payment-callback.guard';
 import {
   Controller,
   Get,
@@ -74,6 +75,7 @@ export class MpesaController {
 
   @Post('stk-push/callback')
   @Public()
+  @UseGuards(PaymentCallbackGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'M-Pesa STK Push callback endpoint (internal use)',
@@ -105,6 +107,7 @@ export class MpesaController {
 
   @Post('c2b/validation')
   @Public()
+  @UseGuards(PaymentCallbackGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'M-Pesa C2B validation endpoint (internal use)',
@@ -118,6 +121,7 @@ export class MpesaController {
 
   @Post('c2b/confirmation')
   @Public()
+  @UseGuards(PaymentCallbackGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'M-Pesa C2B confirmation endpoint (internal use)',

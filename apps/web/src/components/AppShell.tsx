@@ -2,23 +2,24 @@
 import { useState, useEffect, ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { GraduationCap, LayoutDashboard, Users, School, CreditCard, BookOpen, CalendarDays, MessageSquare, Settings, LifeBuoy, LogOut, Menu, X, Search, ChevronRight, ArrowUpRight, Library, Bus, ClipboardCheck, BarChart3, ShieldCheck } from 'lucide-react';
+import { GraduationCap, LayoutDashboard, Users, School, CreditCard, BookOpen, CalendarDays, MessageSquare, Settings, LifeBuoy, LogOut, Menu, X, Search, ChevronRight, ArrowUpRight, Library, Bus, ClipboardCheck, BarChart3, ShieldCheck, LucideIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from './ProtectedRoute';
 import { teacherRoles, schoolRoles } from '@/lib/session';
-type Portal = 'admin' | 'teacher' | 'parent' | 'school';
+type Portal = 'admin' | 'teacher' | 'parent' | 'school' | 'student';
 const items = {
  admin: [['dashboard','Overview',LayoutDashboard],['schools','Schools',School],['subscriptions','Subscriptions',CreditCard],['users','People & access',Users],['reports','Reports',BarChart3],['system','System health',ShieldCheck],['support','Support center',LifeBuoy]],
  teacher: [['dashboard','Overview',LayoutDashboard],['classes','My classes',Users],['attendance','Attendance',ClipboardCheck],['grades','Gradebook',BookOpen],['timetable','My schedule',CalendarDays],['messages','Messages',MessageSquare],['performance','Performance',BarChart3]],
  parent: [['','Overview',LayoutDashboard],['fees','Fees & payments',CreditCard],['attendance','Attendance',ClipboardCheck],['grades','Learning progress',BookOpen],['notifications','School updates',MessageSquare]],
- school: [['dashboard','Overview',LayoutDashboard],['students','Students',Users],['guardians','Guardians',Users],['staff','Staff directory',GraduationCap],['academics','Academic setup',BookOpen],['fees','Fees & invoices',CreditCard],['examinations','Examinations',ClipboardCheck],['calendar','School calendar',CalendarDays],['library','Library',Library],['transport','Transport',Bus],['messages','Communications',MessageSquare]],
+ school: [['dashboard','Overview',LayoutDashboard],['students','Students',Users],['guardians','Guardians',Users],['staff','Staff directory',GraduationCap],['academics','Academic setup',BookOpen],['fees','Fees & invoices',CreditCard],['attendance','Attendance',ClipboardCheck],['grades','Gradebook',BookOpen],['examinations','Examinations',ClipboardCheck],['calendar','School calendar',CalendarDays],['timetable','Timetable',CalendarDays],['library','Library',Library],['transport','Transport',Bus],['inventory','Inventory',Library],['support','Support',LifeBuoy],['messages','Communications',MessageSquare]],
+ student: [['dashboard','Overview',LayoutDashboard],['timetable','My Schedule',CalendarDays],['academics','Academics & CBC',BookOpen],['assignments','Assignments',ClipboardCheck],['attendance','My Attendance',ClipboardCheck],['library','Library & Notes',Library],['profile','Student Profile',GraduationCap]],
 } as const;
 export function AppShell({ portal, children }: { portal: Portal; children: ReactNode }) {
  const pathname = usePathname(); const {user, logout} = useAuth();
  const [open,setOpen] = useState(false); const [search,setSearch] = useState('');
  const base = portal === 'parent' ? '/dashboard' : '/' + portal;
- const links = items[portal]; const active = links.find(([slug]) => pathname === base + (slug ? '/' + slug : ''));
- const roles = portal === 'admin' ? ['SUPER_ADMIN'] : portal === 'teacher' ? teacherRoles : portal === 'school' ? schoolRoles : ['PARENT'];
+ const links:ReadonlyArray<readonly [string,string,LucideIcon]> = items[portal]; const active = links.find(([slug]) => pathname === base + (slug ? '/' + slug : ''));
+ const roles = portal === 'admin' ? ['SUPER_ADMIN'] : portal === 'teacher' ? teacherRoles : portal === 'school' ? schoolRoles : portal === 'student' ? ['STUDENT'] : ['PARENT'];
  useEffect(() => {setOpen(false);setSearch('');},[pathname]);
  useEffect(() => {
   if (!open) return;
@@ -31,7 +32,7 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
  {open && <button className="nav-scrim" aria-label="Close navigation" onClick={() => setOpen(false)} />}
  <aside className={`sidebar ${open?'is-open':''}`} aria-label="Main navigation">
   <Link href={base + (portal === 'parent' ? '' : '/dashboard')} className="brand"><span className="brand-symbol">K</span><span>Krypton<small>SCHOOL WORKSPACE</small></span></Link>
-  <div className="workspace-label"><span className="workspace-dot"/>{portal === 'admin' ? 'Platform administration' : portal === 'teacher' ? 'Teaching workspace' : portal === 'school' ? 'School management' : 'Family workspace'}</div>
+  <div className="workspace-label"><span className="workspace-dot"/>{portal === 'admin' ? 'Platform administration' : portal === 'teacher' ? 'Teaching workspace' : portal === 'school' ? 'School management' : portal === 'student' ? 'Student workspace' : 'Family workspace'}</div>
   <p className="nav-caption">WORKSPACE</p>
   <nav>{links.map(([slug,label,Icon]) => {const href=base+(slug?'/'+slug:'');const selected=pathname===href;return <Link key={href} href={href} className={`nav-link ${selected?'active':''}`} aria-current={selected?'page':undefined}><Icon size={18}/><span>{label}</span>{selected&&<ChevronRight size={14}/>}</Link>;})}</nav>
   <div className="sidebar-bottom"><div className="sidebar-note"><GraduationCap size={24}/><strong>A little more connected.</strong><p>Everything your school needs, in one place.</p></div><button className="signout" onClick={()=>void logout()}><LogOut size={17}/>Sign out</button></div>

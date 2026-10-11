@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
+const path = require('node:path');
 module.exports = {
+  outputFileTracingRoot: path.join(__dirname, '../..'),
   reactStrictMode: true, poweredByHeader: false, output: 'standalone',
   transpilePackages: ['@krypton/types', '@krypton/utils'],
   async headers() {

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { FeeCategory } from '@krypton/types';
 import {
   Injectable,
   NotFoundException,
@@ -57,9 +59,9 @@ export class FeesService {
         feeItems: {
           create: dto.feeItems.map((item) => ({
             name: item.name,
-            description: item.description || item.name,
+            description: item.description,
             amount: item.amount,
-            feeCategory: item.feeCategory,
+            feeCategory: item.feeCategory as FeeCategory,
             isOptional: item.isOptional || false,
             sortOrder: item.sortOrder || 0,
           })),
@@ -207,9 +209,9 @@ export class FeesService {
         dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
         invoiceItems: {
           create: dto.items.map((item) => ({
-            description: item.description || item.name,
+            description: item.description,
             amount: item.amount,
-            feeCategory: item.feeCategory,
+            feeCategory: item.feeCategory as FeeCategory,
           })),
         },
       },
@@ -297,7 +299,7 @@ export class FeesService {
         const items = feeStructure.feeItems.map((item) => ({
           description: item.description || item.name,
           amount: item.amount,
-          feeCategory: item.feeCategory,
+          feeCategory: item.feeCategory as FeeCategory,
         }));
 
         await this.createInvoice({
@@ -440,98 +442,29 @@ export class FeesService {
 
   async recordPayment(dto: RecordPaymentDto, userId?: string) {
     const tenantId = this.tenantService.requireTenantContext();
-
-    // Get invoice
-    const invoice = await this.findOneInvoice(dto.invoiceId);
-
-    if (invoice.status === 'CANCELLED') {
-      throw new BadRequestException('Cannot add payment to cancelled invoice');
+    if (!Number.isSafeInteger(dto.amount) || dto.amount <= 0) throw new BadRequestException('Amount must be positive minor units');
+    const existing = await this.prisma.payment.findFirst({where:{tenantId,reference:dto.reference}});
+    if(existing){
+      if(existing.invoiceId===dto.invoiceId&&existing.amount===dto.amount&&existing.status==='COMPLETED')return existing;
+      throw new ConflictException('Payment reference is already in use');
     }
-
-    if (invoice.status === 'PAID') {
-      throw new BadRequestException('Invoice is already fully paid');
-    }
-
-    // Check if payment amount exceeds balance
-    if (dto.amount > invoice.balanceAmount) {
-      throw new BadRequestException(
-        `Payment amount (${formatCurrency(dto.amount)}) exceeds invoice balance (${formatCurrency(invoice.balanceAmount)})`
-      );
-    }
-
-    // Check for duplicate reference
-    const existingPayment = await this.prisma.payment.findFirst({
-      where: {
-        tenantId,
-        reference: dto.reference,
-      },
-    });
-
-    if (existingPayment) {
-      throw new ConflictException(`Payment with reference ${dto.reference} already exists`);
-    }
-
-    // Generate receipt number
-    const receiptNumber = await this.generateReceiptNumber();
-
-    // Create payment and update invoice in transaction
-    const payment = await this.prisma.$transaction(async (tx) => {
-      // Create payment
-      const newPayment = await tx.payment.create({
-        data: {
-          tenantId,
-          invoiceId: dto.invoiceId,
-          amount: dto.amount,
-          paymentMethod: dto.paymentMethod,
-          reference: dto.reference,
-          status: 'COMPLETED',
-          paymentDate: dto.paymentDate ? new Date(dto.paymentDate) : new Date(),
-          receiptNumber,
-          receiptIssued: true,
-          receiptIssuedAt: new Date(),
-          notes: dto.notes,
-          processedBy: userId,
-        },
+    try {
+      return await this.prisma.$transaction(async tx=>{
+        // The conditional decrement obtains the invoice row lock and prevents concurrent overpayments.
+        const changed=await tx.invoice.updateMany({where:{id:dto.invoiceId,tenantId,status:{in:['PENDING','PARTIALLY_PAID','OVERDUE']},balanceAmount:{gte:dto.amount}},data:{paidAmount:{increment:dto.amount},balanceAmount:{decrement:dto.amount}}});
+        if(!changed.count)throw new BadRequestException('Invoice unavailable or payment exceeds the remaining balance');
+        const invoice=await tx.invoice.findFirstOrThrow({where:{id:dto.invoiceId,tenantId}});
+        await tx.invoice.update({where:{id:invoice.id,tenantId},data:{status:invoice.balanceAmount===0?'PAID':'PARTIALLY_PAID'}});
+        return tx.payment.create({data:{tenantId,invoiceId:dto.invoiceId,amount:dto.amount,paymentMethod:dto.paymentMethod,reference:dto.reference,status:'COMPLETED',paymentDate:dto.paymentDate?new Date(dto.paymentDate):new Date(),receiptNumber:'RCT-'+randomUUID().slice(0,12).toUpperCase(),receiptIssued:true,receiptIssuedAt:new Date(),notes:dto.notes,processedBy:userId}});
       });
-
-      // Update invoice
-      const newPaidAmount = invoice.paidAmount + dto.amount;
-      const newBalanceAmount = invoice.totalAmount - newPaidAmount;
-      const newStatus =
-        newBalanceAmount === 0 ? 'PAID' : newPaidAmount > 0 ? 'PARTIALLY_PAID' : 'PENDING';
-
-      await tx.invoice.update({
-        where: { id: dto.invoiceId },
-        data: {
-          paidAmount: newPaidAmount,
-          balanceAmount: newBalanceAmount,
-          status: newStatus,
-        },
-      });
-
-      return newPayment;
-    });
-
-    // Return payment with invoice details
-    return this.prisma.payment.findUnique({
-      where: { id: payment.id },
-      include: {
-        invoice: {
-          include: {
-            student: {
-              select: {
-                admissionNumber: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
-            term: {
-              select: { name: true },
-            },
-          },
-        },
-      },
-    });
+    }catch(error:any){
+      if(error.code==='P2002'){
+        const duplicate=await this.prisma.payment.findFirst({where:{tenantId,reference:dto.reference}});
+        if(duplicate?.invoiceId===dto.invoiceId&&duplicate.amount===dto.amount&&duplicate.status==='COMPLETED')return duplicate;
+        throw new ConflictException('Payment reference is already in use');
+      }
+      throw error;
+    }
   }
 
   async findAllPayments(invoiceId?: string) {
@@ -653,7 +586,7 @@ export class FeesService {
       where: { tenantId },
     });
 
-    return `INV-${year}-${String(count + 1).padStart(6, '0')}`;
+    return 'INV-'+year+'-'+randomUUID().slice(0,8).toUpperCase();
   }
 
   private async generateReceiptNumber(): Promise<string> {

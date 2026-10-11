@@ -16,6 +16,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data); localStorage.setItem('user', JSON.stringify(data));
   };
   useEffect(() => {
+    if ('serviceWorker' in navigator) void navigator.serviceWorker.register('/sw.js').catch(() => undefined);
     refreshUser().catch(() => { clearSession(); setUser(null); }).finally(() => setLoading(false));
   }, []);
   const login = async (email: string, password: string) => {

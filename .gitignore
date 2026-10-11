@@ -59,3 +59,10 @@ temp
 
 # OS
 Thumbs.db
+
+.npm-cache
+qa
+*-type-errors.txt
+dependency-audit*.json
+*.tsbuildinfo
+.env.qa

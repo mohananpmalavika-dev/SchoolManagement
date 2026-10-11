@@ -9,16 +9,16 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
+          50: '#f0f7f4',
+          100: '#d9ede4',
+          200: '#b5dacc',
+          300: '#89bda7',
+          400: '#60a58c',
+          500: '#378b74',
+          600: '#0f766e',
+          700: '#115e59',
+          800: '#134e4a',
+          900: '#102c36',
         },
         success: {
           50: '#f0fdf4',
@@ -37,7 +37,7 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['Inter', 'Segoe UI', 'Arial', 'sans-serif'],
       },
     },
   },

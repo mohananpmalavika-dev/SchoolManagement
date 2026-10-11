@@ -24,7 +24,7 @@ export function Card({
   return (
     <div
       className={clsx(
-        'bg-white rounded-xl shadow-sm border border-gray-200',
+        'panel',
         paddingStyles[padding],
         hover && 'hover:shadow-md transition-shadow cursor-pointer',
         className

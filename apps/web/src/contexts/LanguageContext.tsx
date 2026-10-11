@@ -18,11 +18,9 @@ interface LanguageProviderProps {
 
 export function LanguageProvider({ children }: LanguageProviderProps) {
   const [language, setLanguageState] = useState<Language>('en');
-  const [mounted, setMounted] = useState(false);
 
   // Load language from localStorage on mount
   useEffect(() => {
-    setMounted(true);
     const savedLanguage = localStorage.getItem('preferred-language') as Language;
     if (savedLanguage === 'en' || savedLanguage === 'sw') {
       setLanguageState(savedLanguage);
@@ -44,9 +42,6 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
   };
 
   // Prevent hydration mismatch by not rendering until mounted
-  if (!mounted) {
-    return null;
-  }
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage }}>

@@ -48,6 +48,7 @@
 - ✅ **Multi-Tenant Architecture** - Complete school isolation
 - ✅ **M-Pesa Integration** - Automated fee collection
 - ✅ **CBC Compliant** - Kenya Competency-Based Curriculum
+- ✅ **Bilingual Support** - English & Swahili (Kiswahili)
 - ✅ **Subscription-Based** - Flexible pricing tiers
 - ✅ **15,000+ Lines of Code** - Production-quality TypeScript
 - ✅ **Comprehensive Documentation** - 10,000+ lines
@@ -148,6 +149,7 @@
 - **Styling:** Tailwind CSS
 - **State:** React Context/Zustand
 - **PWA:** Next-PWA
+- **i18n:** Custom bilingual system (English/Swahili)
 
 ### Infrastructure
 - **Containerization:** Docker & Docker Compose

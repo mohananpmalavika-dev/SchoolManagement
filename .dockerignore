@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+**/.next
+**/dist
+.git
+.npm-cache
+.env*
+!*.example
+coverage
+qa
+repopack-output.txt
