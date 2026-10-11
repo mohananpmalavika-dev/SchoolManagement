@@ -240,57 +240,46 @@ describe('PasswordResetService', () => {
     });
 
     it('should reject weak password (too short)', async () => {
-      mockPrismaService.passwordResetToken.findFirst.mockResolvedValue(validToken);
-
-      await expect(service.resetPassword('valid-token', 'Short1!')).rejects.toThrow(
+      // Password validation happens before DB access
+      await expect(service.resetPassword('any-token', 'Short1!')).rejects.toThrow(
         BadRequestException
       );
-      await expect(service.resetPassword('valid-token', 'Short1!')).rejects.toThrow(
+      await expect(service.resetPassword('any-token', 'Short1!')).rejects.toThrow(
         'Password must be at least 12 characters long'
       );
     });
 
     it('should reject weak password (missing uppercase)', async () => {
-      mockPrismaService.passwordResetToken.findFirst.mockResolvedValue(validToken);
-
       await expect(
-        service.resetPassword('valid-token', 'weakpassword123!')
+        service.resetPassword('any-token', 'weakpassword123!')
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should reject weak password (missing lowercase)', async () => {
-      mockPrismaService.passwordResetToken.findFirst.mockResolvedValue(validToken);
-
       await expect(
-        service.resetPassword('valid-token', 'WEAKPASSWORD123!')
+        service.resetPassword('any-token', 'WEAKPASSWORD123!')
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should reject weak password (missing number)', async () => {
-      mockPrismaService.passwordResetToken.findFirst.mockResolvedValue(validToken);
-
       await expect(
-        service.resetPassword('valid-token', 'WeakPassword!')
+        service.resetPassword('any-token', 'WeakPassword!')
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should reject weak password (missing special char)', async () => {
-      mockPrismaService.passwordResetToken.findFirst.mockResolvedValue(validToken);
-
       await expect(
-        service.resetPassword('valid-token', 'WeakPassword123')
+        service.resetPassword('any-token', 'WeakPassword123')
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should reject common passwords', async () => {
-      mockPrismaService.passwordResetToken.findFirst.mockResolvedValue(validToken);
-
       await expect(
-        service.resetPassword('valid-token', 'Password123!')
+        service.resetPassword('any-token', 'Password123!')
       ).rejects.toThrow(BadRequestException);
       await expect(
-        service.resetPassword('valid-token', 'Password123!')
-      ).rejects.toThrow('Password is too common');
+        service.resetPassword('any-token', 'Password123!')
+      ).rejects.toThrow('too common');
     });
 
     it('should reject invalid token', async () => {

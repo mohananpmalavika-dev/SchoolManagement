@@ -44,6 +44,281 @@ function downloadText(filename: string, text: string) {
   URL.revokeObjectURL(url);
 }
 
+function escapeHtml(str: string) {
+  return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function openPrintableWorksheet(paper: AIQuestionPaper, includeAnswerKey: boolean) {
+  const win = window.open('', '_blank');
+  if (!win) {
+    window.print();
+    return;
+  }
+  const totalMarks = paper.questions.reduce((sum, q) => sum + q.marks, 0);
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>${escapeHtml(paper.title)} - Official Worksheet</title>
+  <style>
+    @page { size: A4 portrait; margin: 15mm; }
+    body { font-family: 'Georgia', 'Times New Roman', serif; color: #111827; line-height: 1.45; padding: 20px; max-width: 850px; margin: 0 auto; }
+    .header { text-align: center; border-bottom: 2px solid #111827; padding-bottom: 12px; margin-bottom: 18px; }
+    .school-title { font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .school-subtitle { font-size: 11px; font-family: sans-serif; color: #4b5563; margin-top: 2px; }
+    .paper-heading { font-size: 16px; font-weight: 700; margin-top: 10px; color: #1e1b4b; }
+    .meta-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; font-family: sans-serif; border-top: 1px solid #d1d5db; padding-top: 6px; }
+    .meta-table td { padding: 4px 6px; }
+    .instructions-box { background: #f9fafb; border-left: 3px solid #4f46e5; padding: 8px 12px; margin-bottom: 20px; font-size: 12px; font-family: sans-serif; }
+    .question-item { margin-bottom: 18px; page-break-inside: avoid; }
+    .q-text { font-size: 13.5px; font-weight: 600; display: flex; justify-content: space-between; }
+    .q-marks { font-size: 12px; font-family: monospace; color: #4b5563; font-weight: bold; }
+    .options-list { list-style-type: upper-alpha; margin: 6px 0 6px 24px; padding: 0; font-size: 13px; }
+    .options-list li { margin-bottom: 4px; }
+    .ans-key { margin-top: 8px; padding: 8px 12px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; font-size: 12px; font-family: sans-serif; }
+    .rubric-container { margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px; page-break-inside: avoid; font-family: sans-serif; }
+    .rubric-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+    .rubric-table th, .rubric-table td { border: 1px solid #9ca3af; padding: 6px 8px; text-align: left; }
+    .rubric-table th { background: #f3f4f6; font-weight: 700; }
+    .footer-signatures { margin-top: 35px; display: flex; justify-content: space-between; font-size: 12px; font-family: sans-serif; page-break-inside: avoid; }
+    .sig-line { border-top: 1px solid #111; width: 180px; text-align: center; padding-top: 4px; }
+    @media print {
+      body { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="school-title">AL-AMEEN INTERNATIONAL ACADEMY</div>
+    <div class="school-subtitle">AFFILIATED TO CBSE / STATE BOARD • DEPARTMENT OF ACADEMIC ASSESSMENT</div>
+    <div class="paper-heading">${escapeHtml(paper.title)} ${includeAnswerKey ? '— TEACHER ANSWER KEY & RUBRICS' : '— STUDENT WORKSHEET'}</div>
+    <table class="meta-table">
+      <tr>
+        <td><strong>Student Name:</strong> ____________________________________</td>
+        <td><strong>Class:</strong> _____________</td>
+        <td><strong>Roll No:</strong> ________</td>
+      </tr>
+      <tr>
+        <td><strong>Date:</strong> ________________________</td>
+        <td><strong>Max Marks:</strong> ${totalMarks}</td>
+        <td><strong>Time Allowed:</strong> 30 Mins</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="instructions-box">
+    <strong>Instructions:</strong> ${escapeHtml(paper.instructions)}
+  </div>
+
+  <div class="questions">
+    ${paper.questions.map((q, idx) => `
+      <div class="question-item">
+        <div class="q-text">
+          <span>${idx + 1}. ${escapeHtml(q.question)}</span>
+          <span class="q-marks">[${q.marks} Mark${q.marks > 1 ? 's' : ''}]</span>
+        </div>
+        ${q.options && q.options.length ? `
+          <ol class="options-list">
+            ${q.options.map(opt => `<li>${escapeHtml(opt)}</li>`).join('')}
+          </ol>
+        ` : `
+          <div style="border-bottom: 1px dashed #9ca3af; height: 35px; margin-top: 8px;"></div>
+        `}
+        ${includeAnswerKey ? `
+          <div class="ans-key">
+            <strong style="color: #065f46;">Correct Answer:</strong> ${escapeHtml(q.answer)}<br/>
+            <span style="color: #047857;"><strong>Pedagogical Explanation:</strong> ${escapeHtml(q.explanation)}</span>
+          </div>
+        ` : ''}
+      </div>
+    `).join('')}
+  </div>
+
+  <div class="rubric-container">
+    <div style="font-weight: bold; font-size: 13px; text-transform: uppercase;">Assessment Rubric & Evaluation Standard</div>
+    <table class="rubric-table">
+      <thead>
+        <tr>
+          <th>Criterion</th>
+          <th>Exceeding Standard (90-100%)</th>
+          <th>Meeting Standard (70-89%)</th>
+          <th>Approaching Standard (50-69%)</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Concept Clarity</strong></td>
+          <td>Flawless recall & understanding of principles</td>
+          <td>Accurate recall of syllabus fundamentals</td>
+          <td>Partial recall, requires targeted review</td>
+          <td>____ / ${Math.round(totalMarks * 0.4)}</td>
+        </tr>
+        <tr>
+          <td><strong>Analytical Reasoning</strong></td>
+          <td>Applies rules correctly to solve unfamiliar problems</td>
+          <td>Solves standard curriculum questions</td>
+          <td>Reasoning errors or incomplete attempts</td>
+          <td>____ / ${Math.round(totalMarks * 0.4)}</td>
+        </tr>
+        <tr>
+          <td><strong>Neatness & Precision</strong></td>
+          <td>Clear work with complete accuracy</td>
+          <td>Minor errors, overall consistent work</td>
+          <td>Inconsistent responses</td>
+          <td>____ / ${Math.round(totalMarks * 0.2)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer-signatures">
+    <div class="sig-line">Class Teacher Signature</div>
+    <div style="font-size: 13px; font-weight: bold;">Score Obtained: ______ / ${totalMarks}</div>
+    <div class="sig-line">Head of Department / Examiner</div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 250);
+    };
+  </script>
+</body>
+</html>`;
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
+function openPrintableLessonPlan(lp: LessonPlanResponse) {
+  const win = window.open('', '_blank');
+  if (!win) {
+    window.print();
+    return;
+  }
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Lesson Plan - ${escapeHtml(lp.title)}</title>
+  <style>
+    @page { size: A4 portrait; margin: 15mm; }
+    body { font-family: 'Georgia', 'Times New Roman', serif; color: #111827; line-height: 1.45; padding: 20px; max-width: 850px; margin: 0 auto; }
+    .header { border-bottom: 2px solid #1e1b4b; padding-bottom: 12px; margin-bottom: 18px; text-align: center; }
+    .school-title { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .lp-title { font-size: 20px; font-weight: 800; color: #312e81; margin-top: 6px; }
+    .meta { font-size: 12px; font-family: sans-serif; color: #4b5563; margin-top: 6px; }
+    h3 { font-size: 13px; text-transform: uppercase; font-family: sans-serif; font-weight: 700; color: #1e1b4b; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-top: 18px; margin-bottom: 8px; }
+    ul { font-size: 13px; margin: 4px 0 10px 20px; padding: 0; }
+    li { margin-bottom: 4px; }
+    .step-card { border: 1px solid #e5e7eb; background: #f9fafb; padding: 10px; margin-bottom: 10px; border-radius: 6px; font-size: 12px; font-family: sans-serif; page-break-inside: avoid; }
+    .step-card strong { color: #3730a3; }
+    .rubric-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; font-family: sans-serif; page-break-inside: avoid; }
+    .rubric-table th, .rubric-table td { border: 1px solid #9ca3af; padding: 6px 8px; text-align: left; }
+    .rubric-table th { background: #f3f4f6; font-weight: 700; }
+    @media print {
+      body { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="school-title">AL-AMEEN INTERNATIONAL ACADEMY</div>
+    <div class="lp-title">5E INSTRUCTIONAL LESSON PLAN: ${escapeHtml(lp.title)}</div>
+    <div class="meta">
+      <strong>Subject:</strong> ${escapeHtml(lp.subject)} | <strong>Grade Level:</strong> ${escapeHtml(lp.gradeLevel)} | <strong>Duration:</strong> ${lp.durationMinutes} Mins | <strong>Curriculum:</strong> ${escapeHtml(lp.curriculum)}
+    </div>
+  </div>
+
+  <h3>1. Learning Objectives</h3>
+  <ul>
+    ${lp.learningObjectives.map(o => `<li>${escapeHtml(o)}</li>`).join('')}
+  </ul>
+
+  <h3>2. Core Competencies & Values</h3>
+  <ul>
+    ${lp.coreCompetencies.map(c => `<li>${escapeHtml(c)}</li>`).join('')}
+  </ul>
+
+  <h3>3. Key Inquiry Questions & Teaching Aids</h3>
+  <div style="font-size: 13px; margin-bottom: 8px;">
+    <strong>Inquiry Questions:</strong>
+    <ul>
+      ${lp.keyInquiryQuestions.map(q => `<li>${escapeHtml(q)}</li>`).join('')}
+    </ul>
+    <strong>Materials Needed:</strong> ${escapeHtml(lp.materials.join(', '))}
+  </div>
+
+  <h3>4. 5E Instructional Sequence</h3>
+  ${lp.steps.map(s => `
+    <div class="step-card">
+      <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 4px;">
+        <span><strong>[${escapeHtml(s.phase)}]</strong> ${escapeHtml(s.title)}</span>
+        <span>${s.durationMinutes} Mins</span>
+      </div>
+      <div><strong>Teacher Activity:</strong> ${escapeHtml(s.teacherActivity)}</div>
+      <div style="margin-top: 3px;"><strong>Student Activity:</strong> ${escapeHtml(s.studentActivity)}</div>
+      <div style="margin-top: 3px; font-size: 11px; color: #6b7280;"><strong>Resources:</strong> ${escapeHtml(s.resourcesNeeded.join(', '))}</div>
+    </div>
+  `).join('')}
+
+  <h3>5. Differentiated Instruction</h3>
+  <div style="font-size: 12px; font-family: sans-serif; display: flex; gap: 16px;">
+    <div style="flex: 1; background: #fffbeb; border: 1px solid #fef3c7; padding: 8px; border-radius: 6px;">
+      <strong style="color: #92400e;">For Struggling Learners:</strong>
+      <ul style="margin-top: 4px;">
+        ${lp.differentiatedInstruction.supportForStruggling.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
+      </ul>
+    </div>
+    <div style="flex: 1; background: #ecfdf5; border: 1px solid #d1fae5; padding: 8px; border-radius: 6px;">
+      <strong style="color: #065f46;">For Advanced Learners:</strong>
+      <ul style="margin-top: 4px;">
+        ${lp.differentiatedInstruction.extensionForAdvanced.map(e => `<li>${escapeHtml(e)}</li>`).join('')}
+      </ul>
+    </div>
+  </div>
+
+  <h3>6. Assessment Rubrics & Criteria</h3>
+  ${lp.assessmentRubrics.map(r => `
+    <table class="rubric-table" style="margin-bottom: 12px;">
+      <thead>
+        <tr>
+          <th colspan="4">Criterion: ${escapeHtml(r.criterion)}</th>
+        </tr>
+        <tr>
+          <th>Exceeding</th>
+          <th>Meeting</th>
+          <th>Approaching</th>
+          <th>Below</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          ${r.levels.map(l => `
+            <td>
+              <strong>${escapeHtml(l.scoreRange)}:</strong> ${escapeHtml(l.descriptor)}
+            </td>
+          `).join('')}
+        </tr>
+      </tbody>
+    </table>
+  `).join('')}
+
+  <h3>7. Homework & Extension Task</h3>
+  <p style="font-size: 13px; font-style: italic;">${escapeHtml(lp.homeworkAssignment)}</p>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 250);
+    };
+  </script>
+</body>
+</html>`;
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
 function paperText(paper: AIQuestionPaper, key = false) {
   return [
     paper.title,
@@ -324,6 +599,37 @@ function TeachingTools() {
     }
   };
 
+  const saveAllDrafts = async () => {
+    const draftKeys = Object.keys(drafts);
+    if (!draftKeys.length || !roster) return;
+    setBusy(true);
+    setError('');
+    let savedCount = 0;
+    try {
+      for (const id of draftKeys) {
+        const student = roster.students.find(s => s.id === id);
+        const draft = drafts[id];
+        if (student?.reportCard && draft && student.reportCard.status === 'DRAFT') {
+          await apiClient.post<{ updatedAt: string; comment: string }>('/teacher-ai/remarks/save', {
+            classId,
+            termId,
+            studentId: id,
+            reportCardId: student.reportCard.id,
+            expectedUpdatedAt: student.reportCard.updatedAt,
+            remark: draft.text,
+          });
+          savedCount++;
+        }
+      }
+      await loadRoster();
+      setNotice(`🎉 Approved & saved ${savedCount} personalized remarks to official student report cards in 1 click!`);
+    } catch (err) {
+      setError(messageFor(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   // Lesson Plan Generator
   const handleGenerateLessonPlan = async () => {
     if (!lpSubject.trim() || !lpChapter.trim() || !classId) return;
@@ -598,6 +904,15 @@ function TeachingTools() {
                       </Button>
                       <Button
                         size="sm"
+                        variant="primary"
+                        disabled={busy || !Object.keys(drafts).length || rosterLoading || !!saving}
+                        leftIcon={<CheckCircle2 size={15} />}
+                        onClick={() => void saveAllDrafts()}
+                      >
+                        1-Click Approve & Save All Drafts ({Object.keys(drafts).length})
+                      </Button>
+                      <Button
+                        size="sm"
                         variant="outline"
                         disabled={busy || !termId || !classId || rosterLoading || !!saving}
                         onClick={() => void prepare()}
@@ -867,19 +1182,19 @@ function TeachingTools() {
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
+                                variant="primary"
+                                leftIcon={<Printer size={14} />}
+                                onClick={() => openPrintableLessonPlan(lessonPlan)}
+                              >
+                                Print / Save PDF Plan
+                              </Button>
+                              <Button
+                                size="sm"
                                 variant="outline"
                                 leftIcon={<Download size={14} />}
                                 onClick={() => downloadText(`${lpChapter.toLowerCase().replace(/\s+/g, '-')}-lesson-plan.txt`, lessonPlanText(lessonPlan))}
                               >
                                 Download TXT
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                leftIcon={<Printer size={14} />}
-                                onClick={() => window.print()}
-                              >
-                                Print Plan
                               </Button>
                             </div>
                           </div>
@@ -1165,27 +1480,28 @@ function TeachingTools() {
 
                       <div className="ai-action-row">
                         <Button
+                          variant="primary"
+                          size="sm"
+                          leftIcon={<FileText size={15} />}
+                          onClick={() => openPrintableWorksheet(paper, false)}
+                        >
+                          Print / Save PDF Worksheet
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          leftIcon={<FileCheck size={15} />}
+                          onClick={() => openPrintableWorksheet(paper, true)}
+                        >
+                          Print / Save PDF Teacher Key
+                        </Button>
+                        <Button
                           variant="outline"
                           size="sm"
                           leftIcon={<Download size={15} />}
                           onClick={() => downloadText('student-question-paper.txt', paperText(paper))}
                         >
-                          Download Student Copy
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => downloadText('teacher-answer-key.txt', paperText(paper, true))}
-                        >
-                          Download Answer Key
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          leftIcon={<Printer size={15} />}
-                          onClick={() => window.print()}
-                        >
-                          Print Student Worksheet
+                          Download Text
                         </Button>
                         <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
                           <input

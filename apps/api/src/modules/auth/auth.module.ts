@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AccountLockoutService } from './services/account-lockout.service';
 import { PasswordResetService } from './services/password-reset.service';
+import { MfaService } from './services/mfa.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { RedisService } from '../../common/services/redis.service';
@@ -30,6 +31,7 @@ import { EmailService } from '../../common/services/email.service';
     AuthService, 
     AccountLockoutService, 
     PasswordResetService,
+    MfaService,
     EmailService,
     RedisService, 
     JwtStrategy, 

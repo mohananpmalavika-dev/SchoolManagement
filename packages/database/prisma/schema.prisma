@@ -238,8 +238,9 @@ model User {
   mustChangePassword Boolean @default(false)
 
   // MFA
-  mfaEnabled Boolean @default(false)
-  mfaSecret  String?
+  mfaEnabled     Boolean  @default(false)
+  mfaSecret      String?
+  mfaBackupCodes String[] @default([])
 
   lastLoginAt DateTime?
   lastLoginIP String?

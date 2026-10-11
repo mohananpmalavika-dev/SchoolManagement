@@ -10,6 +10,9 @@ module.exports = {
   ],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
+  transformIgnorePatterns: [
+    'node_modules/(?!(otplib|@otplib|@scure)/)',
+  ],
   moduleNameMapper: {
     '^@krypton/database(.*)$': '<rootDir>/../../../packages/database/src$1',
     '^@krypton/types(.*)$': '<rootDir>/../../../packages/types/src$1',

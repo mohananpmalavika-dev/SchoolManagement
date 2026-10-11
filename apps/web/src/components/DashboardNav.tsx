@@ -43,6 +43,7 @@ export function DashboardNav() {
           <div className="hidden md:flex items-center space-x-4">
             <NavLink href="/dashboard">{t('common.dashboard')}</NavLink>
             <NavLink href="/dashboard/copilot">AI Copilot</NavLink>
+            <NavLink href="/dashboard/portfolio">Student Portfolios</NavLink>
             <NavLink href="/dashboard/ptm">Virtual PTM</NavLink>
             <NavLink href="/dashboard/lms">LMS & Quizzes</NavLink>
             <NavLink href="/dashboard/smart-attendance">Smart Attendance</NavLink>
