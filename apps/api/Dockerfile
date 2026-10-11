@@ -13,10 +13,12 @@ WORKDIR /app
 CMD ["node", "packages/database/node_modules/prisma/build/index.js", "migrate", "deploy", "--schema", "packages/database/prisma/schema.prisma"]
 
 FROM node:24-alpine AS runtime
+RUN apk add --no-cache postgresql16-client
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /runtime .
+RUN mkdir -p /app/backups && chown node:node /app/backups
 USER node
 EXPOSE 3001
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD node -e "fetch('http://127.0.0.1:3001/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD node -e "fetch('http://127.0.0.1:3001/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "dist/main.js"]

@@ -36,8 +36,8 @@ class VerifyResetTokenDto {
 }
 
 class VerifyLoginMfaDto {
- @IsString() mfaSessionToken:string;
- @IsString() code:string;
+ @IsString() @MinLength(1) @MaxLength(2048) mfaSessionToken:string;
+ @IsString() @MinLength(6) @MaxLength(8) code:string;
 }
 
 @ApiTags('auth')

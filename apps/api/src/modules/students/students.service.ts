@@ -584,24 +584,14 @@ export class StudentsService {
       take: 5,
     });
 
-    const days = [
-      'SUNDAY',
-      'MONDAY',
-      'TUESDAY',
-      'WEDNESDAY',
-      'THURSDAY',
-      'FRIDAY',
-      'SATURDAY',
-    ];
-    const todayName = days[new Date().getDay()] || 'MONDAY';
+    const todayName = new Intl.DateTimeFormat('en-US', {weekday:'long',timeZone:'Africa/Nairobi'}).format(new Date()).toUpperCase();
     const daySchedule = timetable.schedule.filter(
-      (s: any) => s.day === todayName || s.day === 'MONDAY',
+      (s: any) => s.day === todayName,
     );
 
     return {
       student,
-      todaySchedule:
-        daySchedule.length > 0 ? daySchedule : timetable.schedule.slice(0, 5),
+      todaySchedule: daySchedule,
       attendance: attendance.summary,
       recentGrades: grades.recentAssessments.slice(0, 4),
       pendingAssignments: assignments.pending.slice(0, 3),

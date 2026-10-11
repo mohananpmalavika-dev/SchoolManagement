@@ -7,20 +7,27 @@ import { Button, Input, Alert } from './ui';
 import { useTranslation } from '@/hooks/useTranslation';
 import LanguageSwitcher from './LanguageSwitcher';
 export function LoginScreen({portal = 'school'}: {portal?: string}) {
-  const { login } = useAuth();
+  const { login, verifyMfa } = useAuth();
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [mfaSession, setMfaSession] = useState<string | null>(null);
+  const [code, setCode] = useState('');
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError('');
     try {
-      await login(email, password);
+      if (mfaSession) await verifyMfa(mfaSession, code);
+      else {
+        const challenge = await login(email, password);
+        setPassword('');
+        setMfaSession(challenge);
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || t('auth.unableToSignIn'));
     } finally {
@@ -114,7 +121,7 @@ export function LoginScreen({portal = 'school'}: {portal?: string}) {
 
           <form onSubmit={submit} className="space-y-5">
             {error && <Alert variant="danger">{error}</Alert>}
-            <Input
+            {mfaSession ? <div className="space-y-5"><div className="security-note"><ShieldCheck size={22}/><p>Enter the code from your authenticator app, or a single-use backup code.</p></div><Input label="Verification code" autoComplete="one-time-code" autoFocus required minLength={6} maxLength={16} value={code} onChange={e => setCode(e.target.value)} /><Button variant="ghost" size="sm" onClick={() => {setMfaSession(null);setCode('');setError('');}}>Back to sign in</Button></div> : <><Input
               label={t('auth.email')}
               type="email"
               autoComplete="username"
@@ -141,8 +148,9 @@ export function LoginScreen({portal = 'school'}: {portal?: string}) {
                 {show ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            <Link className="forgot-link" href="/forgot-password">Forgot your password?</Link></>}
             <Button type="submit" fullWidth isLoading={busy} rightIcon={<ArrowRight size={18} />}>
-              {t('auth.signInToWorkspace')}
+              {mfaSession ? 'Verify and sign in' : t('auth.signIn')}
             </Button>
           </form>
           <p className="login-help">

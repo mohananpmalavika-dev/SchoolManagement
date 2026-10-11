@@ -71,7 +71,7 @@ export class AuthService {
    
    if (user.mfaEnabled) {
      const mfaSessionToken = this.jwt.sign(
-       { sub: user.id, tenantId: user.tenantId, type: 'mfa_pending' },
+       { sub: user.id, tenantId: user.tenantId, ver: user.tokenVersion, type: 'mfa_pending' },
        { expiresIn: '5m' },
      );
      return {
@@ -91,18 +91,17 @@ export class AuthService {
        throw new UnauthorizedException('Invalid MFA session token');
      }
 
-     const isValid = await this.mfa.verifyMfaToken(payload.sub, code);
-     if (!isValid) {
-       throw new UnauthorizedException('Invalid verification code');
-     }
-
      const user = await this.prisma.user.findUnique({
        where: { id: payload.sub },
        include: { tenant: true },
      });
 
-     if (!user || !user.isActive) {
-       throw new UnauthorizedException('Account inactive or not found');
+     if (!user || !user.isActive || !user.mfaEnabled || user.tokenVersion !== payload.ver || user.tenantId !== payload.tenantId || (user.role !== 'SUPER_ADMIN' && !['ACTIVE', 'TRIAL'].includes(user.tenant.status))) {
+       throw new UnauthorizedException('MFA session is no longer valid. Please sign in again.');
+     }
+     const isValid = await this.mfa.verifyMfaToken(payload.sub, code);
+     if (!isValid) {
+       throw new UnauthorizedException('Invalid verification code');
      }
 
      await this.prisma.user.update({

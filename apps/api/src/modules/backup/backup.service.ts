@@ -3,14 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, statSync, readdirSync, unlinkSync } from 'fs';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'crypto';
 import { pipeline } from 'stream/promises';
 import { createGzip, createGunzip } from 'zlib';
 import * as path from 'path';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface BackupResult {
   success: boolean;
@@ -124,10 +124,9 @@ export class BackupService {
     try {
       // Step 1: Execute pg_dump with gzip compression
       const pgDumpFile = path.join(this.localBackupDir, `${backupId}.sql`);
-      const pgDumpCommand = `pg_dump -h ${this.dbConfig.host} -p ${this.dbConfig.port} -U ${this.dbConfig.user} -d ${this.dbConfig.database} --no-owner --no-privileges --clean --if-exists -f "${pgDumpFile}"`;
       
       this.logger.log('Executing pg_dump...');
-      await execAsync(pgDumpCommand, {
+      await execFileAsync('pg_dump', ['-h', this.dbConfig.host, '-p', this.dbConfig.port, '-U', this.dbConfig.user, '-d', this.dbConfig.database, '--no-owner', '--no-privileges', '--clean', '--if-exists', '-f', pgDumpFile], {
         env: {
           ...process.env,
           PGPASSWORD: this.dbConfig.password,
@@ -284,9 +283,8 @@ export class BackupService {
       // Step 3: Restore with psql
       const dbName = targetDatabase || this.dbConfig.database;
       this.logger.log(`Restoring to database: ${dbName}`);
-      const psqlCommand = `psql -h ${this.dbConfig.host} -p ${this.dbConfig.port} -U ${this.dbConfig.user} -d ${dbName} -f "${decompressedFile}"`;
       
-      const { stdout, stderr } = await execAsync(psqlCommand, {
+      const { stdout, stderr } = await execFileAsync('psql', ['-h', this.dbConfig.host, '-p', this.dbConfig.port, '-U', this.dbConfig.user, '-d', dbName, '-v', 'ON_ERROR_STOP=1', '--single-transaction', '-f', decompressedFile], {
         env: {
           ...process.env,
           PGPASSWORD: this.dbConfig.password,

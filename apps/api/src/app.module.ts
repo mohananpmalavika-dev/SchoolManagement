@@ -42,6 +42,7 @@ import { AdmissionsModule } from './modules/admissions/admissions.module';
 import { GovernmentModule } from './modules/government/government.module';
 import { BackupModule } from './modules/backup/backup.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { RedisService } from './common/services/redis.service';
 
 @Module({
   imports: [
@@ -111,6 +112,7 @@ import { ScheduleModule } from '@nestjs/schedule';
   controllers: [AppController],
   providers: [
     AppService,
+    RedisService,
     EncryptionUtil, // Global encryption utility for sensitive credentials
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },

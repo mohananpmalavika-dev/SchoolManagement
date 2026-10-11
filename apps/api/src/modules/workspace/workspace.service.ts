@@ -72,6 +72,7 @@ export class WorkspaceService{
   return rows.map(r=>({...r,name:r.name||(r.firstName?r.firstName+' '+r.lastName:undefined),studentName:r.student?r.student.firstName+' '+r.student.lastName:undefined,className:r.currentClass?.name||r.class?.name,termName:r.term?.name,bookTitle:r.book?.title,guardianName:r.guardian?r.guardian.firstName+' '+r.guardian.lastName:undefined,subjectName:r.subject?.name,teacherName:r.teacher?r.teacher.firstName+' '+r.teacher.lastName:undefined,studentCount:r._count?.currentStudents,day:r.dayOfWeek?['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][r.dayOfWeek-1]:undefined}));
  }
  async write(user:any,resource:string,input:Record<string,unknown>,id?:string){
+  if(resource==='submissions')return this.submission(user,input,id);
   if(resource==='messages')return this.sendMessage(user,input);
   const spec=this.writer(user,resource);const tenantId=this.tenant();const data=parseRecord(spec,input,!!id);const db=this.prisma as any;
   for(const [key,rule] of Object.entries(spec.fields))if(rule.startsWith('ref:')&&data[key]){

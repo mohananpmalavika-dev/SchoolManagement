@@ -45,6 +45,8 @@ export function Button({
       aria-busy={isLoading}
       className={clsx(
         baseStyles,
+        'ui-button',
+        'ui-button-' + variant,
         variants[variant],
         sizes[size],
         fullWidth && 'w-full',

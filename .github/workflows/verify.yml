@@ -4,6 +4,10 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     services:
+      redis:
+        image: redis:7-alpine
+        ports: [16379:6379]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
       postgres:
         image: postgres:16-alpine
         env:
@@ -17,6 +21,10 @@ jobs:
       DATABASE_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_qa
       JWT_SECRET: ci-only-access-secret-never-use-in-production
       JWT_REFRESH_SECRET: ci-only-refresh-secret-never-use-in-production
+      ENCRYPTION_MASTER_KEY: ci-only-master-key-never-use-in-production
+      ENCRYPTION_SALT: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 16379
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/checkout@v4

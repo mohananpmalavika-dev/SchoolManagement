@@ -9,8 +9,12 @@ import { fetchAtRiskStudents } from '@/lib/copilot-client';
 import { messageFor } from '@/lib/workspace';
 import { Panel } from './WorkspaceUI';
 import { Button } from './ui';
+import { useAuth } from '@/contexts/AuthContext';
+import { teacherRoles } from '@/lib/session';
 
 export function AtRiskStudentsPanel() {
+  const { user } = useAuth();
+  const base = teacherRoles.includes(user?.role || '') ? '/teacher' : '/school';
   const [report, setReport] = useState<PredictiveAnalyticsReport | null>(null);
   const [configured, setConfigured] = useState(false);
   const [reviews, setReviews] = useState<AIRiskReview | null>(null);
@@ -27,6 +31,7 @@ export function AtRiskStudentsPanel() {
     active.current = controller;
     setLoading(true);
     setError('');
+    setReport(null);
     setReviews(null);
 
     try {
@@ -93,9 +98,9 @@ export function AtRiskStudentsPanel() {
 
   return (
     <Panel
-      title="AI Student Early-Warning & Dropout Predictor"
-      subtitle="Proactive intervention for students with falling attendance, exam drops, or fee alerts"
-      href="/school/predictive-analytics"
+      title="Student support insights"
+      subtitle="Review learning progress, attendance, and fee concerns"
+      href={base === '/school' ? '/school/predictive-analytics' : '/teacher/performance'}
     >
       <div className="panel-body content-stack">
         {loading ? (
@@ -112,7 +117,7 @@ export function AtRiskStudentsPanel() {
                 </Button>
               </div>
             )}
-            {report && (
+            {report && !error && (
               <>
                 <div className="ai-risk-toolbar flex items-center justify-between bg-amber-50/70 border border-amber-200/80 p-3.5 rounded-xl">
                   <div>
@@ -135,7 +140,7 @@ export function AtRiskStudentsPanel() {
                       AI Support Review
                     </Button>
                     <Link
-                      href="/dashboard/copilot"
+                      href={base + '/copilot'}
                       className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md shadow-sm transition-all"
                     >
                       Ask Copilot →
@@ -145,7 +150,7 @@ export function AtRiskStudentsPanel() {
 
                 {!flagged.length ? (
                   <p className="text-sm text-gray-500 py-4">
-                    No active student warning flags detected. Attendance and academic performance are stable across your classes.
+                    No students were flagged in the returned records. Review data coverage before drawing conclusions.
                   </p>
                 ) : (
                   <div className="space-y-3 pt-1">
@@ -202,14 +207,14 @@ export function AtRiskStudentsPanel() {
                                 }`}
                               >
                                 <MessageCircle size={13} />
-                                {isSent ? 'Alert Dispatched' : 'WhatsApp Notice'}
+                                {isSent ? 'WhatsApp opened' : 'Draft WhatsApp notice'}
                               </button>
                               <Link
-                                href="/dashboard/ptm"
+                                href={base === '/teacher' ? '/teacher/ptm' : '/school/messages'}
                                 className="text-xs px-2.5 py-1 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-1 transition-all"
                               >
                                 <Calendar size={13} />
-                                Schedule PTM
+                                {base === '/teacher' ? 'Parent meetings' : 'Contact family'}
                               </Link>
                             </div>
                           </div>
@@ -244,7 +249,7 @@ export function AtRiskStudentsPanel() {
                       Review all {flagged.length} flagged students in full analytics →
                     </Link>
                   )}
-                  <Link href="/dashboard/copilot" className="panel-link text-xs ml-auto">
+                  <Link href={base + '/copilot'} className="panel-link text-xs ml-auto">
                     Search cohort with ERP Copilot →
                   </Link>
                 </div>

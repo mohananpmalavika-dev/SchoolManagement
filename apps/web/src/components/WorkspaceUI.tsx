@@ -15,7 +15,8 @@ export function StatCard({label,value,note,icon:Icon}:{label:string;value:string
  return <div className="metric-card"><div className="metric-top"><span>{label}</span><span className="metric-icon"><Icon size={17}/></span></div><div className="metric-value">{value}</div><div className="metric-foot">{note}</div></div>;
 }
 export function StatusPill({value}:{value:string}){
- const warning=['TRIAL','PENDING','OVERDUE','PAST_DUE','BORROWED','LATE','MAINTENANCE'];
+ const warning=['TRIAL','PENDING','OVERDUE','PAST_DUE','BORROWED','LATE','MAINTENANCE','PARTIALLY_PAID'];
  const danger=['SUSPENDED','CANCELLED','FAILED','ABSENT','EXPIRED'];
- return <span className={'pill '+(danger.includes(value)?'danger':warning.includes(value)?'warning':'')}>{value.replaceAll('_',' ').toLowerCase()}</span>;
+ const positive=['ACTIVE','PAID','COMPLETED','PRESENT','PUBLISHED','APPROVED','RETURNED','ADMITTED'];
+ return <span className={'pill '+(danger.includes(value)?'danger':warning.includes(value)?'warning':positive.includes(value)?'':'neutral')}>{value.replaceAll('_',' ').toLowerCase()}</span>;
 }

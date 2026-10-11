@@ -1,4 +1,4 @@
-import type { Column } from '@/components/ResourcePage';
+﻿import type { Column } from '@/components/ResourcePage';
 import type { Field } from '@/components/RecordModal';
 export interface ResourceConfig {title:string;description:string;endpoint:string;columns:Column[];fields?:Field[];editable?:boolean;createAllowed?:boolean;action?:{label:string;path:string}}
 export const schoolResources:Record<string,ResourceConfig>={
@@ -833,9 +833,7 @@ export const schoolResources:Record<string,ResourceConfig>={
       },
       {
         "key": "fee",
-        "label": "Monthly fee (KES cents)",
-        "required": false,
-        "type": "number",
+        "label": "Monthly fee (KES)", "required": false, "type": "currency",
         "min": 0,
         "max": 100000000
       }
@@ -1126,9 +1124,7 @@ export const schoolResources:Record<string,ResourceConfig>={
       },
       {
         "key": "amount",
-        "label": "Amount (KES cents)",
-        "required": true,
-        "type": "number",
+        "label": "Amount (KES)", "required": true, "type": "currency",
         "min": 1,
         "max": 100000000
       },
@@ -1177,9 +1173,7 @@ export const schoolResources:Record<string,ResourceConfig>={
       },
       {
         "key": "amount",
-        "label": "Amount (KES cents)",
-        "required": true,
-        "type": "number",
+        "label": "Amount (KES)", "required": true, "type": "currency",
         "min": 1,
         "max": 100000000
       },
@@ -1663,3 +1657,4 @@ export const adminResources:Record<string,ResourceConfig>={
     }
   }
 };
+

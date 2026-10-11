@@ -51,6 +51,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             aria-describedby={error || helpText ? inputId + '-help' : undefined}
             className={clsx(
               'w-full px-4 py-2.5 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed',
+              'ui-input',
               error
                 ? 'border-danger-300 focus:ring-danger-500'
                 : 'border-gray-300',

@@ -165,9 +165,10 @@ describe('AuthService Security Suite', () => {
         sub: mockUser.id,
         tenantId: mockUser.tenantId,
         type: 'mfa_pending',
+        ver: mockUser.tokenVersion,
       });
       mfa.verifyMfaToken.mockResolvedValue(true);
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.findUnique.mockResolvedValue({ ...mockUser, mfaEnabled: true });
       prisma.user.update.mockResolvedValue(mockUser);
 
       const result = await authService.verifyMfaLogin('valid_mfa_token', '123456');
@@ -182,12 +183,30 @@ describe('AuthService Security Suite', () => {
         sub: mockUser.id,
         tenantId: mockUser.tenantId,
         type: 'mfa_pending',
+        ver: mockUser.tokenVersion,
       });
       mfa.verifyMfaToken.mockResolvedValue(false);
+      prisma.user.findUnique.mockResolvedValue({ ...mockUser, mfaEnabled: true });
 
       await expect(
         authService.verifyMfaLogin('valid_mfa_token', 'wrong_code')
       ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('MFA challenge revocation', () => {
+    it.each([
+      ['password changed', { tokenVersion: 2 }],
+      ['MFA disabled', { mfaEnabled: false }],
+      ['account disabled', { isActive: false }],
+      ['school suspended', { tenant: { status: 'SUSPENDED' } }],
+      ['tenant changed', { tenantId: 'different-school' }],
+    ])('rejects a pending challenge after %s', async (_reason, changes) => {
+      jwt.verify.mockReturnValue({ sub: mockUser.id, tenantId: mockUser.tenantId, type: 'mfa_pending', ver: 1 });
+      prisma.user.findUnique.mockResolvedValue({ ...mockUser, mfaEnabled: true, ...changes });
+      await expect(authService.verifyMfaLogin('pending-token', '123456')).rejects.toThrow(UnauthorizedException);
+      expect(mfa.verifyMfaToken).not.toHaveBeenCalled();
+      expect(jwt.sign).not.toHaveBeenCalled();
     });
   });
 
