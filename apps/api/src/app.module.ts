@@ -28,6 +28,7 @@ import { TimetableModule } from './modules/timetable/timetable.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { PredictiveAnalyticsModule } from './modules/predictive-analytics/predictive-analytics.module';
 import { TeacherAIModule } from './modules/teacher-ai/teacher-ai.module';
+import { AdvancedAnalyticsModule } from './modules/advanced-analytics/advanced-analytics.module';
 import { TransportModule } from './modules/transport/transport.module';
 import { ActivityFeedModule } from './modules/activity-feed/activity-feed.module';
 import { MediaModule } from './modules/media/media.module';
@@ -85,6 +86,7 @@ import { ParentPortalModule } from './modules/parent-portal/parent-portal.module
     SubscriptionsModule,
     PredictiveAnalyticsModule,
     TeacherAIModule,
+    AdvancedAnalyticsModule,
     TransportModule,
     ActivityFeedModule,
     MediaModule,

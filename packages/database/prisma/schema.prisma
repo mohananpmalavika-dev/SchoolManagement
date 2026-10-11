@@ -1776,3 +1776,636 @@ enum MeetingType {
   VIRTUAL
   PHONE
 }
+
+// ===================================
+// GOVERNMENT INTEGRATION
+// ===================================
+
+// NEMIS (National Education Management Information System) Integration
+model NemisIntegration {
+  id                String   @id @default(uuid())
+  tenantId          String
+  
+  // Configuration
+  nemisSchoolCode   String   @unique
+  apiKey            String?  // Encrypted
+  apiSecret         String?  // Encrypted
+  baseUrl           String   @default("https://nemis.education.go.ke/api")
+  
+  // Status
+  isEnabled         Boolean  @default(false)
+  lastSyncAt        DateTime?
+  nextSyncAt        DateTime?
+  syncStatus        SyncStatus @default(NEVER_SYNCED)
+  
+  // Sync Settings
+  autoSync          Boolean  @default(true)
+  syncFrequency     String   @default("DAILY") // HOURLY, DAILY, WEEKLY, MONTHLY
+  syncTime          String?  // HH:MM format for daily sync
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  syncLogs          NemisSyncLog[]
+
+  @@index([tenantId])
+  @@index([nemisSchoolCode])
+  @@map("nemis_integrations")
+}
+
+// NEMIS Sync Logs
+model NemisSyncLog {
+  id                String   @id @default(uuid())
+  tenantId          String
+  nemisIntegrationId String
+  
+  // Sync Details
+  syncType          NemisSyncType
+  status            SyncStatus
+  direction         SyncDirection @default(OUTBOUND)
+  
+  // Metrics
+  recordsAttempted  Int      @default(0)
+  recordsSucceeded  Int      @default(0)
+  recordsFailed     Int      @default(0)
+  
+  // Results
+  startedAt         DateTime @default(now())
+  completedAt       DateTime?
+  duration          Int?     // In seconds
+  
+  // Error Details
+  errorMessage      String?  @db.Text
+  errorDetails      Json?
+  
+  // Data
+  requestPayload    Json?
+  responsePayload   Json?
+  
+  createdAt         DateTime @default(now())
+  
+  nemisIntegration  NemisIntegration @relation(fields: [nemisIntegrationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([nemisIntegrationId])
+  @@index([syncType])
+  @@index([status])
+  @@index([startedAt])
+  @@map("nemis_sync_logs")
+}
+
+enum NemisSyncType {
+  STUDENT_ENROLLMENT
+  TEACHER_DATA
+  SCHOOL_PROFILE
+  ATTENDANCE_DATA
+  EXAMINATION_RESULTS
+  INFRASTRUCTURE_DATA
+  FULL_SYNC
+}
+
+enum SyncStatus {
+  NEVER_SYNCED
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  PARTIAL_SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum SyncDirection {
+  INBOUND   // From NEMIS to School
+  OUTBOUND  // From School to NEMIS
+  BIDIRECTIONAL
+}
+
+// NEMIS Student Records - Track student data synced with NEMIS
+model NemisStudentRecord {
+  id                String   @id @default(uuid())
+  tenantId          String
+  studentId         String   @unique
+  
+  // NEMIS Identifiers
+  nemisUpi          String?  @unique // Universal Personal Identifier
+  nemisStudentId    String?  @unique
+  
+  // Sync Status
+  syncStatus        SyncStatus @default(NEVER_SYNCED)
+  lastSyncedAt      DateTime?
+  
+  // Validation
+  validationStatus  ValidationStatus @default(PENDING)
+  validationErrors  Json?
+  
+  // Data Snapshot (last synced data)
+  lastSyncedData    Json?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([studentId])
+  @@index([nemisUpi])
+  @@index([syncStatus])
+  @@map("nemis_student_records")
+}
+
+// NEMIS Staff Records - Track teacher data synced with NEMIS
+model NemisStaffRecord {
+  id                String   @id @default(uuid())
+  tenantId          String
+  staffId           String   @unique
+  
+  // NEMIS/TSC Identifiers
+  tscNumber         String?  @unique // Teachers Service Commission Number
+  nemisStaffId      String?  @unique
+  
+  // Registration
+  isRegistered      Boolean  @default(false)
+  registrationDate  DateTime?
+  
+  // Sync Status
+  syncStatus        SyncStatus @default(NEVER_SYNCED)
+  lastSyncedAt      DateTime?
+  
+  // Validation
+  validationStatus  ValidationStatus @default(PENDING)
+  validationErrors  Json?
+  
+  // Qualifications (synced from TSC)
+  qualifications    Json?
+  
+  // Data Snapshot
+  lastSyncedData    Json?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([staffId])
+  @@index([tscNumber])
+  @@index([syncStatus])
+  @@map("nemis_staff_records")
+}
+
+enum ValidationStatus {
+  PENDING
+  VALID
+  INVALID
+  REQUIRES_UPDATE
+}
+
+// KNEC (Kenya National Examinations Council) Integration
+model KnecIntegration {
+  id                String   @id @default(uuid())
+  tenantId          String
+  
+  // Configuration
+  knecCentreNumber  String   @unique
+  apiKey            String?  // Encrypted
+  apiSecret         String?  // Encrypted
+  baseUrl           String   @default("https://portal.knec.ac.ke/api")
+  
+  // Status
+  isEnabled         Boolean  @default(false)
+  lastSyncAt        DateTime?
+  syncStatus        SyncStatus @default(NEVER_SYNCED)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  examRegistrations KnecExamRegistration[]
+  syncLogs          KnecSyncLog[]
+
+  @@index([tenantId])
+  @@index([knecCentreNumber])
+  @@map("knec_integrations")
+}
+
+// KNEC Sync Logs
+model KnecSyncLog {
+  id                String   @id @default(uuid())
+  tenantId          String
+  knecIntegrationId String
+  
+  // Sync Details
+  syncType          KnecSyncType
+  status            SyncStatus
+  
+  // Metrics
+  recordsAttempted  Int      @default(0)
+  recordsSucceeded  Int      @default(0)
+  recordsFailed     Int      @default(0)
+  
+  // Results
+  startedAt         DateTime @default(now())
+  completedAt       DateTime?
+  duration          Int?
+  
+  // Error Details
+  errorMessage      String?  @db.Text
+  errorDetails      Json?
+  
+  // Data
+  requestPayload    Json?
+  responsePayload   Json?
+  
+  createdAt         DateTime @default(now())
+  
+  knecIntegration   KnecIntegration @relation(fields: [knecIntegrationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([knecIntegrationId])
+  @@index([syncType])
+  @@index([status])
+  @@map("knec_sync_logs")
+}
+
+enum KnecSyncType {
+  CANDIDATE_REGISTRATION
+  EXAM_TIMETABLE
+  RESULTS_DOWNLOAD
+  CENTRE_UPDATE
+  IRREGULARITY_REPORT
+}
+
+// KNEC Exam Registration
+model KnecExamRegistration {
+  id                String   @id @default(uuid())
+  tenantId          String
+  knecIntegrationId String
+  studentId         String
+  
+  // Exam Details
+  examYear          Int
+  examSession       String   // e.g., "November 2024"
+  examLevel         KnecExamLevel
+  
+  // Candidate Information
+  candidateNumber   String?  @unique
+  indexNumber       String?  @unique
+  
+  // Registration
+  registrationDate  DateTime?
+  registrationStatus RegistrationStatus @default(PENDING)
+  
+  // Subjects Registered
+  subjects          Json     // Array of subject codes
+  
+  // Results
+  resultsAvailable  Boolean  @default(false)
+  resultsDownloadedAt DateTime?
+  results           Json?    // Exam results data
+  
+  // Sync
+  syncStatus        SyncStatus @default(PENDING)
+  lastSyncedAt      DateTime?
+  
+  // Fees
+  registrationFee   Int      @default(0)
+  isPaid            Boolean  @default(false)
+  paidAt            DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  knecIntegration   KnecIntegration @relation(fields: [knecIntegrationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([studentId])
+  @@index([candidateNumber])
+  @@index([examYear])
+  @@index([registrationStatus])
+  @@map("knec_exam_registrations")
+}
+
+enum KnecExamLevel {
+  KCPE          // Kenya Certificate of Primary Education
+  KCSE          // Kenya Certificate of Secondary Education
+  KPSEA         // Kenya Primary School Education Assessment
+}
+
+enum RegistrationStatus {
+  PENDING
+  SUBMITTED
+  CONFIRMED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// Compliance Reporting
+model ComplianceReport {
+  id                String   @id @default(uuid())
+  tenantId          String
+  
+  // Report Details
+  reportType        ComplianceReportType
+  reportPeriod      String   // e.g., "Term 1 2024", "Q1 2024", "2024"
+  reportYear        Int
+  reportQuarter     Int?
+  reportMonth       Int?
+  
+  // Status
+  status            ReportStatus @default(DRAFT)
+  
+  // Submission
+  submittedTo       String?  // Government body (NEMIS, MOE, TSC, etc.)
+  submittedAt       DateTime?
+  submittedBy       String?  // User ID
+  
+  // Approval
+  approvedBy        String?
+  approvedAt        DateTime?
+  
+  // Data
+  reportData        Json     // The actual report data
+  metadata          Json?    // Additional metadata
+  
+  // File
+  fileUrl           String?  // Generated PDF/Excel report
+  fileSize          Int?
+  
+  // Automation
+  isAutomated       Boolean  @default(false)
+  automationSchedule String? // Cron expression
+  
+  // Due Date
+  dueDate           DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([reportType])
+  @@index([status])
+  @@index([reportYear])
+  @@index([dueDate])
+  @@map("compliance_reports")
+}
+
+enum ComplianceReportType {
+  ENROLLMENT_STATISTICS
+  ATTENDANCE_SUMMARY
+  TEACHER_DATA_REPORT
+  EXAMINATION_ANALYSIS
+  FINANCIAL_SUMMARY
+  INFRASTRUCTURE_STATUS
+  SAFETY_AUDIT
+  TSC_COMPLIANCE
+  ANNUAL_SCHOOL_CENSUS
+  TERMLY_RETURNS
+  LEARNER_TRACKING
+  DROPOUT_ANALYSIS
+  SPECIAL_NEEDS_REPORT
+}
+
+enum ReportStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SUBMITTED
+  ACKNOWLEDGED
+  REJECTED
+}
+
+// Government Compliance Checklist
+model ComplianceChecklist {
+  id                String   @id @default(uuid())
+  tenantId          String
+  
+  // Compliance Item
+  title             String
+  description       String?  @db.Text
+  complianceArea    ComplianceArea
+  
+  // Requirements
+  requiredBy        String   // Government body/regulation
+  frequency         String   // DAILY, WEEKLY, MONTHLY, TERMLY, ANNUAL
+  dueDate           DateTime?
+  
+  // Status
+  status            ChecklistStatus @default(PENDING)
+  completedAt       DateTime?
+  completedBy       String?
+  
+  // Evidence
+  evidence          Json?    // Array of document URLs
+  notes             String?  @db.Text
+  
+  // Reminders
+  reminderSent      Boolean  @default(false)
+  reminderSentAt    DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([complianceArea])
+  @@index([status])
+  @@index([dueDate])
+  @@map("compliance_checklists")
+}
+
+enum ComplianceArea {
+  REGISTRATION
+  LICENSING
+  SAFETY_STANDARDS
+  TEACHER_QUALIFICATION
+  CURRICULUM_COMPLIANCE
+  EXAMINATION_PROCEDURES
+  FINANCIAL_REPORTING
+  DATA_PROTECTION
+  CHILD_PROTECTION
+  HEALTH_STANDARDS
+  INFRASTRUCTURE
+  NEMIS_REPORTING
+  TSC_COMPLIANCE
+}
+
+enum ChecklistStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  NOT_APPLICABLE
+}
+
+// Data Quality Audit - Track data quality for government reporting
+model DataQualityAudit {
+  id                String   @id @default(uuid())
+  tenantId          String
+  
+  // Audit Details
+  auditType         DataAuditType
+  entityType        String   // STUDENT, STAFF, SCHOOL
+  entityId          String?
+  
+  // Quality Metrics
+  completeness      Float    @default(0) // Percentage
+  accuracy          Float    @default(0) // Percentage
+  consistency       Float    @default(0) // Percentage
+  overallScore      Float    @default(0) // Percentage
+  
+  // Issues Found
+  issuesFound       Int      @default(0)
+  criticalIssues    Int      @default(0)
+  warningIssues     Int      @default(0)
+  
+  // Issues Details
+  issues            Json?    // Array of issue details
+  
+  // Status
+  status            AuditStatus @default(PENDING)
+  
+  // Resolution
+  resolvedIssues    Int      @default(0)
+  resolvedAt        DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([auditType])
+  @@index([entityType])
+  @@index([status])
+  @@index([createdAt])
+  @@map("data_quality_audits")
+}
+
+enum DataAuditType {
+  STUDENT_DATA
+  STAFF_DATA
+  SCHOOL_PROFILE
+  ATTENDANCE_DATA
+  EXAMINATION_DATA
+  FULL_AUDIT
+}
+
+enum AuditStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REQUIRES_ACTION
+}
+
+// Government API Requests Log - Track all API calls to government systems
+model GovernmentApiLog {
+  id                String   @id @default(uuid())
+  tenantId          String
+  
+  // Request Details
+  service           String   // NEMIS, KNEC, TSC, etc.
+  endpoint          String
+  method            String   // GET, POST, PUT, DELETE
+  
+  // Request/Response
+  requestHeaders    Json?
+  requestBody       Json?
+  responseStatus    Int?
+  responseBody      Json?
+  
+  // Timing
+  requestedAt       DateTime @default(now())
+  respondedAt       DateTime?
+  duration          Int?     // In milliseconds
+  
+  // Status
+  status            ApiCallStatus
+  errorMessage      String?  @db.Text
+  
+  // Context
+  initiatedBy       String?  // User ID
+  operationType     String?  // SYNC, REGISTER, DOWNLOAD, etc.
+  
+  createdAt         DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([service])
+  @@index([status])
+  @@index([requestedAt])
+  @@map("government_api_logs")
+}
+
+enum ApiCallStatus {
+  SUCCESS
+  FAILED
+  TIMEOUT
+  RATE_LIMITED
+  UNAUTHORIZED
+}
+
+// Automated Compliance Alerts
+model ComplianceAlert {
+  id                String   @id @default(uuid())
+  tenantId          String
+  
+  // Alert Details
+  alertType         ComplianceAlertType
+  severity          AlertSeverity
+  title             String
+  message           String   @db.Text
+  
+  // Context
+  relatedEntity     String?  // Entity type (REPORT, CHECKLIST, SYNC)
+  relatedEntityId   String?  // Entity ID
+  
+  // Action Required
+  actionRequired    Boolean  @default(false)
+  actionUrl         String?
+  actionDescription String?  @db.Text
+  
+  // Status
+  status            AlertStatus @default(ACTIVE)
+  
+  // Acknowledgment
+  acknowledgedBy    String?
+  acknowledgedAt    DateTime?
+  
+  // Resolution
+  resolvedBy        String?
+  resolvedAt        DateTime?
+  resolutionNotes   String?  @db.Text
+  
+  // Notification
+  notificationSent  Boolean  @default(false)
+  notificationSentAt DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([alertType])
+  @@index([severity])
+  @@index([status])
+  @@index([createdAt])
+  @@map("compliance_alerts")
+}
+
+enum ComplianceAlertType {
+  SYNC_FAILURE
+  REPORT_DUE
+  DATA_QUALITY_ISSUE
+  MISSING_INFORMATION
+  VALIDATION_ERROR
+  DEADLINE_APPROACHING
+  COMPLIANCE_VIOLATION
+  SYSTEM_ERROR
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum AlertStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}

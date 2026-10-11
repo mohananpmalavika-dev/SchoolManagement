@@ -8,7 +8,7 @@ import { ProtectedRoute } from './ProtectedRoute';
 import { teacherRoles, schoolRoles, predictiveAnalyticsRoles } from '@/lib/session';
 type Portal = 'admin' | 'teacher' | 'parent' | 'school' | 'student';
 const items = {
- admin: [['dashboard','Overview',LayoutDashboard],['schools','Schools',School],['subscriptions','Subscriptions',CreditCard],['users','People & access',Users],['reports','Reports',BarChart3],['system','System health',ShieldCheck],['support','Support center',LifeBuoy]],
+ admin: [['dashboard','Overview',LayoutDashboard],['analytics','School benchmarking',BarChart3],['schools','Schools',School],['subscriptions','Subscriptions',CreditCard],['users','People & access',Users],['reports','Reports',BarChart3],['system','System health',ShieldCheck],['support','Support center',LifeBuoy]],
  teacher: [['dashboard','Overview',LayoutDashboard],['ai-studio','AI teaching studio',BookOpen],['classes','My classes',Users],['attendance','Attendance',ClipboardCheck],['grades','Gradebook',BookOpen],['timetable','My schedule',CalendarDays],['substitution','Proxy Duties',Zap],['messages','Messages',MessageSquare],['performance','Performance',BarChart3]],
  parent: [['','Overview',LayoutDashboard],['transport','Bus Tracking',Bus],['fees','Fees & payments',CreditCard],['attendance','Attendance',ClipboardCheck],['grades','Learning progress',BookOpen],['notifications','School updates',MessageSquare]],
  school: [['dashboard','Overview',LayoutDashboard],['substitution','Smart Proxy Engine',Zap],['students','Students',Users],['guardians','Guardians',Users],['staff','Staff directory',GraduationCap],['academics','Academic setup',BookOpen],['fees','Fees & invoices',CreditCard],['attendance','Attendance',ClipboardCheck],['grades','Gradebook',BookOpen],['examinations','Examinations',ClipboardCheck],['calendar','School calendar',CalendarDays],['timetable','Timetable',CalendarDays],['library','Library',Library],['transport','Transport',Bus],['inventory','Inventory',Library],['support','Support',LifeBuoy],['messages','Communications',MessageSquare]],
@@ -18,7 +18,7 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
  const pathname = usePathname(); const {user, logout} = useAuth();
  const [open,setOpen] = useState(false); const [search,setSearch] = useState('');
  const base = portal === 'parent' ? '/dashboard' : '/' + portal;
- const links:ReadonlyArray<readonly [string,string,LucideIcon]> = portal === 'school' && predictiveAnalyticsRoles.includes(user?.role ?? '') ? [items.school[0], ['predictive-analytics','AI Predictive Analytics',BarChart3], ['ai-studio','AI teaching studio',BookOpen], ...items.school.slice(1)] : items[portal]; const active = links.find(([slug]) => pathname === base + (slug ? '/' + slug : ''));
+ const links:ReadonlyArray<readonly [string,string,LucideIcon]> = portal === 'school' && predictiveAnalyticsRoles.includes(user?.role ?? '') ? [items.school[0], ['analytics','Advanced Analytics',BarChart3], ['predictive-analytics','AI Predictive Analytics',BarChart3], ['ai-studio','AI teaching studio',BookOpen], ...items.school.slice(1)] : items[portal]; const active = links.find(([slug]) => pathname === base + (slug ? '/' + slug : ''));
  const roles = portal === 'admin' ? ['SUPER_ADMIN'] : portal === 'teacher' ? teacherRoles : portal === 'school' ? schoolRoles : portal === 'student' ? ['STUDENT'] : ['PARENT'];
  useEffect(() => {setOpen(false);setSearch('');},[pathname]);
  useEffect(() => {
