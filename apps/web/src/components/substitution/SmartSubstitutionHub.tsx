@@ -791,7 +791,7 @@ export function SmartSubstitutionHub() {
                     <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
                       <div className="flex items-center gap-1.5 font-bold text-indigo-400">
                         <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                        <span>KRYPTON SCHOOL ERP</span>
+                        <span>HUSTLERTECH SCHOOL ERP</span>
                       </div>
                       <span>{notif.sentAt}</span>
                     </div>

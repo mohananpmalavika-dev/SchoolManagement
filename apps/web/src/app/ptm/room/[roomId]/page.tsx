@@ -245,7 +245,7 @@ export default function PTMRoomPage({ params }: PageProps) {
         </main>
 
         <footer className="text-center text-xs text-slate-600 py-2">
-          Krypton School ERP • Cloud Virtual Conferencing Suite • CBC Kenya
+          HustlerTech School ERP • Cloud Virtual Conferencing Suite • CBC Kenya
         </footer>
       </div>
     );

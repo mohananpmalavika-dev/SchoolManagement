@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ShieldCheck, Download, RefreshCw } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
@@ -45,8 +45,8 @@ export function AccountSecurity() {
     } catch (err) { setError(messageFor(err)); } finally { setBusy(false); }
   }
   function downloadCodes() {
-    const url = URL.createObjectURL(new Blob(['Krypton School ERP recovery codes\nStore privately. Each code can be used once.\n\n' + codes.join('\n')], {type:'text/plain'}));
-    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'krypton-recovery-codes.txt'; anchor.click(); URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(new Blob(['HustlerTech School ERP recovery codes\nStore privately. Each code can be used once.\n\n' + codes.join('\n')], {type:'text/plain'}));
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'hustlertech-recovery-codes.txt'; anchor.click(); URL.revokeObjectURL(url);
   }
   return <Panel title="Two-step verification" subtitle="Add an authenticator code to your sign-in"><div className="panel-body space-y-5">
     {error && <div role="alert" className="state-box">{error}<Button variant="ghost" size="sm" onClick={() => {setError('');void load();}}>Retry</Button></div>}

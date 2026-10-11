@@ -45,9 +45,9 @@ export function LoginScreen({portal = 'school'}: {portal?: string}) {
     <div className="login-page">
       <section className="login-story">
         <Link href="/" className="brand">
-          <span className="brand-symbol">K</span>
+          <img src="/hustlertech-logo.png" alt="HustlerTech Logo" className="brand-logo-img" />
           <span>
-            Krypton
+            HustlerTech
             <small>{t('common.schoolWorkspace')}</small>
           </span>
         </Link>

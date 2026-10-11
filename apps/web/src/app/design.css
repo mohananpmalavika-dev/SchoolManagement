@@ -1,4 +1,4 @@
-﻿/* Shared visual system for every portal. Keep specialty module styles in globals.css. */
+/* Shared visual system for every portal. Keep specialty module styles in globals.css. */
 :root {
   --ink: #192d40;
   --muted: #627488;
@@ -19,6 +19,8 @@ button:disabled { opacity: .5; }
 .sidebar-brand-row { display: flex; align-items: center; justify-content: space-between; }
 .brand { padding: 0 9px; gap: 11px; font-size: 26px; letter-spacing: -1px; }
 .brand-symbol { width: 40px; height: 40px; background: #10958a; border: 1px solid #32ada3; border-radius: 12px; box-shadow: 0 3px 12px #0002; }
+.brand-logo-img { width: 42px; height: 42px; object-fit: contain; border-radius: 10px; background: #ffffff; padding: 2px; box-shadow: 0 4px 14px rgba(0,0,0,0.22); flex-shrink: 0; }
+.brand-logo-img-lg { width: 54px; height: 54px; object-fit: contain; border-radius: 12px; background: #ffffff; padding: 3px; box-shadow: 0 6px 18px rgba(0,0,0,0.28); flex-shrink: 0; }
 .brand small { color: #a2b5c7; font-size: 8px; letter-spacing: 1.6px; margin-top: 4px; }
 .workspace-label { margin: 28px 4px 26px; padding: 13px 11px; background: #1d3247; border-color: #2c4157; border-radius: 10px; }
 .workspace-label strong { display: block; color: #e3edf5; font-size: 11px; font-weight: 600; }

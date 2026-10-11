@@ -17,8 +17,8 @@ async function bootstrap(){
  app.useGlobalPipes(new ValidationPipe({whitelist:true,forbidNonWhitelisted:true,transform:true,transformOptions:{enableImplicitConversion:true}}));
  app.useGlobalFilters(new HttpExceptionFilter());
  app.useGlobalInterceptors(new TransformInterceptor(),new LoggingInterceptor());
- if(!production||config.get('ENABLE_API_DOCS')==='true'){const doc=SwaggerModule.createDocument(app,new DocumentBuilder().setTitle('Krypton School ERP API').setVersion('2.0').addBearerAuth().build());SwaggerModule.setup('api/docs',app,doc);}
+ if(!production||config.get('ENABLE_API_DOCS')==='true'){const doc=SwaggerModule.createDocument(app,new DocumentBuilder().setTitle('HustlerTech School ERP API').setVersion('2.0').addBearerAuth().build());SwaggerModule.setup('api/docs',app,doc);}
  await app.listen(Number(config.get('PORT',config.get('API_PORT',3001))),'0.0.0.0');
- Logger.log('Krypton API listening on port '+config.get('PORT',3001));
+ Logger.log('HustlerTech API listening on port '+config.get('PORT',3001));
 }
 bootstrap().catch(error=>{Logger.error('API startup failed',error);process.exitCode=1;});

@@ -1,7 +1,7 @@
 import { AutoTimetableGeneratorHub } from '@/components/timetable/AutoTimetableGeneratorHub';
 
 export const metadata = {
-  title: 'Constraint-Based Auto-Timetable Generator | Krypton School ERP',
+  title: 'Constraint-Based Auto-Timetable Generator | HustlerTech School ERP',
   description:
     '1-Click conflict-free auto timetable generation with teacher workload management and lab room allocation.',
 };

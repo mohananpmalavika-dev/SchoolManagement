@@ -5,9 +5,9 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { FeatureBoundary } from '@/components/FeatureBoundary';
 export const metadata: Metadata = {
-  title: { default: 'Krypton | School workspace', template: '%s | Krypton' },
+  title: { default: 'HustlerTech | School Workspace ERP', template: '%s | HustlerTech' },
   description: 'One connected workspace for school teams and families.',
-  manifest: '/manifest.json', icons: { icon: '/brand.svg', apple: '/brand.svg' },
+  manifest: '/manifest.json', icons: { icon: '/hustlertech-logo.png', apple: '/hustlertech-logo.png', shortcut: '/hustlertech-logo.png' },
 };
 export const viewport: Viewport = { themeColor: '#132435', width: 'device-width', initialScale: 1 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {

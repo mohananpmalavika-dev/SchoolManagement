@@ -1,9 +1,9 @@
 {
-  "name": "krypton-school-erp",
+  "name": "hustlertech-school-erp",
   "version": "1.0.0",
   "private": true,
-  "description": "Multi-tenant school management platform for Kenyan schools",
-  "author": "KryptonLogic",
+  "description": "HustlerTech multi-tenant school management ERP platform for Kenyan & East African schools",
+  "author": "HustlerTech",
   "license": "PROPRIETARY",
   "engines": {
     "node": ">=22.0.0",
