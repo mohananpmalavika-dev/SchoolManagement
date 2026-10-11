@@ -1,0 +1,12 @@
+'use client';
+import {useState} from 'react';
+import {ResourcePage} from './ResourcePage';
+import {ResourceConfig} from '@/lib/resources';
+const configs:Record<string,ResourceConfig>={
+ assignments:{title:'Assignments',description:'Give learners a clear next step.',endpoint:'/workspace/assignments',columns:[{key:'title',label:'Assignment'},{key:'dueDate',label:'Due',format:'date'},{key:'maxMarks',label:'Maximum marks'}],fields:[{key:'title',label:'Title',required:true},{key:'classId',label:'Class',source:'/workspace/classes',required:true},{key:'subjectId',label:'Subject',source:'/workspace/subjects',required:true},{key:'description',label:'Instructions',type:'textarea',required:true},{key:'dueDate',label:'Due date',type:'date',required:true},{key:'maxMarks',label:'Maximum marks',type:'number',min:1,max:1000,required:true}]},
+ submissions:{title:'Student submissions',description:'Review work and give constructive feedback.',endpoint:'/workspace/submissions',columns:[{key:'studentName',label:'Student'},{key:'assignmentTitle',label:'Assignment'},{key:'text',label:'Submitted work'},{key:'score',label:'Marks'},{key:'maxMarks',label:'Maximum'},{key:'status',label:'Status',format:'status'}],fields:[{key:'score',label:'Marks',type:'number',required:true,min:0,max:1000},{key:'feedback',label:'Feedback',type:'textarea'}],editable:true,createAllowed:false},
+ materials:{title:'Learning materials',description:'Share useful resources with your learners.',endpoint:'/workspace/materials',columns:[{key:'title',label:'Resource'},{key:'description',label:'Description'},{key:'url',label:'Link'}],fields:[{key:'title',label:'Title',required:true},{key:'classId',label:'Class',source:'/workspace/classes',required:true},{key:'subjectId',label:'Subject',source:'/workspace/subjects',required:true},{key:'description',label:'Description',type:'textarea'},{key:'url',label:'HTTPS resource link',type:'url',required:true}],editable:true}
+};
+export function LearningManagement(){
+ const [tab,setTab]=useState('assignments');return <><div className="section-tabs">{['assignments','submissions','materials'].map(key=><button key={key} className={key===tab?'selected':''} onClick={()=>setTab(key)}>{configs[key].title}</button>)}</div><ResourcePage key={tab} {...configs[tab]}/></>;
+}

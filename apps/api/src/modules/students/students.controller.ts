@@ -84,6 +84,106 @@ export class StudentsController {
     return this.studentsService.getStats();
   }
 
+  @Get('my-children')
+  @Roles(
+    UserRole.PARENT,
+    UserRole.SUPER_ADMIN,
+    UserRole.PRINCIPAL,
+  )
+  @ApiOperation({ summary: 'Get linked children for parent' })
+  @ApiResponse({ status: 200, description: 'Children retrieved successfully' })
+  getMyChildren(@Request() req: any) {
+    return this.studentsService.getMyChildren(req.user);
+  }
+
+  @Get('me')
+  @Roles(
+    UserRole.STUDENT,
+    UserRole.SUPER_ADMIN,
+  )
+  @ApiOperation({ summary: 'Get current student profile' })
+  @ApiResponse({ status: 200, description: 'Student profile retrieved successfully' })
+  getMe(@Request() req: any) {
+    return this.studentsService.getMe(req.user);
+  }
+
+  @Get('me/dashboard')
+  @Roles(
+    UserRole.STUDENT,
+    UserRole.SUPER_ADMIN,
+  )
+  @ApiOperation({ summary: 'Get student portal dashboard data' })
+  @ApiResponse({ status: 200, description: 'Student dashboard data retrieved successfully' })
+  getMeDashboard(@Request() req: any) {
+    return this.studentsService.getMeDashboard(req.user);
+  }
+
+  @Get('me/timetable')
+  @Roles(
+    UserRole.STUDENT,
+    UserRole.SUPER_ADMIN,
+  )
+  @ApiOperation({ summary: 'Get student class timetable' })
+  @ApiResponse({ status: 200, description: 'Student timetable retrieved successfully' })
+  getMeTimetable(@Request() req: any) {
+    return this.studentsService.getMeTimetable(req.user);
+  }
+
+  @Get('me/attendance')
+  @Roles(
+    UserRole.STUDENT,
+    UserRole.SUPER_ADMIN,
+  )
+  @ApiOperation({ summary: 'Get student attendance record' })
+  @ApiResponse({ status: 200, description: 'Student attendance retrieved successfully' })
+  getMeAttendance(@Request() req: any) {
+    return this.studentsService.getMeAttendance(req.user);
+  }
+
+  @Get('me/grades')
+  @Roles(
+    UserRole.STUDENT,
+    UserRole.SUPER_ADMIN,
+  )
+  @ApiOperation({ summary: 'Get student grades and CBC evaluation' })
+  @ApiResponse({ status: 200, description: 'Student grades retrieved successfully' })
+  getMeGrades(@Request() req: any) {
+    return this.studentsService.getMeGrades(req.user);
+  }
+
+  @Get('me/report-cards')
+  @Roles(
+    UserRole.STUDENT,
+    UserRole.SUPER_ADMIN,
+  )
+  @ApiOperation({ summary: 'Get student report cards' })
+  @ApiResponse({ status: 200, description: 'Student report cards retrieved successfully' })
+  getMeReportCards(@Request() req: any) {
+    return this.studentsService.getMeReportCards(req.user);
+  }
+
+  @Get('me/assignments')
+  @Roles(
+    UserRole.STUDENT,
+    UserRole.SUPER_ADMIN,
+  )
+  @ApiOperation({ summary: 'Get student assignments & homework' })
+  @ApiResponse({ status: 200, description: 'Student assignments retrieved successfully' })
+  getMeAssignments(@Request() req: any) {
+    return this.studentsService.getMeAssignments(req.user);
+  }
+
+  @Get('me/materials')
+  @Roles(
+    UserRole.STUDENT,
+    UserRole.SUPER_ADMIN,
+  )
+  @ApiOperation({ summary: 'Get student learning materials and library' })
+  @ApiResponse({ status: 200, description: 'Student learning materials retrieved successfully' })
+  getMeMaterials(@Request() req: any) {
+    return this.studentsService.getMeMaterials(req.user);
+  }
+
   @Get(':id')
   @Roles(
     UserRole.SUPER_ADMIN,

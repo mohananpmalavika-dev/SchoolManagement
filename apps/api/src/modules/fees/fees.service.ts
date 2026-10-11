@@ -297,7 +297,7 @@ export class FeesService {
 
         // Create invoice
         const items = feeStructure.feeItems.map((item) => ({
-          description: item.description || item.name,
+          description: (item.description || item.name || 'Fee item') as string,
           amount: item.amount,
           feeCategory: item.feeCategory as FeeCategory,
         }));

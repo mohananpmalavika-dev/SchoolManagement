@@ -35,5 +35,13 @@ export const api={
  getReportCard:async(id:string)=>(await apiClient.get('/workspace/report/'+encodeURIComponent(id))).data,
  getCurrentTerm:async()=>(await apiClient.get('/workspace/current-term')).data,
  initiateSTKPush:async(data:{invoiceId:string;phoneNumber:string;amount:number})=>(await apiClient.post('/workspace/pay',data)).data,
+ getStudentMe:async()=>(await apiClient.get('/students/me')).data,
+ getStudentDashboard:async()=>(await apiClient.get('/students/me/dashboard')).data,
+ getStudentTimetable:async()=>(await apiClient.get('/students/me/timetable')).data,
+ getStudentAttendanceRecord:async()=>(await apiClient.get('/students/me/attendance')).data,
+ getStudentGradesInfo:async()=>(await apiClient.get('/students/me/grades')).data,
+ getStudentReportCardsList:async()=>(await apiClient.get('/students/me/report-cards')).data,
+ getStudentAssignments:async()=>(await apiClient.get('/students/me/assignments')).data,
+ getStudentMaterials:async()=>(await apiClient.get('/students/me/materials')).data,
 };
 export default apiClient;

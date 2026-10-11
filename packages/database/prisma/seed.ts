@@ -188,6 +188,54 @@ async function main() {
     },
   });
 
+  // Create Student User
+  const studentPasswordHash = await bcrypt.hash('Student@123', 10);
+  await prisma.user.create({
+    data: {
+      tenantId: demoTenant.id,
+      email: 'student@demoacademy.ac.ke',
+      passwordHash: studentPasswordHash,
+      firstName: 'Jane',
+      lastName: 'Wanjiku',
+      phone: '+254700000003',
+      role: 'STUDENT',
+      isActive: true,
+      emailVerified: true,
+    },
+  });
+
+  // Create Teacher User
+  const teacherPasswordHash = await bcrypt.hash('Teacher@123', 10);
+  await prisma.user.create({
+    data: {
+      tenantId: demoTenant.id,
+      email: 'teacher@demoacademy.ac.ke',
+      passwordHash: teacherPasswordHash,
+      firstName: 'David',
+      lastName: 'Mwangi',
+      phone: '+254700000004',
+      role: 'TEACHER',
+      isActive: true,
+      emailVerified: true,
+    },
+  });
+
+  // Create Parent User
+  const parentPasswordHash = await bcrypt.hash('Parent@123', 10);
+  await prisma.user.create({
+    data: {
+      tenantId: demoTenant.id,
+      email: 'parent@demoacademy.ac.ke',
+      passwordHash: parentPasswordHash,
+      firstName: 'Mary',
+      lastName: 'Wanjiku',
+      phone: '+254700000005',
+      role: 'PARENT',
+      isActive: true,
+      emailVerified: true,
+    },
+  });
+
   console.log('✅ Users created');
 
   // Create Academic Year and Terms

@@ -9,3 +9,7 @@ export * from './enums';
 
 // Common Types
 export * from './common';
+
+// Transport Types
+export * from './transport';
+export * from './predictive-analytics';

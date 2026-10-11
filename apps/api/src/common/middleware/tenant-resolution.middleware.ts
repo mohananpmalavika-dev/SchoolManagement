@@ -46,6 +46,26 @@ export class TenantResolutionMiddleware implements NestMiddleware {
         }
       }
 
+      // Try to resolve tenant from explicit headers (for mobile/API clients and testing)
+      if (!tenant) {
+        const headerSubdomain = req.headers['x-tenant-subdomain'] as string;
+        const headerTenantId = req.headers['x-tenant-id'] as string;
+        if (headerSubdomain) {
+          tenant = await this.prisma.tenant.findUnique({
+            where: { subdomain: headerSubdomain.toLowerCase().trim() },
+            select: { id: true, subdomain: true, status: true },
+          });
+          if (tenant) {
+            this.tenantService.setSubdomain(headerSubdomain);
+          }
+        } else if (headerTenantId) {
+          tenant = await this.prisma.tenant.findUnique({
+            where: { id: headerTenantId.trim() },
+            select: { id: true, subdomain: true, status: true },
+          });
+        }
+      }
+
       // If tenant found, set tenant context
       if (tenant) {
         // Check if tenant is active

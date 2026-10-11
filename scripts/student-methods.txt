@@ -1,0 +1,44 @@
+async resolveStudentForUser(user:any){
+    const tenantId=this.tenantService.requireTenantContext();
+    const student=await this.prisma.student.findFirst({where:{tenantId,userId:user.userId,deletedAt:null},include:{currentClass:true,currentStream:true}});
+    if(!student)throw new NotFoundException('Your student account is not linked. Contact the school office.');
+    return student;
+  }
+  async getMe(user:any){
+    const s=await this.resolveStudentForUser(user);
+    const tenant=await this.prisma.tenant.findUnique({where:{id:s.tenantId},select:{name:true}});
+    return {...s,class:s.currentClass,stream:s.currentStream,school:tenant?.name};
+  }
+  async getMeDashboard(user:any){
+    const [student,timetable,attendance,grades,assignments,announcements]=await Promise.all([this.getMe(user),this.getMeTimetable(user),this.getMeAttendance(user),this.getMeGrades(user),this.getMeAssignments(user),this.prisma.schoolEvent.findMany({where:{tenantId:this.tenantService.requireTenantContext(),startDate:{gte:new Date()}},orderBy:{startDate:'asc'},take:5})]);
+    const day=new Intl.DateTimeFormat('en-KE',{timeZone:'Africa/Nairobi',weekday:'long'}).format(new Date()).toUpperCase();
+    return {student,todaySchedule:timetable.schedule.filter((s:any)=>s.day===day),attendance:attendance.summary,recentGrades:grades.recentAssessments.slice(0,5),pendingAssignments:assignments.pending,announcements};
+  }
+  async getMeTimetable(user:any){
+    const s=await this.resolveStudentForUser(user);const entries=s.currentClassId?await this.prisma.timetableEntry.findMany({where:{tenantId:s.tenantId,classId:s.currentClassId},include:{subject:true,teacher:true},orderBy:[{dayOfWeek:'asc'},{startTime:'asc'}]}):[];
+    return {className:s.currentClass?.name,streamName:s.currentStream?.name,schedule:entries.map(e=>({id:e.id,day:['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY'][e.dayOfWeek-1],periodNumber:e.period,startTime:e.startTime,endTime:e.endTime,subject:e.subject.name,teacher:e.teacher.firstName+' '+e.teacher.lastName,room:e.room}))};
+  }
+  async getMeAttendance(user:any){
+    const s=await this.resolveStudentForUser(user);const records=await this.prisma.attendanceRecord.findMany({where:{tenantId:s.tenantId,studentId:s.id,period:1},orderBy:{date:'desc'},take:365});
+    const count=(status:string)=>records.filter(r=>r.status===status).length;
+    return {records,summary:{totalDays:records.length,presentDays:count('PRESENT'),lateDays:count('LATE'),absentDays:count('ABSENT'),excusedDays:count('EXCUSED'),attendanceRate:records.length?Math.round((count('PRESENT')+count('LATE'))/records.length*100):0}};
+  }
+  async getMeGrades(user:any){
+    const s=await this.resolveStudentForUser(user);const rows=await this.prisma.grade.findMany({where:{tenantId:s.tenantId,studentId:s.id,examination:{isPublished:true}},include:{subject:true,examination:true},orderBy:{createdAt:'desc'}});
+    const subjects=[...new Set(rows.map(r=>r.subjectId))].map(id=>{const grades=rows.filter(r=>r.subjectId===id);const recent=grades[0];return {id,name:recent.subject.name,code:recent.subject.code,score:Math.round(grades.reduce((sum,g)=>sum+g.percentage,0)/grades.length),gradeLetter:recent.letterGrade,teacherRemarks:recent.remarks,assessments:grades.map(g=>({name:g.examination.name,max:g.totalMarks,score:g.score,level:g.competencyLevel}))};});
+    return {subjects,overallAverage:rows.length?Math.round(rows.reduce((sum,g)=>sum+g.percentage,0)/rows.length):null,recentAssessments:rows.map(g=>({id:g.id,subject:g.subject.name,exam:g.examination.name,score:g.score,total:g.totalMarks,level:g.competencyLevel,grade:g.letterGrade}))};
+  }
+  async getMeReportCards(user:any){const s=await this.resolveStudentForUser(user);return {reportCards:await this.prisma.reportCard.findMany({where:{tenantId:s.tenantId,studentId:s.id,status:'PUBLISHED'},include:{term:true},orderBy:{createdAt:'desc'}})};}
+  async getMeAssignments(user:any){
+    const s=await this.resolveStudentForUser(user);const rows=s.currentClassId?await this.prisma.assignment.findMany({where:{tenantId:s.tenantId,classId:s.currentClassId},include:{subject:true,submissions:{where:{studentId:s.id}}},orderBy:{dueDate:'asc'}}):[];
+    const assignments=rows.map(a=>({...a,subject:a.subject.name,submission:a.submissions[0]||null,status:a.submissions[0]?.status||'PENDING'}));
+    return {pending:assignments.filter(a=>a.status==='PENDING'),completed:assignments.filter(a=>a.status!=='PENDING')};
+  }
+  async getMeMaterials(user:any){
+    const s=await this.resolveStudentForUser(user);return {curriculumMaterials:await this.prisma.learningMaterial.findMany({where:{tenantId:s.tenantId,OR:[{classId:s.currentClassId},{classId:null}]},orderBy:{createdAt:'desc'}}),borrowedBooks:await this.prisma.bookBorrowing.findMany({where:{tenantId:s.tenantId,borrowerId:s.id,borrowerType:'STUDENT'},include:{book:true},orderBy:{createdAt:'desc'}})};
+  }
+  async getMyChildren(user:any){
+    return this.prisma.student.findMany({where:{tenantId:this.tenantService.requireTenantContext(),deletedAt:null,guardianLinks:{some:{guardian:{userId:user.userId}}}},include:{currentClass:true,currentStream:true},orderBy:{firstName:'asc'}});
+  }
+}
+

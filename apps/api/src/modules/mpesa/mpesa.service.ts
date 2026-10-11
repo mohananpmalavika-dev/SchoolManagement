@@ -289,9 +289,9 @@ export class MpesaService {
       const transactionDate = this.parseProviderDate(metadata.TransactionDate);
       const phoneNumber = metadata.PhoneNumber?.toString();
 
-      // Update transaction with success details
-      await this.prisma.mpesaTransaction.update({
-        where: { id: transaction.id },
+      // Atomic idempotency check: only update if callbackReceived is false
+      const updateResult = await this.prisma.mpesaTransaction.updateMany({
+        where: { id: transaction.id, callbackReceived: false },
         data: {
           status: 'COMPLETED',
           resultCode: ResultCode,
@@ -304,6 +304,13 @@ export class MpesaService {
           reconciliationStatus: 'PENDING',
         },
       });
+
+      if (updateResult.count === 0) {
+        this.logger.warn(
+          `Concurrent duplicate callback safely dropped for transaction: ${transaction.id}`,
+        );
+        return;
+      }
 
       // Auto-allocate payment to invoice if not already done
       if (transaction.invoiceId && !transaction.paymentId) {

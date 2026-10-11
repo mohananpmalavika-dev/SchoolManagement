@@ -25,9 +25,18 @@ export class TenantGuard implements CanActivate {
       return true;
     }
 
+    const req = context.switchToHttp().getRequest();
+    if (req.user?.role === 'SUPER_ADMIN') {
+      return true;
+    }
+
     // Require tenant context
-    const tenantId = this.tenantService.getTenantId();
-    
+    let tenantId = this.tenantService.getTenantId();
+    if (!tenantId && req.user?.tenantId) {
+      this.tenantService.setTenantId(req.user.tenantId);
+      tenantId = req.user.tenantId;
+    }
+
     if (!tenantId) {
       throw new UnauthorizedException(
         'Tenant context required. Please access via school domain or subdomain.'

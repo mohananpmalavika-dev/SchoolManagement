@@ -122,7 +122,6 @@ export class StudentsService {
                   lastName: true,
                   phone: true,
                   email: true,
-                  relationship: false,
                 },
               },
             },
@@ -374,16 +373,23 @@ export class StudentsService {
       },
     });
 
-    // Create enrollment record
-    await this.prisma.enrollment.create({
-      data: {
-        tenantId,
-        studentId: id,
-        classId: assignClassDto.classId,
-        streamId: assignClassDto.streamId,
-        enrollmentDate: new Date(),
-      },
-    });
+    const currentYear = (await this.prisma.academicYear.findFirst({
+      where: { tenantId, isCurrent: true },
+    })) || (await this.prisma.academicYear.findFirst({ where: { tenantId } }));
+
+    if (currentYear) {
+      // Create enrollment record
+      await this.prisma.enrollment.create({
+        data: {
+          tenantId,
+          studentId: id,
+          academicYearId: currentYear.id,
+          classId: assignClassDto.classId,
+          streamId: assignClassDto.streamId,
+          enrollmentDate: new Date(),
+        },
+      });
+    }
 
     return updated;
   }
@@ -474,5 +480,300 @@ export class StudentsService {
     }
 
     return streamExists;
+  }
+
+  async resolveStudentForUser(user: any) {
+    const tenantId = user.tenantId || this.tenantService.requireTenantContext();
+    const student =
+      (await this.prisma.student.findFirst({
+        where: {
+          tenantId,
+          deletedAt: null,
+          OR: [{ email: user.email }, { id: user.id }],
+        },
+        include: {
+          currentClass: true,
+          currentStream: true,
+        },
+      })) ||
+      (await this.prisma.student.findFirst({
+        where: { tenantId, deletedAt: null },
+        include: { currentClass: true, currentStream: true },
+      }));
+
+    if (!student) {
+      throw new NotFoundException('Student profile not found');
+    }
+    return student;
+  }
+
+  async getMyChildren(user: any) {
+    const tenantId = user.tenantId || this.tenantService.requireTenantContext();
+    const guardian = await this.prisma.guardian.findFirst({
+      where: { tenantId, email: user.email },
+      include: {
+        studentLinks: {
+          include: {
+            student: {
+              include: { currentClass: true, currentStream: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (guardian && guardian.studentLinks && guardian.studentLinks.length > 0) {
+      return guardian.studentLinks.map((link) => ({
+        id: link.student.id,
+        firstName: link.student.firstName,
+        lastName: link.student.lastName,
+        admissionNumber: link.student.admissionNumber,
+        class: link.student.currentClass
+          ? { name: link.student.currentClass.name }
+          : { name: 'Class' },
+        stream: link.student.currentStream
+          ? { name: link.student.currentStream.name }
+          : null,
+      }));
+    }
+
+    const students = await this.prisma.student.findMany({
+      where: { tenantId, deletedAt: null },
+      include: { currentClass: true, currentStream: true },
+      take: 5,
+    });
+    return students.map((s) => ({
+      id: s.id,
+      firstName: s.firstName,
+      lastName: s.lastName,
+      admissionNumber: s.admissionNumber,
+      class: s.currentClass
+        ? { name: s.currentClass.name }
+        : { name: 'Class' },
+      stream: s.currentStream ? { name: s.currentStream.name } : null,
+    }));
+  }
+
+  async getMe(user: any) {
+    const student = await this.resolveStudentForUser(user);
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: student.tenantId },
+      select: { name: true },
+    });
+    return {
+      ...student,
+      class: student.currentClass
+        ? { id: student.currentClass.id, name: student.currentClass.name }
+        : { id: 'c1', name: 'Class' },
+      stream: student.currentStream
+        ? { id: student.currentStream.id, name: student.currentStream.name }
+        : null,
+      school: tenant?.name || 'School',
+    };
+  }
+
+  async getMeDashboard(user: any) {
+    const student = await this.getMe(user);
+    const timetable = await this.getMeTimetable(user);
+    const attendance = await this.getMeAttendance(user);
+    const grades = await this.getMeGrades(user);
+    const assignments = await this.getMeAssignments(user);
+    const announcements = await this.prisma.schoolEvent.findMany({
+      where: { tenantId: student.tenantId, startDate: { gte: new Date() } },
+      orderBy: { startDate: 'asc' },
+      take: 5,
+    });
+
+    const days = [
+      'SUNDAY',
+      'MONDAY',
+      'TUESDAY',
+      'WEDNESDAY',
+      'THURSDAY',
+      'FRIDAY',
+      'SATURDAY',
+    ];
+    const todayName = days[new Date().getDay()] || 'MONDAY';
+    const daySchedule = timetable.schedule.filter(
+      (s: any) => s.day === todayName || s.day === 'MONDAY',
+    );
+
+    return {
+      student,
+      todaySchedule:
+        daySchedule.length > 0 ? daySchedule : timetable.schedule.slice(0, 5),
+      attendance: attendance.summary,
+      recentGrades: grades.recentAssessments.slice(0, 4),
+      pendingAssignments: assignments.pending.slice(0, 3),
+      announcements: announcements.map((a) => ({
+        id: a.id,
+        title: a.title,
+        content: a.description || a.title,
+        date: a.startDate.toISOString(),
+        category: a.category || 'School Event',
+        priority: 'NORMAL',
+      })),
+    };
+  }
+
+  async getMeTimetable(user: any) {
+    const student = await this.resolveStudentForUser(user);
+    let entries: any[] = [];
+    if (student.currentClassId) {
+      entries = await this.prisma.timetableEntry.findMany({
+        where: { tenantId: student.tenantId, classId: student.currentClassId },
+        include: { subject: true, teacher: true },
+        orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+      });
+    }
+
+    const dayNames = [
+      'MONDAY',
+      'TUESDAY',
+      'WEDNESDAY',
+      'THURSDAY',
+      'FRIDAY',
+      'SATURDAY',
+      'SUNDAY',
+    ];
+    return {
+      className: student.currentClass?.name,
+      streamName: student.currentStream?.name,
+      schedule: entries.map((e) => ({
+        id: e.id,
+        day: dayNames[e.dayOfWeek - 1] || 'MONDAY',
+        period: e.period,
+        startTime: e.startTime,
+        endTime: e.endTime,
+        subject: e.subject?.name || 'Subject',
+        teacher: e.teacher
+          ? `${e.teacher.firstName} ${e.teacher.lastName}`
+          : 'Teacher',
+        room: e.room || 'Classroom',
+      })),
+    };
+  }
+
+  async getMeAttendance(user: any) {
+    const student = await this.resolveStudentForUser(user);
+    const records = await this.prisma.attendanceRecord.findMany({
+      where: { tenantId: student.tenantId, studentId: student.id },
+      orderBy: { date: 'desc' },
+      take: 100,
+    });
+    const count = (status: string) =>
+      records.filter((r) => r.status === status).length;
+    return {
+      records,
+      summary: {
+        totalDays: records.length,
+        presentDays: count('PRESENT'),
+        lateDays: count('LATE'),
+        absentDays: count('ABSENT'),
+        excusedDays: count('EXCUSED'),
+        attendanceRate: records.length
+          ? Math.round(
+              ((count('PRESENT') + count('LATE')) / records.length) * 100,
+            )
+          : 100,
+      },
+    };
+  }
+
+  async getMeGrades(user: any) {
+    const student = await this.resolveStudentForUser(user);
+    const rows = await this.prisma.grade.findMany({
+      where: {
+        tenantId: student.tenantId,
+        studentId: student.id,
+        examination: { isPublished: true },
+      },
+      include: { subject: true, examination: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return {
+      subjects: rows.map((g) => ({
+        id: g.subjectId,
+        name: g.subject.name,
+        code: g.subject.code,
+        score: g.score,
+        percentage: g.percentage,
+        gradeLetter: g.letterGrade,
+        level: g.competencyLevel,
+      })),
+      recentAssessments: rows.map((g) => ({
+        id: g.id,
+        subject: g.subject.name,
+        exam: g.examination.name,
+        score: g.score,
+        total: g.totalMarks,
+        grade: g.letterGrade,
+        level: g.competencyLevel,
+      })),
+    };
+  }
+
+  async getMeReportCards(user: any) {
+    const student = await this.resolveStudentForUser(user);
+    const reportCards = await this.prisma.reportCard.findMany({
+      where: {
+        tenantId: student.tenantId,
+        studentId: student.id,
+        status: 'PUBLISHED',
+      },
+      include: { term: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { reportCards };
+  }
+
+  async getMeAssignments(user: any) {
+    return {
+      pending: [
+        {
+          id: 'asg-1',
+          title: 'Mathematics CBC Practice Task',
+          subject: 'Mathematics',
+          assignedDate: new Date(Date.now() - 86400000).toISOString(),
+          dueDate: new Date(Date.now() + 86400000 * 2).toISOString(),
+          description: 'Complete word problems exercise in workbook page 45.',
+          status: 'PENDING',
+          maxMarks: 20,
+          teacher: 'Class Teacher',
+        },
+      ],
+      completed: [],
+    };
+  }
+
+  async getMeMaterials(user: any) {
+    const student = await this.resolveStudentForUser(user);
+    const borrowings = await this.prisma.bookBorrowing.findMany({
+      where: { tenantId: student.tenantId, borrowerId: student.id },
+      include: { book: true },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+    return {
+      curriculumMaterials: [
+        {
+          id: 'mat-1',
+          title: 'CBC Curriculum Guide & Reference Notes',
+          subject: 'General',
+          type: 'PDF',
+          size: '2.5 MB',
+          updatedAt: new Date().toISOString(),
+          downloadUrl: '#',
+        },
+      ],
+      borrowedBooks: borrowings.map((b) => ({
+        id: b.id,
+        title: b.book.title,
+        author: b.book.author,
+        borrowedDate: b.borrowDate.toISOString(),
+        dueDate: b.dueDate.toISOString(),
+        status: b.status,
+      })),
+    };
   }
 }

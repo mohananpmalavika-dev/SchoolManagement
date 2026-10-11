@@ -1,3 +1,4 @@
+import {ExaminationsService} from '../examinations/examinations.service';
 import {Injectable,BadRequestException,ForbiddenException,NotFoundException} from '@nestjs/common';
 import {PrismaService} from '../../database/prisma.service';
 import {TenantService} from '../../database/tenant.service';
@@ -9,7 +10,7 @@ import {recordSpecs,managers,parseRecord} from './records';
 const teacherRoles=['TEACHER','CLASS_TEACHER','EXAM_OFFICER'];
 @Injectable()
 export class WorkspaceService{
- constructor(private prisma:PrismaService,private tenants:TenantService,private fees:FeesService,private mpesa:MpesaService,private timetable:TimetableService){}
+ constructor(private prisma:PrismaService,private tenants:TenantService,private fees:FeesService,private mpesa:MpesaService,private timetable:TimetableService,private exams:ExaminationsService){}
  private tenant(){return this.tenants.requireTenantContext();}
  private staffRole(user:any){if(['PARENT','STUDENT'].includes(user.role))throw new ForbiddenException('Staff access required');}
  private async classIds(user:any):Promise<string[]|null>{
@@ -47,12 +48,13 @@ export class WorkspaceService{
  async list(user:any,resource:string){
   this.staffRole(user);const tenantId=this.tenant();const classes=await this.classIds(user);
   const scope=classes?{currentClassId:{in:classes}}:{};
-  if(teacherRoles.includes(user.role)&&!['classes','students','examinations','subjects','timetable','messages','recipients'].includes(resource))throw new ForbiddenException('Resource is not available to teachers');
+  if(teacherRoles.includes(user.role)&&!['classes','students','examinations','subjects','timetable','messages','recipients','assignments','materials','submissions'].includes(resource))throw new ForbiddenException('Resource is not available to teachers');
   if(resource==='users'){if(!managers.includes(user.role))throw new ForbiddenException('Administrator access required');return this.prisma.user.findMany({where:{tenantId,isActive:true},select:{id:true,firstName:true,lastName:true,role:true}});}
   if(resource==='recipients')return this.prisma.guardian.findMany({where:{tenantId,studentLinks:{some:{student:scope}}},select:{id:true,firstName:true,lastName:true,userId:true}});
   if(resource==='messages')return this.prisma.communication.findMany({where:{tenantId,...(classes?{sentBy:user.userId}:{})},orderBy:{createdAt:'desc'},take:500});
   const limited:Record<string,string[]>={ACCOUNTANT:['students','guardians','classes','terms','invoices','payments','examinations','tickets'],LIBRARIAN:['students','classes','books','borrowings','tickets'],TRANSPORT_OFFICER:['students','classes','vehicles','routes','tickets'],RECEPTIONIST:['students','guardians','guardian-links','classes','schools','tickets']};
   if(limited[user.role]&&!limited[user.role].includes(resource))throw new ForbiddenException('Resource is not available to your role');
+  if(resource==='submissions')return this.prisma.assignmentSubmission.findMany({where:{tenantId,...(classes?{assignment:{classId:{in:classes}}}:{})},include:{assignment:true,student:true},orderBy:{submittedAt:'desc'}}).then(rows=>rows.map(r=>({...r,assignmentTitle:r.assignment.title,maxMarks:r.assignment.maxMarks,studentName:r.student.firstName+' '+r.student.lastName})));
   const spec=recordSpecs[resource];if(!spec)throw new NotFoundException('Unknown resource');
   let rows:any[];
   const db=this.prisma as any;
@@ -61,6 +63,8 @@ export class WorkspaceService{
   else if(resource==='examinations')rows=await this.prisma.examination.findMany({where:{tenantId,...(classes?{classId:{in:classes}}:{})},include:{class:true,term:true,subjects:{include:{subject:true}}},orderBy:{createdAt:'desc'}});
   else if(resource==='invoices')rows=await this.prisma.invoice.findMany({where:{tenantId},include:{student:true,term:true},orderBy:{createdAt:'desc'},take:5000});
   else if(resource==='payments')rows=await this.prisma.payment.findMany({where:{tenantId},include:{invoice:{include:{student:true}}},orderBy:{paymentDate:'desc'},take:5000});
+  else if(resource==='report-cards')rows=await this.prisma.reportCard.findMany({where:{tenantId},include:{student:true,term:true},orderBy:{createdAt:'desc'}});
+  else if(resource==='assignments'||resource==='materials')rows=await db[spec.model].findMany({where:{tenantId,...(classes?{classId:{in:classes}}:{})},orderBy:{createdAt:'desc'}});
   else if(resource==='borrowings')rows=await this.prisma.bookBorrowing.findMany({where:{tenantId},include:{book:true},orderBy:{createdAt:'desc'},take:5000});
   else if(resource==='timetable'){const staff=classes?await this.prisma.staff.findFirst({where:{tenantId,userId:user.userId}}):null;rows=await this.prisma.timetableEntry.findMany({where:{tenantId,...(classes?{teacherId:staff?.id||''}:{})},include:{class:true,subject:true,teacher:true},orderBy:[{dayOfWeek:'asc'},{startTime:'asc'}]});}
   else if(resource==='guardian-links')rows=await this.prisma.guardianStudentLink.findMany({where:{guardian:{tenantId}},include:{guardian:true,student:true}});
@@ -73,6 +77,7 @@ export class WorkspaceService{
   for(const [key,rule] of Object.entries(spec.fields))if(rule.startsWith('ref:')&&data[key]){
    const model=rule.replace(/!$/,'').slice(4);const ref=await db[model].findFirst({where:{id:data[key],tenantId}});
    if(!ref)throw new BadRequestException('Selected '+key+' is unavailable');
+   if(key==='userId'&&resource==='students'&&ref.role!=='STUDENT')throw new BadRequestException('Student account must have the student role');
    if(key==='userId'&&resource==='guardians'&&ref.role!=='PARENT')throw new BadRequestException('Guardian account must have the parent role');
    if(key==='userId'&&resource==='staff'&&!teacherRoles.includes(ref.role))throw new BadRequestException('Linked staff account must have a teacher role');
   }
@@ -81,8 +86,10 @@ export class WorkspaceService{
    if(['years','terms'].includes(resource)){const existing=await db[spec.model].findFirst({where});if((data.startDate||existing.startDate)>(data.endDate||existing.endDate))throw new BadRequestException('End date must follow start date');}
   }
   if(resource==='streams'&&data.classId){const cls=await this.prisma.class.findFirst({where:{id:data.classId,tenantId}});if(cls?.schoolId!==data.schoolId)throw new BadRequestException('Class belongs to a different campus');}
+  if(['assignments','materials'].includes(resource)){if(id){const old=await db[spec.model].findFirst({where:{id,tenantId}});await this.authorizeClass(user,old.classId);}if(data.classId)await this.authorizeClass(user,data.classId);if(!id)data.createdBy=user.userId;}
   let result:any;
-  if(resource==='invoices'){const {studentId,termId,description,amount,dueDate}=data;result=await this.fees.createInvoice({studentId,termId,items:[{description,amount,feeCategory:FeeCategory.TUITION}],dueDate:dueDate?.toISOString()});}
+  if(resource==='report-cards')result=await this.exams.generateReportCard(data as any,user.userId);
+  else if(resource==='invoices'){const {studentId,termId,description,amount,dueDate}=data;result=await this.fees.createInvoice({studentId,termId,items:[{description,amount,feeCategory:FeeCategory.TUITION}],dueDate:dueDate?.toISOString()});}
   else if(resource==='payments')result=await this.fees.recordPayment({...data,paymentDate:data.paymentDate?.toISOString()} as any,user.userId);
   else if(resource==='timetable')result=await this.timetable.createEntry(data as any);
   else if(resource==='examinations'){const {subjectId,totalMarks,...exam}=data;result=await this.prisma.examination.create({data:{...exam,tenantId,subjects:{create:{subjectId,totalMarks}}} as any});}
@@ -113,7 +120,8 @@ export class WorkspaceService{
  private async audit(user:any,action:string,entityType:string,entityId?:string){await this.prisma.auditLog.create({data:{tenantId:this.tenant(),userId:user.userId,action,entityType,entityId}});}
  async action(user:any,resource:string,id:string,action:string){
   this.writer(user,resource);const tenantId=this.tenant();
-  if(resource==='borrowings'&&action==='return'){await this.prisma.$transaction(async tx=>{const loan=await tx.bookBorrowing.findFirst({where:{id,tenantId}});if(!loan)throw new NotFoundException('Loan not found');const changed=await tx.bookBorrowing.updateMany({where:{id,tenantId,status:{in:['BORROWED','OVERDUE']}},data:{status:'RETURNED',returnDate:new Date()}});if(changed.count)await tx.book.update({where:{id:loan.bookId,tenantId},data:{available:{increment:1}}});});}
+  if(resource==='report-cards'&&action==='publish'){const card=await this.prisma.reportCard.findFirst({where:{id,tenantId}});if(!card)throw new NotFoundException('Report not found');await this.prisma.reportCard.update({where:{id,tenantId},data:{status:'PUBLISHED',publishedAt:new Date(),approvedBy:user.userId,approvedAt:new Date()}});}
+  else if(resource==='borrowings'&&action==='return'){await this.prisma.$transaction(async tx=>{const loan=await tx.bookBorrowing.findFirst({where:{id,tenantId}});if(!loan)throw new NotFoundException('Loan not found');const changed=await tx.bookBorrowing.updateMany({where:{id,tenantId,status:{in:['BORROWED','OVERDUE']}},data:{status:'RETURNED',returnDate:new Date()}});if(changed.count)await tx.book.update({where:{id:loan.bookId,tenantId},data:{available:{increment:1}}});});}
   else if(['years','terms'].includes(resource)&&action==='current'){const model=recordSpecs[resource].model;const db=this.prisma as any;if(!await db[model].findFirst({where:{id,tenantId}}))throw new NotFoundException('Record not found');await this.prisma.$transaction(async tx=>{await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});await (tx as any)[model].updateMany({where:{tenantId},data:{isCurrent:false}});await (tx as any)[model].update({where:{id,tenantId},data:{isCurrent:true}});});}
   else if(resource==='examinations'&&action==='publish'){if(!await this.prisma.examination.findFirst({where:{id,tenantId}}))throw new NotFoundException('Assessment not found');await this.prisma.examination.update({where:{id,tenantId},data:{isPublished:true}});}
   else throw new BadRequestException('Unknown action');
@@ -143,6 +151,21 @@ export class WorkspaceService{
   const ids=new Set(dto.records.map((r:any)=>r.studentId));if(ids.size!==dto.records.length||dto.records.some((r:any)=>r.score>book.totalMarks||!book.rows.some(s=>s.id===r.studentId)))throw new BadRequestException('Invalid students or marks');
   const tenantId=this.tenant();await this.prisma.$transaction(dto.records.map((r:any)=>{const percentage=r.score/book.totalMarks*100;const letterGrade=percentage>=80?'A':percentage>=70?'B':percentage>=60?'C':percentage>=50?'D':'E';const data={score:r.score,totalMarks:book.totalMarks,percentage,letterGrade,marks:r.score,grade:letterGrade,enteredBy:user.userId};return this.prisma.grade.upsert({where:{examinationId_studentId_subjectId:{examinationId:dto.examinationId,studentId:r.studentId,subjectId:dto.subjectId}},create:{tenantId,examinationId:dto.examinationId,studentId:r.studentId,subjectId:dto.subjectId,...data},update:data});}));
   await this.audit(user,'GRADES_SAVED','examination',dto.examinationId);return {saved:dto.records.length};
+ }
+ async submission(user:any,input:Record<string,unknown>,id?:string){
+  const tenantId=this.tenant();
+  if(user.role==='STUDENT'){
+   const data=parseRecord({model:'assignmentSubmission',fields:{assignmentId:'ref:assignment!',text:'long!'}},input);
+   const student=await this.prisma.student.findFirst({where:{tenantId,userId:user.userId,deletedAt:null}});if(!student)throw new ForbiddenException('Student account is not linked');
+   const assignment=await this.prisma.assignment.findFirst({where:{id:data.assignmentId,tenantId,classId:student.currentClassId||''}});if(!assignment)throw new NotFoundException('Assignment not found');
+   const previous=await this.prisma.assignmentSubmission.findUnique({where:{assignmentId_studentId:{assignmentId:assignment.id,studentId:student.id}}});if(previous?.status==='GRADED')throw new BadRequestException('Graded submissions are locked');
+   return this.prisma.assignmentSubmission.upsert({where:{assignmentId_studentId:{assignmentId:assignment.id,studentId:student.id}},create:{tenantId,assignmentId:assignment.id,studentId:student.id,text:data.text},update:{text:data.text,submittedAt:new Date(),status:'SUBMITTED'}}).then(s=>({id:s.id}));
+  }
+  if(!id||![...managers,...teacherRoles].includes(user.role))throw new ForbiddenException('Only teachers can grade submissions');
+  const data=parseRecord({model:'assignmentSubmission',fields:{score:'int:0:1000!',feedback:'long'}},input);
+  const submission=await this.prisma.assignmentSubmission.findFirst({where:{id,tenantId},include:{assignment:true}});if(!submission)throw new NotFoundException('Submission not found');
+  await this.authorizeClass(user,submission.assignment.classId);if(data.score>submission.assignment.maxMarks)throw new BadRequestException('Score exceeds the maximum marks');
+  const result=await this.prisma.assignmentSubmission.update({where:{id,tenantId},data:{...data,status:'GRADED'}});await this.audit(user,'SUBMISSION_GRADED','assignmentSubmission',id);return {id:result.id};
  }
  async notifications(user:any){
   const logs=await this.prisma.communicationLog.findMany({where:{recipient:user.userId,channel:'IN_APP',communication:{tenantId:this.tenant()}},include:{communication:true},orderBy:{createdAt:'desc'},take:100});

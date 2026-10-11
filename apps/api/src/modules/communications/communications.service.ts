@@ -56,7 +56,7 @@ export class CommunicationsService {
     const tenantId = this.tenantService.requireTenantContext();
 
     if(dto.scheduledAt) throw new BadRequestException('Scheduled delivery requires a configured job queue');
-    if(dto.channel===MessageChannel.PUSH) throw new BadRequestException('Push delivery is not configured');
+    if((dto.channel as string)==='PUSH') throw new BadRequestException('Push delivery is not configured');
     if(!dto.recipients.length||dto.recipients.length>500) throw new BadRequestException('Select between 1 and 500 recipients');
     // Create communication record
     const communication = await this.prisma.communication.create({

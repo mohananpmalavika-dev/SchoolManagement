@@ -6,7 +6,7 @@ export class TenantService {
  private readonly storage = new AsyncLocalStorage<TenantContext>();
  run<T>(operation:()=>T):T {return this.storage.run({tenantId:null,subdomain:null,customDomain:null},operation);}
  private context(){const value=this.storage.getStore();if(!value)throw new Error('Tenant request context is not initialized');return value;}
- setTenantId(id:string|null){this.context().tenantId=id;}
+ setTenantId(id:string|null){const store=this.storage.getStore();if(store){store.tenantId=id;}else{this.storage.enterWith({tenantId:id,subdomain:null,customDomain:null});}}
  getTenantId(){return this.storage.getStore()?.tenantId||null;}
  setSubdomain(value:string|null){this.context().subdomain=value;}
  getSubdomain(){return this.storage.getStore()?.subdomain||null;}

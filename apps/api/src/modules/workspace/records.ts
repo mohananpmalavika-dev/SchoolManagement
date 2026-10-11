@@ -19,7 +19,8 @@ export const recordSpecs:Record<string,RecordSpec> = {
       "gender": "enum:MALE,FEMALE,OTHER!",
       "admissionDate": "date!",
       "currentClassId": "ref:class",
-      "status": "enum:ACTIVE,GRADUATED,TRANSFERRED,WITHDRAWN,SUSPENDED"
+      "status": "enum:ACTIVE,GRADUATED,TRANSFERRED,WITHDRAWN,SUSPENDED",
+      "userId": "ref:user"
     }
   },
   "guardians": {
@@ -277,6 +278,54 @@ export const recordSpecs:Record<string,RecordSpec> = {
       "description": "long!",
       "priority": "enum:LOW,NORMAL,HIGH,URGENT"
     }
+  },
+  "assignments": {
+    "model": "assignment",
+    "roles": [
+      "SUPER_ADMIN",
+      "SCHOOL_OWNER",
+      "PRINCIPAL",
+      "SCHOOL_ADMIN",
+      "TEACHER",
+      "CLASS_TEACHER",
+      "EXAM_OFFICER"
+    ],
+    "fields": {
+      "title": "text!",
+      "classId": "ref:class!",
+      "subjectId": "ref:subject!",
+      "description": "long!",
+      "dueDate": "date!",
+      "maxMarks": "int:1:1000!"
+    }
+  },
+  "materials": {
+    "model": "learningMaterial",
+    "roles": [
+      "SUPER_ADMIN",
+      "SCHOOL_OWNER",
+      "PRINCIPAL",
+      "SCHOOL_ADMIN",
+      "TEACHER",
+      "CLASS_TEACHER",
+      "EXAM_OFFICER"
+    ],
+    "fields": {
+      "title": "text!",
+      "classId": "ref:class!",
+      "subjectId": "ref:subject!",
+      "description": "long",
+      "url": "url!"
+    }
+  },
+  "report-cards": {
+    "model": "reportCard",
+    "fields": {
+      "studentId": "ref:student!",
+      "termId": "ref:term!",
+      "classTeacherComments": "long",
+      "principalComments": "long"
+    }
   }
 };
 export const managers=['SUPER_ADMIN','SCHOOL_OWNER','PRINCIPAL','DEPUTY_PRINCIPAL','SCHOOL_ADMIN'];
@@ -289,6 +338,7 @@ export function parseRecord(spec:RecordSpec,input:Record<string,unknown>,partial
   if(kind.startsWith('int:')){const [,min,max]=kind.split(':');if(typeof value!=='number'||!Number.isSafeInteger(value)||value<Number(min)||value>Number(max))throw new BadRequestException(key+' must be a whole number between '+min+' and '+max);result[key]=value;continue;}
   if(typeof value!=='string')throw new BadRequestException(key+' must be text');
   const trimmed=value.trim();if(!trimmed||trimmed.length>(kind==='long'?10000:kind==='password'?128:255))throw new BadRequestException('Invalid '+key);
+  if(kind==='url'){try{if(new URL(trimmed).protocol!=='https:')throw new Error();}catch{throw new BadRequestException('Use an HTTPS resource link');}}
   if(kind==='email'&&!isEmail(trimmed))throw new BadRequestException('Invalid email address');
   if(kind.startsWith('ref:')&&!isUUID(trimmed))throw new BadRequestException('Invalid '+key);
   if(kind.startsWith('enum:')&&!kind.slice(5).split(',').includes(trimmed))throw new BadRequestException('Invalid '+key);

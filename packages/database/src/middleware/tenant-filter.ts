@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-const directModels = new Set(['Subscription','School','User','Student','Guardian','Staff','StaffAttendance','AcademicYear','Term','Class','Stream','Subject','Enrollment','AttendanceRecord','Examination','Grade','ReportCard','FeeStructure','Invoice','Payment','MpesaTransaction','TimetableEntry','SchoolEvent','Communication','MessageTemplate','Book','BookBorrowing','Vehicle','Route','InventoryItem','AuditLog','SupportTicket']);
+const directModels = new Set(['Subscription','School','User','Student','Guardian','Staff','StaffAttendance','AcademicYear','Term','Class','Stream','Subject','Enrollment','AttendanceRecord','Examination','Grade','ReportCard','FeeStructure','Invoice','Payment','MpesaTransaction','TimetableEntry','SchoolEvent','Communication','MessageTemplate','Book','BookBorrowing','Vehicle','Route','InventoryItem','AuditLog','SupportTicket','Assignment','AssignmentSubmission','LearningMaterial']);
 const relations: Record<string,string> = {GuardianStudentLink:'guardian',FeeItem:'feeStructure',InvoiceItem:'invoice',CommunicationLog:'communication',RouteStop:'route',ExaminationSubject:'examination'};
 const reads = new Set(['findUnique','findUniqueOrThrow','findFirst','findFirstOrThrow','findMany','count','aggregate','groupBy','update','updateMany','delete','deleteMany','upsert']);
 export function createTenantFilterMiddleware(getTenantId:()=>string|null) {
@@ -10,6 +10,11 @@ export function createTenantFilterMiddleware(getTenantId:()=>string|null) {
   if(!direct&&!relation&&model!=='Tenant')return next(params);
   params.args ||= {};
   if(reads.has(params.action)){
+   if (params.action === 'findUnique') {
+     params.action = 'findFirst';
+   } else if (params.action === 'findUniqueOrThrow') {
+     params.action = 'findFirstOrThrow';
+   }
    const filter=model==='Tenant'?{id:tenantId}:direct?{tenantId}:{[relation]:{tenantId}};
    params.args.where={...params.args.where,...filter};
   }

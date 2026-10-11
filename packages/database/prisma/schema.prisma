@@ -280,6 +280,8 @@ enum UserRole {
 // ===================================
 
 model Student {
+  userId String? @unique
+  submissions AssignmentSubmission[]
   id                String   @id @default(uuid())
   tenantId          String
   admissionNumber   String
@@ -584,6 +586,7 @@ model Term {
 }
 
 model Class {
+  assignments Assignment[]
   examinations Examination[]
   reportCards ReportCard[]
   attendanceRecords AttendanceRecord[]
@@ -636,6 +639,7 @@ model Stream {
 }
 
 model Subject {
+  assignments Assignment[]
   examinationSubjects ExaminationSubject[]
   id                String   @id @default(uuid())
   tenantId          String
@@ -1461,4 +1465,55 @@ model Announcement {
   publishedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Assignment {
+ id String @id @default(uuid())
+ tenantId String
+ classId String
+ subjectId String
+ title String
+ description String @db.Text
+ dueDate DateTime
+ maxMarks Int @default(100)
+ createdBy String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ class Class @relation(fields: [classId], references: [id])
+ subject Subject @relation(fields: [subjectId], references: [id])
+ submissions AssignmentSubmission[]
+ @@index([tenantId,classId])
+ @@map("assignments")
+}
+model AssignmentSubmission {
+ id String @id @default(uuid())
+ tenantId String
+ assignmentId String
+ studentId String
+ text String @db.Text
+ score Int?
+ feedback String? @db.Text
+ status String @default("SUBMITTED")
+ submittedAt DateTime @default(now())
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ assignment Assignment @relation(fields: [assignmentId], references: [id])
+ student Student @relation(fields: [studentId], references: [id])
+ @@unique([assignmentId,studentId])
+ @@index([tenantId,studentId])
+ @@map("assignment_submissions")
+}
+model LearningMaterial {
+ id String @id @default(uuid())
+ tenantId String
+ classId String?
+ subjectId String?
+ title String
+ description String?
+ url String
+ createdBy String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([tenantId,classId])
+ @@map("learning_materials")
 }

@@ -25,6 +25,8 @@ import { StaffModule } from './modules/staff/staff.module';
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { TimetableModule } from './modules/timetable/timetable.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { PredictiveAnalyticsModule } from './modules/predictive-analytics/predictive-analytics.module';
+import { TransportModule } from './modules/transport/transport.module';
 
 @Module({
   imports: [
@@ -60,6 +62,8 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     CommunicationsModule,
     TimetableModule,
     SubscriptionsModule,
+    PredictiveAnalyticsModule,
+    TransportModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: JwtAuthGuard }, { provide: APP_GUARD, useClass: RolesGuard }, { provide: APP_GUARD, useClass: PortalScopeGuard }],
