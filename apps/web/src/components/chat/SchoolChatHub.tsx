@@ -29,6 +29,8 @@ import {
   ChatContact,
   ChatAttachment,
 } from '@/lib/chat-client';
+import { InteractiveClassroomBoard } from './InteractiveClassroomBoard';
+import { ChatCallModal } from './ChatCallModal';
 
 const EMOJIS = ['👍', '❤️', '👏', '💡', '📚', '🔔', '🏫', '✅', '🔥', '🙌'];
 
@@ -59,6 +61,8 @@ export function SchoolChatHub() {
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelDesc, setNewChannelDesc] = useState('');
   const [creatingChannel, setCreatingChannel] = useState(false);
+  const [activeCall, setActiveCall] = useState<'audio' | 'video' | null>(null);
+  const [showWhiteboard, setShowWhiteboard] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -210,6 +214,23 @@ export function SchoolChatHub() {
     setAttachedFiles((prev) => [...prev, sampleAttachment]);
   };
 
+  const handleShareSnapshot = async (dataUrl: string) => {
+    if (!activeChannelId) return;
+    const newMsg = await chatClient.sendMessage(
+      activeChannelId,
+      '🎨 Shared interactive classroom board notes with students and teacher',
+      [
+        {
+          name: 'Classroom_Board_Notes.png',
+          url: dataUrl,
+          type: 'image/png',
+        },
+      ],
+    );
+    setMessages((prev) => [...prev, newMsg]);
+    setShowWhiteboard(false);
+  };
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[780px]">
       {/* LEFT COLUMN: Channels and Direct Messages */}
@@ -350,14 +371,42 @@ export function SchoolChatHub() {
                 </div>
               </div>
 
-              {/* Quick Actions */}
-              <div className="flex items-center gap-2">
+              {/* Quick Actions: Call, Video, Whiteboard & Templates */}
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <button
+                  onClick={() => setActiveCall('audio')}
+                  className="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  title="Voice Call"
+                >
+                  <Phone size={13} />
+                  <span className="hidden sm:inline">Voice Call</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveCall('video')}
+                  className="px-2.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  title="HD Video Call"
+                >
+                  <Video size={13} />
+                  <span className="hidden sm:inline">Video Call</span>
+                </button>
+
+                <button
+                  onClick={() => setShowWhiteboard(true)}
+                  className="px-2.5 py-1.5 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  title="Collaborative Classroom Board for Teacher & Children"
+                >
+                  <span>🎨</span>
+                  <span className="hidden sm:inline">Board</span>
+                </button>
+
                 <button
                   onClick={() => setShowCannedReplies(!showCannedReplies)}
                   className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1.5 border border-slate-700 transition-colors"
+                  title="Canned Templates"
                 >
                   <Sparkles size={13} className="text-amber-400" />
-                  <span className="hidden sm:inline">Templates</span>
+                  <span className="hidden md:inline">Templates</span>
                 </button>
               </div>
             </div>
@@ -689,6 +738,29 @@ export function SchoolChatHub() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Interactive Classroom Whiteboard Modal for Teacher & Children */}
+      {showWhiteboard && activeChannel && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6">
+          <div className="w-full max-w-5xl">
+            <InteractiveClassroomBoard
+              channelName={activeChannel.name}
+              onClose={() => setShowWhiteboard(false)}
+              onShareToChat={handleShareSnapshot}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Voice & HD Video Call Suite Modal */}
+      {activeCall && activeChannel && (
+        <ChatCallModal
+          channelName={activeChannel.name}
+          callType={activeCall}
+          onEndCall={() => setActiveCall(null)}
+          onOpenWhiteboard={() => setShowWhiteboard(true)}
+        />
       )}
     </div>
   );
