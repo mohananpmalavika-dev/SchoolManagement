@@ -1,0 +1,61 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+*.lcov
+.nyc_output
+
+# Next.js
+.next
+out
+build
+dist
+
+# Production
+*.log
+logs
+*.pid
+*.seed
+*.pid.lock
+
+# Environment
+.env
+.env*.local
+.env.production
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Turbo
+.turbo
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Prisma
+prisma/migrations/*_temp
+
+# Docker
+docker-compose.override.yml
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# OS
+Thumbs.db
