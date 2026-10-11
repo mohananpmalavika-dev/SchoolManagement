@@ -121,9 +121,9 @@ function AnalyticsDashboard() {
       </Panel>}
       <Panel title="Student watchlist" subtitle="Highest risk scores first. Open a review to see the evidence and suggested support.">
         <div className="table-toolbar analytics-filters"><label className="search-field"><Search size={16} /><input aria-label="Search student or admission number" value={query} placeholder="Student or admission number" onChange={e => setQuery(e.target.value)} /></label>
-          <label>Class<select value={classId} onChange={e => setClassId(e.target.value)}><option value="">All classes</option>{report.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}<option value="unassigned">Unassigned</option></select></label>
-          <label>Risk dimension<select value={kind} onChange={e => setKind(e.target.value as RiskKind | 'all')}><option value="all">Any dimension</option>{kinds.map(k => <option key={k.key} value={k.key}>{k.label}</option>)}</select></label>
-          <label>Priority<select value={level} onChange={e => setLevel(e.target.value)}><option value="AT_RISK">High & moderate</option><option value="ALL">All students</option>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label>Class<select aria-label="Class" value={classId} onChange={e => setClassId(e.target.value)}><option value="">All classes</option>{report.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}<option value="unassigned">Unassigned</option></select></label>
+          <label>Risk dimension<select aria-label="Risk dimension" value={kind} onChange={e => setKind(e.target.value as RiskKind | 'all')}><option value="all">Any dimension</option>{kinds.map(k => <option key={k.key} value={k.key}>{k.label}</option>)}</select></label>
+          <label>Priority<select aria-label="Priority" value={level} onChange={e => setLevel(e.target.value)}><option value="AT_RISK">High & moderate</option><option value="ALL">All students</option>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         </div>
         {!report.students.length ? <EmptyState title="No active students yet" description="Analytics will appear as students, exam results, attendance and fee records are added." /> : !rows.length ?
           <EmptyState title="No students match this view" description="Change the class, risk or priority filters to review other students." /> : <>

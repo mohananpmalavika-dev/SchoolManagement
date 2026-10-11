@@ -13,7 +13,7 @@ export interface WhatsAppTemplateMessage {
   to: string;
   templateName: string;
   templateParams?: Record<string, string>;
-  language?: 'en' | 'ml'; // English or Malayalam
+  language?: 'en' | 'sw'; // English or Swahili
 }
 
 @Injectable()
@@ -175,7 +175,7 @@ export class WhatsAppService {
   private buildTemplateMessage(
     templateName: string,
     params: Record<string, string>,
-    language: 'en' | 'ml',
+    language: 'en' | 'sw',
   ): string {
     // This will be replaced with actual template system
     // For now, we'll use a simple string replacement
@@ -198,15 +198,15 @@ export class WhatsAppService {
   /**
    * Get message templates (will be moved to database later)
    */
-  private getTemplates(language: 'en' | 'ml'): Record<string, string> {
+  private getTemplates(language: 'en' | 'sw'): Record<string, string> {
     // Placeholder - these will be stored in database
     const templates = {
       en: {
         welcome: 'Welcome to {schoolName}! We are excited to have {studentName} join us.',
         generic: '{message}',
       },
-      ml: {
-        welcome: '{schoolName}-ൽ സ്വാഗതം! {studentName} ഞങ്ങളോടൊപ്പം ചേരുന്നതിൽ സന്തോഷം.',
+      sw: {
+        welcome: 'Karibu {schoolName}! Tunafurahi kuwa na {studentName} akiungana nasi.',
         generic: '{message}',
       },
     };

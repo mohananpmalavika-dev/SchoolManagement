@@ -3,7 +3,7 @@ import { StaffService } from '../modules/staff/staff.service';
 import { PrismaService } from '../database/prisma.service';
 import { TenantService } from '../database/tenant.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { StaffStatus, StaffDepartment, EmploymentType } from '@krypton/types';
+import { StaffStatus, StaffDepartment, EmploymentType, Gender } from '@krypton/types';
 
 describe('StaffService Multi-Tenant Suite', () => {
   let staffService: StaffService;
@@ -18,9 +18,9 @@ describe('StaffService Multi-Tenant Suite', () => {
     lastName: 'Mwangi',
     email: 'peter.mwangi@school.com',
     phone: '+254700112233',
-    department: StaffDepartment.MATHEMATICS,
+    department: StaffDepartment.TEACHING,
     position: 'Senior Teacher',
-    employmentType: EmploymentType.FULL_TIME,
+    employmentType: EmploymentType.PERMANENT,
     status: StaffStatus.ACTIVE,
     hireDate: new Date('2024-01-15'),
     isTeacher: true,
@@ -64,12 +64,13 @@ describe('StaffService Multi-Tenant Suite', () => {
         lastName: 'Mwangi',
         email: 'peter.mwangi@school.com',
         phone: '+254700112233',
-        department: StaffDepartment.MATHEMATICS,
+        department: StaffDepartment.TEACHING,
         position: 'Senior Teacher',
-        employmentType: EmploymentType.FULL_TIME,
+        employmentType: EmploymentType.PERMANENT,
+        gender: Gender.MALE,
         hireDate: '2024-01-15',
         isTeacher: true,
-      });
+      } as any);
 
       expect(result).toBeDefined();
       expect(result.staffNumber).toBe('EMP-001');
@@ -93,8 +94,12 @@ describe('StaffService Multi-Tenant Suite', () => {
           lastName: 'Person',
           email: 'another@school.com',
           phone: '+254700998877',
+          department: StaffDepartment.TEACHING,
+          position: 'Teacher',
+          employmentType: EmploymentType.PERMANENT,
+          gender: Gender.MALE,
           hireDate: '2024-01-15',
-        }),
+        } as any),
       ).rejects.toThrow(ConflictException);
 
       expect(prisma.staff.create).not.toHaveBeenCalled();
@@ -108,8 +113,8 @@ describe('StaffService Multi-Tenant Suite', () => {
 
       const result = await staffService.findAll({
         page: 1,
-        limit: 10,
-        department: StaffDepartment.MATHEMATICS,
+        pageSize: 10,
+        department: StaffDepartment.TEACHING,
       });
 
       expect(result).toHaveProperty('data');
@@ -119,7 +124,7 @@ describe('StaffService Multi-Tenant Suite', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             tenantId: 'school_alpha_123',
-            department: StaffDepartment.MATHEMATICS,
+            department: StaffDepartment.TEACHING,
           }),
         }),
       );
@@ -161,7 +166,8 @@ describe('StaffService Multi-Tenant Suite', () => {
 
       const result = await staffService.remove('staff_uuid_001');
 
-      expect(result.status).toBe(StaffStatus.TERMINATED);
+      expect(result.success).toBe(true);
+      expect(result.staff.status).toBe(StaffStatus.TERMINATED);
       expect(prisma.staff.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'staff_uuid_001' },

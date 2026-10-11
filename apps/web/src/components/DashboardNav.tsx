@@ -42,9 +42,11 @@ export function DashboardNav() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4">
             <NavLink href="/dashboard">{t('common.dashboard')}</NavLink>
+            <NavLink href="/dashboard/smart-attendance">Smart Attendance</NavLink>
             <NavLink href="/dashboard/fees">{t('parent.fees')}</NavLink>
             <NavLink href="/dashboard/attendance">{t('parent.attendance')}</NavLink>
             <NavLink href="/dashboard/grades">{t('parent.grades')}</NavLink>
+            <NavLink href="/dashboard/transport">Bus Tracking</NavLink>
             <NavLink href="/dashboard/notifications">{t('parent.notifications')}</NavLink>
           </div>
 

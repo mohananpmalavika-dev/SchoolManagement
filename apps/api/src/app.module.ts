@@ -8,8 +8,9 @@ import { TenantService } from './database/tenant.service';
 import { TenantResolutionMiddleware } from './common/middleware/tenant-resolution.middleware';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { BullModule } from '@nestjs/bull';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
@@ -26,6 +27,7 @@ import { CommunicationsModule } from './modules/communications/communications.mo
 import { TimetableModule } from './modules/timetable/timetable.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { PredictiveAnalyticsModule } from './modules/predictive-analytics/predictive-analytics.module';
+import { TeacherAIModule } from './modules/teacher-ai/teacher-ai.module';
 import { TransportModule } from './modules/transport/transport.module';
 
 @Module({
@@ -45,6 +47,19 @@ import { TransportModule } from './modules/transport/transport.module';
       },
     ]),
 
+    // Bull Queue (for background jobs)
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        redis: {
+          host: configService.get('REDIS_HOST', 'localhost'),
+          port: configService.get('REDIS_PORT', 6379),
+          password: configService.get('REDIS_PASSWORD'),
+        },
+      }),
+      inject: [ConfigService],
+    }),
+
     // Database
     DatabaseModule,
 
@@ -63,6 +78,7 @@ import { TransportModule } from './modules/transport/transport.module';
     TimetableModule,
     SubscriptionsModule,
     PredictiveAnalyticsModule,
+    TeacherAIModule,
     TransportModule,
   ],
   controllers: [AppController],

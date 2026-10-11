@@ -7,7 +7,7 @@ export interface AnalyticsStudent {
   currentClassId: string | null; currentClass: { name: string } | null;
   attendanceRecords: { date: Date; status: string }[];
   grades: {
-    subjectId: string; score: number; marks: number | null; totalMarks: number;
+    subjectId: string; score: number; marks: number | null; totalMarks: number; updatedAt?: Date;
     examination: { id: string; startDate: Date | null; endDate: Date | null; createdAt: Date;
       subjects: { subjectId: string; passMark: number | null; totalMarks: number; weight: number }[] };
   }[];
@@ -16,7 +16,7 @@ export interface AnalyticsStudent {
     payments: { amount: number; paymentDate: Date; status: string }[];
   }[];
 }
-interface ExamPoint { date: Date; average: number; margin: number; below: number }
+interface ExamPoint { date: Date; availableAt: Date; average: number; margin: number; below: number }
 const mean = (values: number[]) => values.reduce((sum, v) => sum + v, 0) / values.length;
 function examHistory(student: AnalyticsStudent, now: Date): ExamPoint[] {
   const exams = new Map<string, AnalyticsStudent['grades']>();
@@ -31,7 +31,7 @@ function examHistory(student: AnalyticsStudent, now: Date): ExamPoint[] {
     const exam = grades[0].examination;
     // Partial mark entry must not become a school-failure label.
     if (exam.subjects.some(s => !grades.some(g => g.subjectId === s.subjectId))) continue;
-    let weight = 0, average = 0, margin = 0, below = 0;
+    let weight = 0, average = 0, margin = 0, below = 0, validGrades = 0;
     for (const grade of grades) {
       const config = exam.subjects.find(s => s.subjectId === grade.subjectId);
       const total = grade.totalMarks;
@@ -41,10 +41,12 @@ function examHistory(student: AnalyticsStudent, now: Date): ExamPoint[] {
       const pass = config?.passMark == null ? 40 : config.passMark / config.totalMarks * 100;
       const w = config && config.weight > 0 ? config.weight : 1;
       if (!Number.isFinite(pass) || pass < 0 || pass > 100) continue;
+      validGrades++;
       weight += w; average += percent * w; margin += (percent - pass) * w;
       below += (percent < pass ? 1 : 0) * w;
     }
-    if (weight) points.push({ date: exam.endDate ?? exam.startDate ?? exam.createdAt,
+    if (weight && validGrades === grades.length) points.push({ date: exam.endDate ?? exam.startDate ?? exam.createdAt,
+      availableAt: new Date(Math.max((exam.endDate ?? exam.startDate ?? exam.createdAt).getTime(), ...grades.map(g => g.updatedAt?.getTime() ?? 0))),
       average: average / weight, margin: margin / weight, below: below / weight });
   }
   return points.sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -89,7 +91,10 @@ export function buildAnalytics(students: AnalyticsStudent[], now: Date, currency
     for (let i = 2; i < points.length; i++) {
       // No same-date or very old-to-new comparisons, and no outcome in input features.
       if (points[i].date <= points[i - 1].date || points[i].date.getTime() - points[i - 1].date.getTime() > 180 * DAY) continue;
-      academicSamples.push({ features: academicFeatures(points.slice(0, i)).features,
+      // A retrospectively entered or revised mark cannot become a historical predictor.
+      const available = points.slice(0, i).filter(p => p.availableAt < points[i].date);
+      if (available.length < 2) continue;
+      academicSamples.push({ features: academicFeatures(available).features,
         outcome: points[i].margin < 0 ? 1 : 0, date: points[i].date });
     }
     const bills = student.invoices.filter(b => usableBill(b, now) && ledgerValid(b, now));
@@ -142,11 +147,17 @@ export function buildAnalytics(students: AnalyticsStudent[], now: Date, currency
     let feeScore: number | null = bills.length && !outstandingBalance ? 0 : dueSoon.length ?
       clamp(25 + Math.min(oldestDays, 60) + Math.min(overdue.length, 3) * 10, 0, 100) : null;
     const validBills = bills.filter(b => ledgerValid(b, now));
+    let previousDefaultRate = 0;
+    if (feeScore !== null && dueSoon.length) {
+      previousDefaultRate = Math.max(...dueSoon.filter(b => b.totalAmount > 0).map(b => feeFeatures(b, validBills, now)[1]), 0);
+      feeScore = clamp(feeScore + previousDefaultRate * 40, 0, 100);
+    }
     // Apply the trained model only at the same seven-days-before-due horizon used in training.
     const modelBills = dueSoon.filter(b => ledgerValid(b, now) && b.dueDate && Math.abs(b.dueDate.getTime() - now.getTime() - 7 * DAY) <= DAY);
     const useFeeModel = !!feeModel.predict && modelBills.length > 0 && overdue.length === 0;
     if (useFeeModel) feeScore = Math.max(...modelBills.map(b => feeModel.predict!(feeFeatures(b, validBills, now)) * 100));
     const feeEvidence = [`${overdue.length} overdue invoice(s); oldest is ${oldestDays} days past due.`];
+    if (previousDefaultRate > 0) feeEvidence.push(`${Math.round(previousDefaultRate * 100)}% of earlier matured invoices still had an unpaid balance 30 days after their due date.`);
     if (feeScore === null) feeEvidence.push('No outstanding invoice with a due date in the next 30 days; default risk cannot be assessed.');
     if (bills.some(b => !ledgerValid(b, now))) feeEvidence.push('Some payment ledgers do not reconcile; those invoices are excluded from model training.');
     if (useFeeModel) feeEvidence.push('School model estimates an unpaid balance 30 days after the due date.');

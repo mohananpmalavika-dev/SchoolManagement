@@ -60,7 +60,7 @@ export class FeeReminderController {
     status: 200,
     description: 'Overdue fee reminders sent',
   })
-  async sendOverdueReminders(@Body() dto: { language?: 'en' | 'ml' }) {
+  async sendOverdueReminders(@Body() dto: { language?: 'en' | 'sw' }) {
     return this.feeReminderService.sendFeeReminders({
       overdueOnly: true,
       language: dto.language || 'en',
@@ -75,7 +75,7 @@ export class FeeReminderController {
     description: 'Upcoming fee reminders sent',
   })
   async sendUpcomingReminders(
-    @Body() dto: { days?: number; language?: 'en' | 'ml' },
+    @Body() dto: { days?: number; language?: 'en' | 'sw' },
   ) {
     return this.feeReminderService.sendFeeReminders({
       daysBeforeDue: dto.days || 7, // Default 7 days before due
@@ -91,7 +91,7 @@ export class FeeReminderController {
     description: 'Payment confirmation sent',
   })
   async sendPaymentConfirmation(
-    @Body() dto: { paymentId: string; language?: 'en' | 'ml' },
+    @Body() dto: { paymentId: string; language?: 'en' | 'sw' },
   ) {
     const result = await this.feeReminderService.sendPaymentConfirmation(
       dto.paymentId,
@@ -106,3 +106,4 @@ export class FeeReminderController {
     };
   }
 }
+

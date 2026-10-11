@@ -25,7 +25,7 @@ export class PredictiveAnalyticsService {
           currentClassId: true, currentClass: { select: { name: true } },
           attendanceRecords: { where: { tenantId, date: { gte: attendanceStart, lte: now } }, select: { date: true, status: true } },
           grades: { where: { tenantId, createdAt: { gte: historyStart, lte: now }, examination: { tenantId } },
-            select: { subjectId: true, score: true, marks: true, totalMarks: true,
+            select: { subjectId: true, score: true, marks: true, totalMarks: true, updatedAt: true,
               examination: { select: { id: true, startDate: true, endDate: true, createdAt: true,
                 subjects: { select: { subjectId: true, passMark: true, totalMarks: true, weight: true } } } } } },
           invoices: { where: { tenantId, createdAt: { lte: now }, status: { notIn: ['CANCELLED', 'DRAFT'] },

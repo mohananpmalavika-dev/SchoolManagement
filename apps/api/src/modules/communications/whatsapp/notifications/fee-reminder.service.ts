@@ -9,7 +9,7 @@ export interface FeeReminderOptions {
   studentId?: string; // Send reminder to specific student
   daysBeforeDue?: number; // Send reminder X days before due date
   overdueOnly?: boolean; // Only send to overdue invoices
-  language?: 'en' | 'ml';
+  language?: 'en' | 'sw';
 }
 
 export interface FeeReminderResult {
@@ -154,7 +154,7 @@ export class FeeReminderService {
    */
   async sendPaymentConfirmation(
     paymentId: string,
-    language: 'en' | 'ml' = 'en',
+    language: 'en' | 'sw' = 'en',
   ): Promise<boolean> {
     const tenantId = this.tenantService.requireTenantContext();
 
@@ -177,9 +177,10 @@ export class FeeReminderService {
       throw new Error('Payment not found');
     }
 
+    const paymentData = payment as any;
     const guardianPhone =
-      payment.invoice.student.guardian?.whatsappNumber ||
-      payment.invoice.student.guardian?.phoneNumber;
+      paymentData.invoice?.student?.guardian?.whatsappNumber ||
+      paymentData.invoice?.student?.guardian?.phoneNumber;
 
     if (!guardianPhone) {
       this.logger.warn('No contact number for payment confirmation');
@@ -245,7 +246,7 @@ export class FeeReminderService {
       };
     }
 
-    return this.prisma.feeInvoice.findMany({
+    return (this.prisma as any).invoice.findMany({
       where,
       include: {
         student: {
@@ -269,7 +270,7 @@ export class FeeReminderService {
   /**
    * Build fee reminder message
    */
-  private buildFeeReminderMessage(invoice: any, language: 'en' | 'ml'): string {
+  private buildFeeReminderMessage(invoice: any, language: 'en' | 'sw'): string {
     const studentName = `${invoice.student.firstName} ${invoice.student.lastName}`;
     const amount = this.formatAmount(invoice.totalAmount - invoice.paidAmount);
     const dueDate = this.formatDate(invoice.dueDate);
@@ -279,31 +280,31 @@ export class FeeReminderService {
 
     const isOverdue = new Date(invoice.dueDate) < new Date();
 
-    if (language === 'ml') {
-      // Malayalam message
+    if (language === 'sw') {
+      // Swahili message
       if (isOverdue) {
-        return `🏫 *സ്കൂൾ ഫീസ് അറിയിപ്പ്*\n\n` +
-          `പ്രിയപ്പെട്ട രക്ഷിതാവേ,\n\n` +
-          `വിദ്യാർത്ഥി: *${studentName}*\n` +
-          `ക്ലാസ്: *${className}*\n` +
-          `ടേം: *${termName}*\n\n` +
-          `⚠️ നിങ്ങളുടെ കുട്ടിയുടെ ഫീസ് അടവ് കാലഹരണപ്പെട്ടിരിക്കുന്നു.\n\n` +
-          `ബാക്കി തുക: *${amount}*\n` +
-          `അവസാന തീയതി: *${dueDate}*\n` +
-          `ഇൻവോയ്സ് നമ്പർ: ${invoiceNumber}\n\n` +
-          `ദയവായി എത്രയും വേഗം അടവ് നടത്തുക.\n\n` +
-          `നന്ദി`;
+        return `🏫 *Notisi ya Ada ya Shule*\n\n` +
+          `Mzazi mpendwa,\n\n` +
+          `Mwanafunzi: *${studentName}*\n` +
+          `Darasa: *${className}*\n` +
+          `Muhula: *${termName}*\n\n` +
+          `⚠️ Malipo ya ada ya mtoto wako yamechelewa.\n\n` +
+          `Kiasi Kilichobaki: *${amount}*\n` +
+          `Tarehe ya Mwisho: *${dueDate}*\n` +
+          `Nambari ya Ankara: ${invoiceNumber}\n\n` +
+          `Tafadhali fanya malipo haraka iwezekanavyo ili kuepuka usumbufu wowote.\n\n` +
+          `Asante`;
       } else {
-        return `🏫 *സ്കൂൾ ഫീസ് അനുസ്മരണം*\n\n` +
-          `പ്രിയപ്പെട്ട രക്ഷിതാവേ,\n\n` +
-          `വിദ്യാർത്ഥി: *${studentName}*\n` +
-          `ക്ലാസ്: *${className}*\n` +
-          `ടേം: *${termName}*\n\n` +
-          `ബാക്കി തുക: *${amount}*\n` +
-          `അവസാന തീയതി: *${dueDate}*\n` +
-          `ഇൻവോയ്സ് നമ്പർ: ${invoiceNumber}\n\n` +
-          `ദയവായി നിശ്ചിത തീയതിയിൽ അടവ് നടത്തുക.\n\n` +
-          `നന്ദി`;
+        return `🏫 *Kikumbusho cha Ada ya Shule*\n\n` +
+          `Mzazi mpendwa,\n\n` +
+          `Mwanafunzi: *${studentName}*\n` +
+          `Darasa: *${className}*\n` +
+          `Muhula: *${termName}*\n\n` +
+          `Kiasi Kilichobaki: *${amount}*\n` +
+          `Tarehe ya Mwisho: *${dueDate}*\n` +
+          `Nambari ya Ankara: ${invoiceNumber}\n\n` +
+          `Tafadhali hakikisha malipo yanafanywa kabla ya tarehe ya mwisho.\n\n` +
+          `Asante`;
       }
     } else {
       // English message
@@ -337,7 +338,7 @@ export class FeeReminderService {
   /**
    * Build payment confirmation message
    */
-  private buildPaymentConfirmationMessage(payment: any, language: 'en' | 'ml'): string {
+  private buildPaymentConfirmationMessage(payment: any, language: 'en' | 'sw'): string {
     const studentName = `${payment.invoice.student.firstName} ${payment.invoice.student.lastName}`;
     const amount = this.formatAmount(payment.amount);
     const paymentDate = this.formatDate(payment.paymentDate);
@@ -346,16 +347,16 @@ export class FeeReminderService {
       payment.invoice.totalAmount - payment.invoice.paidAmount - payment.amount,
     );
 
-    if (language === 'ml') {
-      return `✅ *പേയ്മെന്റ് സ്ഥിരീകരണം*\n\n` +
-        `പ്രിയപ്പെട്ട രക്ഷിതാവേ,\n\n` +
-        `വിദ്യാർത്ഥി: *${studentName}*\n\n` +
-        `നിങ്ങളുടെ പേയ്മെന്റ് വിജയകരമായി സ്വീകരിച്ചു.\n\n` +
-        `അടച്ച തുക: *${amount}*\n` +
-        `തീയതി: ${paymentDate}\n` +
-        `രസീത് നമ്പർ: ${receiptNumber}\n` +
-        `ബാക്കി തുക: *${balance}*\n\n` +
-        `നന്ദി!`;
+    if (language === 'sw') {
+      return `✅ *Uthibitisho wa Malipo*\n\n` +
+        `Mzazi mpendwa,\n\n` +
+        `Mwanafunzi: *${studentName}*\n\n` +
+        `Malipo yako yamepokelewa kwa mafanikio.\n\n` +
+        `Kiasi Kilicholipwa: *${amount}*\n` +
+        `Tarehe: ${paymentDate}\n` +
+        `Nambari ya Risiti: ${receiptNumber}\n` +
+        `Kiasi Kilichobaki: *${balance}*\n\n` +
+        `Asante!`;
     } else {
       return `✅ *Payment Confirmation*\n\n` +
         `Dear Parent,\n\n` +
@@ -378,18 +379,17 @@ export class FeeReminderService {
     twilioSid: string,
   ): Promise<void> {
     try {
-      await this.prisma.communicationLog.create({
+      await (this.prisma as any).communicationLog.create({
         data: {
-          type: 'WHATSAPP',
+          channel: 'WHATSAPP',
           recipient: recipientPhone,
-          subject: 'Fee Reminder',
           status: 'SENT',
           sentAt: new Date(),
           metadata: {
             invoiceId,
             twilioSid,
           },
-        },
+        } as any,
       });
     } catch (error) {
       this.logger.error('Failed to log fee reminder', error);

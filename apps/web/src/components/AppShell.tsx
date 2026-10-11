@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { GraduationCap, LayoutDashboard, Users, School, CreditCard, BookOpen, CalendarDays, MessageSquare, Settings, LifeBuoy, LogOut, Menu, X, Search, ChevronRight, ArrowUpRight, Library, Bus, ClipboardCheck, BarChart3, ShieldCheck, LucideIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from './ProtectedRoute';
-import { teacherRoles, schoolRoles } from '@/lib/session';
+import { teacherRoles, schoolRoles, predictiveAnalyticsRoles } from '@/lib/session';
 type Portal = 'admin' | 'teacher' | 'parent' | 'school' | 'student';
 const items = {
  admin: [['dashboard','Overview',LayoutDashboard],['schools','Schools',School],['subscriptions','Subscriptions',CreditCard],['users','People & access',Users],['reports','Reports',BarChart3],['system','System health',ShieldCheck],['support','Support center',LifeBuoy]],
@@ -18,7 +18,7 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
  const pathname = usePathname(); const {user, logout} = useAuth();
  const [open,setOpen] = useState(false); const [search,setSearch] = useState('');
  const base = portal === 'parent' ? '/dashboard' : '/' + portal;
- const links:ReadonlyArray<readonly [string,string,LucideIcon]> = items[portal]; const active = links.find(([slug]) => pathname === base + (slug ? '/' + slug : ''));
+ const links:ReadonlyArray<readonly [string,string,LucideIcon]> = portal === 'school' && predictiveAnalyticsRoles.includes(user?.role ?? '') ? [items.school[0], ['predictive-analytics','AI Predictive Analytics',BarChart3], ...items.school.slice(1)] : items[portal]; const active = links.find(([slug]) => pathname === base + (slug ? '/' + slug : ''));
  const roles = portal === 'admin' ? ['SUPER_ADMIN'] : portal === 'teacher' ? teacherRoles : portal === 'school' ? schoolRoles : portal === 'student' ? ['STUDENT'] : ['PARENT'];
  useEffect(() => {setOpen(false);setSearch('');},[pathname]);
  useEffect(() => {

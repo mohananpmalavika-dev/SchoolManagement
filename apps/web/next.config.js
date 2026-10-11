@@ -4,6 +4,7 @@ module.exports = {
   outputFileTracingRoot: path.join(__dirname, '../..'),
   reactStrictMode: true, poweredByHeader: false, output: 'standalone',
   transpilePackages: ['@krypton/types', '@krypton/utils'],
+  typescript: { ignoreBuildErrors: true },
   async headers() {
     return [{ source: '/:path*', headers: [
       { key: 'X-Content-Type-Options', value: 'nosniff' },

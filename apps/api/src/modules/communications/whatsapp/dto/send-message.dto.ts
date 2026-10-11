@@ -103,10 +103,11 @@ export class SendTemplateMessageDto {
   @ApiProperty({
     description: 'Message language',
     example: 'en',
-    enum: ['en', 'ml'],
+    enum: ['en', 'sw'],
     required: false,
   })
   @IsString()
   @IsOptional()
-  language?: 'en' | 'ml';
+  language?: 'en' | 'sw';
 }
+

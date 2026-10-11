@@ -58,10 +58,11 @@ export class SendFeeRemindersDto {
   @ApiProperty({
     description: 'Message language',
     example: 'en',
-    enum: ['en', 'ml'],
+    enum: ['en', 'sw'],
     required: false,
   })
-  @IsEnum(['en', 'ml'])
+  @IsEnum(['en', 'sw'])
   @IsOptional()
-  language?: 'en' | 'ml';
+  language?: 'en' | 'sw';
 }
+

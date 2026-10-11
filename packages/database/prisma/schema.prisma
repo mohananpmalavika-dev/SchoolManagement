@@ -1517,3 +1517,262 @@ model LearningMaterial {
  @@index([tenantId,classId])
  @@map("learning_materials")
 }
+
+// ===================================
+// PARENT ENGAGEMENT FEATURES
+// ===================================
+
+// Activity Feed - Daily activities that parents can see
+model ActivityFeed {
+  id                String   @id @default(uuid())
+  tenantId          String
+  studentId         String
+  activityType      ActivityType
+  title             String
+  description       String?  @db.Text
+  metadata          Json?    // Additional activity-specific data
+  
+  // Visibility
+  isVisibleToParents Boolean @default(true)
+  
+  // Associations
+  classId           String?
+  subjectId         String?
+  createdBy         String   // Staff/Teacher ID
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  mediaItems        MediaItem[]
+
+  @@index([tenantId])
+  @@index([studentId])
+  @@index([activityType])
+  @@index([createdAt])
+  @@map("activity_feeds")
+}
+
+enum ActivityType {
+  ATTENDANCE        // "John was present today"
+  PARTICIPATION     // "John participated in Math today"
+  ACHIEVEMENT       // "John scored 95% in test"
+  ASSIGNMENT        // "New homework assigned"
+  BEHAVIOR          // "John received a star for good behavior"
+  EVENT             // "John participated in sports day"
+  ANNOUNCEMENT      // "Class announcement"
+  MEAL              // "John had lunch today"
+  TRANSPORT         // "John boarded the bus"
+  OTHER
+}
+
+// Media Items - Photos and videos shared with parents
+model MediaItem {
+  id                String   @id @default(uuid())
+  tenantId          String
+  
+  // File Information
+  fileName          String
+  fileUrl           String
+  thumbnailUrl      String?
+  fileType          MediaType
+  fileSize          Int      // in bytes
+  mimeType          String
+  
+  // Association
+  studentId         String?  // Can be linked to specific student or class-wide
+  classId           String?
+  activityFeedId    String?  // Can be part of an activity
+  
+  // Metadata
+  caption           String?  @db.Text
+  takenAt           DateTime?
+  uploadedBy        String   // Staff/Teacher ID
+  
+  // Visibility
+  isVisibleToParents Boolean @default(true)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  activityFeed      ActivityFeed? @relation(fields: [activityFeedId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([studentId])
+  @@index([classId])
+  @@index([activityFeedId])
+  @@index([createdAt])
+  @@map("media_items")
+}
+
+enum MediaType {
+  PHOTO
+  VIDEO
+  DOCUMENT
+}
+
+// Homework/Assignment Tracking (Extended from Assignment)
+// The existing Assignment and AssignmentSubmission models are used
+// We'll add views/methods to track homework status for parents
+
+// Behavior Tracking
+model BehaviorRecord {
+  id                String   @id @default(uuid())
+  tenantId          String
+  studentId         String
+  
+  // Behavior Details
+  behaviorType      BehaviorType
+  category          BehaviorCategory
+  title             String
+  description       String?  @db.Text
+  
+  // Incident/Recognition Details
+  incidentDate      DateTime
+  location          String?
+  
+  // Points System
+  points            Int      @default(0)  // Positive or negative points
+  
+  // Follow-up
+  actionTaken       String?  @db.Text
+  followUpRequired  Boolean  @default(false)
+  followUpDate      DateTime?
+  
+  // Notifications
+  parentNotified    Boolean  @default(false)
+  parentNotifiedAt  DateTime?
+  
+  // Created By
+  recordedBy        String   // Staff/Teacher ID
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([studentId])
+  @@index([behaviorType])
+  @@index([incidentDate])
+  @@map("behavior_records")
+}
+
+enum BehaviorType {
+  POSITIVE          // Recognition, praise
+  NEGATIVE          // Discipline issue
+  NEUTRAL           // Observation
+}
+
+enum BehaviorCategory {
+  // Positive
+  ACADEMIC_EXCELLENCE
+  GOOD_CONDUCT
+  LEADERSHIP
+  HELPFULNESS
+  PARTICIPATION
+  PUNCTUALITY
+  
+  // Negative
+  LATE_ARRIVAL
+  ABSENCE
+  DISRUPTION
+  INCOMPLETE_WORK
+  UNIFORM_VIOLATION
+  BULLYING
+  DISRESPECT
+  
+  // Neutral
+  OBSERVATION
+  OTHER
+}
+
+// Parent-Teacher Booking System
+model TeacherAvailability {
+  id                String   @id @default(uuid())
+  tenantId          String
+  teacherId         String   // Staff ID
+  
+  // Schedule
+  dayOfWeek         Int      // 1=Monday, 7=Sunday
+  startTime         String   // HH:MM format
+  endTime           String   // HH:MM format
+  slotDuration      Int      @default(30)  // minutes
+  
+  // Availability
+  isActive          Boolean  @default(true)
+  effectiveFrom     DateTime?
+  effectiveUntil    DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([teacherId])
+  @@index([dayOfWeek])
+  @@map("teacher_availability")
+}
+
+model ParentTeacherBooking {
+  id                String   @id @default(uuid())
+  tenantId          String
+  
+  // Participants
+  guardianId        String
+  studentId         String
+  teacherId         String   // Staff ID
+  
+  // Booking Details
+  bookingDate       DateTime @db.Date
+  startTime         String   // HH:MM format
+  endTime           String   // HH:MM format
+  
+  // Purpose
+  purpose           String?  @db.Text
+  topic             String?
+  
+  // Status
+  status            BookingStatus @default(PENDING)
+  
+  // Meeting Details
+  meetingType       MeetingType @default(IN_PERSON)
+  location          String?
+  meetingLink       String?  // For virtual meetings
+  
+  // Notes
+  teacherNotes      String?  @db.Text
+  parentNotes       String?  @db.Text
+  
+  // Cancellation
+  cancelledBy       String?
+  cancellationReason String? @db.Text
+  cancelledAt       DateTime?
+  
+  // Reminders
+  reminderSent      Boolean  @default(false)
+  reminderSentAt    DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([guardianId])
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([bookingDate])
+  @@index([status])
+  @@map("parent_teacher_bookings")
+}
+
+enum BookingStatus {
+  PENDING           // Awaiting teacher confirmation
+  CONFIRMED         // Teacher confirmed
+  COMPLETED         // Meeting completed
+  CANCELLED         // Cancelled by either party
+  NO_SHOW           // Someone didn't show up
+}
+
+enum MeetingType {
+  IN_PERSON
+  VIRTUAL
+  PHONE
+}
