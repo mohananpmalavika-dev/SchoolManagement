@@ -1,7 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { clearSession } from './session';
 const API_URL=process.env.NEXT_PUBLIC_API_URL;
-export const apiClient=axios.create({baseURL:API_URL?`${API_URL.replace(/\/$/,'')}/api/v1`:'/api',timeout:30000,headers:{'Content-Type':'application/json'}});
+export const apiClient=axios.create({baseURL:API_URL?`${API_URL.replace(/\/$/,'')}/api/v1`:'/api/v1',timeout:30000,headers:{'Content-Type':'application/json'}});
 apiClient.interceptors.request.use(config=>{if(typeof window!=='undefined'){const token=localStorage.getItem('accessToken');if(token)config.headers.Authorization='Bearer '+token;}return config;});
 let refresh:Promise<string>|null=null;
 apiClient.interceptors.response.use(response=>{
