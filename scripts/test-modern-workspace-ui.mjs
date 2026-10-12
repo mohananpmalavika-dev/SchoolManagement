@@ -55,7 +55,7 @@ try {
   await page.locator('aside').waitFor({ state: 'hidden' });
   assert.equal(await page.getByRole('button', { name: 'Open navigation', exact: true }).evaluate(element => element === document.activeElement), true);
   await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
-  const people = page.locator('aside').getByRole('button', { name: 'people', exact: true });
+  const people = page.locator('aside').getByRole('button', { name: 'people', exact: true, includeHidden: true });
   assert.equal(await people.getAttribute('aria-expanded'), 'false');
   assert.equal(await page.locator('#' + await people.getAttribute('aria-controls')).count(), 1);
   assert.equal(await page.locator('aside').getByRole('link', { name: 'Students', exact: true }).count(), 0);
@@ -86,6 +86,10 @@ try {
   await preview.getByText('Date of birth', { exact: true }).waitFor();
   assert.equal(writes.length, previewWrites);
   await preview.screenshot({ path: fileURLToPath(new URL('record-preview-desktop.png', output)) });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await fits(page);
+  await preview.screenshot({ path: fileURLToPath(new URL('record-preview-mobile.png', output)) });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.keyboard.press('Escape');
   await preview.waitFor({ state: 'hidden' });
   assert.equal(await page.getByRole('button', { name: 'View Learner 1', exact: true }).evaluate(element => element === document.activeElement), true);
@@ -162,6 +166,16 @@ try {
   assert.equal(await readonlyPreview.getByRole('button', { name: 'Edit details', exact: true }).count(), 0);
   await readonly.page.keyboard.press('Escape');
   await readonly.context.close();
+
+  const transport = await session('TRANSPORT_OFFICER');
+  await transport.page.goto(base + '/school/transport/setup', { timeout: 120000 });
+  const transportTabs = transport.page.getByRole('navigation', { name: 'Current section', exact: true });
+  await transportTabs.getByRole('link', { name: 'Vehicles & routes', exact: true }).waitFor();
+  assert.equal(await transportTabs.getByRole('link', { name: 'Vehicles & routes', exact: true }).getAttribute('aria-current'), 'page');
+  assert.equal(await transportTabs.getByRole('link', { name: 'Driver workspace', exact: true }).getAttribute('aria-current'), null);
+  assert.equal(await transport.page.locator('a[aria-current=page]').count(), 1);
+  await transport.context.close();
+  checks.push('Nested module routes highlight the specific destination instead of also marking the parent page as current');
   checks.push('Read-only staff retain directory browsing without create or edit controls');
   const platform = await session('SUPER_ADMIN');
   await platform.page.goto(base + '/admin/subscriptions');

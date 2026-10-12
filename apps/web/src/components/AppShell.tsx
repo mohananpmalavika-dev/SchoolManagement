@@ -27,8 +27,9 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
   const PortalIcon = portalDesign[portal].icon;
   const groups = navigationFor(portal, user?.role || '');
   const links = groups.flatMap(group => group.items);
-  const selected = (href: string) => pathname === href || (href !== base && pathname.startsWith(href + '/'));
-  const active = links.find(link => selected(link.href));
+  const matches = (href: string) => pathname === href || (href !== base && pathname.startsWith(href + '/'));
+  const active = links.filter(link => matches(link.href)).sort((left, right) => right.href.length - left.href.length)[0];
+  const selected = (href: string) => active?.href === href;
   const activeGroup = groups.find(group => group.items.some(item => selected(item.href)));
   const visibleGroup = expandedGroup ?? activeGroup?.label;
   const contextLinks = activeGroup?.items || groups[0]?.items || [];
