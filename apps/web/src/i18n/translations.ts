@@ -411,7 +411,7 @@ export const translations: Record<'en' | 'sw', Translations> = {
       signingIn: "Signing in…",
       goodToSeeYou: "Good to see you.",
       signInToWorkspace: "One account. Your school workspace.",
-      workspaceRouting: "Sign in and we?ll take you to the workspace assigned to your account.",
+      workspaceRouting: "Sign in and we will take you to the workspace assigned to your account.",
       unableToSignIn: "Unable to sign in. Check your details and try again.",
       showPassword: "Show password",
       hidePassword: "Hide password",

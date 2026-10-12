@@ -1,20 +1,34 @@
-﻿'use client';
+'use client';
 import { type FormEvent, useEffect, useRef, useState, useId } from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronDown, SlidersHorizontal, Check } from 'lucide-react';
 import { Button } from './ui';
 import { apiClient } from '@/lib/api-client';
 import { getRows, messageFor } from '@/lib/workspace';
 export interface Field {key:string;label:string;type?:string;required?:boolean;options?:string[];source?:string;min?:number;max?:number}
+function todayValue() {
+  const date = new Date();
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-');
+}
 export function RecordModal({title,endpoint,fields,initial,onClose,onSaved}:{title:string;endpoint:string;fields:Field[];initial?:Record<string,any>;onClose:()=>void;onSaved:()=>void}) {
-  const [values,setValues]=useState<Record<string,string>>(()=>Object.fromEntries(fields.map(field=>[field.key,field.type==='date'&&initial?.[field.key]?String(initial[field.key]).slice(0,10):field.type==='currency'&&initial?.[field.key]!=null?String(Number(initial[field.key])/100):String(initial?.[field.key]??'')])));
+  const [values,setValues]=useState<Record<string,string>>(()=>Object.fromEntries(fields.map(field=> {
+    const saved = field.type==='date'&&initial?.[field.key]?String(initial[field.key]).slice(0,10):field.type==='currency'&&initial?.[field.key]!=null?String(Number(initial[field.key])/100):String(initial?.[field.key]??'');
+    const fallback = !initial && field.key === 'admissionDate' ? todayValue() : !initial && endpoint.endsWith('/students') && field.key === 'status' && field.options?.includes('ACTIVE') ? 'ACTIVE' : '';
+    return [field.key, saved || fallback];
+  })));
   const [options,setOptions]=useState<Record<string,any[]>>({});
   const [busy,setBusy]=useState(false);
+  const [detailsOpen,setDetailsOpen]=useState(!!initial);
   const [optionsLoading,setOptionsLoading]=useState(fields.some(field=>field.source));
   const [optionsError,setOptionsError]=useState('');
+  const [optionsAttempt,setOptionsAttempt]=useState(0);
   const [error,setError]=useState('');
   const dialog=useRef<HTMLDivElement>(null);
   const busyRef=useRef(false);
   const titleId=useId();
+  const required = (field: Field) => !!field.required && !(initial && field.type === 'password');
+  const essentials = fields.filter(required);
+  const optional = fields.filter(field => !required(field));
+  const entered = essentials.filter(field => values[field.key]?.trim()).length;
   useEffect(()=>{busyRef.current=busy;},[busy]);
   useEffect(()=>{
     const previous=document.activeElement as HTMLElement|null;
@@ -36,12 +50,13 @@ export function RecordModal({title,endpoint,fields,initial,onClose,onSaved}:{tit
   },[onClose]);
   useEffect(()=>{
     let active=true;
+    setOptionsLoading(fields.some(field=>field.source));setOptionsError('');
     Promise.all(fields.filter(field=>field.source).map(async field=>[field.key,await getRows(field.source!)] as const))
       .then(result=>{if(active)setOptions(Object.fromEntries(result));})
       .catch(err=>{if(active)setOptionsError(messageFor(err));})
       .finally(()=>{if(active)setOptionsLoading(false);});
     return()=>{active=false;};
-  },[fields]);
+  },[fields,optionsAttempt]);
   async function submit(event:FormEvent){
     event.preventDefault();if(busy||optionsLoading||optionsError)return;
     setBusy(true);setError('');
@@ -53,10 +68,30 @@ export function RecordModal({title,endpoint,fields,initial,onClose,onSaved}:{tit
       onSaved();
     } catch(err){setError(messageFor(err));} finally {setBusy(false);}
   }
-  return <div className="modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget&&!busy)onClose();}}><div ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId}><div className="modal-header"><h2 id={titleId}>{title}</h2><button disabled={busy} onClick={onClose} className="icon-button" aria-label="Close dialog"><X size={20}/></button></div><form onSubmit={submit}>{(error||optionsError)&&<div role="alert" className="state-box">{error||optionsError}{optionsError&&<p>Close this form and try again to reload the available options.</p>}</div>}<div className="form-grid">{fields.map(field=>{
+  function toggleDetails() {
+    if (detailsOpen) {
+      const invalid = dialog.current?.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('.optional-details input:invalid, .optional-details select:invalid, .optional-details textarea:invalid');
+      if (invalid) { invalid.reportValidity(); invalid.focus(); return; }
+    }
+    setDetailsOpen(value => !value);
+  }
+  function renderField(field: Field) {
     const id=titleId+'-'+field.key;
-    const required=field.required&&!(initial&&field.type==='password');
+    const isRequired = required(field);
     const change=(value:string)=>setValues(current=>({...current,[field.key]:value}));
-    return <div className="field" key={field.key}><label htmlFor={id}>{field.label}{required?' *':''}</label>{field.options||field.source?<select id={id} required={required} disabled={busy||!!field.source&&optionsLoading} value={values[field.key]} onChange={event=>change(event.target.value)}><option value="">{field.source&&optionsLoading?'Loading options…':'Select '+field.label.toLowerCase()}</option>{field.options?.map(option=><option key={option} value={option}>{option.replaceAll('_',' ')}</option>)}{options[field.key]?.map(option=><option key={option.id} value={option.id}>{option.name||option.title||option.invoiceNumber||[option.firstName,option.lastName].filter(Boolean).join(' ')}</option>)}</select>:field.type==='textarea'?<textarea id={id} required={required} disabled={busy} maxLength={10000} value={values[field.key]} onChange={event=>change(event.target.value)}/>:<input id={id} type={field.type==='currency'?'number':field.type||'text'} inputMode={field.type==='currency'?'decimal':undefined} step={field.type==='currency'?'.01':field.type==='number'?1:undefined} required={required} disabled={busy} min={field.type==='currency'&&field.min!=null?field.min/100:field.min} max={field.type==='currency'&&field.max!=null?field.max/100:field.max} maxLength={field.type==='password'?128:255} value={values[field.key]} onChange={event=>change(event.target.value)}/>}</div>;
-  })}</div><div className="modal-actions"><Button variant="ghost" type="button" disabled={busy} onClick={onClose}>Cancel</Button><Button type="submit" isLoading={busy} disabled={optionsLoading||!!optionsError}>{initial?'Save changes':'Create record'}</Button></div></form></div></div>;
+    return <div className="field" key={field.key}><label htmlFor={id}>{field.label}{isRequired?' *':''}</label>{field.options||field.source?<select id={id} required={isRequired} disabled={busy||!!field.source&&optionsLoading} value={values[field.key]} onChange={event=>change(event.target.value)}><option value="">{field.source&&optionsLoading?'Loading options...':'Select '+field.label.toLowerCase()}</option>{field.options?.map(option=><option key={option} value={option}>{option.replaceAll('_',' ')}</option>)}{options[field.key]?.map(option=><option key={option.id} value={option.id}>{option.name||option.title||option.invoiceNumber||[option.firstName,option.lastName].filter(Boolean).join(' ')}</option>)}</select>:field.type==='textarea'?<textarea id={id} required={isRequired} disabled={busy} maxLength={10000} value={values[field.key]} onChange={event=>change(event.target.value)}/>:<input id={id} type={field.type==='currency'?'number':field.type||'text'} inputMode={field.type==='currency'?'decimal':undefined} step={field.type==='currency'?'.01':field.type==='number'?1:undefined} required={isRequired} disabled={busy} min={field.type==='currency'&&field.min!=null?field.min/100:field.min} max={field.type==='currency'&&field.max!=null?field.max/100:field.max} maxLength={field.type==='password'?128:255} value={values[field.key]} onChange={event=>change(event.target.value)}/>}</div>;
+  }
+  return <div className="modal-backdrop record-drawer-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget&&!busy)onClose();}}>
+    <div ref={dialog} className="modal record-drawer" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <div className="modal-header"><div><span className="eyebrow">{initial ? 'Make an update' : 'A fresh start'}</span><h2 id={titleId}>{title}</h2></div><button disabled={busy} onClick={onClose} className="icon-button" aria-label="Close dialog"><X size={20}/></button></div>
+      <form onSubmit={submit}>
+        <div className="record-form-body">
+          {(error||optionsError)&&<div role="alert" className="state-box">{error||optionsError}{optionsError&&<div className="mt-3"><p>Reload the available choices to continue.</p><Button size="sm" variant="outline" onClick={() => setOptionsAttempt(value => value + 1)}>Reload choices</Button></div>}</div>}
+          {!!essentials.length && <><div className="form-section-heading"><h3>The essentials</h3><span>{entered} / {essentials.length} entered</span></div><div className="form-entry-track" aria-hidden="true"><span style={{width: entered / essentials.length * 100 + '%'}}/></div><div className="form-grid">{essentials.map(renderField)}</div></>}
+          {!!optional.length && <section className="optional-details"><button className="optional-toggle" type="button" disabled={busy} aria-expanded={detailsOpen} aria-controls={titleId + '-optional'} onClick={toggleDetails}><SlidersHorizontal size={16}/><span>More details<small>{optional.length} optional fields</small></span><ChevronDown size={17}/></button><div id={titleId + '-optional'} className="form-grid" hidden={!detailsOpen}>{detailsOpen && optional.map(renderField)}</div></section>}
+        </div>
+        <div className="modal-actions"><Button variant="ghost" type="button" disabled={busy} onClick={onClose}>Cancel</Button><Button type="submit" isLoading={busy} disabled={optionsLoading||!!optionsError} leftIcon={<Check size={16}/>}>{initial?'Save changes':'Create record'}</Button></div>
+      </form>
+    </div>
+  </div>;
 }

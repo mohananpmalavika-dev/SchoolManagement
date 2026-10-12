@@ -42,7 +42,8 @@
     "test:smoke": "node scripts/smoke-test.mjs",
     "test:ui": "node scripts/test-ui-redesign.mjs",
     "test:ui:meetings": "node scripts/test-meetings-ui.mjs",
-    "test:ui:signin": "node scripts/test-single-sign-in.mjs"
+    "test:ui:signin": "node scripts/test-single-sign-in.mjs",
+    "test:ui:modern": "node scripts/test-modern-workspace-ui.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",

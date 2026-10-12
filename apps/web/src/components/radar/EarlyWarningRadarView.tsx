@@ -199,7 +199,7 @@ export function EarlyWarningRadarView({ report, onRefresh }: EarlyWarningRadarVi
           <Sparkles className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">No students match this radar filter</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-            Try switching filter to 'All Students' or adjusting your search term.
+            Try switching filter to &apos;All Students&apos; or adjusting your search term.
           </p>
         </div>
       ) : (

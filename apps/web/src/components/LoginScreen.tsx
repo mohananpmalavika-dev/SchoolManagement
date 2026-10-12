@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button, Input, Alert, PageLoader } from './ui';
 import { useTranslation } from '@/hooks/useTranslation';
 import LanguageSwitcher from './LanguageSwitcher';
-import { CampusArtwork } from './CampusArtwork';
+import { WorkspaceScene } from './WorkspaceScene';
 import { homeForRole } from '@/lib/session';
 export function LoginScreen() {
   const { login, verifyMfa, user, isLoading } = useAuth();
@@ -46,49 +46,14 @@ export function LoginScreen() {
 
   return (
     <div className="login-page" data-portal="school">
-      <section className="login-story">
-        <Link href="/" className="brand">
+      <header className="login-brandbar"><Link href="/" className="brand">
           <img src="/hustlertech-logo.png" alt="HustlerTech Logo" className="brand-logo-img" />
           <span>
             HustlerTech
             <small>{t('common.schoolWorkspace')}</small>
           </span>
-        </Link>
-        <div className="login-story-content">
-          <span className="eyebrow light">
-            <span className="workspace-dot" />
-            {t('common.connectedSchool')}
-          </span>
-          <h1>
-            {t('common.betterSchoolDays')}
-            <br />
-            <span>{t('common.brighterFutures')}</span>
-          </h1>
-          <p>{t('common.workspaceDescription')}</p>
-          <div className="story-features">
-            <div>
-              <Users />
-              <span>{t('common.peopleConnected')}</span>
-            </div>
-            <div>
-              <BookOpen />
-              <span>{t('common.learningSupported')}</span>
-            </div>
-            <div>
-              <ShieldCheck />
-              <span>{t('common.accessProtected')}</span>
-            </div>
-          </div>
-          <CampusArtwork />
-          <small>{t('common.oneCommunity')}</small>
-        </div>
-      </section>
+        </Link><LanguageSwitcher variant="compact"/></header><div className="login-surface"><section className="login-form-panel">
 
-      <section className="login-form-panel">
-        {/* Language Switcher */}
-        <div className="absolute top-4 right-4">
-          <LanguageSwitcher variant="compact" />
-        </div>
 
         <div className="login-form-wrap">
           <div className="login-portal-emblem"><ShieldCheck size={26} strokeWidth={1.7}/></div>
@@ -140,7 +105,37 @@ export function LoginScreen() {
           <p className="login-contact">{t('auth.needHelpContact')}</p>
         </div>
         <footer>{t('common.organizedSchools')}</footer>
-      </section>
+      </section><section className="login-story">
+
+        <div className="login-story-content">
+          <span className="eyebrow light">
+            <span className="workspace-dot" />
+            {t('common.connectedSchool')}
+          </span>
+          <h1>
+            {t('common.betterSchoolDays')}
+            <br />
+            <span>{t('common.brighterFutures')}</span>
+          </h1>
+          <p>{t('common.workspaceDescription')}</p>
+          <div className="story-features">
+            <div>
+              <Users />
+              <span>{t('common.peopleConnected')}</span>
+            </div>
+            <div>
+              <BookOpen />
+              <span>{t('common.learningSupported')}</span>
+            </div>
+            <div>
+              <ShieldCheck />
+              <span>{t('common.accessProtected')}</span>
+            </div>
+          </div>
+          <WorkspaceScene />
+          <small>{t('common.oneCommunity')}</small>
+        </div>
+      </section></div>
     </div>
   );
 }

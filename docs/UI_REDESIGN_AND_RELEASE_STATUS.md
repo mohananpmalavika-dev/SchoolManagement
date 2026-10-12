@@ -4,19 +4,32 @@ Visual redesign updated on 12 October 2026. The backend and release evidence bel
 
 ## Current outcome
 
-The application now uses a light navigation shell, larger typography, rounded panels, clearer tables and forms, colored metric icons, and locally rendered campus illustrations. The shared styles apply across the administration, school, teacher, family, and student workspaces. Specialty finance, teaching, timetable, homework, Copilot, and automation screens use the same portal design tokens.
+The current **Gen Z pop revision** uses electric violet, lime, pink and sky blue, oversized bold headings, a dotted lilac canvas, a white navigation dock, sticker-style avatars, colorful action tiles and crisp offset shadows. Local SVG smile, lightning and star stickers replace the campus illustration at sign-in and add detail to the dashboard welcomes. The common layout applies across platform administration, school management, teaching, family and student workspaces. Portal identity remains visible through labels, icons, account context and access to the appropriate tools.
 
-| Portal | Visual identity |
+| Surface | Current experience |
 | --- | --- |
-| School management | Violet and lavender |
-| Teaching | Ocean blue |
-| Family | Forest green |
-| Student | Terracotta and peach |
-| Platform administration | Indigo |
+| Navigation | The workspace section stays visible; other sections expand on demand. The active page's section opens automatically. Keyboard search finds pages even in collapsed sections. |
+| Dashboards | A violet welcome panel, sticker calendar, colorful direct action tiles and rainbow metric cards put frequent tasks first. Family and student dashboards expose their main workflows directly. |
+| Directories | Students, guardians, staff, schools, users, books and materials start in card view, with colorful avatar stickers and card accents. All record pages can switch between cards and tables, sharing search, filtering, sorting, pagination, export and edit actions. View preference is stored per tenant, account and resource; records are not stored with it. |
+| Forms | Required fields appear first, optional fields are revealed through More details, and the save action stays at the bottom of the panel. New admission dates default to today and student active status uses the existing default; users can change both. Names, birth dates, admission numbers, class choices and financial values are not invented. |
+| Error recovery | Record choices can reload without closing the form or losing entered values. Invalid optional inputs remain visible for correction before their section can collapse. |
+| Mobile and keyboard | Directory layouts adapt to the viewport; full-height mobile forms keep actions reachable, contain keyboard focus, lock background scrolling and close with Escape. Read-only roles keep browsing without write controls. |
 
 There is **one sign-in screen at `/login`**. Portal selection has been removed. The authenticated account role determines the destination: platform administration, school management, teaching, family, or student workspace. Existing `/admin/login`, `/teacher/login`, `/parent/login`, and `/student/login` bookmarks redirect to `/login`. Signed-in accounts return to their assigned workspace automatically. Password recovery and MFA remain part of the same authentication flow, and the entry screen supports English and Kiswahili.
 
-The redesign also covers mobile navigation, keyboard search, account forms, loading and empty states, document print styles, the offline page, and the page-not-found screen. Portal-specific layouts retain the same permission checks and connected data workflows.
+The redesign also covers shared panels, tabs, tables, account forms, loading and empty states, print styles, the offline page, and the page-not-found screen. The static cache version was updated so installed copies can refresh the offline design. Portal-specific layouts retain the same permission checks and connected data workflows.
+
+## UI verification (12 October 2026)
+
+- Production web build passed, including TypeScript and generation of 126 pages. Verification uses `WEB_BUILD_DIR=.next-modern-pop-build` to avoid an existing output-directory lock.
+- Standalone web TypeScript checking also passed after removing the temporary QA type references.
+- Web lint passed with zero errors; existing image, hook and navigation warnings remain. The page-not-found copy also passed a targeted lint check after escaping its apostrophe.
+- **43 browser checks passed** for the current redesign: 14 core workflow checks, 6 modern workspace interaction checks, 4 shared-sign-in checks covering all 15 roles, 3 meeting checks, and 16 advanced analytics checks. Core workflows, modern interactions and sign-in were also checked against the final production preview; meeting and analytics checks used the development preview.
+- Shared-sign-in checks cover legacy URL redirects, invalid credentials, English/Kiswahili, 320/390/768px layouts, server-returned roles, stale cached personas, existing sessions, and unauthorized portal access. The core suite also verifies MFA and password recovery.
+- Modern workspace checks cover compact navigation, cards and pagination, editing with collapsed optional values, required-field validation, keyboard focus, mobile forms, read-only permissions, and explicit subscription status selection.
+- Desktop screenshots for all five portals, record cards and desktop/mobile forms and sign-in screens were visually inspected. Browser checks used mocked API responses and did not change real school records.
+
+Run `npm run test:ui`, `npm run test:ui:modern`, `npm run test:ui:signin`, `npm run test:ui:meetings`, and `node scripts/test-advanced-analytics-ui.mjs` with `UI_BASE_URL` set to the preview address. Screenshots and results are under ignored `qa/redesign/`, `qa/modern-workspace/`, `qa/sign-in/`, `qa/meetings/`, and `qa/advanced-analytics/` directories.
 
 ## Release scope (11 October snapshot)
 
