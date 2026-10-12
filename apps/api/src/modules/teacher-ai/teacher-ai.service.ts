@@ -9,7 +9,7 @@ import { AIProviderService } from './ai-provider.service';
 import { aiList, aiText, keyedItems, objectSchema, questionPaper, stringListSchema, stringSchema } from './ai-output';
 import { ClassTermDto, CopilotQueryDto, GenerateLessonPlanDto, GenerateQuizDto, GenerateRemarksDto, GenerateSchemeOfWorkDto, RiskReviewDto, SaveRemarkDto, ShareLessonToChatDto } from './dto/teacher-ai.dto';
 
-const leaders = ['SCHOOL_OWNER', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'SCHOOL_ADMIN'];
+const leaders = ['SCHOOL_OWNER', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'SCHOOL_ADMIN', 'SUPER_ADMIN'];
 const teacherRoles = ['TEACHER', 'CLASS_TEACHER', 'EXAM_OFFICER'];
 const mean = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.length;
 
@@ -20,8 +20,17 @@ export class TeacherAIService {
     private readonly analytics: PredictiveAnalyticsService) {}
 
   private tenant(user: CurrentUserData) {
-    const id = this.tenants.requireTenantContext();
-    if (user.tenantId !== id || ![...leaders, ...teacherRoles].includes(user.role)) throw new ForbiddenException('Teaching workspace access required');
+    let id: string;
+    try {
+      id = this.tenants.requireTenantContext();
+    } catch {
+      id = user.tenantId;
+      if (id && typeof this.tenants.setTenantId === 'function') {
+        this.tenants.setTenantId(id);
+      }
+    }
+    if (user.role !== 'SUPER_ADMIN' && user.tenantId !== id) throw new ForbiddenException('Teaching workspace access required');
+    if (![...leaders, ...teacherRoles].includes(user.role)) throw new ForbiddenException('Teaching workspace access required');
     return id;
   }
   private async assignedClasses(user: CurrentUserData): Promise<string[] | null> {

@@ -25,7 +25,7 @@ export class TeacherAIController {
   @Post('lesson-plan') @Throttle({ default: { limit: 8, ttl: 60000 } }) lessonPlan(@CurrentUser() user: CurrentUserData, @Body() dto: GenerateLessonPlanDto) { return this.service.lessonPlan(user, dto); }
   @Post('scheme-of-work') @Throttle({ default: { limit: 8, ttl: 60000 } }) schemeOfWork(@CurrentUser() user: CurrentUserData, @Body() dto: GenerateSchemeOfWorkDto) { return this.service.schemeOfWork(user, dto); }
   @Post('share-to-chat') @Throttle({ default: { limit: 20, ttl: 60000 } }) shareToChat(@CurrentUser() user: CurrentUserData, @Body() dto: ShareLessonToChatDto) { return this.service.shareToChat(user, dto); }
-  @Post('copilot-query') @Throttle({ default: { limit: 20, ttl: 60000 } }) copilotQuery(@CurrentUser() user: CurrentUserData, @Body() dto: CopilotQueryDto) { return this.service.copilotQuery(user, dto); }
+  @Post('copilot-query') @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.EXAM_OFFICER, UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.DEPUTY_PRINCIPAL, UserRole.SCHOOL_ADMIN, UserRole.SUPER_ADMIN) @Throttle({ default: { limit: 20, ttl: 60000 } }) copilotQuery(@CurrentUser() user: CurrentUserData, @Body() dto: CopilotQueryDto) { return this.service.copilotQuery(user, dto); }
   @Post('risk-review') @Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.DEPUTY_PRINCIPAL, UserRole.SCHOOL_ADMIN)
   @Throttle({ default: { limit: 8, ttl: 60000 } }) risk(@CurrentUser() user: CurrentUserData, @Body() dto: RiskReviewDto) { return this.service.riskReview(user, dto); }
 }
