@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HustlerTech CBC Portal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+  body { background: #0f172a; padding: 20px; display: flex; align-items: center; justify-content: center; height: 900px; width: 1600px; }
+
+  /* Simulated Browser Window */
+  .browser-window { width: 100%; height: 100%; background: #ffffff; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+  .browser-bar { background: #e2e8f0; height: 44px; display: flex; align-items: center; padding: 0 16px; gap: 14px; border-bottom: 1px solid #cbd5e1; }
+  .dots { display: flex; gap: 6px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .url-bar { background: #ffffff; flex: 1; max-width: 650px; height: 28px; border-radius: 6px; display: flex; align-items: center; padding: 0 14px; font-size: 13px; color: #475569; }
+
+  /* App Layout */
+  .app-body { display: flex; flex: 1; overflow: hidden; }
+  .sidebar { width: 240px; background: #0f172a; color: #fff; padding: 24px 18px; }
+  .logo-box { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; }
+  .logo-icon { background: #2563eb; color: #fff; font-weight: 800; font-size: 15px; padding: 5px 9px; border-radius: 8px; }
+  .logo-text { font-size: 20px; font-weight: 800; }
+  .nav-item { padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; }
+  .nav-item.active { background: #2563eb; color: #fff; }
+
+  /* Content */
+  .main-area { flex: 1; padding: 24px 32px; background: #f8fafc; display: flex; flex-direction: column; gap: 20px; overflow: hidden; }
+  .top-row { display: flex; justify-content: space-between; align-items: center; }
+  .top-row h1 { font-size: 24px; font-weight: 800; color: #0f172a; }
+  .btn-primary { background: #2563eb; color: #fff; padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 14px; }
+  .btn-orange { background: #f97316; color: #fff; padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 14px; }
+
+  .filter-bar { background: #ffffff; padding: 16px 20px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; gap: 20px; align-items: center; }
+  .filter-select { padding: 8px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13.5px; font-weight: 600; }
+
+  /* Table */
+  .table-card { background: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; flex: 1; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; color: #64748b; font-weight: 700; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; text-transform: uppercase; background: #f8fafc; }
+  td { padding: 12px 16px; font-size: 13.5px; border-bottom: 1px solid #f1f5f9; color: #1e293b; }
+  
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: #2563eb; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; margin-right: 10px; font-size: 13px; }
+  .status-tag { padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 12px; }
+  .status-tag.present { background: #dcfce7; color: #15803d; }
+  .status-tag.late { background: #fef3c7; color: #b45309; }
+  .status-tag.absent { background: #fee2e2; color: #b91c1c; }
+
+  .cbc-level { padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 12px; color: #fff; display: inline-block; }
+  .cbc-4 { background: #2563eb; }
+  .cbc-3 { background: #16a34a; }
+  .cbc-2 { background: #f59e0b; }
+
+  .btn-wa { background: #25d366; color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; border: none; display: inline-flex; align-items: center; gap: 4px; }
+</style>
+</head>
+<body>
+  <div class="browser-window">
+    <div class="browser-bar">
+      <div class="dots">
+        <div class="dot" style="background: #ef4444;"></div>
+        <div class="dot" style="background: #f59e0b;"></div>
+        <div class="dot" style="background: #10b981;"></div>
+      </div>
+      <div class="url-bar">https://hustlertech.co.ke/academics/cbc-assessment</div>
+    </div>
+
+    <div class="app-body">
+      <div class="sidebar">
+        <div class="logo-box">
+          <div class="logo-icon">HT</div>
+          <div class="logo-text">HustlerTech</div>
+        </div>
+        <div class="nav-item">Dashboard</div>
+        <div class="nav-item active">CBC Assessment</div>
+        <div class="nav-item">Smart Attendance</div>
+        <div class="nav-item">Report Cards</div>
+        <div class="nav-item">Settings</div>
+      </div>
+
+      <div class="main-area">
+        <div class="top-row">
+          <h1>Class: Grade 7 Alpha - CBC Competency Assessment & Attendance</h1>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn-primary">Generate CBC Report Card (PDF)</button>
+            <button class="btn-orange">Export Term Summary</button>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div><label style="font-size: 12px; color: #64748b; font-weight: 700; display: block;">DATE</label><input type="text" class="filter-select" value="Wednesday, Term 1"></div>
+          <div><label style="font-size: 12px; color: #64748b; font-weight: 700; display: block;">CLASS</label><select class="filter-select"><option>Grade 7 Alpha</option></select></div>
+          <div><label style="font-size: 12px; color: #64748b; font-weight: 700; display: block;">LEARNING STRAND</label><select class="filter-select"><option>Integrated Science & Tech</option></select></div>
+          <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 13.5px; font-weight: 700; color: #059669;">● Mark All Present Active</span>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Roll No</th>
+                <th>Daily Roll Call</th>
+                <th>CBC Competency Level</th>
+                <th>Teacher Remarks & Strands</th>
+                <th>Parent Notice</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div style="display: flex; align-items: center;"><div class="avatar">LO</div><strong>Liam Onyango</strong></div></td>
+                <td>R101</td>
+                <td><span class="status-tag present">Present</span></td>
+                <td><span class="cbc-level cbc-4">4 Exceeding Expectation</span></td>
+                <td>Active participation in practical lab experiments</td>
+                <td><button class="btn-wa">WhatsApp Notice</button></td>
+              </tr>
+              <tr>
+                <td><div style="display: flex; align-items: center;"><div class="avatar" style="background:#059669;">MA</div><strong>Maria Adhiambo</strong></div></td>
+                <td>R102</td>
+                <td><span class="status-tag present">Present</span></td>
+                <td><span class="cbc-level cbc-3">3 Meeting Expectation</span></td>
+                <td>Consistent grasp of core scientific inquiry</td>
+                <td><button class="btn-wa">WhatsApp Notice</button></td>
+              </tr>
+              <tr>
+                <td><div style="display: flex; align-items: center;"><div class="avatar" style="background:#7c3aed;">NK</div><strong>Noah Kimani</strong></div></td>
+                <td>R103</td>
+                <td><span class="status-tag late">Late (12m)</span></td>
+                <td><span class="cbc-level cbc-3">3 Meeting Expectation</span></td>
+                <td>Completed research project on environmental conservation</td>
+                <td><button class="btn-wa">WhatsApp Notice</button></td>
+              </tr>
+              <tr>
+                <td><div style="display: flex; align-items: center;"><div class="avatar" style="background:#d97706;">CW</div><strong>Chloe Wanjiku</strong></div></td>
+                <td>R104</td>
+                <td><span class="status-tag present">Present</span></td>
+                <td><span class="cbc-level cbc-4">4 Exceeding Expectation</span></td>
+                <td>Outstanding scientific model presentation</td>
+                <td><button class="btn-wa">WhatsApp Notice</button></td>
+              </tr>
+              <tr>
+                <td><div style="display: flex; align-items: center;"><div class="avatar" style="background:#e11d48;">DK</div><strong>David Kioko</strong></div></td>
+                <td>R105</td>
+                <td><span class="status-tag absent">Absent</span></td>
+                <td><span class="cbc-level cbc-2">2 Approaching Expectation</span></td>
+                <td>Requires revision on molecular biology strand</td>
+                <td><button class="btn-wa">WhatsApp Notice</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

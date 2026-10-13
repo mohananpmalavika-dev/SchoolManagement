@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HustlerTech - Executive Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+  body { background: #f1f5f9; display: flex; height: 900px; width: 1600px; overflow: hidden; color: #0f172a; }
+  
+  /* Sidebar */
+  .sidebar { width: 260px; background: #0f172a; color: #fff; padding: 24px 20px; display: flex; flex-direction: column; justify-content: space-between; }
+  .logo-box { display: flex; align-items: center; gap: 12px; margin-bottom: 36px; }
+  .logo-icon { background: #2563eb; color: #fff; font-weight: 800; font-size: 16px; padding: 6px 10px; border-radius: 8px; }
+  .logo-text { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .nav-menu { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; font-size: 15px; font-weight: 600; color: #94a3b8; }
+  .nav-item.active { background: #2563eb; color: #ffffff; }
+  
+  /* Main Content */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { background: #ffffff; height: 70px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; }
+  .school-title { font-size: 18px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px; }
+  .term-badge { background: #ecfdf5; color: #059669; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; }
+  .user-profile { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
+  
+  .content { padding: 28px 32px; flex: 1; display: flex; flex-direction: column; gap: 24px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; }
+  .header-left h1 { font-size: 28px; font-weight: 800; color: #0f172a; }
+  .header-left p { font-size: 14px; color: #64748b; margin-top: 2px; }
+  .action-btn { background: #2563eb; color: #fff; padding: 10px 20px; border-radius: 10px; border: none; font-weight: 700; font-size: 14px; }
+  
+  /* KPI Cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .kpi-card { background: #ffffff; padding: 22px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
+  .kpi-label { font-size: 13.5px; font-weight: 600; color: #64748b; }
+  .kpi-value { font-size: 32px; font-weight: 800; color: #0f172a; margin: 8px 0 4px 0; }
+  .kpi-sub { font-size: 12.5px; color: #059669; font-weight: 700; display: flex; align-items: center; gap: 4px; }
+  
+  /* Split Layout */
+  .dashboard-columns { display: grid; grid-template-columns: 1.4fr 1.6fr; gap: 24px; flex: 1; }
+  .panel { background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 22px; display: flex; flex-direction: column; }
+  .panel-title { font-size: 17px; font-weight: 700; color: #0f172a; margin-bottom: 16px; }
+  
+  /* Chart Simulation */
+  .bar-chart { display: flex; align-items: flex-end; gap: 28px; height: 180px; padding-top: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 12px; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; }
+  .bar { width: 44px; border-radius: 8px 8px 0 0; background: #2563eb; }
+  .bar-label { font-size: 12px; font-weight: 600; color: #64748b; }
+  .bar-amt { font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+  
+  /* Table */
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; color: #64748b; font-weight: 700; padding: 10px 12px; border-bottom: 1px solid #f1f5f9; text-transform: uppercase; }
+  td { padding: 12px; font-size: 13.5px; border-bottom: 1px solid #f8fafc; color: #1e293b; }
+  .pill { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11.5px; font-weight: 700; }
+  .pill.paid { background: #ecfdf5; color: #059669; }
+  .pill.pending { background: #fffbeb; color: #d97706; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div>
+      <div class="logo-box">
+        <div class="logo-icon">HT</div>
+        <div class="logo-text">HustlerTech</div>
+      </div>
+      <ul class="nav-menu">
+        <li class="nav-item active">Dashboard</li>
+        <li class="nav-item">Students & SIS</li>
+        <li class="nav-item">Academics & CBC</li>
+        <li class="nav-item">Smart Attendance</li>
+        <li class="nav-item">Fees & M-Pesa</li>
+        <li class="nav-item">Timetable & Rooms</li>
+        <li class="nav-item">School Transport</li>
+        <li class="nav-item">Reports & Audits</li>
+      </ul>
+    </div>
+    <div style="font-size: 12px; color: #64748b;">HustlerTech ERP v2.4</div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="school-title">
+        <span>HustlerTech Academy (Main Campus)</span>
+        <span class="term-badge">Term 1, 2025</span>
+      </div>
+      <div class="user-profile">
+        <div style="text-align: right;">
+          <div style="font-size: 14px; font-weight: 700;">Josphine Sololo</div>
+          <div style="font-size: 12px; color: #64748b;">School Administrator</div>
+        </div>
+        <div class="avatar">JS</div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="page-header">
+        <div class="header-left">
+          <h1>Executive Admin Dashboard</h1>
+          <p>Real-time institutional metrics across student enrollment, attendance, and M-Pesa collections.</p>
+        </div>
+        <button class="action-btn">+ New Admission</button>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Students Enrolled</div>
+          <div class="kpi-value">1,280</div>
+          <div class="kpi-sub">↑ +14% enrollment this term</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Today's Attendance Rate</div>
+          <div class="kpi-value">96.4%</div>
+          <div class="kpi-sub">1,234 Present / 46 Absent</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Fee Collection (Term 1)</div>
+          <div class="kpi-value" style="color: #2563eb;">KES 8.45M</div>
+          <div class="kpi-sub">84.5% target recovered via M-Pesa</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Active Classes & Streams</div>
+          <div class="kpi-value">32</div>
+          <div class="kpi-sub" style="color: #64748b;">Grade 1 to Grade 8 (CBC)</div>
+        </div>
+      </div>
+
+      <div class="dashboard-columns">
+        <div class="panel">
+          <div class="panel-title">Monthly Fee Collection Trends (KES)</div>
+          <div class="bar-chart">
+            <div class="bar-col">
+              <span class="bar-amt">KES 2.4M</span>
+              <div class="bar" style="height: 100px; background: #93c5fd;"></div>
+              <span class="bar-label">Jan (T1)</span>
+            </div>
+            <div class="bar-col">
+              <span class="bar-amt">KES 3.8M</span>
+              <div class="bar" style="height: 150px; background: #2563eb;"></div>
+              <span class="bar-label">Feb (T1)</span>
+            </div>
+            <div class="bar-col">
+              <span class="bar-amt">KES 2.25M</span>
+              <div class="bar" style="height: 95px; background: #60a5fa;"></div>
+              <span class="bar-label">Mar (T1)</span>
+            </div>
+          </div>
+          <div style="font-size: 13px; color: #64748b; line-height: 1.5; margin-top: auto;">
+            <strong>M-Pesa Auto-Reconciliation:</strong> 99.2% of mobile fees matched instantaneously with invoices without manual ledger entry.
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Recent Fee Payments (Real-Time Lipa Na M-Pesa)</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Class</th>
+                <th>Amount (KES)</th>
+                <th>Payment Mode</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Sarah Cherono</strong></td>
+                <td>Grade 7A</td>
+                <td><strong style="color:#059669;">KES 15,000</strong></td>
+                <td>M-Pesa STK Push</td>
+                <td><span class="pill paid">Paid</span></td>
+              </tr>
+              <tr>
+                <td><strong>David Kimani</strong></td>
+                <td>Grade 5B</td>
+                <td><strong style="color:#059669;">KES 12,500</strong></td>
+                <td>M-Pesa STK Push</td>
+                <td><span class="pill paid">Paid</span></td>
+              </tr>
+              <tr>
+                <td><strong>Brian Ochieng</strong></td>
+                <td>Grade 8Alpha</td>
+                <td><strong style="color:#d97706;">KES 6,500</strong></td>
+                <td>M-Pesa Paybill</td>
+                <td><span class="pill pending">Partial</span></td>
+              </tr>
+              <tr>
+                <td><strong>Faith Wanjiku</strong></td>
+                <td>Grade 6East</td>
+                <td><strong style="color:#059669;">KES 15,000</strong></td>
+                <td>M-Pesa STK Push</td>
+                <td><span class="pill paid">Paid</span></td>
+              </tr>
+              <tr>
+                <td><strong>Mercy Achieng</strong></td>
+                <td>Grade 4Alpha</td>
+                <td><strong style="color:#059669;">KES 10,000</strong></td>
+                <td>Bank Transfer</td>
+                <td><span class="pill paid">Paid</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
