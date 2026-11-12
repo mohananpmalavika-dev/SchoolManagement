@@ -22,8 +22,8 @@ import {
 import type {
   AIQuestionPaper,
   AIRemarkResult,
-  CBCSchemeOfWorkRequest,
-  CBCSchemeOfWorkResponse,
+  SchemeOfWorkRequest,
+  SchemeOfWorkResponse,
   GeneratedRemark,
   LessonPlanResponse,
   RemarksTone,
@@ -197,7 +197,7 @@ function openPrintableWorksheet(paper: AIQuestionPaper, includeAnswerKey: boolea
   win.document.close();
 }
 
-function openPrintableSchemeOfWork(sow: CBCSchemeOfWorkResponse) {
+function openPrintableSchemeOfWork(sow: SchemeOfWorkResponse) {
   const win = window.open('', '_blank');
   if (!win) {
     window.print();
@@ -207,7 +207,7 @@ function openPrintableSchemeOfWork(sow: CBCSchemeOfWorkResponse) {
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>CBC Scheme of Work - ${escapeHtml(sow.title)}</title>
+  <title>Scheme of Work - ${escapeHtml(sow.title)}</title>
   <style>
     @page { size: A4 landscape; margin: 10mm; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; line-height: 1.35; padding: 10px; margin: 0; }
@@ -238,18 +238,18 @@ function openPrintableSchemeOfWork(sow: CBCSchemeOfWorkResponse) {
 </head>
 <body>
   <div class="header">
-    <div class="national-title">REPUBLIC OF KENYA · MINISTRY OF EDUCATION · KICD CBC CURRICULUM</div>
+    <div class="national-title">NEP 2020 · NCERT / CBSE / ICSE / STATE BOARD CURRICULUM</div>
     <div class="school-title">OFFICIAL SCHEME OF WORK</div>
     <div class="sow-title">${escapeHtml(sow.title)}</div>
     <table class="meta-table">
       <tr>
         <td><strong>Learning Area / Subject:</strong> ${escapeHtml(sow.subject)}</td>
-        <td><strong>Grade Level:</strong> ${escapeHtml(sow.gradeLevel)}</td>
-        <td><strong>Strand:</strong> ${escapeHtml(sow.strand)}</td>
+        <td><strong>Class Level:</strong> ${escapeHtml(sow.gradeLevel)}</td>
+        <td><strong>Strand / Unit:</strong> ${escapeHtml(sow.strand)}</td>
       </tr>
       <tr>
         <td><strong>Term & Year:</strong> ${escapeHtml(sow.term)} · ${escapeHtml(sow.academicYear)}</td>
-        <td><strong>Curriculum Standard:</strong> ${escapeHtml(sow.curriculum)} (KICD Compliant)</td>
+        <td><strong>Curriculum Board:</strong> ${escapeHtml(sow.curriculum)} (NEP 2020 Aligned)</td>
         <td><strong>Total Lessons Planned:</strong> ${sow.weeks.length} Lessons</td>
       </tr>
     </table>
@@ -311,7 +311,7 @@ function openPrintableSchemeOfWork(sow: CBCSchemeOfWorkResponse) {
     </tbody>
   </table>
 
-  <h4 style="font-size: 11px; text-transform: uppercase; margin-top: 14px; margin-bottom: 4px;">Assessment Rubrics & Mastery Standards (CBC / KNEC Framework)</h4>
+  <h4 style="font-size: 11px; text-transform: uppercase; margin-top: 14px; margin-bottom: 4px;">Assessment Rubrics & Mastery Standards (NEP 2020 HPC Framework)</h4>
   ${sow.assessmentRubrics.map(r => `
     <table class="rubric-table">
       <thead>
@@ -356,10 +356,10 @@ function openPrintableSchemeOfWork(sow: CBCSchemeOfWorkResponse) {
   win.document.close();
 }
 
-function schemeOfWorkText(sow: CBCSchemeOfWorkResponse): string {
+function schemeOfWorkText(sow: SchemeOfWorkResponse): string {
   return [
-    `REPUBLIC OF KENYA - MINISTRY OF EDUCATION`,
-    `KICD CBC SCHEME OF WORK: ${sow.title}`,
+    `INDIAN SCHOOL CURRICULUM - NEP 2020 / NCERT`,
+    `SCHEME OF WORK: ${sow.title}`,
     `Subject: ${sow.subject} | Grade Level: ${sow.gradeLevel} | Term: ${sow.term} | Year: ${sow.academicYear}`,
     `Curriculum: ${sow.curriculum} | Strand: ${sow.strand}`,
     '='.repeat(80),
@@ -388,7 +388,7 @@ function schemeOfWorkText(sow: CBCSchemeOfWorkResponse): string {
       '-'.repeat(60),
     ]),
     '',
-    'ASSESSMENT RUBRICS (4 LEVELS - KNEC / CBC STANDARD):',
+    'ASSESSMENT RUBRICS (4 LEVELS - NEP HOLISTIC STANDARD):',
     ...sow.assessmentRubrics.flatMap(r => [
       `Criterion: ${r.criterion}`,
       ...r.levels.map(l => `  [${l.level}] (${l.scoreRange}): ${l.descriptor}`),
@@ -433,7 +433,7 @@ function openPrintableLessonPlan(lp: LessonPlanResponse) {
 </head>
 <body>
   <div class="header">
-    <div class="national-tag">KICD CBC STANDARDS · DAILY LESSON PLAN</div>
+    <div class="national-tag">NEP 2020 / NCERT STANDARDS · DAILY LESSON PLAN</div>
     <div class="school-title">AL-AMEEN INTERNATIONAL ACADEMY</div>
     <div class="lp-title">5E INSTRUCTIONAL LESSON PLAN: ${escapeHtml(lp.title)}</div>
     <div class="meta">
@@ -492,7 +492,7 @@ function openPrintableLessonPlan(lp: LessonPlanResponse) {
     </div>
   </div>
 
-  <h3>6. Assessment Rubrics & Criteria (4 Levels - KNEC Standard)</h3>
+  <h3>6. Assessment Rubrics & Criteria (4 Levels - NEP Holistic Standard)</h3>
   ${lp.assessmentRubrics.map(r => `
     <table class="rubric-table" style="margin-bottom: 12px;">
       <thead>
@@ -600,17 +600,17 @@ function lessonPlanText(lp: LessonPlanResponse): string {
   ].join('\n');
 }
 
-const languages: TeachingLanguage[] = ['English', 'Malayalam', 'Swahili'];
+const languages: TeachingLanguage[] = ['English', 'Hindi', 'Malayalam'];
 
 const TONE_PRESETS: { key: RemarksTone; label: string; desc: string }[] = [
-  { key: 'CBC', label: 'CBC Competency-Based', desc: 'Curriculum descriptors (Exceeding, Meeting, Approaching)' },
+  { key: 'NEP_HOLISTIC', label: 'NEP 2020 Holistic', desc: 'Competency descriptors (Exceeding, Meeting, Approaching)' },
   { key: 'HOLISTIC', label: 'Holistic & Balanced', desc: 'Balances academic achievement with social and emotional growth' },
   { key: 'ACADEMIC_RIGOR', label: 'Academic Rigor', desc: 'Detailed subject mastery, exam trends, and target scores' },
   { key: 'GROWTH_MINDSET', label: 'Growth Mindset', desc: 'Encouraging, celebrates effort and perseverance' },
 ];
 
 const SYLLABUS_PRESETS = [
-  { subject: 'Integrated Science', topic: 'Photosynthesis & Plant Respiration' },
+  { subject: 'Science', topic: 'Photosynthesis & Plant Respiration' },
   { subject: 'Mathematics', topic: 'Quadratic Equations & Parabolic Graphs' },
   { subject: 'Chemistry', topic: 'Acids, Bases, Indicators & Salt Formation' },
   { subject: 'Biology', topic: 'Cell Division, Mitosis & Genetic Inheritance' },
@@ -618,14 +618,14 @@ const SYLLABUS_PRESETS = [
   { subject: 'English', topic: 'Argumentative Essay Writing & Persuasive Devices' },
 ];
 
-const CBC_SCHEME_PRESETS = [
-  { subject: 'Integrated Science', strand: 'Living Things and Their Environment', subStrand: 'Plant and Animal Adaptations' },
-  { subject: 'Mathematics', strand: 'Numbers and Operations', subStrand: 'Fractions, Decimals and Percentages' },
-  { subject: 'Social Studies', strand: 'Natural and Built Environment', subStrand: 'Weather Systems and Climate Impact' },
-  { subject: 'Agriculture & Nutrition', strand: 'Conserving Agricultural Environment', subStrand: 'Soil Conservation & Water Harvesting' },
-  { subject: 'Pre-Technical Studies', strand: 'Materials for Production', subStrand: 'Metallic and Non-Metallic Materials' },
-  { subject: 'Creative Arts & Sports', strand: 'Visual Arts and Design', subStrand: 'Drawing and Color Application' },
-  { subject: 'Kiswahili', strand: 'Kusikiliza na Kuzungumza', subStrand: 'Mazingira na Uhifadhi' },
+const SCHEME_PRESETS = [
+  { subject: 'Science', strand: 'Living Things and Their Environment', subStrand: 'Plant and Animal Adaptations' },
+  { subject: 'Mathematics', strand: 'Number Systems and Algebra', subStrand: 'Fractions, Decimals and Percentages' },
+  { subject: 'Social Science', strand: 'Geography & Contemporary India', subStrand: 'Weather Systems and Climate Impact' },
+  { subject: 'Environmental Studies (EVS)', strand: 'Conserving Natural Resources', subStrand: 'Soil Conservation & Water Harvesting' },
+  { subject: 'Computer Science / AI', strand: 'Computational Thinking', subStrand: 'Algorithms, Logic and Data Literacy' },
+  { subject: 'Hindi', strand: 'रचनात्मक लेखन एवं व्याकरण', subStrand: 'अपठित गद्यांश एवं संवाद लेखन' },
+  { subject: 'Malayalam', strand: 'വായനയും ആവിഷ്കാരവും', subStrand: 'പരിസ്ഥിതി സംരക്ഷണവും സാഹിത്യവും' },
 ];
 
 export function TeacherAIStudio() {
@@ -643,7 +643,7 @@ function TeachingTools() {
   const [classId, setClassId] = useState('');
   const [termId, setTermId] = useState('');
   const [language, setLanguage] = useState<TeachingLanguage>('English');
-  const [tone, setTone] = useState<RemarksTone>('CBC');
+  const [tone, setTone] = useState<RemarksTone>('NEP_HOLISTIC');
   const [tab, setTab] = useState<'scheme-of-work' | 'lesson-plan' | 'remarks' | 'quiz'>('scheme-of-work');
   const [selected, setSelected] = useState<string[]>([]);
   const [observations, setObservations] = useState<Record<string, string>>({});
@@ -655,23 +655,23 @@ function TeachingTools() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  // CBC Scheme of Work state
-  const [sowSubject, setSowSubject] = useState('Integrated Science');
+  // Scheme of Work state
+  const [sowSubject, setSowSubject] = useState('Science');
   const [sowStrand, setSowStrand] = useState('Living Things and Their Environment');
   const [sowSubStrand, setSowSubStrand] = useState('Plant and Animal Adaptations');
   const [sowTermNumber, setSowTermNumber] = useState(1);
   const [sowWeeksCount, setSowWeeksCount] = useState(10);
   const [sowLessonsPerWeek, setSowLessonsPerWeek] = useState(4);
-  const [sowCurriculum, setSowCurriculum] = useState<'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT'>('CBC');
-  const [schemeOfWork, setSchemeOfWork] = useState<CBCSchemeOfWorkResponse | null>(null);
+  const [sowCurriculum, setSowCurriculum] = useState<'CBSE' | 'ICSE' | 'STATE_BOARD' | 'NCERT' | 'CAMBRIDGE'>('CBSE');
+  const [schemeOfWork, setSchemeOfWork] = useState<SchemeOfWorkResponse | null>(null);
 
   // Lesson Plan state
-  const [lpSubject, setLpSubject] = useState('Integrated Science');
+  const [lpSubject, setLpSubject] = useState('Science');
   const [lpChapter, setLpChapter] = useState('Photosynthesis & Plant Respiration');
   const [lpStrand, setLpStrand] = useState('Living Things and Their Environment');
   const [lpSubStrand, setLpSubStrand] = useState('Plant Respiration & Photosynthesis');
   const [lpDuration, setLpDuration] = useState(45);
-  const [lpCurriculum, setLpCurriculum] = useState<'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT'>('CBC');
+  const [lpCurriculum, setLpCurriculum] = useState<'CBSE' | 'ICSE' | 'STATE_BOARD' | 'NCERT' | 'CAMBRIDGE'>('CBSE');
   const [lessonPlan, setLessonPlan] = useState<LessonPlanResponse | null>(null);
 
   // Chat sharing state
@@ -909,7 +909,7 @@ function TeachingTools() {
       );
       if (!controller.signal.aborted) {
         setSchemeOfWork(data);
-        setNotice('🎉 Kenyan CBC Scheme of Work successfully created in under 10 seconds! Ready to print PDF or send to chat.');
+        setNotice('🎉 CBSE / NCERT Scheme of Work successfully created in under 10 seconds! Ready to print PDF or send to chat.');
       }
     } catch (err) {
       if (!controller.signal.aborted) setError(messageFor(err));
@@ -1153,7 +1153,7 @@ function TeachingTools() {
                     onClick={() => setTab('scheme-of-work')}
                   >
                     <BookOpen size={16} className="inline mr-2 text-emerald-600" />
-                    🇰🇪 CBC Scheme of Work (KICD)
+                    🇮🇳 CBSE / NCERT Scheme of Work
                   </button>
                   <button
                     className={tab === 'lesson-plan' ? 'selected' : ''}
@@ -1188,7 +1188,7 @@ function TeachingTools() {
                 {tab === 'remarks' && (
                   <Panel
                     title="AI Automated Report Card Remarks Generator"
-                    subtitle="Analyzes marks, attendance, and behavior in 1 click to produce personalized CBC/curriculum feedback for every student."
+                    subtitle="Analyzes marks, attendance, and behavior in 1 click to produce personalized NEP 2020 / board-aligned feedback for every student."
                   >
                     {/* Tone Selector */}
                     <div className="bg-gray-50 border-b border-gray-200 p-4">
@@ -1397,20 +1397,20 @@ function TeachingTools() {
                   </Panel>
                 )}
 
-                {/* TAB 1: CBC SCHEME OF WORK GENERATOR (KICD) */}
+                {/* TAB 1: INDIAN CURRICULUM SCHEME OF WORK GENERATOR */}
                 {tab === 'scheme-of-work' && (
                   <Panel
-                    title="🇰🇪 Kenyan CBC / KICD Scheme of Work Generator"
-                    subtitle="Generate a complete termly Scheme of Work matrix compliant with KICD standards in 10 seconds. Includes Strands, Sub-strands, Specific Learning Outcomes, Key Inquiry Questions, Learning Experiences, Resources, and Assessment Rubrics."
+                    title="🇮🇳 CBSE / ICSE / NCERT Scheme of Work Generator"
+                    subtitle="Generate a complete termly Scheme of Work matrix compliant with NEP 2020 & NCERT standards in 10 seconds. Includes Strands, Sub-strands, Specific Learning Outcomes, Key Inquiry Questions, Learning Experiences, Resources, and Assessment Rubrics."
                   >
                     <div className="panel-body content-stack">
                       {/* Presets */}
                       <div className="bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-100">
                         <span className="text-xs font-semibold text-emerald-950 uppercase tracking-wider block mb-2">
-                          Quick Kenyan CBC Syllabus Presets:
+                          Quick Indian Syllabus Presets:
                         </span>
                         <div className="flex flex-wrap gap-2">
-                          {CBC_SCHEME_PRESETS.map((p, i) => (
+                          {SCHEME_PRESETS.map((p, i) => (
                             <button
                               key={i}
                               type="button"
@@ -1482,7 +1482,7 @@ function TeachingTools() {
                           >
                             <option value={6}>6 Weeks (Short Term)</option>
                             <option value={8}>8 Weeks</option>
-                            <option value={10}>10 Weeks (Standard KICD Term)</option>
+                            <option value={10}>10 Weeks (Standard Term)</option>
                             <option value={12}>12 Weeks (Extended Term)</option>
                           </select>
                         </label>
@@ -1507,10 +1507,11 @@ function TeachingTools() {
                             disabled={busy}
                             onChange={e => setSowCurriculum(e.target.value as any)}
                           >
-                            <option value="CBC">Kenyan CBC (KICD Framework)</option>
-                            <option value="STANDARD">Standard National Curriculum</option>
-                            <option value="CAMBRIDGE">Cambridge Lower Secondary</option>
-                            <option value="NCERT">NCERT / CBSE Framework</option>
+                            <option value="CBSE">CBSE / NCERT Framework</option>
+                            <option value="ICSE">ICSE / CISCE Curriculum</option>
+                            <option value="STATE_BOARD">State Board (SCERT / Kerala)</option>
+                            <option value="NCERT">NCERT NEP 2020 Model</option>
+                            <option value="CAMBRIDGE">Cambridge / IGCSE Framework</option>
                           </select>
                         </label>
                       </div>
@@ -1522,7 +1523,7 @@ function TeachingTools() {
                           leftIcon={<Zap size={16} />}
                           onClick={() => void handleGenerateSchemeOfWork()}
                         >
-                          Generate CBC Scheme of Work in 10s
+                          Generate Scheme of Work in 10s
                         </Button>
                       </div>
 
@@ -1532,7 +1533,7 @@ function TeachingTools() {
                           <div className="flex flex-col md:flex-row items-start justify-between border-b pb-4 gap-4">
                             <div>
                               <span className="text-xs font-bold text-emerald-700 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                REPUBLIC OF KENYA · {schemeOfWork.curriculum} · {schemeOfWork.term} ({schemeOfWork.academicYear})
+                                NEP 2020 · {schemeOfWork.curriculum} · {schemeOfWork.term} ({schemeOfWork.academicYear})
                               </span>
                               <h2 className="text-2xl font-bold text-gray-900 mt-2">{schemeOfWork.title}</h2>
                               <p className="text-sm text-gray-600 mt-0.5">
@@ -1653,7 +1654,7 @@ function TeachingTools() {
                           {/* Assessment Rubrics */}
                           <div>
                             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-2">
-                              📊 CBC / KNEC 4-Level Assessment Rubrics
+                              📊 NEP 2020 Holistic 4-Level Assessment Rubrics
                             </h3>
                             <div className="space-y-3">
                               {schemeOfWork.assessmentRubrics.map((r, rIdx) => (
@@ -1759,10 +1760,11 @@ function TeachingTools() {
                             disabled={busy}
                             onChange={e => setLpCurriculum(e.target.value as any)}
                           >
-                            <option value="CBC">CBC (Competency-Based Curriculum)</option>
-                            <option value="STANDARD">Standard National Curriculum</option>
+                            <option value="CBSE">CBSE / NCERT Curriculum</option>
+                            <option value="ICSE">ICSE / CISCE Curriculum</option>
+                            <option value="STATE_BOARD">State Board (SCERT)</option>
+                            <option value="NCERT">NCERT NEP 2020 Model</option>
                             <option value="CAMBRIDGE">Cambridge / IGCSE Framework</option>
-                            <option value="NCERT">NCERT / CBSE Curriculum</option>
                           </select>
                         </label>
                       </div>

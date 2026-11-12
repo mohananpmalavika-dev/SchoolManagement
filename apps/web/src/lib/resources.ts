@@ -1,4 +1,4 @@
-﻿import type { Column } from '@/components/ResourcePage';
+import type { Column } from '@/components/ResourcePage';
 import type { Field } from '@/components/RecordModal';
 export interface ResourceConfig {title:string;description:string;endpoint:string;columns:Column[];fields?:Field[];editable?:boolean;createAllowed?:boolean;action?:{label:string;path:string}}
 export const schoolResources:Record<string,ResourceConfig>={
@@ -598,8 +598,8 @@ export const schoolResources:Record<string,ResourceConfig>={
         "required": true
       },
       {
-        "key": "county",
-        "label": "County",
+        "key": "state",
+        "label": "State",
         "required": true
       },
       {
@@ -833,7 +833,7 @@ export const schoolResources:Record<string,ResourceConfig>={
       },
       {
         "key": "fee",
-        "label": "Monthly fee (KES)", "required": false, "type": "currency",
+        "label": "Monthly fee (INR)", "required": false, "type": "currency",
         "min": 0,
         "max": 100000000
       }
@@ -1124,7 +1124,7 @@ export const schoolResources:Record<string,ResourceConfig>={
       },
       {
         "key": "amount",
-        "label": "Amount (KES)", "required": true, "type": "currency",
+        "label": "Amount (INR)", "required": true, "type": "currency",
         "min": 1,
         "max": 100000000
       },
@@ -1173,7 +1173,7 @@ export const schoolResources:Record<string,ResourceConfig>={
       },
       {
         "key": "amount",
-        "label": "Amount (KES)", "required": true, "type": "currency",
+        "label": "Amount (INR)", "required": true, "type": "currency",
         "min": 1,
         "max": 100000000
       },
@@ -1182,6 +1182,9 @@ export const schoolResources:Record<string,ResourceConfig>={
         "label": "Payment method",
         "required": true,
         "options": [
+          "RAZORPAY",
+          "UPI",
+          "NET_BANKING",
           "CASH",
           "BANK_TRANSFER",
           "CHEQUE",

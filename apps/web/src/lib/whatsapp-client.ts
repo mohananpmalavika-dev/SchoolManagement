@@ -11,16 +11,18 @@ export interface StudentParentContact {
   id: string;
   admissionNo: string;
   name: string;
-  nameSw?: string;
+  nameHi?: string;
+  nameMl?: string;
   className: string;
   rollNumber: string;
   parentName: string;
-  parentNameSw?: string;
-  phone: string; // Kenyan format: +254 7XX XXX XXX
+  parentNameHi?: string;
+  parentNameMl?: string;
+  phone: string; // Indian format: +91 9XX XXX XXXX
   isAbsentToday: boolean;
   absentReportedTime?: string;
   feeStatus: 'PAID' | 'DUE' | 'OVERDUE';
-  feeAmountKsh: number;
+  feeAmountInr: number;
   pendingInvoiceId?: string;
 }
 
@@ -32,15 +34,16 @@ export interface FeeInvoiceItem {
   className: string;
   parentName: string;
   parentPhone: string;
-  amountKsh: number;
-  currency: 'KES';
+  amountInr: number;
+  currency: 'INR';
   dueDate: string;
   status: 'PENDING' | 'PAID' | 'OVERDUE';
   description: string;
-  descriptionSw: string;
-  mpesaPaybill: string;
-  mpesaAccountNumber: string;
-  mpesaReceiptNumber?: string;
+  descriptionHi?: string;
+  descriptionMl?: string;
+  upiId: string;
+  razorpayOrderId: string;
+  utrNumber?: string;
   paidAt?: string;
   transactionId?: string;
 }
@@ -48,7 +51,8 @@ export interface FeeInvoiceItem {
 export interface SchoolPdfDocument {
   id: string;
   title: string;
-  titleSw: string;
+  titleHi?: string;
+  titleMl?: string;
   type: 'REPORT_CARD' | 'FEE_RECEIPT' | 'CIRCULAR_NOTICE';
   targetClass?: string;
   studentId?: string;
@@ -59,227 +63,244 @@ export interface SchoolPdfDocument {
   downloadUrl: string;
   termOrSession?: string;
   summary: string;
-  summarySw: string;
+  summaryHi?: string;
+  summaryMl?: string;
 }
 
-// Kenyan School Students Dataset (Nairobi, Kenya)
+// Indian School Students Dataset (KPS Kochi, Kerala)
 export const INITIAL_STUDENTS: StudentParentContact[] = [
   {
-    id: 'std-ken-101',
-    admissionNo: 'KPS/2024/0142',
-    name: 'Brian Kipchoge',
-    nameSw: 'Brian Kipchoge',
-    className: 'Grade 8B (JSS)',
+    id: 'std-ind-101',
+    admissionNo: 'KPS/2026/0142',
+    name: 'Aarav Menon',
+    nameHi: 'आरव मेनन',
+    nameMl: 'ആരവ് മേനോൻ',
+    className: 'Class 8B (CBSE)',
     rollNumber: '14',
-    parentName: 'David Kipchoge',
-    parentNameSw: 'David Kipchoge',
-    phone: '+254 712 345 678',
+    parentName: 'Rajesh Menon',
+    parentNameHi: 'राजेश मेनन',
+    parentNameMl: 'രാജേഷ് മേനോൻ',
+    phone: '+91 98470 34567',
     isAbsentToday: true,
     absentReportedTime: '08:15 AM',
     feeStatus: 'DUE',
-    feeAmountKsh: 14850,
-    pendingInvoiceId: 'INV-2024-884',
+    feeAmountInr: 14850,
+    pendingInvoiceId: 'INV-2026-884',
   },
   {
-    id: 'std-ken-102',
-    admissionNo: 'KPS/2024/0089',
-    name: 'Faith Wanjiku',
-    nameSw: 'Faith Wanjiku',
-    className: 'Form 4A (KCSE)',
+    id: 'std-ind-102',
+    admissionNo: 'KPS/2026/0089',
+    name: 'Ananya Sharma',
+    nameHi: 'अनन्या शर्मा',
+    nameMl: 'അനന്യ ശർമ്മ',
+    className: 'Class 10A (CBSE)',
     rollNumber: '06',
-    parentName: 'Grace Wanjiku',
-    parentNameSw: 'Grace Wanjiku',
-    phone: '+254 722 987 654',
+    parentName: 'Ramesh Sharma',
+    parentNameHi: 'रमेश शर्मा',
+    parentNameMl: 'രമേഷ് ശർമ്മ',
+    phone: '+91 98471 98765',
     isAbsentToday: true,
     absentReportedTime: '08:20 AM',
     feeStatus: 'OVERDUE',
-    feeAmountKsh: 8750,
-    pendingInvoiceId: 'INV-2024-791',
+    feeAmountInr: 8750,
+    pendingInvoiceId: 'INV-2026-791',
   },
   {
-    id: 'std-ken-103',
-    admissionNo: 'KPS/2024/0201',
-    name: 'Emmanuel Ochieng',
-    nameSw: 'Emmanuel Ochieng',
-    className: 'Grade 9A (JSS)',
+    id: 'std-ind-103',
+    admissionNo: 'KPS/2026/0201',
+    name: 'Rohan Nambiar',
+    nameHi: 'रोहन नांबियार',
+    nameMl: 'രോഹൻ നമ്പ്യാർ',
+    className: 'Class 9A (CBSE)',
     rollNumber: '21',
-    parentName: 'Peter Ochieng',
-    parentNameSw: 'Peter Ochieng',
-    phone: '+254 733 456 789',
+    parentName: 'Sandeep Nambiar',
+    parentNameHi: 'संदीप नांबियार',
+    parentNameMl: 'സന്ദീപ് നമ്പ്യാർ',
+    phone: '+91 98951 45678',
     isAbsentToday: true,
     absentReportedTime: '08:25 AM',
     feeStatus: 'PAID',
-    feeAmountKsh: 0,
+    feeAmountInr: 0,
   },
   {
-    id: 'std-ken-104',
-    admissionNo: 'KPS/2024/0312',
-    name: 'Mercy Achieng',
-    nameSw: 'Mercy Achieng',
-    className: 'Grade 7B (CBC)',
+    id: 'std-ind-104',
+    admissionNo: 'KPS/2026/0312',
+    name: 'Diya Krishnan',
+    nameHi: 'दीया कृष्णन',
+    nameMl: 'ദിയ കൃഷ്ണൻ',
+    className: 'Class 7B (CBSE)',
     rollNumber: '09',
-    parentName: 'Mary Achieng',
-    parentNameSw: 'Mary Achieng',
-    phone: '+254 745 678 901',
+    parentName: 'Pradeep Krishnan',
+    parentNameHi: 'प्रदीप कृष्णन',
+    parentNameMl: 'പ്രദീപ് കൃഷ്ണൻ',
+    phone: '+91 98472 67890',
     isAbsentToday: false,
     feeStatus: 'DUE',
-    feeAmountKsh: 6200,
-    pendingInvoiceId: 'INV-2024-912',
+    feeAmountInr: 6200,
+    pendingInvoiceId: 'INV-2026-912',
   },
   {
-    id: 'std-ken-105',
-    admissionNo: 'KPS/2024/0055',
-    name: 'Kelvin Mwangi',
-    nameSw: 'Kelvin Mwangi',
-    className: 'Form 3B (KCSE)',
+    id: 'std-ind-105',
+    admissionNo: 'KPS/2026/0055',
+    name: 'Siddharth Nair',
+    nameHi: 'सिद्धार्थ नायर',
+    nameMl: 'സിദ്ധാർത്ഥ് നായർ',
+    className: 'Class 11B (Science)',
     rollNumber: '18',
-    parentName: 'John Mwangi',
-    parentNameSw: 'John Mwangi',
-    phone: '+254 756 789 012',
+    parentName: 'Gopinathan Nair',
+    parentNameHi: 'गोपीनाथन नायर',
+    parentNameMl: 'ഗോപിനാഥൻ നായർ',
+    phone: '+91 94471 78901',
     isAbsentToday: false,
     feeStatus: 'PAID',
-    feeAmountKsh: 0,
+    feeAmountInr: 0,
   },
 ];
 
-// Kenyan School Invoices (Lipa Na M-Pesa Paybill: 174379)
+// Indian School Invoices (Razorpay / NPCI UPI: kryptonfees@icici)
 export const INITIAL_INVOICES: FeeInvoiceItem[] = [
   {
-    id: 'INV-2024-884',
-    invoiceNumber: 'INV-2024-884',
-    studentId: 'std-ken-101',
-    studentName: 'Brian Kipchoge',
-    className: 'Grade 8B (JSS)',
-    parentName: 'David Kipchoge',
-    parentPhone: '+254 712 345 678',
-    amountKsh: 14850,
-    currency: 'KES',
-    dueDate: '2024-10-18',
+    id: 'INV-2026-884',
+    invoiceNumber: 'INV-2026-884',
+    studentId: 'std-ind-101',
+    studentName: 'Aarav Menon',
+    className: 'Class 8B (CBSE)',
+    parentName: 'Rajesh Menon',
+    parentPhone: '+91 98470 34567',
+    amountInr: 14850,
+    currency: 'INR',
+    dueDate: '2026-10-18',
     status: 'PENDING',
-    description: 'Term 2 Tuition Fee & Nairobi West Bus Transport',
-    descriptionSw: 'Ada ya Masomo Muhula wa 2 na Usafiri wa Basi (Nairobi West)',
-    mpesaPaybill: '174379',
-    mpesaAccountNumber: 'INV-2024-884',
+    description: 'Term 1 Tuition Fee & Kakkanad School Bus Transport',
+    descriptionHi: 'प्रथम सत्र शिक्षण शुल्क एवं विद्यालय बस परिवहन शुल्क',
+    upiId: 'kryptonfees@icici',
+    razorpayOrderId: 'order_KPS_2026_884',
   },
   {
-    id: 'INV-2024-791',
-    invoiceNumber: 'INV-2024-791',
-    studentId: 'std-ken-102',
-    studentName: 'Faith Wanjiku',
-    className: 'Form 4A (KCSE)',
-    parentName: 'Grace Wanjiku',
-    parentPhone: '+254 722 987 654',
-    amountKsh: 8750,
-    currency: 'KES',
-    dueDate: '2024-10-05',
+    id: 'INV-2026-791',
+    invoiceNumber: 'INV-2026-791',
+    studentId: 'std-ind-102',
+    studentName: 'Ananya Sharma',
+    className: 'Class 10A (CBSE)',
+    parentName: 'Ramesh Sharma',
+    parentPhone: '+91 98471 98765',
+    amountInr: 8750,
+    currency: 'INR',
+    dueDate: '2026-10-05',
     status: 'OVERDUE',
-    description: 'KNEC KCSE National Examination Fee & Science Lab Kit',
-    descriptionSw: 'Ada ya Mtihani wa Kitaifa wa KCSE na Vifaa vya Maabara ya Sayansi',
-    mpesaPaybill: '174379',
-    mpesaAccountNumber: 'INV-2024-791',
+    description: 'CBSE Class 10 Board Exam Registration & Science Lab Kit',
+    descriptionHi: 'CBSE कक्षा 10 बोर्ड परीक्षा पंजीकरण एवं विज्ञान प्रयोगशाला शुल्क',
+    upiId: 'kryptonfees@icici',
+    razorpayOrderId: 'order_KPS_2026_791',
   },
   {
-    id: 'INV-2024-912',
-    invoiceNumber: 'INV-2024-912',
-    studentId: 'std-ken-104',
-    studentName: 'Mercy Achieng',
-    className: 'Grade 7B (CBC)',
-    parentName: 'Mary Achieng',
-    parentPhone: '+254 745 678 901',
-    amountKsh: 6200,
-    currency: 'KES',
-    dueDate: '2024-10-25',
+    id: 'INV-2026-912',
+    invoiceNumber: 'INV-2026-912',
+    studentId: 'std-ind-104',
+    studentName: 'Diya Krishnan',
+    className: 'Class 7B (CBSE)',
+    parentName: 'Pradeep Krishnan',
+    parentPhone: '+91 98472 67890',
+    amountInr: 6200,
+    currency: 'INR',
+    dueDate: '2026-10-25',
     status: 'PENDING',
-    description: 'Term 2 Junior Secondary CBC Robotics & Smart Classroom Facility',
-    descriptionSw: 'Ada ya Klabu ya Roboti na Madarasa ya Kidijitali ya CBC',
-    mpesaPaybill: '174379',
-    mpesaAccountNumber: 'INV-2024-912',
+    description: 'Term 1 Atal Tinkering Lab Robotics & Smart Classroom Facility',
+    descriptionHi: 'प्रथम सत्र रोबोटिक्स लैब एवं स्मार्ट क्लासरूम सुविधा शुल्क',
+    upiId: 'kryptonfees@icici',
+    razorpayOrderId: 'order_KPS_2026_912',
   },
 ];
 
-// Kenyan School Official PDF Documents
+// Indian School Official PDF Documents
 export const INITIAL_PDF_DOCUMENTS: SchoolPdfDocument[] = [
   {
     id: 'doc-rc-101',
-    title: 'Junior Secondary Assessment Progress Report Card (CBC)',
-    titleSw: 'Ripoti Rasmi ya Maendeleo ya Mtihani (CBC Grade 8)',
+    title: 'CBSE Holistic Progress Report Card (Term 1)',
+    titleHi: 'आधिकारिक प्रगति पत्रक एवं मूल्यांकन रिपोर्ट (CBSE)',
+    titleMl: 'ഔദ്യോഗിക പ്രോഗ്രസ് റിപ്പോർട്ട് കാർഡ് (CBSE)',
     type: 'REPORT_CARD',
-    studentId: 'std-ken-101',
-    studentName: 'Brian Kipchoge (Grade 8B)',
+    studentId: 'std-ind-101',
+    studentName: 'Aarav Menon (Class 8B)',
     fileSizeBytes: 245000,
     pagesCount: 2,
-    publishedDate: '2024-10-10',
-    downloadUrl: '/documents/report-card-brian-kipchoge-term2.pdf',
-    termOrSession: 'Term 2 Mid-Term 2024',
-    summary: 'Total Marks: 462/500 (92.4%), Mean Grade: A, Position: 3rd. Principal remark: Exceeding Expectations in STEM and Kiswahili.',
-    summarySw: 'Jumla ya Alama: 462/500 (92.4%), Daraja: A, Nafasi ya 3. Maoni ya Mkuu wa Shule: Ufaulu wa hali ya juu katika Sayansi na Kiswahili.',
+    publishedDate: '2026-10-10',
+    downloadUrl: '/documents/report-card-aarav-menon-term1.pdf',
+    termOrSession: 'Term 1 Assessment 2026-27',
+    summary: 'Total Marks: 462/500 (92.4%), Grade: A1, Class Rank: 3rd. Principal remark: Outstanding performance in Mathematics, Science, and Languages.',
+    summaryHi: 'कुल अंक: 462/500 (92.4%), ग्रेड: A1, कक्षा स्थान: तीसरा। प्राचार्य टिप्पणी: गणित, विज्ञान और भाषाओं में उत्कृष्ट प्रदर्शन।',
+    summaryMl: 'ആകെ മാർക്ക്: 462/500 (92.4%), ഗ്രേഡ്: A1, ക്ലാസ്സ് റാങ്ക്: 3. പ്രിൻസിപ്പൽ കുറിപ്പ്: ഗണിതത്തിലും ശാസ്ത്രത്തിലും മികച്ച പ്രകടനം.',
   },
   {
     id: 'doc-rec-884',
-    title: 'Official M-Pesa School Fee Tax Receipt & Invoice',
-    titleSw: 'Risiti Rasmi ya Malipo ya Ada Kupitia M-Pesa',
+    title: 'Official UPI / Razorpay School Fee Receipt',
+    titleHi: 'आधिकारिक UPI / Razorpay विद्यालय शुल्क रसीद',
+    titleMl: 'ഔദ്യോഗിക UPI / Razorpay ഫീസ് രസീത്',
     type: 'FEE_RECEIPT',
-    studentId: 'std-ken-101',
-    studentName: 'Brian Kipchoge (Grade 8B)',
+    studentId: 'std-ind-101',
+    studentName: 'Aarav Menon (Class 8B)',
     fileSizeBytes: 182000,
     pagesCount: 1,
-    publishedDate: '2024-10-11',
-    downloadUrl: '/documents/mpesa-receipt-brian-kipchoge-884.pdf',
-    termOrSession: 'Term 2 Fee Receipt',
-    summary: 'Paid KSh 14,850 via Lipa Na M-Pesa (Ref: QKJ8129ABC). Verified by Safaricom Daraja API & KRA Tax Invoice Seal.',
-    summarySw: 'Imelipwa KSh 14,850 kupitia Lipa Na M-Pesa (Ref: QKJ8129ABC). Imethibitishwa na Safaricom Daraja API na KRA.',
+    publishedDate: '2026-10-11',
+    downloadUrl: '/documents/upi-receipt-aarav-menon-884.pdf',
+    termOrSession: 'Term 1 Fee Receipt',
+    summary: 'Paid ₹14,850 via NPCI UPI / Razorpay (UTR: UTR6284910234). Verified by Razorpay Webhook & School Accounts Office.',
+    summaryHi: 'NPCI UPI / Razorpay द्वारा ₹14,850 का भुगतान सफलतापूर्वक प्राप्त (UTR: UTR6284910234)।',
+    summaryMl: 'NPCI UPI / Razorpay വഴി ₹14,850 വിജയകരമായി അടച്ചു (UTR: UTR6284910234).',
   },
   {
     id: 'doc-not-cir-04',
-    title: 'Official Circular: MoE Term 2 Mid-Term Break & Annual Sports Day',
-    titleSw: 'Waraka Rasmi: Mapumziko ya Muhula wa 2 na Siku ya Michezo',
+    title: 'Official Circular: Autumn Break & Annual Sports Meet',
+    titleHi: 'आधिकारिक परिपत्र: शरद अवकाश एवं वार्षिक खेल दिवस',
+    titleMl: 'ഔദ്യോഗിക സർക്കുലർ: ശരത്കാല അവധിയും വാർഷിക കായികമേളയും',
     type: 'CIRCULAR_NOTICE',
-    targetClass: 'All Classes (Grade 1 - Form 4)',
+    targetClass: 'All Classes (Nursery - Class 12)',
     fileSizeBytes: 310000,
     pagesCount: 3,
-    publishedDate: '2024-10-09',
-    downloadUrl: '/documents/school-circular-term2-break-2024.pdf',
-    termOrSession: 'October 2024 Circular',
-    summary: 'Ministry of Education Kenya calendar updates: Half-term break dates, bus schedules, and upcoming inter-county athletics trials at Nyayo Stadium.',
-    summarySw: 'Mwongozo wa Wizara ya Elimu kuhusu likizo fupi ya muhula, ratiba ya mabasi, na mashindano ya riadha uwanja wa Nyayo.',
+    publishedDate: '2026-10-09',
+    downloadUrl: '/documents/school-circular-term1-break-2026.pdf',
+    termOrSession: 'October 2026 Circular',
+    summary: 'CBSE & Kerala school calendar updates: Autumn vacation dates, Kochi bus schedules, and inter-house athletics trials at Maharaja’s Stadium.',
+    summaryHi: 'CBSE एवं विद्यालय कैलेंडर अपडेट: शरद अवकाश की तिथियां, स्कूल बस समय-सारिणी और वार्षिक खेल प्रतियोगिता।',
+    summaryMl: 'സ്കൂൾ കലണ്ടർ അറിയിപ്പ്: അവധി ദിവസങ്ങൾ, ബസ് സമയം, വാർഷിക കായികമേള വിശദാംശങ്ങൾ.',
   },
 ];
 
-// WhatsApp Initial Messages (Swahili & English)
+// WhatsApp Initial Messages (English, Hindi & Malayalam)
 export const INITIAL_MESSAGES: WhatsAppCloudMessage[] = [
   {
     id: 'msg-wa-001',
-    tenantId: 'tenant-kps-kenya',
-    recipientPhone: '+254 712 345 678',
-    parentName: 'David Kipchoge',
-    studentId: 'std-ken-101',
-    studentName: 'Brian Kipchoge',
-    studentClass: 'Grade 8B (JSS)',
+    tenantId: 'tenant-kps-kochi',
+    recipientPhone: '+91 98470 34567',
+    parentName: 'Rajesh Menon',
+    studentId: 'std-ind-101',
+    studentName: 'Aarav Menon',
+    studentClass: 'Class 8B (CBSE)',
     type: 'ABSENCE_ALERT',
-    language: 'sw',
-    headerText: '🔴 Arifa ya Mahudhurio (School Absence Alert)',
+    language: 'ml',
+    headerText: '🔴 സ്കൂൾ ഹാജർ അറിയിപ്പ് (Absence Alert)',
     bodyText:
-      'Hujambo David Kipchoge, \n\nMwanao Brian Kipchoge (Grade 8B, Roll: 14) hajaonekana shuleni leo asubuhi wakati wa mahudhurio ya saa 8:15 AM.\n\nTafadhali thibitisha ikiwa yuko salama nyumbani au ikiwa ni sababu ya kiafya/usafiri.',
-    footerText: 'Krypton Academy Nairobi • Safaricom / Meta Cloud API',
+      'പ്രിയ Rajesh Menon,\n\nനിങ്ങളുടെ മകൻ Aarav Menon (Class 8B, Roll: 14) ഇന്ന് രാവിലെ 8:15 AM-നുള്ള ഹാജർ പരിശോധനയിൽ ക്ലാസ്സിൽ എത്തിയിട്ടില്ലെന്ന് രേഖപ്പെടുത്തിയിട്ടുണ്ട്.\n\nകുട്ടി വീട്ടിൽ സുരക്ഷിതനാണോ എന്നും അവധിയാണെങ്കിൽ കാരണമെന്താണെന്നും ദയവായി അറിയിക്കുക.',
+    footerText: 'Krypton Public School, Kochi • Meta Cloud API',
     buttons: [
       {
         type: 'QUICK_REPLY',
-        text: '🤒 Mtoto ni Mgonjwa (Sick Leave)',
+        text: '🤒 അസുഖം / Sick Leave',
         payload: 'REASON_SICK',
       },
       {
         type: 'QUICK_REPLY',
-        text: '🚌 Kuchelewa kwa Basi (Transport)',
+        text: '🚌 യാത്രാ തടസ്സം / Late',
         payload: 'REASON_TRAVEL',
       },
       {
         type: 'PHONE_NUMBER',
-        text: '📞 Piga Simu Shuleni',
-        phoneNumber: '+254712000111',
+        text: '📞 Call School Office',
+        phoneNumber: '+914842350111',
       },
     ],
     attendanceDetails: {
-      date: '2024-10-11',
+      date: '2026-10-11',
       rollNumber: '14',
       reportedTime: '08:15 AM',
       parentAcknowledged: false,
@@ -292,40 +313,40 @@ export const INITIAL_MESSAGES: WhatsAppCloudMessage[] = [
   },
   {
     id: 'msg-wa-002',
-    tenantId: 'tenant-kps-kenya',
-    recipientPhone: '+254 722 987 654',
-    parentName: 'Grace Wanjiku',
-    studentId: 'std-ken-102',
-    studentName: 'Faith Wanjiku',
-    studentClass: 'Form 4A (KCSE)',
+    tenantId: 'tenant-kps-kochi',
+    recipientPhone: '+91 98471 98765',
+    parentName: 'Ramesh Sharma',
+    studentId: 'std-ind-102',
+    studentName: 'Ananya Sharma',
+    studentClass: 'Class 10A (CBSE)',
     type: 'FEE_PAYMENT_LINK',
-    language: 'sw',
-    headerText: '💳 Kikumbusho cha Ada ya Shule (Lipa Na M-Pesa)',
+    language: 'hi',
+    headerText: '💳 विद्यालय शुल्क अनुस्मारक (UPI / Razorpay)',
     bodyText:
-      'Mpendwa Grace Wanjiku, \n\nAda ya shule kwa mwanafunzi Faith Wanjiku (Form 4A) imepita tarehe ya malipo:\n\n• Ankara: INV-2024-791\n• Kiasi: KSh 8,750\n• M-Pesa Paybill: 174379\n• Nambari ya Akaunti: INV-2024-791\n\nBofya kitufe cha M-Pesa hapa chini ili upokee arifa ya STK Push moja kwa moja kwenye simu yako na ulipe kwa sekunde chache.',
-    footerText: 'Safaricom Daraja M-Pesa Gateway • Krypton Academy',
+      'प्रिय Ramesh Sharma,\n\nविद्यार्थी Ananya Sharma (Class 10A) का विद्यालय शुल्क लंबित है:\n\n• चालान: INV-2026-791\n• राशि: ₹8,750\n• UPI ID: kryptonfees@icici\n• ऑर्डर ID: order_KPS_2026_791\n\nनीचे दिए गए बटन पर क्लिक करें और Google Pay, PhonePe, Paytm या BHIM UPI से तुरंत भुगतान करें।',
+    footerText: 'Razorpay & NPCI UPI Gateway • Krypton Public School',
     paymentDetails: {
-      invoiceId: 'INV-2024-791',
-      invoiceNumber: 'INV-2024-791',
+      invoiceId: 'INV-2026-791',
+      invoiceNumber: 'INV-2026-791',
       amount: 8750,
-      currency: 'KES',
-      dueDate: '2024-10-05',
-      paymentUrl: 'https://pay.kryptonschool.co.ke/inv/791',
-      mpesaPaybill: '174379',
-      mpesaAccountNumber: 'INV-2024-791',
-      paymentMethod: 'MPESA_STK',
+      currency: 'INR',
+      dueDate: '2026-10-05',
+      paymentUrl: 'https://pay.kryptonschool.edu.in/inv/791',
+      upiId: 'kryptonfees@icici',
+      razorpayOrderId: 'order_KPS_2026_791',
+      paymentMethod: 'UPI',
       status: 'OVERDUE',
     },
     buttons: [
       {
         type: 'URL',
-        text: '⚡ Lipa KSh 8,750 via M-Pesa (STK Push)',
-        url: 'https://pay.kryptonschool.co.ke/mpesa/pay/791',
+        text: '⚡ Pay ₹8,750 via UPI / Razorpay',
+        url: 'https://pay.kryptonschool.edu.in/upi/pay/791',
       },
       {
         type: 'URL',
-        text: '📄 Tazama Mchanganuo wa Ada',
-        url: 'https://pay.kryptonschool.co.ke/inv/791',
+        text: '📄 View Fee Breakdown',
+        url: 'https://pay.kryptonschool.edu.in/inv/791',
       },
     ],
     status: 'READ',
@@ -336,43 +357,43 @@ export const INITIAL_MESSAGES: WhatsAppCloudMessage[] = [
   },
   {
     id: 'msg-wa-003',
-    tenantId: 'tenant-kps-kenya',
-    recipientPhone: '+254 712 345 678',
-    parentName: 'David Kipchoge',
-    studentId: 'std-ken-101',
-    studentName: 'Brian Kipchoge',
-    studentClass: 'Grade 8B (JSS)',
+    tenantId: 'tenant-kps-kochi',
+    recipientPhone: '+91 98470 34567',
+    parentName: 'Rajesh Menon',
+    studentId: 'std-ind-101',
+    studentName: 'Aarav Menon',
+    studentClass: 'Class 8B (CBSE)',
     type: 'REPORT_CARD_PDF',
-    language: 'sw',
-    headerText: '🎓 Kadi ya Ripoti ya Mtihani (Official PDF)',
+    language: 'en',
+    headerText: '🎓 Official Progress Report Card (PDF)',
     bodyText:
-      'Hujambo David Kipchoge,\n\nKadi rasmi ya ripoti ya mtihani wa muhula wa pili (Grade 8 CBC) kwa Brian Kipchoge imeambatishwa hapa.\n\n📊 Alama: 462/500 (92.4% - Daraja A)\n🏆 Nafasi: Ya 3 Darasani\n\nPakua PDF hapa chini na uhifadhi.',
+      'Dear Rajesh Menon,\n\nThe official CBSE Term 1 Progress Report Card for Aarav Menon (Class 8B) is attached below.\n\n📊 Score: 462/500 (92.4% - Grade A1)\n🏆 Class Rank: 3rd\n\nDownload and save the verified PDF directly here on WhatsApp.',
     attachment: {
       type: 'DOCUMENT',
-      filename: 'Report_Card_Brian_Kipchoge_Term2.pdf',
+      filename: 'Report_Card_Aarav_Menon_Term1.pdf',
       mimeType: 'application/pdf',
       fileSizeBytes: 245000,
-      url: '/documents/report-card-brian-kipchoge-term2.pdf',
-      caption: 'Ripoti Rasmi ya Maendeleo ya Mtihani 2024',
+      url: '/documents/report-card-aarav-menon-term1.pdf',
+      caption: 'CBSE Term 1 Holistic Progress Report 2026-27',
     },
     pdfDetails: {
       documentId: 'doc-rc-101',
-      documentTitle: 'Junior Secondary Assessment Progress Report Card (CBC)',
+      documentTitle: 'CBSE Holistic Progress Report Card (Term 1)',
       documentType: 'REPORT_CARD',
-      termOrPeriod: 'Term 2 Mid-Term 2024',
-      downloadUrl: '/documents/report-card-brian-kipchoge-term2.pdf',
+      termOrPeriod: 'Term 1 Assessment 2026-27',
+      downloadUrl: '/documents/report-card-aarav-menon-term1.pdf',
       pagesCount: 2,
     },
-    footerText: 'Imethibitishwa na Mkuu wa Shule • Krypton Academy Nairobi',
+    footerText: 'Signed by Principal • Krypton Public School, Kochi',
     buttons: [
       {
         type: 'URL',
-        text: '📥 Pakua Ripoti ya PDF (245 KB)',
-        url: '/documents/report-card-brian-kipchoge-term2.pdf',
+        text: '📥 Download Report PDF (245 KB)',
+        url: '/documents/report-card-aarav-menon-term1.pdf',
       },
       {
         type: 'QUICK_REPLY',
-        text: '👍 Nimeona / Acknowledged',
+        text: '👍 Acknowledged',
         payload: 'ACK_REPORT_CARD',
       },
     ],
@@ -390,16 +411,16 @@ class WhatsAppClientStore {
   private invoices: FeeInvoiceItem[] = [...INITIAL_INVOICES];
   private pdfDocuments: SchoolPdfDocument[] = [...INITIAL_PDF_DOCUMENTS];
   private config: WhatsAppAutomationConfig = {
-    wabaId: 'WABA_254700889900',
-    phoneNumberId: 'PNID_254712000111',
-    displayPhoneNumber: '+254 712 000 111',
-    businessName: 'Krypton Academy Nairobi (Official)',
+    wabaId: 'WABA_919847000111',
+    phoneNumberId: 'PNID_919847000111',
+    displayPhoneNumber: '+91 98470 00111',
+    businessName: 'Krypton Public School, Kochi (Official)',
     apiTokenConfigured: true,
     webhookVerified: true,
     morningAbsenceTriggerTime: '08:30 AM',
     autoFeeReminderDaysBeforeDue: 3,
     autoPdfDeliveryEnabled: true,
-    defaultLanguage: 'sw',
+    defaultLanguage: 'en',
   };
 
   getMessages(): WhatsAppCloudMessage[] {
@@ -434,7 +455,7 @@ class WhatsAppClientStore {
     const openRatePercentage = totalDelivered > 0 ? Number(((totalRead / totalDelivered) * 100).toFixed(1)) : 98.6;
 
     const paidInvoices = this.invoices.filter((i) => i.status === 'PAID');
-    const paymentCollected = paidInvoices.reduce((acc, curr) => acc + curr.amountKsh, 0);
+    const paymentCollected = paidInvoices.reduce((acc, curr) => acc + curr.amountInr, 0);
 
     return {
       totalSentToday: totalSent + 185,
@@ -442,35 +463,35 @@ class WhatsAppClientStore {
       totalRead: totalRead + 180,
       openRatePercentage: 98.9,
       paymentConversionsCount: paidInvoices.length + 42,
-      paymentCollectedAmount: paymentCollected + 420000, // in KSh
+      paymentCollectedAmount: paymentCollected + 420000, // in INR
       pdfDownloadsCount: 215,
       avgReadTimeMinutes: 2.4,
     };
   }
 
-  // Feature 1: Trigger Absentee Notifications (Kenya Context)
-  sendAbsenteeAlert(studentId: string, language: WhatsAppLanguage = 'sw'): WhatsAppCloudMessage {
+  // Feature 1: Trigger Absentee Notifications (India Context)
+  sendAbsenteeAlert(studentId: string, language: WhatsAppLanguage = 'en'): WhatsAppCloudMessage {
     const student = this.students.find((s) => s.id === studentId);
     if (!student) {
       throw new Error(`Student ${studentId} not found`);
     }
 
-    const isSw = language === 'sw';
+    const isHi = language === 'hi';
     const isMl = language === 'ml';
-    const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const currentTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
     let header = '🔴 School Absence Alert';
-    let bodyText = `Dear Parent (${student.parentName}), \n\nYour child ${student.name} (${student.className}, Roll: ${student.rollNumber}) has been marked ABSENT today during morning roll call at ${currentTime}.\n\nPlease ensure your child is safe. If this is an unexpected absence, please contact the school administration immediately.`;
+    let bodyText = `Dear Parent (${student.parentName}),\n\nYour child ${student.name} (${student.className}, Roll: ${student.rollNumber}) has been marked ABSENT today during morning roll call at ${currentTime}.\n\nPlease ensure your child is safe. If this is an unexpected absence, please contact the school administration immediately.`;
     let sickBtn = '🤒 Sick Leave';
-    let busBtn = '🚗 Transport Delay';
+    let busBtn = '🚌 Transport Delay';
     let callBtn = '📞 Call School Office';
 
-    if (isSw) {
-      header = '🔴 Arifa ya Mahudhurio (Absence Alert)';
-      bodyText = `Mpendwa Mzazi (${student.parentName}), \n\nMwanao ${student.name} (${student.className}, Roll: ${student.rollNumber}) hakuhudhuria shuleni leo asubuhi wakati wa mahudhurio ya saa ${currentTime}.\n\nTafadhali thibitisha ikiwa yuko salama nyumbani au unahitaji usaidizi kutoka kwa uongozi wa shule.`;
-      sickBtn = '🤒 Mtoto ni Mgonjwa (Sick)';
-      busBtn = '🚌 Basi Lilichelewa (Late)';
-      callBtn = '📞 Piga Simu Shuleni';
+    if (isHi) {
+      header = '🔴 विद्यालय उपस्थिति सूचना (Absence Alert)';
+      bodyText = `प्रिय अभिभावक (${student.parentName}),\n\nआपका बच्चा ${student.name} (${student.className}, Roll: ${student.rollNumber}) आज सुबह ${currentTime} बजे की उपस्थिति में अनुपस्थित दर्ज किया गया है।\n\nकृपया बच्चे की सुरक्षा सुनिश्चित करें और अनुपस्थिति का कारण बताएं।`;
+      sickBtn = '🤒 अस्वस्थ / Sick Leave';
+      busBtn = '🚌 बस विलंब / Late';
+      callBtn = '📞 विद्यालय कार्यालय';
     } else if (isMl) {
       header = '🔴 സ്കൂൾ ഹാജർ അറിയിപ്പ് (Absence Alert)';
       bodyText = `പ്രിയ രക്ഷിതാവേ (${student.parentName}), നിങ്ങളുടെ കുട്ടി ${student.name} (${student.className}, Roll: ${student.rollNumber}) ഇന്ന് രാവിലത്തെ ഹാജർ നിലയിൽ എത്തിയിട്ടില്ലെന്ന് രേഖപ്പെടുത്തിയിട്ടുണ്ട്. കുട്ടി സുരക്ഷിതമാണെന്ന് ഉറപ്പുവരുത്തുക.`;
@@ -481,7 +502,7 @@ class WhatsAppClientStore {
 
     const newMsg: WhatsAppCloudMessage = {
       id: `msg-wa-${Date.now()}`,
-      tenantId: 'tenant-kps-kenya',
+      tenantId: 'tenant-kps-kochi',
       recipientPhone: student.phone,
       parentName: student.parentName,
       studentId: student.id,
@@ -491,7 +512,7 @@ class WhatsAppClientStore {
       language,
       headerText: header,
       bodyText,
-      footerText: 'Krypton Academy Nairobi • Safaricom Meta Cloud API',
+      footerText: 'Krypton Public School, Kochi • Meta Cloud API',
       buttons: [
         {
           type: 'QUICK_REPLY',
@@ -506,7 +527,7 @@ class WhatsAppClientStore {
         {
           type: 'PHONE_NUMBER',
           text: callBtn,
-          phoneNumber: '+254712000111',
+          phoneNumber: '+914842350111',
         },
       ],
       attendanceDetails: {
@@ -526,37 +547,37 @@ class WhatsAppClientStore {
     return newMsg;
   }
 
-  // Feature 2: Trigger 1-Click Fee Payment Link (M-Pesa STK Push)
-  sendFeeReminder(invoiceId: string, language: WhatsAppLanguage = 'sw'): WhatsAppCloudMessage {
+  // Feature 2: Trigger 1-Click Fee Payment Link (UPI / Razorpay)
+  sendFeeReminder(invoiceId: string, language: WhatsAppLanguage = 'en'): WhatsAppCloudMessage {
     const invoice = this.invoices.find((i) => i.id === invoiceId);
     if (!invoice) {
       throw new Error(`Invoice ${invoiceId} not found`);
     }
 
-    const isSw = language === 'sw';
+    const isHi = language === 'hi';
     const isMl = language === 'ml';
-    const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const currentTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
-    let header = '💳 School Fee Reminder (Lipa Na M-Pesa)';
-    let bodyText = `Dear ${invoice.parentName}, \n\nFee due reminder for ${invoice.studentName} (${invoice.className}).\n\n• Invoice No: ${invoice.invoiceNumber}\n• Description: ${invoice.description}\n• Amount Due: KSh ${invoice.amountKsh.toLocaleString()}\n• Due Date: ${invoice.dueDate}\n• M-Pesa Paybill: ${invoice.mpesaPaybill}\n• Account No: ${invoice.mpesaAccountNumber}\n\nTap the 1-Click M-Pesa button below to trigger an instant STK PIN prompt directly on your Safaricom line.`;
-    let payBtnText = `⚡ 1-Click Pay KSh ${invoice.amountKsh.toLocaleString()} via M-Pesa`;
+    let header = '💳 School Fee Reminder (UPI / Razorpay)';
+    let bodyText = `Dear ${invoice.parentName},\n\nFee due reminder for ${invoice.studentName} (${invoice.className}).\n\n• Invoice No: ${invoice.invoiceNumber}\n• Description: ${invoice.description}\n• Amount Due: ₹${invoice.amountInr.toLocaleString('en-IN')}\n• Due Date: ${invoice.dueDate}\n• UPI ID: ${invoice.upiId}\n• Order ID: ${invoice.razorpayOrderId}\n\nTap Pay via UPI below to complete payment using Google Pay, PhonePe, Paytm, or BHIM.`;
+    let payBtnText = `⚡ Pay ₹${invoice.amountInr.toLocaleString('en-IN')} via UPI / Razorpay`;
     let viewBtnText = '📄 View Fee Breakdown';
 
-    if (isSw) {
-      header = '💳 Kikumbusho cha Ada (Lipa Na M-Pesa)';
-      bodyText = `Mpendwa ${invoice.parentName}, \n\nKikumbusho cha ada ya shule ya ${invoice.studentName} (${invoice.className}).\n\n• Nambari ya Ankara: ${invoice.invoiceNumber}\n• Maelezo: ${invoice.descriptionSw}\n• Kiasi Kinachodaiwa: KSh ${invoice.amountKsh.toLocaleString()}\n• Tarehe ya Mwisho: ${invoice.dueDate}\n• M-Pesa Paybill: ${invoice.mpesaPaybill}\n• Akaunti: ${invoice.mpesaAccountNumber}\n\nBofya kitufe cha M-Pesa hapa chini kupokea arifa ya papo hapo (STK Push) kwenye simu yako na uweke PIN yako ya M-Pesa kwa urahisi.`;
-      payBtnText = `⚡ Lipa KSh ${invoice.amountKsh.toLocaleString()} via M-Pesa`;
-      viewBtnText = '📄 Tazama Ankara';
+    if (isHi) {
+      header = '💳 विद्यालय शुल्क अनुस्मारक (UPI / Razorpay)';
+      bodyText = `प्रिय ${invoice.parentName},\n\n${invoice.studentName} (${invoice.className}) के विद्यालय शुल्क का विवरण:\n\n• चालान संख्या: ${invoice.invoiceNumber}\n• विवरण: ${invoice.descriptionHi || invoice.description}\n• बकाया राशि: ₹${invoice.amountInr.toLocaleString('en-IN')}\n• अंतिम तिथि: ${invoice.dueDate}\n• UPI ID: ${invoice.upiId}\n\nGoogle Pay, PhonePe या Paytm से तुरंत भुगतान करने के लिए नीचे क्लिक करें।`;
+      payBtnText = `⚡ ₹${invoice.amountInr.toLocaleString('en-IN')} UPI से भुगतान करें`;
+      viewBtnText = '📄 चालान विवरण देखें';
     } else if (isMl) {
-      header = '💳 സ്കൂൾ ഫീ പേയ്‌മെന്റ് റിമൈൻഡർ (M-Pesa)';
-      bodyText = `പ്രിയ ${invoice.parentName}, ${invoice.studentName} (${invoice.className}) യുടെ സ്കൂൾ ഫീസ് KSh ${invoice.amountKsh.toLocaleString()} M-Pesa വഴി അടയ്ക്കാൻ താഴെയുള്ള ബട്ടൺ ക്ലിക്ക് ചെയ്യുക. Paybill: ${invoice.mpesaPaybill}, Acc: ${invoice.mpesaAccountNumber}.`;
-      payBtnText = `⚡ Pay KSh ${invoice.amountKsh.toLocaleString()} via M-Pesa`;
+      header = '💳 സ്കൂൾ ഫീ പേയ്‌മെന്റ് റിമൈൻഡർ (UPI / Razorpay)';
+      bodyText = `പ്രിയ ${invoice.parentName}, ${invoice.studentName} (${invoice.className}) യുടെ സ്കൂൾ ഫീസ് ₹${invoice.amountInr.toLocaleString('en-IN')} UPI / Razorpay വഴി അടയ്ക്കാൻ താഴെയുള്ള ബട്ടൺ ക്ലിക്ക് ചെയ്യുക. UPI: ${invoice.upiId}, Inv: ${invoice.invoiceNumber}.`;
+      payBtnText = `⚡ Pay ₹${invoice.amountInr.toLocaleString('en-IN')} via UPI`;
       viewBtnText = '📄 ഇൻവോയ്സ് വിവരങ്ങൾ';
     }
 
     const newMsg: WhatsAppCloudMessage = {
       id: `msg-wa-${Date.now()}`,
-      tenantId: 'tenant-kps-kenya',
+      tenantId: 'tenant-kps-kochi',
       recipientPhone: invoice.parentPhone,
       parentName: invoice.parentName,
       studentId: invoice.studentId,
@@ -566,29 +587,29 @@ class WhatsAppClientStore {
       language,
       headerText: header,
       bodyText,
-      footerText: 'Safaricom Daraja API • Instant M-Pesa Receipt',
+      footerText: 'Razorpay & NPCI UPI Gateway • Instant Receipt',
       paymentDetails: {
         invoiceId: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
-        amount: invoice.amountKsh,
-        currency: 'KES',
+        amount: invoice.amountInr,
+        currency: 'INR',
         dueDate: invoice.dueDate,
-        paymentUrl: `https://pay.kryptonschool.co.ke/inv/${invoice.invoiceNumber}`,
-        paymentMethod: 'MPESA_STK',
-        mpesaPaybill: invoice.mpesaPaybill,
-        mpesaAccountNumber: invoice.mpesaAccountNumber,
+        paymentUrl: `https://pay.kryptonschool.edu.in/inv/${invoice.invoiceNumber}`,
+        paymentMethod: 'UPI',
+        upiId: invoice.upiId,
+        razorpayOrderId: invoice.razorpayOrderId,
         status: invoice.status,
       },
       buttons: [
         {
           type: 'URL',
           text: payBtnText,
-          url: `https://pay.kryptonschool.co.ke/mpesa/pay/${invoice.invoiceNumber}`,
+          url: `https://pay.kryptonschool.edu.in/upi/pay/${invoice.invoiceNumber}`,
         },
         {
           type: 'URL',
           text: viewBtnText,
-          url: `https://pay.kryptonschool.co.ke/inv/${invoice.invoiceNumber}`,
+          url: `https://pay.kryptonschool.edu.in/inv/${invoice.invoiceNumber}`,
         },
       ],
       status: 'READ',
@@ -602,58 +623,58 @@ class WhatsAppClientStore {
     return newMsg;
   }
 
-  // Feature 3: Digital PDF Delivery (Kenyan Report Card, M-Pesa Receipt, Circular)
-  sendPdfDelivery(documentId: string, language: WhatsAppLanguage = 'sw'): WhatsAppCloudMessage {
+  // Feature 3: Digital PDF Delivery (CBSE Report Card, UPI Receipt, Circular)
+  sendPdfDelivery(documentId: string, language: WhatsAppLanguage = 'en'): WhatsAppCloudMessage {
     const doc = this.pdfDocuments.find((d) => d.id === documentId);
     if (!doc) {
       throw new Error(`Document ${documentId} not found`);
     }
 
-    const isSw = language === 'sw';
+    const isHi = language === 'hi';
     const isMl = language === 'ml';
-    const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const currentTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
     let header = '';
     let bodyText = '';
-    let recipientPhone = '+254 712 345 678';
-    let parentName = 'David Kipchoge';
-    let studentName = 'Brian Kipchoge';
-    let studentClass = 'Grade 8B (JSS)';
-    let studentId = 'std-ken-101';
+    const recipientPhone = '+91 98470 34567';
+    const parentName = 'Rajesh Menon';
+    const studentName = 'Aarav Menon';
+    const studentClass = 'Class 8B (CBSE)';
+    const studentId = 'std-ind-101';
     let msgType: WhatsAppMessageType = 'REPORT_CARD_PDF';
 
     if (doc.type === 'REPORT_CARD') {
       msgType = 'REPORT_CARD_PDF';
-      if (isSw) {
-        header = '🎓 Ripoti Rasmi ya Mtihani (CBC PDF)';
-        bodyText = `Mpendwa ${parentName},\n\nKadi rasmi ya ripoti ya mtihani wa ${studentName} kwa Muhula wa 2 (CBC Assessment) imeambatishwa hapa.\n\n${doc.summarySw}\n\nUnaweza kupakua na kuhifadhi nakala rasmi ya PDF hapa hapa WhatsApp bila kuingia kwenye tovuti.`;
+      if (isHi) {
+        header = '🎓 आधिकारिक प्रगति पत्रक (CBSE PDF)';
+        bodyText = `प्रिय ${parentName},\n\n${studentName} का सत्र-1 प्रगति पत्रक (CBSE Assessment) संलग्न है।\n\n${doc.summaryHi || doc.summary}\n\nआप सीधे WhatsApp से सत्यापित PDF डाउनलोड कर सकते हैं।`;
       } else if (isMl) {
         header = '🎓 പരീക്ഷാ ഫല പ്രോഗ്രസ് കാർഡ് (PDF)';
-        bodyText = `പ്രിയ ${parentName},\n\n${studentName} ന്റെ ഔദ്യോഗിക പരീക്ഷാ ഫലം (PDF) താഴെ നൽകുന്നു.\n\n${doc.summary}`;
+        bodyText = `പ്രിയ ${parentName},\n\n${studentName} ന്റെ ഔദ്യോഗിക പരീക്ഷാ ഫലം (PDF) താഴെ നൽകുന്നു.\n\n${doc.summaryMl || doc.summary}`;
       } else {
-        header = '🎓 Official Assessment Report Card (PDF)';
-        bodyText = `Dear ${parentName},\n\nOfficial Term 2 Progress Report Card for ${studentName} is attached below.\n\n${doc.summary}\n\nYou can download and save the verified signed document directly from WhatsApp.`;
+        header = '🎓 Official Progress Report Card (PDF)';
+        bodyText = `Dear ${parentName},\n\nOfficial Term 1 Progress Report Card for ${studentName} is attached below.\n\n${doc.summary}\n\nYou can download and save the verified signed document directly from WhatsApp.`;
       }
     } else if (doc.type === 'FEE_RECEIPT') {
       msgType = 'FEE_RECEIPT_PDF';
-      if (isSw) {
-        header = '🧾 Risiti Rasmi ya M-Pesa (Verified PDF)';
-        bodyText = `Mpendwa ${parentName},\n\nMalipo ya ada ya ${studentName} kupitia Lipa Na M-Pesa yamepokelewa kikamilifu. Risiti yako rasmi ya PDF yenye stempu ya KRA imeambatishwa.\n\n${doc.summarySw}`;
+      if (isHi) {
+        header = '🧾 आधिकारिक UPI शुल्क रसीद (Verified PDF)';
+        bodyText = `प्रिय ${parentName},\n\n${studentName} का विद्यालय शुल्क भुगतान UPI / Razorpay द्वारा सफलतापूर्वक प्राप्त हो गया है। सत्यापित रसीद संलग्न है।\n\n${doc.summaryHi || doc.summary}`;
       } else if (isMl) {
-        header = '🧾 എം-പെസ ഫീ റെസീപ്റ്റ് (Official PDF)';
-        bodyText = `പ്രിയ ${parentName},\n\n${studentName} ന്റെ M-Pesa ഫീ പേയ്‌മെന്റ് വിജയകരമായി സ്വീകരിച്ചു. ഔദ്യോഗിക രസീത് PDF താഴെ ഡൗൺലോഡ് ചെയ്യാം.\n\n${doc.summary}`;
+        header = '🧾 UPI / Razorpay ഫീ റെസീപ്റ്റ് (Official PDF)';
+        bodyText = `പ്രിയ ${parentName},\n\n${studentName} ന്റെ UPI ഫീ പേയ്‌മെന്റ് വിജയകരമായി സ്വീകരിച്ചു. ഔദ്യോഗിക രസീത് PDF താഴെ ഡൗൺലോഡ് ചെയ്യാം.\n\n${doc.summaryMl || doc.summary}`;
       } else {
-        header = '🧾 Official M-Pesa Fee Receipt (PDF)';
-        bodyText = `Dear ${parentName},\n\nM-Pesa fee payment received successfully for ${studentName}. Your official verified PDF tax receipt is attached.\n\n${doc.summary}`;
+        header = '🧾 Official UPI / Razorpay Fee Receipt (PDF)';
+        bodyText = `Dear ${parentName},\n\nUPI fee payment received successfully for ${studentName}. Your official verified PDF fee receipt is attached.\n\n${doc.summary}`;
       }
     } else {
       msgType = 'SCHOOL_NOTICE_PDF';
-      if (isSw) {
-        header = '📢 Waraka Rasmi wa Shule (Notice PDF)';
-        bodyText = `Mpendwa Mzazi,\n\nTangazo muhimu kutoka kwa uongozi wa shule: ${doc.titleSw}.\n\n${doc.summarySw}\n\nTafadhali pakua na usome waraka kamili ulioambatishwa.`;
+      if (isHi) {
+        header = '📢 आधिकारिक विद्यालय सूचना (Notice PDF)';
+        bodyText = `प्रिय अभिभावक,\n\nविद्यालय प्रशासन की महत्वपूर्ण सूचना: ${doc.titleHi || doc.title}.\n\n${doc.summaryHi || doc.summary}`;
       } else if (isMl) {
         header = '📢 സ്കൂൾ നോട്ടീസ് & സർക്കുലർ (PDF)';
-        bodyText = `പ്രിയ രക്ഷിതാവേ, സ്കൂൾ നോട്ടീസ് താഴെ നൽകുന്നു: ${doc.title}.\n\n${doc.summary}`;
+        bodyText = `പ്രിയ രക്ഷിതാവേ, സ്കൂൾ നോട്ടീസ് താഴെ നൽകുന്നു: ${doc.titleMl || doc.title}.\n\n${doc.summaryMl || doc.summary}`;
       } else {
         header = '📢 Official School Notice (PDF)';
         bodyText = `Dear Parent,\n\nOfficial circular from the School Administration: ${doc.title}.\n\n${doc.summary}\n\nPlease download and review the official notice.`;
@@ -662,7 +683,7 @@ class WhatsAppClientStore {
 
     const newMsg: WhatsAppCloudMessage = {
       id: `msg-wa-${Date.now()}`,
-      tenantId: 'tenant-kps-kenya',
+      tenantId: 'tenant-kps-kochi',
       recipientPhone,
       parentName,
       studentId,
@@ -672,14 +693,14 @@ class WhatsAppClientStore {
       language,
       headerText: header,
       bodyText,
-      footerText: 'Krypton Academy Nairobi • Official Verified PDF',
+      footerText: 'Krypton Public School, Kochi • Official Verified PDF',
       attachment: {
         type: 'DOCUMENT',
         filename: `${doc.title.replace(/\s+/g, '_')}.pdf`,
         mimeType: 'application/pdf',
         fileSizeBytes: doc.fileSizeBytes,
         url: doc.downloadUrl,
-        caption: isSw ? doc.titleSw : doc.title,
+        caption: isHi ? (doc.titleHi || doc.title) : isMl ? (doc.titleMl || doc.title) : doc.title,
       },
       pdfDetails: {
         documentId: doc.id,
@@ -692,12 +713,12 @@ class WhatsAppClientStore {
       buttons: [
         {
           type: 'URL',
-          text: `📥 ${isSw ? 'Pakua PDF' : isMl ? 'Download PDF' : 'Download PDF'} (${(doc.fileSizeBytes / 1024).toFixed(0)} KB)`,
+          text: `📥 ${isHi ? 'PDF डाउनलोड करें' : isMl ? 'Download PDF' : 'Download PDF'} (${(doc.fileSizeBytes / 1024).toFixed(0)} KB)`,
           url: doc.downloadUrl,
         },
         {
           type: 'QUICK_REPLY',
-          text: isSw ? '✅ Nimeona / Sawa' : isMl ? '✅ കണ്ടു / Acknowledged' : '✅ Acknowledged',
+          text: isHi ? '✅ प्राप्त हुआ' : isMl ? '✅ കണ്ടു / Acknowledged' : '✅ Acknowledged',
           payload: 'ACK_PDF',
         },
       ],
@@ -712,7 +733,7 @@ class WhatsAppClientStore {
     return newMsg;
   }
 
-  // Interactive Simulator Action: Parent completes M-Pesa STK push or clicks quick reply
+  // Interactive Simulator Action: Parent completes UPI payment or clicks quick reply
   simulateParentAction(
     messageId: string,
     action: 'LEAVE_REASON' | 'PAY_FEE' | 'ACKNOWLEDGE',
@@ -723,20 +744,20 @@ class WhatsAppClientStore {
       return { success: false, feedbackMessage: 'Message not found' };
     }
 
-    const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const currentTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
     if (action === 'LEAVE_REASON') {
       if (msg.attendanceDetails) {
         msg.attendanceDetails.parentAcknowledged = true;
-        msg.attendanceDetails.reason = payloadValue || 'Ugonjwa / Sick Leave';
+        msg.attendanceDetails.reason = payloadValue || 'Medical / Sick Leave';
         msg.attendanceDetails.acknowledgedAt = currentTime;
       }
       msg.status = 'REPLIED';
 
-      // Auto-reply confirmation from school bot in Swahili/English
+      // Auto-reply confirmation from school bot in Hindi/Malayalam/English
       const followUp: WhatsAppCloudMessage = {
         id: `msg-wa-${Date.now()}`,
-        tenantId: 'tenant-kps-kenya',
+        tenantId: 'tenant-kps-kochi',
         recipientPhone: msg.recipientPhone,
         parentName: msg.parentName,
         studentId: msg.studentId,
@@ -744,12 +765,19 @@ class WhatsAppClientStore {
         studentClass: msg.studentClass,
         type: 'CUSTOM_ANNOUNCEMENT',
         language: msg.language,
-        headerText: msg.language === 'sw' ? '✅ Sababu ya Kutohudhuria Imerekodiwa' : '✅ Leave Reason Acknowledged',
+        headerText:
+          msg.language === 'hi'
+            ? '✅ अनुपस्थिति सूचना दर्ज हो गई है'
+            : msg.language === 'ml'
+            ? '✅ അവധി കാരണം രേഖപ്പെടുത്തി'
+            : '✅ Leave Reason Acknowledged',
         bodyText:
-          msg.language === 'sw'
-            ? `Asante ${msg.parentName}. Taarifa yako kuhusu kutohudhuria kwa ${msg.studentName} ("${payloadValue || 'Mgonjwa'}") imerekodiwa katika sajili ya shule na mwalimu wa darasa amearifiwa.`
+          msg.language === 'hi'
+            ? `धन्यवाद ${msg.parentName}। ${msg.studentName} की अनुपस्थिति का कारण ("${payloadValue || 'चिकित्सा अवकाश'}") विद्यालय रिकॉर्ड में दर्ज कर लिया गया है और कक्षा अध्यापक को सूचित कर दिया गया है।`
+            : msg.language === 'ml'
+            ? `നന്ദി ${msg.parentName}. ${msg.studentName}-ന്റെ അവധി കാരണം ("${payloadValue || 'ചികിത്സാ അവധി'}") സ്കൂൾ രജിസ്റ്ററിൽ രേഖപ്പെടുത്തി ക്ലാസ്സ് ടീച്ചറെ അറിയിച്ചിട്ടുണ്ട്.`
             : `Thank you ${msg.parentName}. The absence reason for ${msg.studentName} ("${payloadValue || 'Medical Leave'}") has been logged into the school portal and the class teacher has been notified.`,
-        footerText: 'Krypton Academy Automated Desk',
+        footerText: 'Krypton Public School Automated Desk',
         status: 'READ',
         sentAt: currentTime,
         deliveredAt: currentTime,
@@ -760,18 +788,19 @@ class WhatsAppClientStore {
 
       return {
         success: true,
-        feedbackMessage: 'Sababu ya kutohudhuria imesasishwa kwenye mfumo wa shule!',
+        feedbackMessage: 'Absence reason updated in school register!',
         followUpMessage: followUp,
       };
     }
 
     if (action === 'PAY_FEE') {
-      const mpesaRef = `QKJ${Math.floor(1000 + Math.random() * 9000)}ABC`;
+      const utrRef = `UTR${Math.floor(100000 + Math.random() * 900000)}`;
       if (msg.paymentDetails) {
         msg.paymentDetails.status = 'PAID';
         msg.paymentDetails.paidAt = currentTime;
-        msg.paymentDetails.transactionId = mpesaRef;
-        msg.paymentDetails.mpesaReceiptNumber = mpesaRef;
+        msg.paymentDetails.transactionId = utrRef;
+        msg.paymentDetails.utrNumber = utrRef;
+        msg.paymentDetails.paymentReceiptNumber = `RCPT-IN-${Math.floor(1000 + Math.random() * 9000)}`;
       }
       msg.status = 'REPLIED';
 
@@ -780,17 +809,17 @@ class WhatsAppClientStore {
       if (inv) {
         inv.status = 'PAID';
         inv.paidAt = currentTime;
-        inv.transactionId = mpesaRef;
-        inv.mpesaReceiptNumber = mpesaRef;
+        inv.transactionId = utrRef;
+        inv.utrNumber = utrRef;
       }
 
-      // Generate & auto-deliver official PDF M-Pesa Receipt
+      // Generate & auto-deliver official PDF UPI Receipt
       const receiptDoc = this.pdfDocuments.find((d) => d.type === 'FEE_RECEIPT') || this.pdfDocuments[1];
       const followUpReceipt = this.sendPdfDelivery(receiptDoc.id, msg.language);
 
       return {
         success: true,
-        feedbackMessage: `Malipo ya KSh ${msg.paymentDetails?.amount.toLocaleString()} kupitia M-Pesa (Ref: ${mpesaRef}) yamekamilika! Risiti ya PDF imetumwa WhatsApp.`,
+        feedbackMessage: `UPI payment of ₹${msg.paymentDetails?.amount.toLocaleString('en-IN')} settled (Ref: ${utrRef})! Verified PDF receipt dispatched on WhatsApp.`,
         followUpMessage: followUpReceipt,
       };
     }
@@ -799,7 +828,7 @@ class WhatsAppClientStore {
       msg.status = 'REPLIED';
       return {
         success: true,
-        feedbackMessage: 'Taarifa imethibitishwa na mzazi.',
+        feedbackMessage: 'Document receipt acknowledged by parent.',
       };
     }
 

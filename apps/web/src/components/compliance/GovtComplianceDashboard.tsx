@@ -39,7 +39,7 @@ export function GovtComplianceDashboard() {
                   {isMalayalam ? 'അക്രഡിറ്റേഷനും കംപ്ലയൻസും' : 'Accreditation & Compliance Engine'}
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 uppercase">
-                  CBSE • State Board • UDISE+ • NEMIS • MOE
+                  CBSE • ICSE • State Board • UDISE+ • APAAR
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
@@ -234,10 +234,10 @@ export function GovtComplianceDashboard() {
                   details: '52 teachers verified with OASIS IDs and background credentials.',
                 },
                 {
-                  board: 'Ministry of Education (MOE / NEMIS)',
-                  rule: 'National UPI Identifier Mandate',
-                  title: 'UPI Tracking & Daily Attendance Summary',
-                  titleMl: 'UPI ട്രാക്കിംഗും പ്രതിദിന ഹാജർ റിപ്പോർട്ടിംഗും',
+                  board: 'UDISE+ & APAAR (Ministry of Education, India)',
+                  rule: 'National APAAR / PEN Identifier Mandate',
+                  title: 'APAAR ID Mapping & Daily Attendance Sync',
+                  titleMl: 'APAAR ഐഡി മാപ്പിംഗും പ്രതിദിന ഹാജർ റിപ്പോർട്ടിംഗും',
                   status: 'COMPLETED',
                   details: 'Daily sync engine active via background scheduler with 99.8% uptime.',
                 },

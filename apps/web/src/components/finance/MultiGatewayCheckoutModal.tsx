@@ -54,7 +54,7 @@ export function MultiGatewayCheckoutModal({
   const [cardExpiry, setCardExpiry] = useState('12/28');
   const [cardCvc, setCardCvc] = useState('888');
   const [upiId, setUpiId] = useState('parent@okhdfcbank');
-  const [mpesaPhone, setMpesaPhone] = useState('+254 712 345678');
+  const [razorpayPhone, setRazorpayPhone] = useState('+91 98470 12345');
   const [selectedBank, setSelectedBank] = useState('State Bank of India');
 
   // Processing & Success State
@@ -86,10 +86,10 @@ export function MultiGatewayCheckoutModal({
     setProcessingStep(`Connecting to ${selectedGateway} secure payment network...`);
 
     try {
-      if (selectedGateway === 'MPESA') {
-        setProcessingStep('Sending STK Push prompt to M-Pesa handset...');
+      if (selectedGateway === 'RAZORPAY') {
+        setProcessingStep('Creating Razorpay order & launching checkout...');
         await new Promise((r) => setTimeout(r, 1200));
-        setProcessingStep('Waiting for M-Pesa PIN authorization...');
+        setProcessingStep('Verifying Razorpay signature & UPI/Card settlement...');
         await new Promise((r) => setTimeout(r, 1000));
       } else if (selectedGateway === 'STRIPE' || selectedGateway === 'CARD') {
         setProcessingStep('Validating 3D-Secure 2.0 Strong Customer Authentication...');
@@ -113,10 +113,10 @@ export function MultiGatewayCheckoutModal({
         payerDetails: {
           payerName,
           email: payerEmail,
-          phone: payerPhone,
+          phone: selectedGateway === 'RAZORPAY' ? razorpayPhone : payerPhone,
           cardNumberMasked: cardNumber,
           upiId,
-          mpesaPhone,
+          razorpayOrderId: selectedGateway === 'RAZORPAY' ? `order_${Date.now()}` : undefined,
         },
       });
 
@@ -465,21 +465,21 @@ export function MultiGatewayCheckoutModal({
                       )}
                     </button>
 
-                    {/* M-PESA */}
+                    {/* RAZORPAY */}
                     <button
                       type="button"
-                      onClick={() => setSelectedGateway('MPESA')}
+                      onClick={() => setSelectedGateway('RAZORPAY')}
                       className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition text-left relative ${
-                        selectedGateway === 'MPESA'
-                          ? 'border-emerald-600 bg-emerald-50/50 text-emerald-900 ring-2 ring-emerald-500/20'
+                        selectedGateway === 'RAZORPAY'
+                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-2 ring-indigo-500/20'
                           : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
-                      <Smartphone className="text-emerald-600" size={24} />
-                      <span className="text-xs font-bold">M-Pesa STK Push</span>
-                      <span className="text-[10px] text-slate-500 text-center">Mobile Money Africa</span>
-                      {selectedGateway === 'MPESA' && (
-                        <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-600" />
+                      <Smartphone className="text-indigo-600" size={24} />
+                      <span className="text-xs font-bold">Razorpay India</span>
+                      <span className="text-[10px] text-slate-500 text-center">UPI, Cards, NetBanking</span>
+                      {selectedGateway === 'RAZORPAY' && (
+                        <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-600" />
                       )}
                     </button>
 
@@ -578,25 +578,25 @@ export function MultiGatewayCheckoutModal({
                     </div>
                   )}
 
-                  {/* M-PESA Gateway Details */}
-                  {selectedGateway === 'MPESA' && (
+                  {/* RAZORPAY Gateway Details */}
+                  {selectedGateway === 'RAZORPAY' && (
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2 p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xs">
+                      <div className="flex items-center gap-2 p-3 bg-indigo-50 text-indigo-800 border border-indigo-200 rounded-lg text-xs">
                         <Smartphone size={18} className="shrink-0" />
                         <p>
-                          Enter your Safaricom M-Pesa mobile number below. You will receive an instant STK Push prompt on your phone to enter your M-Pesa PIN.
+                          Pay securely using Razorpay India (supports UPI Apps, NEFT/RTGS, NetBanking, Debit/Credit Cards, and Wallets).
                         </p>
                       </div>
                       <div>
                         <label className="text-xs font-semibold text-slate-700 block mb-1">
-                          Safaricom Mobile Number
+                          Indian Mobile Number (+91)
                         </label>
                         <input
                           type="text"
-                          value={mpesaPhone}
-                          onChange={(e) => setMpesaPhone(e.target.value)}
-                          placeholder="+254 7XX XXXXXX"
-                          className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                          value={razorpayPhone}
+                          onChange={(e) => setRazorpayPhone(e.target.value)}
+                          placeholder="+91 98470 12345"
+                          className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                         />
                       </div>
                     </div>

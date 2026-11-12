@@ -35,7 +35,7 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
     }
   };
 
-  // Toggle between English and Swahili
+  // Cycle between English, Hindi, and Malayalam
   const toggleLanguage = () => {
     const order: Language[] = ['en', 'hi', 'ml'];
     const next = order[(order.indexOf(language) + 1) % order.length];

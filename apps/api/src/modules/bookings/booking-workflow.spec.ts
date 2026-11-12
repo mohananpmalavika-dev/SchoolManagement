@@ -38,8 +38,8 @@ describe('Saved meeting reservation workflow',()=>{
     expect(await service.getAvailableSlots('teacher-1','2026-10-12')).toEqual([]);
     expect(prisma.teacherAvailability.findMany).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({tenantId:'school-1',dayOfWeek:1})}));
   });
-  it('deduplicates overlapping availability and excludes elapsed times in East Africa time',async()=>{
-    prisma.teacherAvailability.findMany.mockResolvedValue([{startTime:'12:00',endTime:'14:00',slotDuration:30},{startTime:'13:00',endTime:'14:00',slotDuration:30}]);
-    expect(await service.getAvailableSlots('teacher-1','2026-10-11')).toEqual([{startTime:'13:30',endTime:'14:00',duration:30}]);
+  it('deduplicates overlapping availability and excludes elapsed times in India Standard Time',async()=>{
+    prisma.teacherAvailability.findMany.mockResolvedValue([{startTime:'14:30',endTime:'16:30',slotDuration:30},{startTime:'15:30',endTime:'16:30',slotDuration:30}]);
+    expect(await service.getAvailableSlots('teacher-1','2026-10-11')).toEqual([{startTime:'16:00',endTime:'16:30',duration:30}]);
   });
 });

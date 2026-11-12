@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Users, GraduationCap, CreditCard, ClipboardCheck, ArrowUpRight, CalendarDays, BookOpen, School, RefreshCw, MessageSquare, Sparkles, Bot, type LucideIcon } from 'lucide-react';

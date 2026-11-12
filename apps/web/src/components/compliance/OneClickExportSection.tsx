@@ -82,8 +82,8 @@ export function OneClickExportSection({ isMalayalam = false }: OneClickExportSec
             </h2>
             <p className="text-slate-300 text-sm mt-2 leading-relaxed">
               {isMalayalam
-                ? 'CBSE OASIS/LOC, സംസ്ഥാന വിദ്യാഭ്യാസ വകുപ്പ് (സമ്പൂർണ്ണ), UDISE+, NEMIS, MOE പോർട്ടലുകൾ ആവശ്യപ്പെടുന്ന അതേ Excel/CSV മാതൃകയിൽ ഒറ്റ ക്ലിക്കിൽ ഡൗൺലോഡ് ചെയ്യാം. മാനുവൽ എൻട്രി പിഴവുകൾ പൂർണ്ണമായും ഒഴിവാക്കാം.'
-                : 'Directly downloads pre-validated spreadsheets formatted strictly to CBSE, State Department, UDISE+, NEMIS, and Ministry of Education specifications.'}
+                ? 'CBSE OASIS/LOC, ICSE, സംസ്ഥാന വിദ്യാഭ്യാസ വകുപ്പ് (സമ്പൂർണ്ണ), UDISE+, APAAR പോർട്ടലുകൾ ആവശ്യപ്പെടുന്ന അതേ Excel/CSV മാതൃകയിൽ ഒറ്റ ക്ലിക്കിൽ ഡൗൺലോഡ് ചെയ്യാം. മാനുവൽ എൻട്രി പിഴവുകൾ പൂർണ്ണമായും ഒഴിവാക്കാം.'
+                : 'Directly downloads pre-validated spreadsheets formatted strictly to CBSE, ICSE, State Education Department, UDISE+, and APAAR specifications.'}
             </p>
           </div>
 

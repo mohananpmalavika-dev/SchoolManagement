@@ -12,3 +12,4 @@ import { FeesModule } from '../fees/fees.module';
   exports: [PaymentsGatewayService],
 })
 export class PaymentsGatewayModule {}
+

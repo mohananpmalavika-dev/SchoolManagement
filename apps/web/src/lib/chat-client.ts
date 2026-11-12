@@ -87,9 +87,9 @@ class ChatClient {
       myRole: 'MEMBER',
       lastMessage: {
         id: 'msg-2',
-        content: 'All CBC Grade 4 assessment scores have been uploaded for moderation.',
+        content: 'All CBSE Class 4 assessment scores have been uploaded for moderation.',
         createdAt: new Date(Date.now() - 3600000).toISOString(),
-        senderName: 'Mrs. Wanjiku (HOD)',
+        senderName: 'Mrs. Lakshmi Menon (HOD)',
       },
       updatedAt: new Date(Date.now() - 3600000).toISOString(),
     },
@@ -172,7 +172,7 @@ class ChatClient {
         createdAt: new Date(now - 3600000 * 2).toISOString(),
         sender: {
           id: 'user-principal',
-          name: 'Dr. Kamau (Principal)',
+          name: 'Dr. Ramesh Nair (Principal)',
           role: 'PRINCIPAL',
           isMe: false,
         },
@@ -181,7 +181,7 @@ class ChatClient {
       {
         id: 'sample-3',
         channelId,
-        content: 'Noted! The gradebook and CBC rubric reports have been uploaded to the portal.',
+        content: 'Noted! The gradebook and CBSE holistic progress reports have been uploaded to the portal.',
         createdAt: new Date(now - 1800000).toISOString(),
         sender: {
           id: 'user-me',
@@ -256,32 +256,32 @@ class ChatClient {
     return [
       {
         id: 'c-1',
-        name: 'Dr. Kamau (Principal)',
-        email: 'principal@demoacademy.ac.ke',
+        name: 'Dr. Ramesh Nair (Principal)',
+        email: 'principal@kryptonschool.edu.in',
         role: 'PRINCIPAL',
       },
       {
         id: 'c-2',
-        name: 'Mrs. Wanjiku (Deputy Principal)',
-        email: 'deputy@demoacademy.ac.ke',
+        name: 'Mrs. Lakshmi Menon (Vice Principal)',
+        email: 'viceprincipal@kryptonschool.edu.in',
         role: 'DEPUTY_PRINCIPAL',
       },
       {
         id: 'c-3',
-        name: 'Mr. Joseph Kiprop (Senior Teacher)',
-        email: 'joseph.kiprop@demoacademy.ac.ke',
+        name: 'Mr. Rajesh Varma (Senior Teacher)',
+        email: 'rajesh.varma@kryptonschool.edu.in',
         role: 'TEACHER',
       },
       {
         id: 'c-4',
-        name: 'Faith Achieng (Bursar / Accounts)',
-        email: 'accounts@demoacademy.ac.ke',
+        name: 'Meera Krishnan (Accounts Officer)',
+        email: 'accounts@kryptonschool.edu.in',
         role: 'ACCOUNTANT',
       },
       {
         id: 'c-5',
-        name: 'Mary Nduta (Parent Representative)',
-        email: 'mary.nduta@parent.ke',
+        name: 'Smt. Kavitha Pillai (Parent Representative)',
+        email: 'kavitha.pillai@parent.in',
         role: 'PARENT',
       },
     ];

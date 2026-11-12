@@ -37,7 +37,7 @@ export class WhatsAppSettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantService: TenantService,
-  ) {}
+  ) { }
 
   /**
    * Get WhatsApp settings for tenant

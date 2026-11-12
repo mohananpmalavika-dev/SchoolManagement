@@ -17,7 +17,6 @@ import {
 export const SUPPORTED_CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
   INR: { code: 'INR', symbol: '₹', name: 'Indian Rupee', exchangeRateToUSD: 0.012 },
   USD: { code: 'USD', symbol: '$', name: 'US Dollar', exchangeRateToUSD: 1.0 },
-  KES: { code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling', exchangeRateToUSD: 0.0077 },
   EUR: { code: 'EUR', symbol: '€', name: 'Euro', exchangeRateToUSD: 1.08 },
   GBP: { code: 'GBP', symbol: '£', name: 'British Pound', exchangeRateToUSD: 1.29 },
 };
@@ -423,7 +422,8 @@ class FinanceClientService {
       phone?: string;
       cardNumberMasked?: string;
       upiId?: string;
-      mpesaPhone?: string;
+      razorpayOrderId?: string;
+      netBankingBank?: string;
       paypalPayerId?: string;
     };
   }): Promise<{

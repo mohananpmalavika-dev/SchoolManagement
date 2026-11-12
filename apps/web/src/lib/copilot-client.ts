@@ -1,7 +1,7 @@
 import { apiClient } from './api-client';
 import type {
-  CBCSchemeOfWorkRequest,
-  CBCSchemeOfWorkResponse,
+  SchemeOfWorkRequest,
+  SchemeOfWorkResponse,
   ERPCopilotQueryResponse,
   LessonPlanRequest,
   LessonPlanResponse,
@@ -21,8 +21,8 @@ export async function generateLessonPlan(params: LessonPlanRequest, signal?: Abo
   return data;
 }
 
-export async function generateSchemeOfWork(params: CBCSchemeOfWorkRequest, signal?: AbortSignal): Promise<CBCSchemeOfWorkResponse> {
-  const { data } = await apiClient.post<CBCSchemeOfWorkResponse>('/teacher-ai/scheme-of-work', params, {timeout:60000, signal});
+export async function generateSchemeOfWork(params: SchemeOfWorkRequest, signal?: AbortSignal): Promise<SchemeOfWorkResponse> {
+  const { data } = await apiClient.post<SchemeOfWorkResponse>('/teacher-ai/scheme-of-work', params, {timeout:60000, signal});
   return data;
 }
 

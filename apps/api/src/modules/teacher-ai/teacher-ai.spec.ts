@@ -118,7 +118,7 @@ describe('AI teaching scope, evidence and reviewed saves', () => {
     } as any);
     const res = await service.schemeOfWork(user, { classId: id(3), subject: 'Science', strand: 'Living Things' });
     expect(res.curriculum).toBe('CBSE');
-    expect(ai.generate).toHaveBeenCalledWith('scheme_of_work', expect.any(String), expect.objectContaining({ subject: 'Integrated Science', strand: 'Living Things' }), expect.any(Object));
+    expect(ai.generate).toHaveBeenCalledWith('scheme_of_work', expect.any(String), expect.objectContaining({ subject: 'Science', strand: 'Living Things' }), expect.any(Object));
   });
   it('shares lesson plan to class chat channel creating channel if not existing', async () => {
     const { service, prisma } = setup();

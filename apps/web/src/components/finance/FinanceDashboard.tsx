@@ -87,7 +87,7 @@ export function FinanceDashboard() {
               Advanced Institutional Finance & Treasury Engine
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
-              പൂർണ്ണ സാമ്പത്തിക നിയന്ത്രണം: Global Multi-Gateway Checkout (Stripe, M-Pesa, PayPal, UPI) •
+              പൂർണ്ണ സാമ്പത്തിക നിയന്ത്രണം: Multi-Gateway Checkout (Razorpay, NPCI UPI, NetBanking, Cards, Stripe) •
               Automated Dunning & Late Fee Escalation • Scholarship & Sibling Concession Matrix • Staff HRMS & 1-Click Payroll.
             </p>
           </div>
@@ -269,7 +269,7 @@ export function FinanceDashboard() {
                   Active Student Invoices & Payment Ledger
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Click &apos;Pay with Gateway&apos; on any invoice to test international checkout (Stripe, M-Pesa, PayPal, UPI).
+                  Click &apos;Pay with Gateway&apos; on any invoice to test Indian &amp; global checkout (Razorpay, NPCI UPI, NetBanking, Cards, Stripe).
                 </p>
               </div>
               <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full">

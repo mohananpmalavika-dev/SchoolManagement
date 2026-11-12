@@ -233,3 +233,4 @@ export class ResultsDownloadResultDto {
   @ApiPropertyOptional()
   errors?: any[];
 }
+

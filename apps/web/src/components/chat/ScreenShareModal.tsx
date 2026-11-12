@@ -251,14 +251,14 @@ export function ScreenShareModal({
                 {/* Simulated Lesson Content */}
                 <div className="space-y-4">
                   <div className="inline-block px-3 py-1 rounded-full bg-cyan-950 text-cyan-400 text-xs font-bold border border-cyan-800">
-                    Kenya CBC Curriculum · Mathematics Form 1 & 4
+                    CBSE / NCERT Curriculum · Mathematics Class 9 & 10
                   </div>
                   <h2 className="text-2xl font-extrabold text-white">
                     Fractions, Ratios and Percentages in Daily Life
                   </h2>
                   <p className="text-sm text-slate-300 leading-relaxed">
                     When sharing resources in our school cooperative, fractions represent fair division.
-                    Today we explore how 1/4 of our shamba yield converts to 25% distribution.
+                    Today we explore how 1/4 of our school garden yield converts to 25% distribution.
                   </p>
 
                   <div className="grid grid-cols-3 gap-4 pt-4">

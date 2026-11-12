@@ -14,7 +14,7 @@ interface VirtualPTMConferenceRoomProps {
 export function VirtualPTMConferenceRoom({
   initialSlot,
   currentUserRole = 'TEACHER',
-  currentUserName = 'Mr. Joseph Kiprop',
+  currentUserName = 'Mr. Rajesh Varma',
   onLeave,
 }: VirtualPTMConferenceRoomProps) {
   const [slot, setSlot] = useState<PTMSlot>(initialSlot);
@@ -40,7 +40,7 @@ export function VirtualPTMConferenceRoom({
   const [meetingTimer, setMeetingTimer] = useState(0); // seconds in meeting
   const [reactions, setReactions] = useState<{ id: string; emoji: string; x: number }[]>([]);
   const [waitingRoomList, setWaitingRoomList] = useState<Array<{ id: string; name: string; role: string; time: string }>>([
-    { id: 'wait-1', name: 'David Omondi (Parent)', role: 'PARENT', time: 'Just now' }
+    { id: 'wait-1', name: 'Thomas Varghese (Parent)', role: 'PARENT', time: 'Just now' }
   ]);
   const [notificationToast, setNotificationToast] = useState<string | null>(null);
 
@@ -636,7 +636,7 @@ export function VirtualPTMConferenceRoom({
               <div className="h-9 bg-slate-800/90 px-4 flex items-center justify-between text-xs text-slate-300 border-b border-slate-700">
                 <div className="flex items-center space-x-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="font-semibold text-slate-100">Presentation: Grade 7 Term 3 CBC Assessment & Progress Deck</span>
+                  <span className="font-semibold text-slate-100">Presentation: Class 7 Term 1 CBSE Assessment & Progress Deck</span>
                 </div>
                 <span className="text-slate-400 text-xs">Shared by {slot.teacherName} (You)</span>
               </div>
@@ -645,8 +645,8 @@ export function VirtualPTMConferenceRoom({
                 <div className="max-w-3xl w-full bg-slate-900/90 border border-indigo-500/30 rounded-xl p-8 shadow-2xl backdrop-blur-xl">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-slate-100">Krypton Junior Secondary Academy</h2>
-                      <p className="text-sm text-indigo-400 font-medium">CBC Competency-Based Assessment Portfolio: {slot.studentName}</p>
+                      <h2 className="text-2xl font-bold text-slate-100">Krypton Senior Secondary Academy</h2>
+                      <p className="text-sm text-indigo-400 font-medium">NEP 2020 Holistic Assessment Portfolio: {slot.studentName}</p>
                     </div>
                     <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-sm font-semibold border border-emerald-500/30">
                       Overall: 84.5% (Exceeding)
@@ -803,7 +803,7 @@ export function VirtualPTMConferenceRoom({
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 max-w-2xl w-full bg-slate-950/90 backdrop-blur-xl border border-slate-700/80 rounded-2xl p-4 shadow-2xl z-20">
               <div className="flex items-center space-x-2 text-xs font-semibold text-indigo-400 mb-1">
                 <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                <span>Live Transcription (English / Swahili / Malayalam)</span>
+                <span>Live Transcription (English / Hindi / Malayalam)</span>
               </div>
               {activeCaptions.map((cap, i) => (
                 <div key={i} className="text-sm text-slate-200 leading-relaxed">
@@ -1074,9 +1074,9 @@ export function VirtualPTMConferenceRoom({
                 </div>
               </div>
 
-              {/* CBC Core Competency Rating */}
+              {/* NEP 2020 Core Competency Rating */}
               <div className="bg-slate-800/50 p-3.5 rounded-xl border border-slate-700">
-                <h5 className="font-semibold text-slate-300 mb-2">CBC Competencies Assessment</h5>
+                <h5 className="font-semibold text-slate-300 mb-2">NEP Holistic Competencies Assessment</h5>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-slate-850 p-2 rounded-lg border border-slate-750">
                     <div className="text-slate-400 text-[10px]">Communication</div>

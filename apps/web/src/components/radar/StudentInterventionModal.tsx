@@ -144,22 +144,20 @@ export function StudentInterventionModal({
               <button
                 type="button"
                 onClick={() => setLang('ml')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                  lang === 'ml'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${lang === 'ml'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
               >
                 മലയാളം
               </button>
               <button
                 type="button"
                 onClick={() => setLang('en')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                  lang === 'en'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${lang === 'en'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
               >
                 English
               </button>

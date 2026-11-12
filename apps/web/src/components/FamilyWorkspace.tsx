@@ -47,11 +47,11 @@ export function FamilyWorkspace({view='overview'}:{view?:'overview'|'fees'|'atte
     event.preventDefault();if(busy)return;setBusy(true);setPaymentError('');
     try {
       const cents=Math.round(Number(amount)*100);
-      if(!Number.isSafeInteger(cents)||cents<100||cents>invoice.balanceAmount)throw new Error('Enter an amount between KES 1 and the invoice balance.');
-      let normalized=phone.replace(/[\s+]/g,'');if(normalized.startsWith('0'))normalized='254'+normalized.slice(1);
-      if(!/^254[17]\d{8}$/.test(normalized))throw new Error('Enter a valid Kenyan mobile number.');
-      await apiClient.post('/workspace/pay',{invoiceId:invoice.id,amount:cents,phoneNumber:normalized});
-      setInvoice(null);setNotice('Payment request sent. Enter your M-Pesa PIN on your phone. Your balance updates after confirmation; refresh to check.');
+      if(!Number.isSafeInteger(cents)||cents<100||cents>invoice.balanceAmount)throw new Error('Enter an amount between ₹1 and the invoice balance.');
+      let normalized=phone.replace(/[\s+()-]/g,'');if(normalized.startsWith('0'))normalized='91'+normalized.slice(1);else if(/^[6-9]\d{9}$/.test(normalized))normalized='91'+normalized;
+      if(!/^91[6-9]\d{9}$/.test(normalized))throw new Error('Enter a valid 10-digit Indian mobile number.');
+      await apiClient.post('/workspace/pay',{invoiceId:invoice.id,amount:cents,phoneNumber:normalized,gateway:'UPI'});
+      setInvoice(null);setNotice('UPI / Razorpay payment request initiated. Complete authorization in your UPI app; refresh to verify your updated balance.');
     }catch(err){setPaymentError(messageFor(err));}finally{setBusy(false);}
   }
   const titles={overview:'Your family, connected',fees:'Fees & payments',attendance:'Attendance',grades:'Learning progress'};
