@@ -6,8 +6,132 @@ import {
   ParentBusTrackingView,
   StudentTransitStatus,
   RouteDirection,
+  SchoolCampusLocation,
+  CreateRouteRequest,
+  AutoRouteGeneratorRequest,
 } from '@krypton/types';
 import apiClient from './api-client';
+
+export const DEFAULT_SCHOOL_LOCATION: SchoolCampusLocation = {
+  schoolName: 'Krypton Public School',
+  schoolNameMl: 'ക്രിപ്റ്റൺ പബ്ലിക് സ്കൂൾ',
+  address: 'Hill Palace Road, Tripunithura, Kochi',
+  addressMl: 'ഹിൽ പാലസ് റോഡ്, തൃപ്പൂണിത്തുറ, കൊച്ചി',
+  city: 'Kochi',
+  district: 'Ernakulam',
+  state: 'Kerala',
+  pincode: '682301',
+  latitude: 9.9542,
+  longitude: 76.3458,
+  campusGate: 'Main Campus Bus Bay (Gate 2)',
+  morningReportingTime: '08:15 AM',
+  eveningDepartureTime: '03:30 PM',
+};
+
+export const POPULAR_CORRIDOR_PRESETS = [
+  // Kollam District Corridors
+  {
+    id: 'kollam-karunagappally',
+    district: 'Kollam',
+    name: 'Karunagappally - Chavara - Kollam NH 66 Corridor',
+    nameMl: 'കരുനാഗപ്പള്ളി - ചവറ - കൊല്ലം NH 66 റൂട്ട്',
+    origin: { name: 'Karunagappally KSRTC Bus Stand Gate', nameMl: 'കരുനാഗപ്പള്ളി KSRTC ബസ് സ്റ്റാൻഡ്', latitude: 9.0544, longitude: 76.5342 },
+    intermediate: [
+      { name: 'Chavara KMML / Titan Junction', nameMl: 'ചവറ ടൈറ്റാൻ ജംഗ്ഷൻ', latitude: 8.9975, longitude: 76.5389 },
+      { name: 'Neendakara Fishing Harbour Gate', nameMl: 'നീണ്ടകര ഹാർബർ ഗേറ്റ്', latitude: 8.9392, longitude: 76.5412 },
+      { name: 'Sakthikulangara Church Stop', nameMl: 'ശക്തികുളങ്ങര ചർച്ച് സ്റ്റോപ്പ്', latitude: 8.9185, longitude: 76.5518 },
+      { name: 'Ramankulangara Junction', nameMl: 'രാമൻകുളങ്ങര ജംഗ്ഷൻ', latitude: 8.9056, longitude: 76.5784 },
+    ],
+  },
+  {
+    id: 'kottarakkara-kundara',
+    district: 'Kollam',
+    name: 'Kottarakkara - Kundara MC Road Feeder',
+    nameMl: 'കൊട്ടാരക്കര - കുണ്ടറ - കടപ്പാക്കട റൂട്ട്',
+    origin: { name: 'Kottarakkara Pulamon Junction', nameMl: 'കൊട്ടാരക്കര പുലമൺ ജംഗ്ഷൻ', latitude: 8.9987, longitude: 76.7681 },
+    intermediate: [
+      { name: 'Ezhukone Panchayath Stop', nameMl: 'എഴുകോൺ പഞ്ചായത്ത് സ്റ്റോപ്പ്', latitude: 8.9745, longitude: 76.7125 },
+      { name: 'Kundara Hospital Mukku Junction', nameMl: 'കുണ്ടറ ആശുപത്രി മുക്ക്', latitude: 8.9612, longitude: 76.6814 },
+      { name: 'Kilikollur Railway Gate Stop', nameMl: 'കിളികൊല്ലൂർ റെയിൽവേ ഗേറ്റ്', latitude: 8.9085, longitude: 76.6215 },
+      { name: 'Kadappakada Sports Club Junction', nameMl: 'കടപ്പാക്കട ജംഗ്ഷൻ', latitude: 8.8912, longitude: 76.6025 },
+    ],
+  },
+  {
+    id: 'paravur-mayyanad',
+    district: 'Kollam',
+    name: 'Paravur - Mayyanad - Chinnakada Coastal Route',
+    nameMl: 'പരവൂർ - മയ്യനാട് - ചിന്നക്കട തീരദേശ റൂട്ട്',
+    origin: { name: 'Paravur Municipal Town Stand', nameMl: 'പരവൂർ മുൻസിപ്പൽ ബസ് സ്റ്റാൻഡ്', latitude: 8.8124, longitude: 76.6685 },
+    intermediate: [
+      { name: 'Mayyanad Railway Station Gate', nameMl: 'മയ്യനാട് റെയിൽവേ സ്റ്റേഷൻ', latitude: 8.8415, longitude: 76.6452 },
+      { name: 'Eravipuram Snehatheeram Junction', nameMl: 'ഇരവിപുരം സ്നേഹതീരം', latitude: 8.8624, longitude: 76.6218 },
+      { name: 'Pallithottam St. Aloysius Stop', nameMl: 'പള്ളിത്തോട്ടം സെന്റ് അലോഷ്യസ് സ്റ്റോപ്പ്', latitude: 8.8785, longitude: 76.5985 },
+      { name: 'Chinnakada Clock Tower Hub', nameMl: 'ചിന്നക്കട ക്ലോക്ക് ടവർ ഹബ്ബ്', latitude: 8.8895, longitude: 76.5912 },
+    ],
+  },
+  {
+    id: 'anchalummood-perumon',
+    district: 'Kollam',
+    name: 'Perumon - Anchalummood Lake Route',
+    nameMl: 'പെരുമൺ - അഞ്ചാലുംമൂട് - തേവള്ളി റൂട്ട്',
+    origin: { name: 'Perumon Engineering College Gate', nameMl: 'പെരുമൺ എൻജിനീയറിങ് കോളേജ് ഗേറ്റ്', latitude: 8.9712, longitude: 76.6125 },
+    intermediate: [
+      { name: 'Anchalummood Private Bus Stand', nameMl: 'അഞ്ചാലുംമൂട് പ്രൈവറ്റ് ബസ് സ്റ്റാൻഡ്', latitude: 8.9412, longitude: 76.6185 },
+      { name: 'Kadavoor Temple Junction', nameMl: 'കടവൂർ ക്ഷേത്രം ജംഗ്ഷൻ', latitude: 8.9125, longitude: 76.6085 },
+      { name: 'Thevally Palace Road Stop', nameMl: 'തേവള്ളി കൊട്ടാരം റോഡ്', latitude: 8.8985, longitude: 76.5824 },
+    ],
+  },
+
+  // Ernakulam / Kochi District Corridors
+  {
+    id: 'kakkanad-infopark',
+    district: 'Ernakulam',
+    name: 'Infopark & Kakkanad IT Corridor',
+    nameMl: 'ഇൻഫോപാർക്ക് - കാക്കനാട് ഐടി കോറിഡോർ',
+    origin: { name: 'Infopark Phase 2 Gate', nameMl: 'ഇൻഫോപാർക്ക് ഫേസ് 2 ഗേറ്റ്', latitude: 10.0064, longitude: 76.3638 },
+    intermediate: [
+      { name: 'Kakkanad Civil Station Stop', nameMl: 'കാക്കനാട് സിവിൽ സ്റ്റേഷൻ സ്റ്റോപ്പ്', latitude: 10.0159, longitude: 76.3419 },
+      { name: 'Palarivattom Bypass Junction', nameMl: 'പാലാരിവട്ടം ബൈപ്പാസ് ജംഗ്ഷൻ', latitude: 10.0014, longitude: 76.3106 },
+      { name: 'Vyttila Mobility Hub Gate', nameMl: 'വൈറ്റില മൊബിലിറ്റി ഹബ് ഗേറ്റ്', latitude: 9.9679, longitude: 76.3204 },
+    ],
+  },
+  {
+    id: 'aluva-kalamassery',
+    district: 'Ernakulam',
+    name: 'Aluva - Kalamassery Metro Corridor',
+    nameMl: 'ആലുവ - കളമശ്ശേരി മെട്രോ റൂട്ട്',
+    origin: { name: 'Aluva Private Bus Stand Gate', nameMl: 'ആലുവ പ്രൈവറ്റ് ബസ് സ്റ്റാൻഡ്', latitude: 10.1076, longitude: 76.3516 },
+    intermediate: [
+      { name: 'Companypady Metro Station', nameMl: 'കമ്പനിപ്പടി മെട്രോ സ്റ്റേഷൻ', latitude: 10.0658, longitude: 76.3312 },
+      { name: 'Kalamassery Premier Junction', nameMl: 'കളമശ്ശേരി പ്രീമിയർ ജംഗ്ഷൻ', latitude: 10.0489, longitude: 76.3182 },
+      { name: 'Edappally Toll Stop', nameMl: 'ഇടപ്പള്ളി ടോൾ സ്റ്റോപ്പ്', latitude: 10.0315, longitude: 76.3102 },
+    ],
+  },
+  {
+    id: 'edappally-kaloor',
+    district: 'Ernakulam',
+    name: 'Edappally - Kaloor Stadium Corridor',
+    nameMl: 'ഇടപ്പള്ളി - കലൂർ സ്റ്റേഡിയം കോറിഡോർ',
+    origin: { name: 'Edappally Metro Junction', nameMl: 'ഇടപ്പള്ളി മെട്രോ ജംഗ്ഷൻ', latitude: 10.0261, longitude: 76.3087 },
+    intermediate: [
+      { name: 'Palarivattom Pipeline Road', nameMl: 'പാലാരിവട്ടം പൈപ്പ്‌ലൈൻ റോഡ്', latitude: 10.0085, longitude: 76.3055 },
+      { name: 'Kaloor Jawaharlal Nehru Stadium', nameMl: 'കലൂർ ജവഹർലാൽ നെഹ്റു സ്റ്റേഡിയം', latitude: 9.9972, longitude: 76.3019 },
+      { name: 'Kadavanthra South Junction', nameMl: 'കടവന്ത്ര സൗത്ത് ജംഗ്ഷൻ', latitude: 9.9674, longitude: 76.2995 },
+    ],
+  },
+  {
+    id: 'maradu-thoppumpady',
+    district: 'Ernakulam',
+    name: 'Maradu - Thoppumpady Coastal Feeder',
+    nameMl: 'മരട് - തോപ്പുംപടി തീരദേശ റൂട്ട്',
+    origin: { name: 'Thoppumpady BOT Bridge Stop', nameMl: 'തോപ്പുംപടി BOT ബ്രിഡ്ജ്', latitude: 9.9328, longitude: 76.2625 },
+    intermediate: [
+      { name: 'Thevara Ferry Junction', nameMl: 'തേവര ഫെറി ജംഗ്ഷൻ', latitude: 9.9412, longitude: 76.2954 },
+      { name: 'Kundannoor Highway Junction', nameMl: 'കുണ്ടന്നൂർ ഹൈവേ ജംഗ്ഷൻ', latitude: 9.9486, longitude: 76.3168 },
+      { name: 'Maradu Market Bus Bay', nameMl: 'മരട് മാർക്കറ്റ് ബസ് ബേ', latitude: 9.9515, longitude: 76.3312 },
+    ],
+  },
+];
 
 export const DEFAULT_TRANSPORT_ROUTES: TransportRoute[] = [
   {
@@ -292,6 +416,42 @@ export function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lo
 
 // Local storage key for fallback/offline persistence
 const STORAGE_KEY_TRIPS = 'krypton_transport_active_trips';
+const STORAGE_KEY_LOCATION = 'krypton_school_campus_location';
+const STORAGE_KEY_ROUTES = 'krypton_transport_custom_routes';
+
+function getStoredLocation(): SchoolCampusLocation {
+  if (typeof window === 'undefined') return DEFAULT_SCHOOL_LOCATION;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_LOCATION);
+    return raw ? JSON.parse(raw) : DEFAULT_SCHOOL_LOCATION;
+  } catch {
+    return DEFAULT_SCHOOL_LOCATION;
+  }
+}
+
+function saveStoredLocation(loc: SchoolCampusLocation) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY_LOCATION, JSON.stringify(loc));
+  } catch {}
+}
+
+function getStoredRoutes(): TransportRoute[] {
+  if (typeof window === 'undefined') return DEFAULT_TRANSPORT_ROUTES;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_ROUTES);
+    return raw ? JSON.parse(raw) : DEFAULT_TRANSPORT_ROUTES;
+  } catch {
+    return DEFAULT_TRANSPORT_ROUTES;
+  }
+}
+
+function saveStoredRoutes(routes: TransportRoute[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY_ROUTES, JSON.stringify(routes));
+  } catch {}
+}
 
 function getStoredTrips(): Record<string, TransportTrip> {
   if (typeof window === 'undefined') return {};
@@ -316,7 +476,8 @@ export function getInitialActiveTrip(routeId = 'route-01'): TransportTrip {
     return stored[routeId];
   }
 
-  const route = DEFAULT_TRANSPORT_ROUTES.find((r) => r.id === routeId) || DEFAULT_TRANSPORT_ROUTES[0];
+  const routes = getStoredRoutes();
+  const route = routes.find((r) => r.id === routeId) || routes[0] || DEFAULT_TRANSPORT_ROUTES[0];
   const initialTrip: TransportTrip = {
     id: `trip-${route.id}`,
     routeId: route.id,
@@ -347,7 +508,7 @@ export function getInitialActiveTrip(routeId = 'route-01'): TransportTrip {
     boardedCount: 2,
     droppedCount: 0,
     absentCount: 0,
-    waitingCount: 7,
+    waitingCount: Math.max(0, route.students.length - 2),
     students: route.students.map((s, idx) => ({
       ...s,
       transitStatus: idx < 2 ? 'BOARDED' : 'WAITING',
@@ -361,12 +522,306 @@ export function getInitialActiveTrip(routeId = 'route-01'): TransportTrip {
 }
 
 export const transportApi = {
+  getSchoolLocation: async (): Promise<SchoolCampusLocation> => {
+    try {
+      const res = await apiClient.get('/transport/school-location');
+      if (res.data && res.data.latitude) {
+        saveStoredLocation(res.data);
+        return res.data;
+      }
+    } catch {}
+    return getStoredLocation();
+  },
+
+  saveSchoolLocation: async (loc: SchoolCampusLocation): Promise<SchoolCampusLocation> => {
+    try {
+      const res = await apiClient.post('/transport/school-location', loc);
+      if (res.data && res.data.latitude) {
+        saveStoredLocation(res.data);
+        return res.data;
+      }
+    } catch {}
+    saveStoredLocation(loc);
+    return loc;
+  },
+
   getRoutes: async (): Promise<TransportRoute[]> => {
     try {
       const res = await apiClient.get('/transport/routes');
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) return res.data;
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        saveStoredRoutes(res.data);
+        return res.data;
+      }
     } catch {}
-    return DEFAULT_TRANSPORT_ROUTES;
+    return getStoredRoutes();
+  },
+
+  createRoute: async (routeData: CreateRouteRequest): Promise<TransportRoute> => {
+    try {
+      const res = await apiClient.post('/transport/routes', routeData);
+      if (res.data && res.data.id) {
+        const stored = getStoredRoutes();
+        stored.push(res.data);
+        saveStoredRoutes(stored);
+        return res.data;
+      }
+    } catch {}
+
+    const schoolLoc = getStoredLocation();
+    const routeId = `route-${Date.now().toString().slice(-4)}`;
+    const stops: TransportStop[] = routeData.stops.map((s, idx) => ({
+      id: `stop-${routeId}-${idx + 1}`,
+      routeId,
+      name: s.name,
+      nameMl: s.nameMl,
+      sequence: s.sequence || idx + 1,
+      latitude: s.latitude,
+      longitude: s.longitude,
+      scheduledTime: s.scheduledTime || '07:30 AM',
+      studentIds: [],
+      distanceFromSchoolKm: calculateDistanceKm(s.latitude, s.longitude, schoolLoc.latitude, schoolLoc.longitude),
+      estimatedMinutesToSchool: Math.max(3, Math.round(calculateDistanceKm(s.latitude, s.longitude, schoolLoc.latitude, schoolLoc.longitude) * 2.5)),
+    }));
+
+    if (routeData.direction === 'MORNING_PICKUP') {
+      stops.push({
+        id: `stop-${routeId}-campus`,
+        routeId,
+        name: `${schoolLoc.schoolName} (${schoolLoc.city})`,
+        nameMl: `${schoolLoc.schoolNameMl || schoolLoc.schoolName} (${schoolLoc.city})`,
+        sequence: stops.length + 1,
+        latitude: schoolLoc.latitude,
+        longitude: schoolLoc.longitude,
+        scheduledTime: schoolLoc.morningReportingTime,
+        studentIds: [],
+        distanceFromSchoolKm: 0,
+        estimatedMinutesToSchool: 0,
+      });
+    }
+
+    const newRoute: TransportRoute = {
+      id: routeId,
+      name: routeData.name,
+      nameMl: routeData.nameMl,
+      code: routeData.code,
+      vehicleRegistration: routeData.vehicleRegistration,
+      vehicleModel: routeData.vehicleModel,
+      driverName: routeData.driverName,
+      driverPhone: routeData.driverPhone,
+      totalCapacity: routeData.totalCapacity,
+      direction: routeData.direction,
+      stops,
+      students: [],
+    };
+
+    const stored = getStoredRoutes();
+    stored.push(newRoute);
+    saveStoredRoutes(stored);
+    return newRoute;
+  },
+
+  updateRoute: async (id: string, routeData: Partial<CreateRouteRequest>): Promise<TransportRoute> => {
+    try {
+      const res = await apiClient.put(`/transport/routes/${id}`, routeData);
+      if (res.data && res.data.id) {
+        const stored = getStoredRoutes();
+        const idx = stored.findIndex((r) => r.id === id);
+        if (idx !== -1) stored[idx] = res.data;
+        saveStoredRoutes(stored);
+        return res.data;
+      }
+    } catch {}
+
+    const stored = getStoredRoutes();
+    const route = stored.find((r) => r.id === id) || stored[0];
+    if (routeData.name) route.name = routeData.name;
+    if (routeData.nameMl) route.nameMl = routeData.nameMl;
+    if (routeData.code) route.code = routeData.code;
+    if (routeData.vehicleRegistration) route.vehicleRegistration = routeData.vehicleRegistration;
+    if (routeData.vehicleModel) route.vehicleModel = routeData.vehicleModel;
+    if (routeData.driverName) route.driverName = routeData.driverName;
+    if (routeData.driverPhone) route.driverPhone = routeData.driverPhone;
+    if (routeData.totalCapacity) route.totalCapacity = routeData.totalCapacity;
+    if (routeData.direction) route.direction = routeData.direction;
+
+    saveStoredRoutes(stored);
+    return route;
+  },
+
+  deleteRoute: async (id: string): Promise<boolean> => {
+    try {
+      await apiClient.delete(`/transport/routes/${id}`);
+    } catch {}
+    const stored = getStoredRoutes();
+    const filtered = stored.filter((r) => r.id !== id);
+    saveStoredRoutes(filtered);
+    return true;
+  },
+
+  autoGenerateRoute: async (data: AutoRouteGeneratorRequest): Promise<TransportRoute> => {
+    try {
+      const res = await apiClient.post('/transport/routes/auto-generate', data);
+      if (res.data && res.data.id) {
+        const stored = getStoredRoutes();
+        stored.push(res.data);
+        saveStoredRoutes(stored);
+        return res.data;
+      }
+    } catch {}
+
+    const schoolLoc = getStoredLocation();
+    const routeId = `route-${Date.now().toString().slice(-4)}`;
+    const allStops = [data.originStop, ...(data.intermediateStops || [])];
+
+    const stops: TransportStop[] = allStops.map((st, idx) => {
+      const distFromSchool = calculateDistanceKm(st.latitude, st.longitude, schoolLoc.latitude, schoolLoc.longitude);
+      const estMinutes = Math.round(distFromSchool * 2.6 + (allStops.length - idx) * 3);
+      const pickupHour = 8 - Math.floor(estMinutes / 60);
+      const pickupMinute = (60 + 15 - (estMinutes % 60)) % 60;
+      const formattedHour = pickupHour < 10 ? `0${pickupHour}` : `${pickupHour}`;
+      const formattedMin = pickupMinute < 10 ? `0${pickupMinute}` : `${pickupMinute}`;
+
+      return {
+        id: `stop-${routeId}-${idx + 1}`,
+        routeId,
+        name: st.name,
+        nameMl: st.nameMl,
+        sequence: idx + 1,
+        latitude: st.latitude,
+        longitude: st.longitude,
+        scheduledTime: `${formattedHour}:${formattedMin} AM`,
+        studentIds: [],
+        distanceFromSchoolKm: distFromSchool,
+        estimatedMinutesToSchool: estMinutes,
+      };
+    });
+
+    stops.push({
+      id: `stop-${routeId}-campus`,
+      routeId,
+      name: `${schoolLoc.schoolName} (${schoolLoc.city})`,
+      nameMl: `${schoolLoc.schoolNameMl || schoolLoc.schoolName} (${schoolLoc.city})`,
+      sequence: stops.length + 1,
+      latitude: schoolLoc.latitude,
+      longitude: schoolLoc.longitude,
+      scheduledTime: schoolLoc.morningReportingTime,
+      studentIds: [],
+      distanceFromSchoolKm: 0,
+      estimatedMinutesToSchool: 0,
+    });
+
+    const route: TransportRoute = {
+      id: routeId,
+      name: data.name,
+      nameMl: data.nameMl,
+      code: data.code,
+      vehicleRegistration: data.vehicleRegistration,
+      vehicleModel: data.vehicleModel,
+      driverName: data.driverName,
+      driverPhone: data.driverPhone,
+      totalCapacity: data.totalCapacity,
+      direction: data.direction,
+      stops,
+      students: [],
+    };
+
+    const stored = getStoredRoutes();
+    stored.push(route);
+    saveStoredRoutes(stored);
+    return route;
+  },
+
+  searchPlaces: async (
+    query: string,
+    schoolLat?: number,
+    schoolLng?: number
+  ): Promise<Array<{
+    name: string;
+    displayName: string;
+    latitude: number;
+    longitude: number;
+    distanceFromSchoolKm: number;
+    estimatedMinutes: number;
+  }>> => {
+    try {
+      const res = await apiClient.get('/transport/places/search', {
+        params: { q: query, lat: schoolLat, lng: schoolLng },
+      });
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        return res.data;
+      }
+    } catch {}
+
+    // Fallback: direct Nominatim geocoding
+    try {
+      const resp = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=6&countrycodes=in`
+      );
+      if (resp.ok) {
+        const list = (await resp.json()) as any[];
+        if (Array.isArray(list) && list.length > 0) {
+          const lat = schoolLat || DEFAULT_SCHOOL_LOCATION.latitude;
+          const lng = schoolLng || DEFAULT_SCHOOL_LOCATION.longitude;
+          return list.map((item) => {
+            const itemLat = parseFloat(item.lat);
+            const itemLng = parseFloat(item.lon);
+            const dist = calculateDistanceKm(itemLat, itemLng, lat, lng);
+            return {
+              name: item.name || item.display_name.split(',')[0].trim(),
+              displayName: item.display_name,
+              latitude: Number(itemLat.toFixed(5)),
+              longitude: Number(itemLng.toFixed(5)),
+              distanceFromSchoolKm: dist,
+              estimatedMinutes: Math.max(3, Math.round(dist * 2.5)),
+            };
+          });
+        }
+      }
+    } catch {}
+
+    const lat = schoolLat || DEFAULT_SCHOOL_LOCATION.latitude;
+    const lng = schoolLng || DEFAULT_SCHOOL_LOCATION.longitude;
+    return [
+      {
+        name: `${query.trim()} Junction`,
+        displayName: `${query.trim()} Junction, near campus`,
+        latitude: Number((lat + 0.03).toFixed(5)),
+        longitude: Number((lng - 0.02).toFixed(5)),
+        distanceFromSchoolKm: 3.8,
+        estimatedMinutes: 9,
+      },
+    ];
+  },
+
+  getNearbySuggestedStops: async (
+    schoolLat?: number,
+    schoolLng?: number
+  ): Promise<Array<{
+    name: string;
+    nameMl?: string;
+    latitude: number;
+    longitude: number;
+    distanceFromSchoolKm: number;
+    estimatedMinutes: number;
+  }>> => {
+    try {
+      const res = await apiClient.get('/transport/places/nearby', {
+        params: { lat: schoolLat, lng: schoolLng },
+      });
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        return res.data;
+      }
+    } catch {}
+
+    const lat = schoolLat || DEFAULT_SCHOOL_LOCATION.latitude;
+    const lng = schoolLng || DEFAULT_SCHOOL_LOCATION.longitude;
+    return [
+      { name: 'Town Bus Stand Gate', nameMl: 'ടൗൺ ബസ് സ്റ്റാൻഡ്', latitude: Number((lat + 0.02).toFixed(5)), longitude: Number((lng + 0.01).toFixed(5)), distanceFromSchoolKm: 2.5, estimatedMinutes: 6 },
+      { name: 'High School Junction', nameMl: 'ഹൈസ്കൂൾ ജംഗ്ഷൻ', latitude: Number((lat - 0.025).toFixed(5)), longitude: Number((lng - 0.015).toFixed(5)), distanceFromSchoolKm: 3.2, estimatedMinutes: 8 },
+      { name: 'Railway Station Road', nameMl: 'റെയിൽവേ സ്റ്റേഷൻ റോഡ്', latitude: Number((lat + 0.035).toFixed(5)), longitude: Number((lng - 0.02).toFixed(5)), distanceFromSchoolKm: 4.6, estimatedMinutes: 11 },
+      { name: 'Hospital Mukku Stop', nameMl: 'ആശുപത്രി മുക്ക്', latitude: Number((lat - 0.04).toFixed(5)), longitude: Number((lng + 0.03).toFixed(5)), distanceFromSchoolKm: 5.5, estimatedMinutes: 13 },
+      { name: 'Temple / Church Junction', nameMl: 'ക്ഷേത്രം / പള്ളി ജംഗ്ഷൻ', latitude: Number((lat + 0.05).toFixed(5)), longitude: Number((lng + 0.025).toFixed(5)), distanceFromSchoolKm: 6.8, estimatedMinutes: 16 },
+    ];
   },
 
   getActiveTrip: async (routeId = 'route-01'): Promise<TransportTrip> => {

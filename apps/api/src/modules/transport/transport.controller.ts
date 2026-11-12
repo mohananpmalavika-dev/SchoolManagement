@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { TransportService } from './transport.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { SkipTenantCheck } from '../../common/decorators/skip-tenant-check.decorator';
@@ -8,6 +8,11 @@ import {
   UpdateStudentStatusDto,
   EndTripDto,
 } from './dto/trip.dto';
+import {
+  UpdateSchoolLocationDto,
+  CreateRouteDto,
+  AutoGenerateRouteDto,
+} from './dto/route-planner.dto';
 
 @Controller('transport')
 export class TransportController {
@@ -15,9 +20,78 @@ export class TransportController {
 
   @Public()
   @SkipTenantCheck()
+  @Get('school-location')
+  async getSchoolLocation() {
+    return this.transportService.getSchoolLocation();
+  }
+
+  @Public()
+  @SkipTenantCheck()
+  @Post('school-location')
+  async updateSchoolLocation(@Body() dto: UpdateSchoolLocationDto) {
+    return this.transportService.updateSchoolLocation(dto);
+  }
+
+  @Public()
+  @SkipTenantCheck()
+  @Get('places/search')
+  async searchPlaces(
+    @Query('q') q: string,
+    @Query('lat') lat?: string,
+    @Query('lng') lng?: string,
+  ) {
+    const latNum = lat ? parseFloat(lat) : undefined;
+    const lngNum = lng ? parseFloat(lng) : undefined;
+    return this.transportService.searchNearbyPlaces(q || '', latNum, lngNum);
+  }
+
+  @Public()
+  @SkipTenantCheck()
+  @Get('places/nearby')
+  async getNearbyStops(
+    @Query('lat') lat?: string,
+    @Query('lng') lng?: string,
+    @Query('radius') radius?: string,
+  ) {
+    const latNum = lat ? parseFloat(lat) : undefined;
+    const lngNum = lng ? parseFloat(lng) : undefined;
+    const radiusKm = radius ? parseFloat(radius) : 15;
+    return this.transportService.getNearbySuggestedStops(latNum, lngNum, radiusKm);
+  }
+
+  @Public()
+  @SkipTenantCheck()
   @Get('routes')
   async getRoutes() {
     return this.transportService.getRoutes();
+  }
+
+  @Public()
+  @SkipTenantCheck()
+  @Post('routes')
+  async createRoute(@Body() dto: CreateRouteDto) {
+    return this.transportService.createRoute(dto);
+  }
+
+  @Public()
+  @SkipTenantCheck()
+  @Put('routes/:id')
+  async updateRoute(@Param('id') id: string, @Body() dto: Partial<CreateRouteDto>) {
+    return this.transportService.updateRoute(id, dto);
+  }
+
+  @Public()
+  @SkipTenantCheck()
+  @Delete('routes/:id')
+  async deleteRoute(@Param('id') id: string) {
+    return this.transportService.deleteRoute(id);
+  }
+
+  @Public()
+  @SkipTenantCheck()
+  @Post('routes/auto-generate')
+  async autoGenerateRoute(@Body() dto: AutoGenerateRouteDto) {
+    return this.transportService.autoGenerateRoute(dto);
   }
 
   @Public()

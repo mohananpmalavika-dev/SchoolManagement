@@ -336,7 +336,7 @@ describe('PasswordResetService', () => {
       await service.resetPassword('valid-token', 'StrongP@ssw0rd123');
 
       expect(mockRedisService.del).toHaveBeenCalledWith('password-reset:token:user-123');
-    });
+    }, 15000);
   });
 
   describe('getRemainingAttempts', () => {

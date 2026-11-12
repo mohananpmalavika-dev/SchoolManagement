@@ -6,6 +6,7 @@ import {
   TransportStudent,
   TransportStop,
   ParentBusTrackingView,
+  SchoolCampusLocation,
 } from '@krypton/types';
 import {
   StartTripDto,
@@ -13,6 +14,11 @@ import {
   UpdateStudentStatusDto,
   EndTripDto,
 } from './dto/trip.dto';
+import {
+  UpdateSchoolLocationDto,
+  CreateRouteDto,
+  AutoGenerateRouteDto,
+} from './dto/route-planner.dto';
 
 function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth's radius in km
@@ -297,10 +303,45 @@ const DEFAULT_ROUTES: TransportRoute[] = [
 @Injectable()
 export class TransportService {
   private activeTrips: Map<string, TransportTrip> = new Map();
+  private routesList: TransportRoute[] = JSON.parse(JSON.stringify(DEFAULT_ROUTES));
+
+  private schoolLocation: SchoolCampusLocation = {
+    schoolName: 'Krypton Public School',
+    schoolNameMl: 'ക്രിപ്റ്റൺ പബ്ലിക് സ്കൂൾ',
+    address: 'Hill Palace Road, Tripunithura, Kochi',
+    addressMl: 'ഹിൽ പാലസ് റോഡ്, തൃപ്പൂണിത്തുറ, കൊച്ചി',
+    city: 'Kochi',
+    district: 'Ernakulam',
+    state: 'Kerala',
+    pincode: '682301',
+    latitude: 9.9542,
+    longitude: 76.3458,
+    campusGate: 'Main Campus Bus Bay (Gate 2)',
+    morningReportingTime: '08:15 AM',
+    eveningDepartureTime: '03:30 PM',
+  };
+
+  private recalculateRouteDistances(): void {
+    for (const route of this.routesList) {
+      for (const stop of route.stops) {
+        stop.distanceFromSchoolKm = calculateDistanceKm(
+          stop.latitude,
+          stop.longitude,
+          this.schoolLocation.latitude,
+          this.schoolLocation.longitude,
+        );
+        stop.estimatedMinutesToSchool = Math.max(
+          3,
+          Math.round(stop.distanceFromSchoolKm * 2.5 + (route.stops.length - stop.sequence) * 2),
+        );
+      }
+    }
+  }
 
   constructor(private prisma: PrismaService) {
+    this.recalculateRouteDistances();
     // Initialize an active trip for demo/live tracking out-of-the-box
-    const defaultRoute = DEFAULT_ROUTES[0];
+    const defaultRoute = this.routesList[0] || DEFAULT_ROUTES[0];
     const initialTrip: TransportTrip = {
       id: 'trip-active-01',
       routeId: defaultRoute.id,
@@ -343,13 +384,245 @@ export class TransportService {
     this.activeTrips.set(defaultRoute.id, initialTrip);
   }
 
+  async getSchoolLocation(): Promise<SchoolCampusLocation> {
+    return this.schoolLocation;
+  }
+
+  async updateSchoolLocation(dto: UpdateSchoolLocationDto): Promise<SchoolCampusLocation> {
+    this.schoolLocation = {
+      ...this.schoolLocation,
+      ...dto,
+    };
+    // Update campus stop coordinates across existing routes that contain school campus
+    for (const route of this.routesList) {
+      for (const stop of route.stops) {
+        if (
+          stop.name.toLowerCase().includes('campus') ||
+          stop.name.toLowerCase().includes('school')
+        ) {
+          stop.latitude = this.schoolLocation.latitude;
+          stop.longitude = this.schoolLocation.longitude;
+          stop.name = `${this.schoolLocation.schoolName} (${this.schoolLocation.city})`;
+          if (this.schoolLocation.schoolNameMl) {
+            stop.nameMl = `${this.schoolLocation.schoolNameMl} (${this.schoolLocation.city})`;
+          }
+        }
+      }
+    }
+    this.recalculateRouteDistances();
+    return this.schoolLocation;
+  }
+
   async getRoutes(): Promise<TransportRoute[]> {
-    return DEFAULT_ROUTES;
+    return this.routesList;
   }
 
   async getRouteById(routeId: string): Promise<TransportRoute | null> {
-    const route = DEFAULT_ROUTES.find((r) => r.id === routeId);
+    const route = this.routesList.find((r) => r.id === routeId);
     return route || null;
+  }
+
+  async createRoute(dto: CreateRouteDto): Promise<TransportRoute> {
+    const routeId = `route-${Date.now().toString().slice(-4)}`;
+    const stops: TransportStop[] = dto.stops.map((s, idx) => ({
+      id: `stop-${routeId}-${idx + 1}`,
+      routeId,
+      name: s.name,
+      nameMl: s.nameMl,
+      sequence: s.sequence || idx + 1,
+      latitude: s.latitude,
+      longitude: s.longitude,
+      scheduledTime: s.scheduledTime || '07:30 AM',
+      studentIds: [],
+      distanceFromSchoolKm: calculateDistanceKm(
+        s.latitude,
+        s.longitude,
+        this.schoolLocation.latitude,
+        this.schoolLocation.longitude,
+      ),
+      estimatedMinutesToSchool: Math.max(
+        3,
+        Math.round(
+          calculateDistanceKm(
+            s.latitude,
+            s.longitude,
+            this.schoolLocation.latitude,
+            this.schoolLocation.longitude,
+          ) * 2.5,
+        ),
+      ),
+    }));
+
+    // If MORNING_PICKUP and the final stop is not school campus, add campus stop
+    const lastStop = stops[stops.length - 1];
+    if (
+      dto.direction === 'MORNING_PICKUP' &&
+      (!lastStop ||
+        (!lastStop.name.toLowerCase().includes('campus') &&
+          !lastStop.name.toLowerCase().includes('school')))
+    ) {
+      stops.push({
+        id: `stop-${routeId}-campus`,
+        routeId,
+        name: `${this.schoolLocation.schoolName} (${this.schoolLocation.city})`,
+        nameMl: `${this.schoolLocation.schoolNameMl || this.schoolLocation.schoolName} (${this.schoolLocation.city})`,
+        sequence: stops.length + 1,
+        latitude: this.schoolLocation.latitude,
+        longitude: this.schoolLocation.longitude,
+        scheduledTime: this.schoolLocation.morningReportingTime,
+        studentIds: [],
+        distanceFromSchoolKm: 0,
+        estimatedMinutesToSchool: 0,
+      });
+    }
+
+    const newRoute: TransportRoute = {
+      id: routeId,
+      name: dto.name,
+      nameMl: dto.nameMl,
+      code: dto.code,
+      vehicleRegistration: dto.vehicleRegistration,
+      vehicleModel: dto.vehicleModel,
+      driverName: dto.driverName,
+      driverPhone: dto.driverPhone,
+      totalCapacity: dto.totalCapacity,
+      direction: dto.direction,
+      stops,
+      students: [],
+    };
+
+    this.routesList.push(newRoute);
+    return newRoute;
+  }
+
+  async updateRoute(routeId: string, dto: Partial<CreateRouteDto>): Promise<TransportRoute> {
+    const route = this.routesList.find((r) => r.id === routeId);
+    if (!route) {
+      throw new NotFoundException(`Route with id ${routeId} not found`);
+    }
+
+    if (dto.name) route.name = dto.name;
+    if (dto.nameMl) route.nameMl = dto.nameMl;
+    if (dto.code) route.code = dto.code;
+    if (dto.vehicleRegistration) route.vehicleRegistration = dto.vehicleRegistration;
+    if (dto.vehicleModel) route.vehicleModel = dto.vehicleModel;
+    if (dto.driverName) route.driverName = dto.driverName;
+    if (dto.driverPhone) route.driverPhone = dto.driverPhone;
+    if (dto.totalCapacity) route.totalCapacity = dto.totalCapacity;
+    if (dto.direction) route.direction = dto.direction;
+
+    if (dto.stops && dto.stops.length > 0) {
+      route.stops = dto.stops.map((s, idx) => ({
+        id: `stop-${routeId}-${idx + 1}`,
+        routeId,
+        name: s.name,
+        nameMl: s.nameMl,
+        sequence: s.sequence || idx + 1,
+        latitude: s.latitude,
+        longitude: s.longitude,
+        scheduledTime: s.scheduledTime || '07:30 AM',
+        studentIds: [],
+        distanceFromSchoolKm: calculateDistanceKm(
+          s.latitude,
+          s.longitude,
+          this.schoolLocation.latitude,
+          this.schoolLocation.longitude,
+        ),
+        estimatedMinutesToSchool: Math.max(
+          3,
+          Math.round(
+            calculateDistanceKm(
+              s.latitude,
+              s.longitude,
+              this.schoolLocation.latitude,
+              this.schoolLocation.longitude,
+            ) * 2.5,
+          ),
+        ),
+      }));
+    }
+
+    this.recalculateRouteDistances();
+    return route;
+  }
+
+  async deleteRoute(routeId: string): Promise<{ success: boolean; id: string }> {
+    const index = this.routesList.findIndex((r) => r.id === routeId);
+    if (index === -1) {
+      throw new NotFoundException(`Route with id ${routeId} not found`);
+    }
+    this.routesList.splice(index, 1);
+    this.activeTrips.delete(routeId);
+    return { success: true, id: routeId };
+  }
+
+  async autoGenerateRoute(dto: AutoGenerateRouteDto): Promise<TransportRoute> {
+    const routeId = `route-${Date.now().toString().slice(-4)}`;
+    const allStops: Array<{ name: string; nameMl?: string; latitude: number; longitude: number }> = [
+      dto.originStop,
+      ...(dto.intermediateStops || []),
+    ];
+
+    const totalIntermediateCount = allStops.length;
+    const stops: TransportStop[] = allStops.map((st, idx) => {
+      const distFromSchool = calculateDistanceKm(
+        st.latitude,
+        st.longitude,
+        this.schoolLocation.latitude,
+        this.schoolLocation.longitude,
+      );
+      const estMinutes = Math.round(distFromSchool * 2.6 + (totalIntermediateCount - idx) * 3);
+      const pickupHour = 8 - Math.floor(estMinutes / 60);
+      const pickupMinute = (60 + 15 - (estMinutes % 60)) % 60;
+      const formattedHour = pickupHour < 10 ? `0${pickupHour}` : `${pickupHour}`;
+      const formattedMin = pickupMinute < 10 ? `0${pickupMinute}` : `${pickupMinute}`;
+
+      return {
+        id: `stop-${routeId}-${idx + 1}`,
+        routeId,
+        name: st.name,
+        nameMl: st.nameMl,
+        sequence: idx + 1,
+        latitude: st.latitude,
+        longitude: st.longitude,
+        scheduledTime: `${formattedHour}:${formattedMin} AM`,
+        studentIds: [],
+        distanceFromSchoolKm: distFromSchool,
+        estimatedMinutesToSchool: estMinutes,
+      };
+    });
+
+    stops.push({
+      id: `stop-${routeId}-campus`,
+      routeId,
+      name: `${this.schoolLocation.schoolName} (${this.schoolLocation.city})`,
+      nameMl: `${this.schoolLocation.schoolNameMl || this.schoolLocation.schoolName} (${this.schoolLocation.city})`,
+      sequence: stops.length + 1,
+      latitude: this.schoolLocation.latitude,
+      longitude: this.schoolLocation.longitude,
+      scheduledTime: this.schoolLocation.morningReportingTime,
+      studentIds: [],
+      distanceFromSchoolKm: 0,
+      estimatedMinutesToSchool: 0,
+    });
+
+    const route: TransportRoute = {
+      id: routeId,
+      name: dto.name,
+      nameMl: dto.nameMl,
+      code: dto.code,
+      vehicleRegistration: dto.vehicleRegistration,
+      vehicleModel: dto.vehicleModel,
+      driverName: dto.driverName,
+      driverPhone: dto.driverPhone,
+      totalCapacity: dto.totalCapacity,
+      direction: dto.direction,
+      stops,
+      students: [],
+    };
+
+    this.routesList.push(route);
+    return route;
   }
 
   async getLiveTrips(): Promise<TransportTrip[]> {
@@ -592,5 +865,146 @@ export class TransportService {
       busStatusMessage,
       busStatusMessageMl,
     };
+  }
+
+  async searchNearbyPlaces(
+    query: string,
+    schoolLat?: number,
+    schoolLng?: number,
+  ): Promise<Array<{ name: string; displayName: string; latitude: number; longitude: number; distanceFromSchoolKm: number; estimatedMinutes: number }>> {
+    const lat = schoolLat || this.schoolLocation.latitude;
+    const lng = schoolLng || this.schoolLocation.longitude;
+
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=8&countrycodes=in`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'KryptonSchoolERP/1.0 (school-transport-routing)',
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (response.ok) {
+        const data = (await response.json()) as any[];
+        if (Array.isArray(data) && data.length > 0) {
+          const results = data.map((item) => {
+            const itemLat = parseFloat(item.lat);
+            const itemLng = parseFloat(item.lon);
+            const dist = calculateDistanceKm(itemLat, itemLng, lat, lng);
+            const estMin = Math.max(3, Math.round(dist * 2.5));
+            const primaryName = item.name || item.display_name.split(',')[0].trim();
+
+            return {
+              name: primaryName,
+              displayName: item.display_name,
+              latitude: Number(itemLat.toFixed(5)),
+              longitude: Number(itemLng.toFixed(5)),
+              distanceFromSchoolKm: dist,
+              estimatedMinutes: estMin,
+            };
+          });
+
+          // Sort by proximity to the school
+          results.sort((a, b) => a.distanceFromSchoolKm - b.distanceFromSchoolKm);
+          return results;
+        }
+      }
+    } catch {
+      // Fallback if offline or timeout
+    }
+
+    // Fallback: Generate intelligent relative landmark based on school coordinates
+    const offsetKm = 4.5;
+    const degOffset = offsetKm / 111;
+    const fallbackDist = offsetKm;
+    const estMin = Math.round(fallbackDist * 2.5);
+
+    return [
+      {
+        name: `${query.trim()} Junction`,
+        displayName: `${query.trim()} Junction, near ${this.schoolLocation.schoolName}, ${this.schoolLocation.city}`,
+        latitude: Number((lat + degOffset).toFixed(5)),
+        longitude: Number((lng + degOffset * 0.8).toFixed(5)),
+        distanceFromSchoolKm: fallbackDist,
+        estimatedMinutes: estMin,
+      },
+    ];
+  }
+
+  async getNearbySuggestedStops(
+    schoolLat?: number,
+    schoolLng?: number,
+    radiusKm = 15,
+  ): Promise<Array<{ name: string; nameMl?: string; latitude: number; longitude: number; distanceFromSchoolKm: number; estimatedMinutes: number }>> {
+    const lat = schoolLat || this.schoolLocation.latitude;
+    const lng = schoolLng || this.schoolLocation.longitude;
+    const city = this.schoolLocation.city || 'Campus Area';
+
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent('bus stop ' + city)}&format=json&limit=10&countrycodes=in`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'KryptonSchoolERP/1.0 (school-transport-routing)',
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (response.ok) {
+        const data = (await response.json()) as any[];
+        if (Array.isArray(data) && data.length > 0) {
+          const results = data
+            .map((item) => {
+              const itemLat = parseFloat(item.lat);
+              const itemLng = parseFloat(item.lon);
+              const dist = calculateDistanceKm(itemLat, itemLng, lat, lng);
+              const primaryName = item.name || item.display_name.split(',')[0].trim();
+              return {
+                name: primaryName,
+                latitude: Number(itemLat.toFixed(5)),
+                longitude: Number(itemLng.toFixed(5)),
+                distanceFromSchoolKm: dist,
+                estimatedMinutes: Math.max(3, Math.round(dist * 2.5)),
+              };
+            })
+            .filter((item) => item.distanceFromSchoolKm <= radiusKm);
+
+          if (results.length > 0) {
+            results.sort((a, b) => a.distanceFromSchoolKm - b.distanceFromSchoolKm);
+            return results;
+          }
+        }
+      }
+    } catch {}
+
+    // Fallback radial transit points around the school
+    const radialOffsets = [
+      { name: 'North Main Junction', nameMl: 'വടക്കേ മെയിൻ ജംഗ്ഷൻ', dLat: 0.035, dLng: 0.01 },
+      { name: 'East Market Bus Bay', nameMl: 'കിഴക്കേ മാർക്കറ്റ് ബസ് ബേ', dLat: 0.01, dLng: 0.04 },
+      { name: 'South Highway Bypass', nameMl: 'തെക്കേ ബൈപ്പാസ് ജംഗ്ഷൻ', dLat: -0.04, dLng: -0.01 },
+      { name: 'West Town Station Road', nameMl: 'പടിഞ്ഞാറേ ടൗൺ സ്റ്റേഷൻ റോഡ്', dLat: -0.015, dLng: -0.045 },
+      { name: 'Civil Station Mukku', nameMl: 'സിവിൽ സ്റ്റേഷൻ മുക്ക്', dLat: 0.025, dLng: -0.03 },
+    ];
+
+    return radialOffsets.map((pt) => {
+      const ptLat = Number((lat + pt.dLat).toFixed(5));
+      const ptLng = Number((lng + pt.dLng).toFixed(5));
+      const dist = calculateDistanceKm(ptLat, ptLng, lat, lng);
+      return {
+        name: `${this.schoolLocation.city || 'Nearby'} ${pt.name}`,
+        nameMl: pt.nameMl,
+        latitude: ptLat,
+        longitude: ptLng,
+        distanceFromSchoolKm: dist,
+        estimatedMinutes: Math.max(3, Math.round(dist * 2.5)),
+      };
+    });
   }
 }

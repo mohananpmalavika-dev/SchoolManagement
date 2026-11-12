@@ -28,6 +28,69 @@ export interface TransportStop {
   longitude: number;
   scheduledTime: string;
   studentIds: string[];
+  distanceFromSchoolKm?: number;
+  estimatedMinutesToSchool?: number;
+}
+
+export interface SchoolCampusLocation {
+  schoolName: string;
+  schoolNameMl?: string;
+  address: string;
+  addressMl?: string;
+  city: string;
+  district: string;
+  state: string;
+  pincode: string;
+  latitude: number;
+  longitude: number;
+  campusGate: string;
+  morningReportingTime: string; // e.g. "08:15 AM"
+  eveningDepartureTime: string; // e.g. "03:30 PM"
+}
+
+export interface CreateRouteRequest {
+  name: string;
+  nameMl?: string;
+  code: string;
+  vehicleRegistration: string;
+  vehicleModel: string;
+  driverName: string;
+  driverPhone: string;
+  totalCapacity: number;
+  direction: RouteDirection;
+  stops: Array<{
+    name: string;
+    nameMl?: string;
+    sequence: number;
+    latitude: number;
+    longitude: number;
+    scheduledTime?: string;
+  }>;
+}
+
+export interface AutoRouteGeneratorRequest {
+  name: string;
+  nameMl?: string;
+  code: string;
+  vehicleRegistration: string;
+  vehicleModel: string;
+  driverName: string;
+  driverPhone: string;
+  totalCapacity: number;
+  direction: RouteDirection;
+  corridorPresetId?: string;
+  originStop: {
+    name: string;
+    nameMl?: string;
+    latitude: number;
+    longitude: number;
+  };
+  intermediateStops?: Array<{
+    name: string;
+    nameMl?: string;
+    latitude: number;
+    longitude: number;
+  }>;
 }
 
 export interface TransportStudent {
