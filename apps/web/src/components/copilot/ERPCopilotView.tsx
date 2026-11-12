@@ -32,8 +32,8 @@ import { Button } from '@/components/ui';
 import { PageHeading, Panel, StatCard } from '@/components/WorkspaceUI';
 
 const SUGGESTED_QUERIES = [
-  'Show me all Grade 9 students who have attendance < 80% and unpaid fee balance',
-  'Find students with fee arrears over 10000 in Grade 10',
+  'Show me all Class 9 students who have attendance < 80% and unpaid fee balance',
+  'Find students with fee arrears over 10000 in Class 10',
   'Which students had marks drop below 40% or need academic support?',
   'Students with low attendance < 75% across the school',
   'Show high-risk dropout students with falling attendance',
@@ -45,7 +45,7 @@ interface ERPCopilotViewProps {
 }
 
 export function ERPCopilotView({ portal = 'school' }: ERPCopilotViewProps) {
-  const [query, setQuery] = useState('Show me all Grade 9 students who have attendance < 80% and unpaid fee balance');
+  const [query, setQuery] = useState('Show me all Class 9 students who have attendance < 80% and unpaid fee balance');
   const [language, setLanguage] = useState<TeachingLanguage>('English');
   const [result, setResult] = useState<ERPCopilotQueryResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -126,7 +126,7 @@ export function ERPCopilotView({ portal = 'school' }: ERPCopilotViewProps) {
       `Dear Parent of ${student.name} (${student.admissionNumber}), this is an official academic & attendance update from the School Administration.\n\n` +
       `Current Attendance: ${student.attendanceRate !== null ? `${student.attendanceRate}%` : 'Under Review'}\n` +
       `Academic Average: ${student.latestAverage !== null ? `${student.latestAverage}%` : 'Under Review'}\n` +
-      (student.outstandingBalance > 0 ? `Pending Fee Balance: ${result?.currency ?? 'KES'} ${(student.outstandingBalance / 100).toLocaleString()}\n` : '') +
+      (student.outstandingBalance > 0 ? `Pending Fee Balance: ${result?.currency ?? 'INR'} ${(student.outstandingBalance / 100).toLocaleString('en-IN')}\n` : '') +
       `\nPlease contact the Class Teacher or schedule a Virtual PTM at your earliest convenience.`
     );
 
@@ -138,7 +138,7 @@ export function ERPCopilotView({ portal = 'school' }: ERPCopilotViewProps) {
     setWhatsappNoticeSent(prev => ({ ...prev, [student.studentId]: true }));
   };
 
-  const currencySymbol = result?.currency ?? 'KES';
+  const currencySymbol = result?.currency ?? 'INR';
 
   return (
     <div className="content-stack copilot-workspace">
@@ -155,8 +155,8 @@ export function ERPCopilotView({ portal = 'school' }: ERPCopilotViewProps) {
               className="text-sm bg-white border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="English">English</option>
+              <option value="Hindi">Hindi (हिन्दी)</option>
               <option value="Malayalam">Malayalam (മലയാളം)</option>
-              <option value="Swahili">Swahili (Kiswahili)</option>
             </select>
             <Button
               size="sm"

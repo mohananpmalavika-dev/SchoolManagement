@@ -37,8 +37,8 @@ export class AttendanceAlertController {
         details: [
           {
             studentId: 'uuid',
-            studentName: 'John Doe',
-            guardianPhone: '+254712345678',
+            studentName: 'Aarav Menon',
+            guardianPhone: '+919876543210',
             status: 'ABSENT',
             success: true,
           },
@@ -64,7 +64,7 @@ export class AttendanceAlertController {
     description: 'Absent student alerts sent',
   })
   async sendAbsentAlerts(
-    @Body() dto: { date?: string; classId?: string; language?: 'en' | 'sw' },
+    @Body() dto: { date?: string; classId?: string; language?: 'en' | 'hi' | 'ml' },
   ) {
     return this.attendanceAlertService.sendAttendanceAlerts({
       date: dto.date ? new Date(dto.date) : new Date(),
@@ -82,7 +82,7 @@ export class AttendanceAlertController {
     description: 'Late arrival alerts sent',
   })
   async sendLateAlerts(
-    @Body() dto: { date?: string; classId?: string; language?: 'en' | 'sw' },
+    @Body() dto: { date?: string; classId?: string; language?: 'en' | 'hi' | 'ml' },
   ) {
     return this.attendanceAlertService.sendAttendanceAlerts({
       date: dto.date ? new Date(dto.date) : new Date(),
@@ -102,7 +102,7 @@ export class AttendanceAlertController {
     description: 'Daily summaries sent',
   })
   async sendDailySummary(
-    @Body() dto: { date?: string; language?: 'en' | 'sw' },
+    @Body() dto: { date?: string; language?: 'en' | 'hi' | 'ml' },
   ) {
     return this.attendanceAlertService.sendDailyAttendanceSummary(
       dto.date ? new Date(dto.date) : new Date(),
@@ -120,7 +120,7 @@ export class AttendanceAlertController {
     description: 'Instant alert sent',
   })
   async sendInstantAlert(
-    @Body() dto: { attendanceId: string; language?: 'en' | 'sw' },
+    @Body() dto: { attendanceId: string; language?: 'en' | 'hi' | 'ml' },
   ) {
     const result = await this.attendanceAlertService.sendInstantAlert(
       dto.attendanceId,

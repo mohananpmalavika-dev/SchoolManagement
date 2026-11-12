@@ -70,7 +70,7 @@ export function LoginScreen() {
               label={t('auth.email')}
               type="email"
               autoComplete="username"
-              placeholder="you@school.ac.ke"
+              placeholder="you@school.edu.in"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}

@@ -2,7 +2,7 @@
   "name": "hustlertech-school-erp",
   "version": "1.0.0",
   "private": true,
-  "description": "HustlerTech multi-tenant school management ERP platform for Kenyan & East African schools",
+  "description": "HustlerTech multi-tenant school management ERP platform for Indian schools (CBSE, ICSE & State Boards)",
   "author": "HustlerTech",
   "license": "PROPRIETARY",
   "engines": {

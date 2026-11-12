@@ -35,8 +35,8 @@ export class ReportCardController {
         details: [
           {
             studentId: 'uuid',
-            studentName: 'John Doe',
-            guardianPhone: '+254712345678',
+            studentName: 'Aarav Menon',
+            guardianPhone: '+919876543210',
             success: true,
           },
         ],
@@ -66,7 +66,7 @@ export class ReportCardController {
     dto: {
       termId: string;
       classId?: string;
-      language?: 'en' | 'sw';
+      language?: 'en' | 'hi' | 'ml';
       includeRemarks?: boolean;
     },
   ) {
@@ -90,7 +90,7 @@ export class ReportCardController {
     dto: {
       classId: string;
       termId?: string;
-      language?: 'en' | 'sw';
+      language?: 'en' | 'hi' | 'ml';
       includeRemarks?: boolean;
     },
   ) {
@@ -116,7 +116,7 @@ export class ReportCardController {
     dto: {
       reportCardId: string;
       pdfUrl: string;
-      language?: 'en' | 'sw';
+      language?: 'en' | 'hi' | 'ml';
     },
   ) {
     const result = await this.reportCardService.sendReportCardWithPdf(
@@ -146,7 +146,7 @@ export class ReportCardController {
     @Body()
     dto: {
       reportCardId: string;
-      language?: 'en' | 'sw';
+      language?: 'en' | 'hi' | 'ml';
     },
   ) {
     const result = await this.reportCardService.sendReportCardSummary(

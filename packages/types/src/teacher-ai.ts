@@ -1,4 +1,4 @@
-export type TeachingLanguage = 'English' | 'Malayalam' | 'Swahili';
+export type TeachingLanguage = 'English' | 'Hindi' | 'Malayalam';
 export type TeacherAIProvider = 'FreeAI' | 'Gemini' | 'Groq' | 'Pollinations' | 'Ollama' | 'OpenAI' | string;
 export interface TeacherAIStatus { configured: boolean; provider: TeacherAIProvider; model: string; message: string }
 export interface TeacherAIOptions { classes: { id: string; name: string }[]; terms: { id: string; name: string; isCurrent: boolean }[]; status: TeacherAIStatus }

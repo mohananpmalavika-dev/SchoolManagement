@@ -15,17 +15,17 @@ import {
 import { Type } from 'class-transformer';
 
 export enum ExaminationType {
-  FORMATIVE = 'FORMATIVE', // Continuous assessment
-  SUMMATIVE = 'SUMMATIVE', // End of term
-  DIAGNOSTIC = 'DIAGNOSTIC', // Placement/screening
-  COMPETENCY = 'COMPETENCY', // CBC assessment
+  FORMATIVE = 'FORMATIVE', // Periodic / Continuous Assessment
+  SUMMATIVE = 'SUMMATIVE', // Half-Yearly / Annual Exam
+  DIAGNOSTIC = 'DIAGNOSTIC', // Placement / Baseline
+  COMPETENCY = 'COMPETENCY', // NEP 2020 Holistic Competency Assessment
 }
 
 export enum GradingSystem {
   PERCENTAGE = 'PERCENTAGE', // 0-100
-  LETTER = 'LETTER', // A, B, C, D, E
-  COMPETENCY = 'COMPETENCY', // Exceeds, Meets, Approaches, Below
-  POINTS = 'POINTS', // 12, 11, 10, 9...
+  LETTER = 'LETTER', // CBSE A1, A2, B1, B2, C1, C2, D, E
+  COMPETENCY = 'COMPETENCY', // NEP 2020 Holistic Rubrics
+  POINTS = 'POINTS', // CGPA / Grade Points
 }
 
 export class CreateSubjectExamDto {

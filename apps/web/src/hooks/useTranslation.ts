@@ -1,6 +1,6 @@
 import {useLanguageContext} from '@/contexts/LanguageContext';
 import {translations} from '@/i18n/translations';
-function lookup(language:'en'|'sw',key:string):unknown {
+function lookup(language:'en'|'hi'|'ml',key:string):unknown {
  return key.split('.').reduce<unknown>((value,part)=>value&&typeof value==='object'?Reflect.get(value,part):undefined,translations[language]);
 }
 export function useTranslation(){

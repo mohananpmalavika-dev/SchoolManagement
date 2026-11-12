@@ -62,13 +62,14 @@ export interface FileUpload {
 export interface Address {
   street?: string;
   city: string;
-  county: string;
-  postalCode?: string;
+  district?: string;
+  state: string;
+  pincode?: string;
   country: string;
 }
 
 export interface Money {
-  amount: number; // In minor units (cents)
+  amount: number; // In minor units (paise)
   currency: string;
 }
 

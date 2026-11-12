@@ -10,13 +10,13 @@ import {
 } from 'class-validator';
 
 export class CreateGuardianDto {
-  @ApiProperty({ description: 'Guardian first name', example: 'Mary' })
+  @ApiProperty({ description: 'Guardian first name', example: 'Deepa' })
   @IsString()
   @MinLength(2)
   @MaxLength(50)
   firstName: string;
 
-  @ApiProperty({ description: 'Guardian last name', example: 'Wanjiku' })
+  @ApiProperty({ description: 'Guardian last name', example: 'Nair' })
   @IsString()
   @MinLength(2)
   @MaxLength(50)
@@ -28,29 +28,29 @@ export class CreateGuardianDto {
   @MaxLength(50)
   middleName?: string;
 
-  @ApiPropertyOptional({ description: 'National ID number' })
+  @ApiPropertyOptional({ description: 'Aadhaar last 4 digits', example: '4512' })
   @IsOptional()
   @IsString()
-  @Matches(/^\d{7,8}$/, {
-    message: 'National ID must be 7-8 digits',
+  @Matches(/^(\d{4}|X{4}-X{4}-\d{4})$/i, {
+    message: 'Aadhaar must be last 4 digits or XXXX-XXXX-1234 format',
   })
-  nationalId?: string;
+  aadhaarLast4?: string;
 
   @ApiPropertyOptional({
     description: 'Email address',
-    example: 'mary.wanjiku@example.com',
+    example: 'deepa.nair@example.in',
   })
   @IsOptional()
   @IsEmail()
   email?: string;
 
   @ApiProperty({
-    description: 'Primary phone number',
-    example: '+254700123456',
+    description: 'Primary Indian mobile number',
+    example: '+919847012345',
   })
   @IsString()
-  @Matches(/^(\+?254|0)?[17]\d{8}$/, {
-    message: 'Phone must be a valid Kenyan number',
+  @Matches(/^(\+?91|0)?[6-9]\d{9}$/, {
+    message: 'Phone must be a valid Indian mobile number',
   })
   phone: string;
 

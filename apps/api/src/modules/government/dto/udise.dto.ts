@@ -1,25 +1,25 @@
 import { IsString, IsOptional, IsBoolean, IsEnum, IsDateString, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { NemisSyncType } from '@prisma/client';
+import { UdiseSyncType } from '@prisma/client';
 
-export class InitializeNemisDto {
-  @ApiProperty({ description: 'NEMIS School Code' })
+export class InitializeUdiseDto {
+  @ApiProperty({ description: '11-digit UDISE+ School Code', example: '32080501204' })
   @IsString()
-  nemisSchoolCode: string;
+  udiseSchoolCode: string;
 
-  @ApiPropertyOptional({ description: 'NEMIS API Key (encrypted)' })
+  @ApiPropertyOptional({ description: 'UDISE+ API Key (encrypted)' })
   @IsOptional()
   @IsString()
   apiKey?: string;
 
-  @ApiPropertyOptional({ description: 'NEMIS API Secret (encrypted)' })
+  @ApiPropertyOptional({ description: 'UDISE+ API Secret (encrypted)' })
   @IsOptional()
   @IsString()
   apiSecret?: string;
 }
 
-export class UpdateNemisConfigDto {
-  @ApiPropertyOptional({ description: 'Enable/disable NEMIS integration' })
+export class UpdateUdiseConfigDto {
+  @ApiPropertyOptional({ description: 'Enable/disable UDISE+ integration' })
   @IsOptional()
   @IsBoolean()
   isEnabled?: boolean;
@@ -34,29 +34,26 @@ export class UpdateNemisConfigDto {
   @IsString()
   syncFrequency?: string;
 
-  @ApiPropertyOptional({ description: 'Sync time in HH:MM format' })
+  @ApiPropertyOptional({ description: 'Sync time in HH:MM format (IST)' })
   @IsOptional()
   @IsString()
   syncTime?: string;
 
-  @ApiPropertyOptional({ description: 'NEMIS API Key' })
+  @ApiPropertyOptional({ description: 'UDISE+ API Key' })
   @IsOptional()
   @IsString()
   apiKey?: string;
 
-  @ApiPropertyOptional({ description: 'NEMIS API Secret' })
+  @ApiPropertyOptional({ description: 'UDISE+ API Secret' })
   @IsOptional()
   @IsString()
   apiSecret?: string;
 }
 
-export class SyncNemisDto {
-  @ApiProperty({ 
-    description: 'Type of sync to perform',
-    enum: NemisSyncType,
-  })
-  @IsEnum(NemisSyncType)
-  syncType: NemisSyncType;
+export class SyncUdiseDto {
+  @ApiProperty({ description: 'Type of sync to perform', enum: UdiseSyncType })
+  @IsEnum(UdiseSyncType)
+  syncType: UdiseSyncType;
 
   @ApiPropertyOptional({ description: 'Start date for date-range syncs' })
   @IsOptional()
@@ -70,7 +67,7 @@ export class SyncNemisDto {
 }
 
 export class ValidateStudentDto {
-  @ApiProperty({ description: 'Student ID to validate' })
+  @ApiProperty({ description: 'Student ID to validate for UDISE+ / APAAR' })
   @IsString()
   studentId: string;
 }
@@ -82,12 +79,12 @@ export class BulkSyncStudentsDto {
   studentIds: string[];
 }
 
-export class NemisIntegrationResponseDto {
+export class UdiseIntegrationResponseDto {
   @ApiProperty()
   id: string;
 
   @ApiProperty()
-  nemisSchoolCode: string;
+  udiseSchoolCode: string;
 
   @ApiProperty()
   isEnabled: boolean;
@@ -127,7 +124,7 @@ export class SyncResultDto {
   @ApiProperty()
   failed: number;
 
-  @ApiPropertyOptional({ type: [Object] })
+  @ApiPropertyOptional()
   errors?: any[];
 }
 
@@ -135,9 +132,9 @@ export class ValidationResultDto {
   @ApiProperty()
   isValid: boolean;
 
-  @ApiProperty({ type: [String] })
-  errors: string[];
+  @ApiProperty()
+  errors: Array<{ field: string; message: string }>;
 
-  @ApiProperty({ type: [String] })
+  @ApiProperty()
   warnings: string[];
 }

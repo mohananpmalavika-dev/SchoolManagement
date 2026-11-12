@@ -35,8 +35,8 @@ export class CreatePlanDto {
   description?: string;
 
   @ApiProperty({
-    description: 'Price in KES minor units (cents)',
-    example: 4000000, // KES 40,000
+    description: 'Price in INR minor units (paise)',
+    example: 4000000, // INR 40,000
   })
   @IsInt()
   @Min(0)
@@ -101,7 +101,7 @@ export class CreatePlanDto {
       'examinations',
       'communications',
       'timetable',
-      'mpesa',
+      'razorpay_upi',
     ],
   })
   @IsArray()
@@ -124,7 +124,7 @@ export class UpdatePlanDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Price in KES minor units' })
+  @ApiPropertyOptional({ description: 'Price in INR minor units (paise)' })
   @IsOptional()
   @IsInt()
   @Min(0)

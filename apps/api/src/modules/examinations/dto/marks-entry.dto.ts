@@ -43,7 +43,7 @@ export class EnterGradeDto {
   score: number;
 
   @ApiPropertyOptional({
-    description: 'Competency level (for CBC)',
+    description: 'Competency level (NEP 2020 Holistic Assessment)',
     enum: CompetencyLevel,
   })
   @IsOptional()

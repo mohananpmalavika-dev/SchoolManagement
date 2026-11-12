@@ -17,7 +17,7 @@ export class RecordPaymentDto {
   invoiceId: string;
 
   @ApiProperty({
-    description: 'Payment amount in minor units (cents)',
+    description: 'Payment amount in minor units (paise)',
     example: 500000,
     minimum: 1,
   })
@@ -28,14 +28,14 @@ export class RecordPaymentDto {
   @ApiProperty({
     description: 'Payment method',
     enum: PaymentMethod,
-    example: PaymentMethod.MPESA,
+    example: PaymentMethod.UPI,
   })
   @IsEnum(PaymentMethod)
   paymentMethod: PaymentMethod;
 
   @ApiProperty({
-    description: 'Payment reference (M-Pesa code, receipt number, etc.)',
-    example: 'QGH123XYZ',
+    description: 'Payment reference (UTR, Razorpay payment ID, cheque number, etc.)',
+    example: 'UTR428391045612',
   })
   @IsString()
   @MinLength(3)

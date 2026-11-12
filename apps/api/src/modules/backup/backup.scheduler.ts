@@ -32,7 +32,7 @@ export class BackupScheduler {
    */
   @Cron(CronExpression.EVERY_DAY_AT_2AM, {
     name: 'automated-backup',
-    timeZone: 'Africa/Nairobi', // Kenya timezone
+    timeZone: 'Asia/Kolkata', // India Standard Time
   })
   async handleAutomatedBackup(): Promise<void> {
     if (!this.backupEnabled) {
@@ -72,7 +72,7 @@ export class BackupScheduler {
    */
   @Cron(CronExpression.EVERY_WEEK, {
     name: 'backup-cleanup',
-    timeZone: 'Africa/Nairobi',
+    timeZone: 'Asia/Kolkata',
   })
   async handleBackupCleanup(): Promise<void> {
     if (!this.backupEnabled) {
@@ -95,7 +95,7 @@ export class BackupScheduler {
    */
   @Cron('0 1 * * 1', {
     name: 'backup-verification',
-    timeZone: 'Africa/Nairobi',
+    timeZone: 'Asia/Kolkata',
   })
   async handleWeeklyVerification(): Promise<void> {
     if (!this.backupEnabled) {

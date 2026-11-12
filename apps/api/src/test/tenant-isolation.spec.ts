@@ -163,9 +163,9 @@ describe('Tenant Isolation Verification Suite', () => {
       expect(params.args.where).toEqual({ isActive: true });
     });
 
-    it('should strictly isolate newly added models like ActivityFeed, NemisStudentRecord and ComplianceReport', async () => {
+    it('should strictly isolate newly added models like ActivityFeed, UdiseStudentRecord and ComplianceReport', async () => {
       const next = jest.fn().mockResolvedValue([]);
-      const sensitiveModels = ['ActivityFeed', 'NemisStudentRecord', 'ComplianceReport', 'MediaItem', 'ParentTeacherBooking'];
+      const sensitiveModels = ['ActivityFeed', 'UdiseStudentRecord', 'ComplianceReport', 'MediaItem', 'ParentTeacherBooking'];
 
       for (const model of sensitiveModels) {
         const params = {
@@ -187,11 +187,11 @@ describe('Tenant Isolation Verification Suite', () => {
     it('should reject adversarial cross-tenant creation on sensitive models', async () => {
       const next = jest.fn();
       const params = {
-        model: 'NemisStudentRecord' as any,
+        model: 'UdiseStudentRecord' as any,
         action: 'create' as any,
         args: {
           data: {
-            upi: 'ABC1234XYZ',
+            apaarId: '123456789012',
             tenantId: 'school_beta_hacker',
           },
         },

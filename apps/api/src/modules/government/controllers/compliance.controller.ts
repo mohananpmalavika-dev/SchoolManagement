@@ -408,7 +408,7 @@ export class ComplianceController {
   // ===================================
 
   @Post('portal-export')
-  @ApiOperation({ summary: '1-Click Government Portal Data Export (CBSE, State Board, UDISE+, NEMIS)' })
+  @ApiOperation({ summary: '1-Click Government Portal Data Export (CBSE, ICSE, State Board, UDISE+, APAAR)' })
   @ApiResponse({ status: 200, description: 'Government portal export generated' })
   async exportPortalData(
     @Request() req: any,

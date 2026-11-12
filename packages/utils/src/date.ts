@@ -71,18 +71,15 @@ export function isValidDate(date: any): boolean {
 }
 
 /**
- * Get current academic year
+ * Get current Indian academic year (defaults to April start -> e.g., 2026-27)
  */
-export function getCurrentAcademicYear(startMonth: number = 1): string {
+export function getCurrentAcademicYear(startMonth: number = 4): string {
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
-  
-  if (currentMonth >= startMonth) {
-    return currentYear.toString();
-  } else {
-    return (currentYear - 1).toString();
-  }
+
+  const startYear = currentMonth >= startMonth ? currentYear : currentYear - 1;
+  return `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`;
 }
 
 /**
@@ -157,21 +154,17 @@ export function isSameDay(date1: Date | string, date2: Date | string): boolean {
 }
 
 /**
- * Get Kenyan term dates (standard 3-term system)
+ * Get Indian academic term dates (standard April–March 2-term CBSE/ICSE system)
  */
-export function getKenyanTermDates(year: number) {
+export function getIndianAcademicTermDates(startYear: number) {
   return {
     term1: {
-      start: new Date(year, 0, 8), // January 8
-      end: new Date(year, 3, 5), // April 5
+      start: new Date(startYear, 3, 1), // April 1
+      end: new Date(startYear, 8, 30), // September 30
     },
     term2: {
-      start: new Date(year, 4, 6), // May 6
-      end: new Date(year, 7, 2), // August 2
-    },
-    term3: {
-      start: new Date(year, 8, 2), // September 2
-      end: new Date(year, 10, 22), // November 22
+      start: new Date(startYear, 9, 1), // October 1
+      end: new Date(startYear + 1, 2, 31), // March 31
     },
   };
 }

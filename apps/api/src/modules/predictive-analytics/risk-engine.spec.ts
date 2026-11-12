@@ -3,8 +3,8 @@ import { trainRiskModel, TrainingSample } from './risk-model';
 
 const now = new Date('2026-10-11T12:00:00Z');
 function student(overrides: Partial<AnalyticsStudent> = {}): AnalyticsStudent {
-  return { id: 'student-1', firstName: 'Amina', lastName: 'Otieno', admissionNumber: 'A001', status: 'ACTIVE',
-    currentClassId: 'class-1', currentClass: { name: 'Grade 5' }, grades: [], invoices: [], attendanceRecords: [], ...overrides };
+  return { id: 'student-1', firstName: 'Ananya', lastName: 'Nair', admissionNumber: 'A001', status: 'ACTIVE',
+    currentClassId: 'class-1', currentClass: { name: 'Class 5' }, grades: [], invoices: [], attendanceRecords: [], ...overrides };
 }
 function exams(scores: number[]): AnalyticsStudent['grades'] {
   return scores.map((score, i) => ({ subjectId: 'math', score, marks: null, totalMarks: 100,
@@ -16,7 +16,7 @@ const attendance = (status: string, days = 10) => Array.from({ length: days }, (
 const bill = (paid = 0): AnalyticsStudent['invoices'][number] => ({ totalAmount: 10000, paidAmount: paid,
   balanceAmount: 10000 - paid, status: paid === 10000 ? 'PAID' : 'PENDING', dueDate: new Date('2026-08-01'),
   createdAt: new Date('2026-07-01'), payments: paid ? [{ amount: paid, paymentDate: new Date('2026-07-15'), status: 'COMPLETED' }] : [] });
-const profile = (s: AnalyticsStudent) => buildAnalytics([s], now, 'KES').students[0];
+const profile = (s: AnalyticsStudent) => buildAnalytics([s], now, 'INR').students[0];
 
 describe('predictive early-warning engine', () => {
   it('flags falling marks, repeated absence and overdue fees with explainable evidence', () => {
@@ -82,13 +82,13 @@ describe('predictive early-warning engine', () => {
     expect(report.summary.students).toBe(1); expect(report.currency).toBe('USD');
   });
   it('warns about unreconciled ledgers and excludes them from training', () => {
-    const report = buildAnalytics([student({ invoices: [{ ...bill(), paidAmount: 5000, balanceAmount: 5000 }] })], now, 'KES');
+    const report = buildAnalytics([student({ invoices: [{ ...bill(), paidAmount: 5000, balanceAmount: 5000 }] })], now, 'INR');
     expect(report.models.feeDefault.samples).toBe(0);
     expect(report.students[0].feeDefault.evidence.join(' ')).toContain('do not reconcile');
   });
   it('does not train on marks retrospectively entered or revised after the target exam', () => {
     const history = exams([60, 50, 30]); history[0].updatedAt = new Date('2026-10-10');
-    expect(buildAnalytics([student({ grades: history })], now, 'KES').models.academic.samples).toBe(0);
+    expect(buildAnalytics([student({ grades: history })], now, 'INR').models.academic.samples).toBe(0);
   });
   it('does not turn invalid marks into completed examination evidence', () => {
     const history = exams([60, 50]); history[0].totalMarks = 0;

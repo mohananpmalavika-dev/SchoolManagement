@@ -145,7 +145,7 @@ export class StudentsController {
     UserRole.STUDENT,
     UserRole.SUPER_ADMIN,
   )
-  @ApiOperation({ summary: 'Get student grades and CBC evaluation' })
+  @ApiOperation({ summary: 'Get student grades and CBSE/NEP competency evaluation' })
   @ApiResponse({ status: 200, description: 'Student grades retrieved successfully' })
   getMeGrades(@Request() req: any) {
     return this.studentsService.getMeGrades(req.user);

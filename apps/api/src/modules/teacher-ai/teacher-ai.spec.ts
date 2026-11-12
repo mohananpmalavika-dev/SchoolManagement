@@ -12,18 +12,18 @@ import { questionPaper } from './ai-output';
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const user = { userId: id(1), tenantId: id(2), email: 'teacher@example.test', role: 'TEACHER' };
 const classTerm = { classId: id(3), termId: id(4) };
-const learner = () => ({ id: id(5), firstName: 'Amina', lastName: 'Otieno', admissionNumber: 'A01', grades: [
-  { score: 0, marks: null, totalMarks: 100, subject: { name: 'Mathematics' }, examination: { name: 'Midterm', startDate: new Date('2026-01-15'), endDate: null, createdAt: new Date('2026-01-15') } },
-], attendanceRecords: [{ date: new Date('2026-01-15'), status: 'PRESENT' }, { date: new Date('2026-01-15'), status: 'PRESENT' }],
-  reportCards: [{ id: id(6), status: 'DRAFT', updatedAt: new Date('2026-01-20'), classTeacherComments: null, teacherComment: null }] });
+const learner = () => ({ id: id(5), firstName: 'Ananya', lastName: 'Nair', admissionNumber: 'A01', grades: [
+  { score: 0, marks: null, totalMarks: 100, subject: { name: 'Mathematics' }, examination: { name: 'Midterm', startDate: new Date('2026-06-15'), endDate: null, createdAt: new Date('2026-06-15') } },
+], attendanceRecords: [{ date: new Date('2026-06-15'), status: 'PRESENT' }, { date: new Date('2026-06-15'), status: 'PRESENT' }],
+  reportCards: [{ id: id(6), status: 'DRAFT', updatedAt: new Date('2026-06-20'), classTeacherComments: null, teacherComment: null }] });
 function setup() {
   const tx = { reportCard: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) }, auditLog: { create: jest.fn().mockResolvedValue({}) } };
   const prisma = {
     staff: { findFirst: jest.fn().mockResolvedValue({ id: id(7) }) }, timetableEntry: { findMany: jest.fn().mockResolvedValue([{ classId: id(3) }]) },
-    class: { findFirst: jest.fn().mockResolvedValue({ id: id(3), name: 'Grade 5', level: 'Grade 5' }), findMany: jest.fn().mockResolvedValue([]) },
-    term: { findFirst: jest.fn().mockResolvedValue({ id: id(4), name: 'Term 1', startDate: new Date('2026-01-01'), endDate: new Date('2026-04-01') }), findMany: jest.fn().mockResolvedValue([]) },
+    class: { findFirst: jest.fn().mockResolvedValue({ id: id(3), name: 'Class 5', level: 'Class 5' }), findMany: jest.fn().mockResolvedValue([]) },
+    term: { findFirst: jest.fn().mockResolvedValue({ id: id(4), name: 'Term 1', startDate: new Date('2026-04-01'), endDate: new Date('2026-09-30') }), findMany: jest.fn().mockResolvedValue([]) },
     student: { findMany: jest.fn().mockResolvedValue([learner()]) }, $transaction: jest.fn().mockImplementation(async operation => operation(tx)),
-    chatChannel: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: id(10), name: 'Grade 5 Class Channel' }) },
+    chatChannel: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: id(10), name: 'Class 5 Channel' }) },
     chatChannelMember: { create: jest.fn().mockResolvedValue({}) },
     chatMessage: { create: jest.fn().mockResolvedValue({ id: id(11), createdAt: new Date('2026-01-20T10:00:00.000Z') }) },
   };
@@ -108,16 +108,16 @@ describe('AI teaching scope, evidence and reviewed saves', () => {
     expect(result.students[0].priority).toBe('INSUFFICIENT_DATA');
     expect(JSON.stringify(ai.generate.mock.calls[0][2])).not.toMatch(/Amina|feeDefault|outstandingBalance/);
   });
-  it('generates a full CBC scheme of work for authorized teacher', async () => {
+  it('generates a full scheme of work for authorized teacher', async () => {
     const { service, ai } = setup();
     ai.generate.mockResolvedValue({
-      title: 'Grade 5 Integrated Science Scheme', gradeLevel: 'Grade 5', subject: 'Integrated Science',
-      strand: 'Living Things', term: 'Term 1', academicYear: '2026', curriculum: 'CBC',
+      title: 'Class 5 Science Scheme of Work', gradeLevel: 'Class 5', subject: 'Science',
+      strand: 'Living Things', term: 'Term 1', academicYear: '2026-27', curriculum: 'CBSE',
       generalOutcomes: ['Understand living things.'], coreCompetencies: ['Critical Thinking'],
       values: ['Respect'], pcis: ['Environmental Conservation'], weeks: [], assessmentRubrics: [],
     } as any);
-    const res = await service.schemeOfWork(user, { classId: id(3), subject: 'Integrated Science', strand: 'Living Things' });
-    expect(res.curriculum).toBe('CBC');
+    const res = await service.schemeOfWork(user, { classId: id(3), subject: 'Science', strand: 'Living Things' });
+    expect(res.curriculum).toBe('CBSE');
     expect(ai.generate).toHaveBeenCalledWith('scheme_of_work', expect.any(String), expect.objectContaining({ subject: 'Integrated Science', strand: 'Living Things' }), expect.any(Object));
   });
   it('shares lesson plan to class chat channel creating channel if not existing', async () => {

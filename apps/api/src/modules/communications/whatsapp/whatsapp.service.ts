@@ -4,7 +4,7 @@ import * as twilio from 'twilio';
 import { MessageInstance } from 'twilio/lib/rest/api/v2010/account/message';
 
 export interface WhatsAppMessage {
-  to: string; // Phone number in E.164 format (e.g., +254712345678)
+  to: string; // Phone number in E.164 format (e.g., +919876543210)
   body: string;
   mediaUrl?: string; // Optional media URL for images/documents
 }
@@ -13,7 +13,7 @@ export interface WhatsAppTemplateMessage {
   to: string;
   templateName: string;
   templateParams?: Record<string, string>;
-  language?: 'en' | 'sw'; // English or Swahili
+  language?: 'en' | 'hi' | 'ml'; // English, Hindi, or Malayalam
 }
 
 @Injectable()
@@ -175,7 +175,7 @@ export class WhatsAppService {
   private buildTemplateMessage(
     templateName: string,
     params: Record<string, string>,
-    language: 'en' | 'sw',
+    language: 'en' | 'hi' | 'ml',
   ): string {
     // This will be replaced with actual template system
     // For now, we'll use a simple string replacement
@@ -198,15 +198,19 @@ export class WhatsAppService {
   /**
    * Get message templates (will be moved to database later)
    */
-  private getTemplates(language: 'en' | 'sw'): Record<string, string> {
+  private getTemplates(language: 'en' | 'hi' | 'ml'): Record<string, string> {
     // Placeholder - these will be stored in database
     const templates = {
       en: {
         welcome: 'Welcome to {schoolName}! We are excited to have {studentName} join us.',
         generic: '{message}',
       },
-      sw: {
-        welcome: 'Karibu {schoolName}! Tunafurahi kuwa na {studentName} akiungana nasi.',
+      hi: {
+        welcome: '{schoolName} में आपका स्वागत है! {studentName} का हमारे विद्यालय परिवार में जुड़ना हमारे लिए अत्यंत हर्ष का विषय है।',
+        generic: '{message}',
+      },
+      ml: {
+        welcome: '{schoolName}-ലേക്ക് സ്വാഗതം! {studentName} ഞങ്ങളോടൊപ്പം ചേരുന്നതിൽ ഞങ്ങൾക്ക് അതിയായ സന്തോഷമുണ്ട്.',
         generic: '{message}',
       },
     };
@@ -226,7 +230,7 @@ export class WhatsAppService {
    */
   validatePhoneNumber(phoneNumber: string): boolean {
     // E.164 format: +[country code][number]
-    // Example: +254712345678 (Kenya), +919876543210 (India)
+    // Example: +919876543210 (India)
     const e164Regex = /^\+[1-9]\d{1,14}$/;
     return e164Regex.test(phoneNumber);
   }
@@ -234,7 +238,7 @@ export class WhatsAppService {
   /**
    * Format phone number to E.164 if possible
    */
-  formatPhoneNumber(phoneNumber: string, defaultCountryCode: string = '254'): string {
+  formatPhoneNumber(phoneNumber: string, defaultCountryCode: string = '91'): string {
     // Remove all non-digit characters except +
     let cleaned = phoneNumber.replace(/[^\d+]/g, '');
 

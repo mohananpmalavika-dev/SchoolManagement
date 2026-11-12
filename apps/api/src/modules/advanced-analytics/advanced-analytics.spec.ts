@@ -14,7 +14,7 @@ const now = new Date('2026-10-11T12:00:00Z');
 const from = date('2026-10-01'), until = date('2026-10-11');
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 function fixture(): AnalyticsFacts {
-  return { students: [{ id: 'a', currentClassId: 'c' }, { id: 'b', currentClassId: 'c' }, { id: 'z', currentClassId: null }], classes: [{ id: 'c', name: 'Grade 5' }], subjects: [{ id: 'math', name: 'Mathematics' }],
+  return { students: [{ id: 'a', currentClassId: 'c' }, { id: 'b', currentClassId: 'c' }, { id: 'z', currentClassId: null }], classes: [{ id: 'c', name: 'Class 5' }], subjects: [{ id: 'math', name: 'Mathematics' }],
     grades: [0, 60].map((score, i) => ({ studentId: i ? 'b' : 'a', subjectId: 'math', score, marks: null, totalMarks: 100,
       examination: { startDate: date('2026-10-05'), endDate: null, createdAt: date('2026-10-01'), subjects: [{ subjectId: 'math', totalMarks: 100, passMark: 50 }] } })),
     attendance: [{ studentId: 'a', date: date('2026-10-05'), status: 'PRESENT' }, { studentId: 'a', date: date('2026-10-05'), status: 'ABSENT' }, { studentId: 'b', date: date('2026-10-05'), status: 'LATE' }, { studentId: 'z', date: date('2026-10-05'), status: 'SICK_LEAVE' }],
@@ -23,7 +23,7 @@ function fixture(): AnalyticsFacts {
     payments: [{ amount: 4000, paymentDate: date('2026-10-04'), status: 'COMPLETED', invoice: { studentId: 'a' } }],
   };
 }
-const report = (facts = fixture()) => buildExecutiveReport(facts, from, until, now, 'KES', 'Test school', { classId: null, subjectId: null });
+const report = (facts = fixture()) => buildExecutiveReport(facts, from, until, now, 'INR', 'Test school', { classId: null, subjectId: null });
 describe('executive analytics calculations', () => {
   it('counts zero marks, assessment pass thresholds and current cohort coverage', () => {
     const m = report().current;
@@ -82,7 +82,7 @@ describe('executive analytics calculations', () => {
 function setup() {
   const empty = () => ({ findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn().mockResolvedValue({ id: uuid(3) }) });
   const prisma = { student: empty(), class: empty(), subject: empty(), term: empty(), grade: empty(), attendanceRecord: empty(), invoice: empty(), payment: empty(),
-    tenant: { findFirst: jest.fn().mockResolvedValue({ name: 'School A', currency: 'KES' }), findMany: jest.fn().mockResolvedValue([{ id: uuid(2), name: 'School A', currency: 'KES', status: 'ACTIVE' }]), count: jest.fn().mockResolvedValue(1) },
+    tenant: { findFirst: jest.fn().mockResolvedValue({ name: 'School A', currency: 'INR' }), findMany: jest.fn().mockResolvedValue([{ id: uuid(2), name: 'School A', currency: 'INR', status: 'ACTIVE' }]), count: jest.fn().mockResolvedValue(1) },
     executeWithoutTenantFilter: jest.fn().mockImplementation(async operation => operation()) };
   const service = new AdvancedAnalyticsService(prisma as any, { requireTenantContext: () => uuid(2) } as any);
   const user = { userId: uuid(1), tenantId: uuid(2), email: 'principal@example.test', role: 'PRINCIPAL' };
@@ -119,7 +119,7 @@ describe('analytics scope, pagination and request validation', () => {
   it('returns paged aggregate school metrics without student identities or raw records', async () => {
     const { service, prisma, user } = setup(); const r = await service.benchmarks({ ...user, role: 'SUPER_ADMIN' }, { page: 2 });
     expect(prisma.tenant.findMany.mock.calls[0][0]).toMatchObject({ skip: 10, take: 10 });
-    expect(r.schools[0]).toMatchObject({ name: 'School A', currency: 'KES', averageScore: null });
+    expect(r.schools[0]).toMatchObject({ name: 'School A', currency: 'INR', averageScore: null });
     expect(r.schools[0]).not.toHaveProperty('grades'); expect(r.schools[0]).not.toHaveProperty('firstName');
     expect(prisma.student.findMany.mock.calls[0][0].where.tenantId).toBe(uuid(2));
   });

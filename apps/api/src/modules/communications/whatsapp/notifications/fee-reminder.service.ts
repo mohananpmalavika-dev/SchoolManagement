@@ -9,7 +9,7 @@ export interface FeeReminderOptions {
   studentId?: string; // Send reminder to specific student
   daysBeforeDue?: number; // Send reminder X days before due date
   overdueOnly?: boolean; // Only send to overdue invoices
-  language?: 'en' | 'sw' | 'ml';
+  language?: 'en' | 'hi' | 'ml';
 }
 
 export interface FeeReminderResult {
@@ -91,7 +91,7 @@ export class FeeReminderService {
         // Format and validate phone number
         const formattedPhone = this.whatsAppService.validatePhoneNumber(recipientPhone)
           ? recipientPhone
-          : this.whatsAppService.formatPhoneNumber(recipientPhone, '254'); // Default to Kenya
+          : this.whatsAppService.formatPhoneNumber(recipientPhone, '91'); // Default to India
 
         // Build message
         const message = this.buildFeeReminderMessage(invoice, language);
@@ -154,7 +154,7 @@ export class FeeReminderService {
    */
   async sendPaymentConfirmation(
     paymentId: string,
-    language: 'en' | 'sw' = 'en',
+    language: 'en' | 'hi' | 'ml' = 'en',
   ): Promise<boolean> {
     const tenantId = this.tenantService.requireTenantContext();
 
@@ -189,7 +189,7 @@ export class FeeReminderService {
 
     const formattedPhone = this.whatsAppService.validatePhoneNumber(guardianPhone)
       ? guardianPhone
-      : this.whatsAppService.formatPhoneNumber(guardianPhone, '254');
+      : this.whatsAppService.formatPhoneNumber(guardianPhone, '91');
 
     const message = this.buildPaymentConfirmationMessage(payment, language);
 
@@ -270,7 +270,7 @@ export class FeeReminderService {
   /**
    * Build fee reminder message
    */
-  private buildFeeReminderMessage(invoice: any, language: 'en' | 'sw' | 'ml'): string {
+  private buildFeeReminderMessage(invoice: any, language: 'en' | 'hi' | 'ml'): string {
     const studentName = `${invoice.student.firstName} ${invoice.student.lastName}`;
     const amount = this.formatAmount(invoice.totalAmount - invoice.paidAmount);
     const dueDate = this.formatDate(invoice.dueDate);
@@ -309,31 +309,35 @@ export class FeeReminderService {
           `ബാങ്കിലോ സ്കൂളിലോ വരിനിൽക്കാതെ മുകളിലെ ലിങ്കിൽ ക്ലിക്ക് ചെയ്ത് യു.പി.ഐ വഴി ഉടൻ പണമടയ്ക്കാം.\n\n` +
           `നന്ദി`;
       }
-    } else if (language === 'sw') {
-      // Swahili message
+    } else if (language === 'hi') {
+      // Hindi message
       if (isOverdue) {
-        return `🏫 *Notisi ya Ada ya Shule*\n\n` +
-          `Mzazi mpendwa,\n\n` +
-          `Mwanafunzi: *${studentName}*\n` +
-          `Darasa: *${className}*\n` +
-          `Muhula: *${termName}*\n\n` +
-          `⚠️ Malipo ya ada ya mtoto wako yamechelewa.\n\n` +
-          `Kiasi Kilichobaki: *${amount}*\n` +
-          `Tarehe ya Mwisho: *${dueDate}*\n` +
-          `Nambari ya Ankara: ${invoiceNumber}\n\n` +
-          `Tafadhali fanya malipo haraka iwezekanavyo ili kuepuka usumbufu wowote.\n\n` +
-          `Asante`;
+        return `🏫 *विद्यालय शुल्क बकाया सूचना (Overdue Fee)*\n\n` +
+          `प्रिय अभिभावक,\n\n` +
+          `विद्यार्थी: *${studentName}*\n` +
+          `कक्षा: *${className}*\n` +
+          `सत्र: *${termName}*\n\n` +
+          `⚠️ आपके बच्चे का विद्यालय शुल्क निर्धारित तिथि से लंबित है।\n\n` +
+          `• बकाया राशि: *${amount}*\n` +
+          `• अंतिम तिथि: *${dueDate}*\n` +
+          `• चालान संख्या: ${invoiceNumber}\n\n` +
+          `⚡ *तुरंत UPI भुगतान लिंक:*\n` +
+          `${upiLink}\n\n` +
+          `किसी भी असुविधा से बचने के लिए कृपया शीघ्र भुगतान करें।\n\n` +
+          `धन्यवाद`;
       } else {
-        return `🏫 *Kikumbusho cha Ada ya Shule*\n\n` +
-          `Mzazi mpendwa,\n\n` +
-          `Mwanafunzi: *${studentName}*\n` +
-          `Darasa: *${className}*\n` +
-          `Muhula: *${termName}*\n\n` +
-          `Kiasi Kilichobaki: *${amount}*\n` +
-          `Tarehe ya Mwisho: *${dueDate}*\n` +
-          `Nambari ya Ankara: ${invoiceNumber}\n\n` +
-          `Tafadhali hakikisha malipo yanafanywa kabla ya tarehe ya mwisho.\n\n` +
-          `Asante`;
+        return `🏫 *विद्यालय शुल्क अनुस्मारक*\n\n` +
+          `प्रिय अभिभावक,\n\n` +
+          `विद्यार्थी: *${studentName}*\n` +
+          `कक्षा: *${className}*\n` +
+          `सत्र: *${termName}*\n\n` +
+          `• बकाया राशि: *${amount}*\n` +
+          `• अंतिम तिथि: *${dueDate}*\n` +
+          `• चालान संख्या: ${invoiceNumber}\n\n` +
+          `⚡ *तुरंत UPI भुगतान लिंक:*\n` +
+          `${upiLink}\n\n` +
+          `कृपया निर्धारित तिथि से पहले भुगतान सुनिश्चित करें।\n\n` +
+          `धन्यवाद`;
       }
     } else {
       // English message
@@ -367,7 +371,7 @@ export class FeeReminderService {
   /**
    * Build payment confirmation message
    */
-  private buildPaymentConfirmationMessage(payment: any, language: 'en' | 'sw'): string {
+  private buildPaymentConfirmationMessage(payment: any, language: 'en' | 'hi' | 'ml'): string {
     const studentName = `${payment.invoice.student.firstName} ${payment.invoice.student.lastName}`;
     const amount = this.formatAmount(payment.amount);
     const paymentDate = this.formatDate(payment.paymentDate);
@@ -376,16 +380,26 @@ export class FeeReminderService {
       payment.invoice.totalAmount - payment.invoice.paidAmount - payment.amount,
     );
 
-    if (language === 'sw') {
-      return `✅ *Uthibitisho wa Malipo*\n\n` +
-        `Mzazi mpendwa,\n\n` +
-        `Mwanafunzi: *${studentName}*\n\n` +
-        `Malipo yako yamepokelewa kwa mafanikio.\n\n` +
-        `Kiasi Kilicholipwa: *${amount}*\n` +
-        `Tarehe: ${paymentDate}\n` +
-        `Nambari ya Risiti: ${receiptNumber}\n` +
-        `Kiasi Kilichobaki: *${balance}*\n\n` +
-        `Asante!`;
+    if (language === 'ml') {
+      return `✅ *ഫീസ് പേയ്‌മെന്റ് സ്ഥിരീകരണം*\n\n` +
+        `പ്രിയ രക്ഷിതാവേ,\n\n` +
+        `വിദ്യാർത്ഥി: *${studentName}*\n\n` +
+        `നിങ്ങളുടെ ഫീസ് പേയ്‌മെന്റ് വിജയകരമായി ലഭിച്ചു.\n\n` +
+        `അടച്ച തുക: *${amount}*\n` +
+        `തീയതി: ${paymentDate}\n` +
+        `രസീത് നമ്പർ: ${receiptNumber}\n` +
+        `ബാക്കി തുക: *${balance}*\n\n` +
+        `നന്ദി!`;
+    } else if (language === 'hi') {
+      return `✅ *शुल्क भुगतान पुष्टि*\n\n` +
+        `प्रिय अभिभावक,\n\n` +
+        `विद्यार्थी: *${studentName}*\n\n` +
+        `आपका शुल्क भुगतान सफलतापूर्वक प्राप्त हो गया है।\n\n` +
+        `भुगतान राशि: *${amount}*\n` +
+        `दिनांक: ${paymentDate}\n` +
+        `रसीद संख्या: ${receiptNumber}\n` +
+        `शेष राशि: *${balance}*\n\n` +
+        `धन्यवाद!`;
     } else {
       return `✅ *Payment Confirmation*\n\n` +
         `Dear Parent,\n\n` +
@@ -429,7 +443,7 @@ export class FeeReminderService {
    * Format amount with currency
    */
   private formatAmount(amount: number): string {
-    return `KES ${amount.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `₹${(amount / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
   /**

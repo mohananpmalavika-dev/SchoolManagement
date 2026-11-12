@@ -61,7 +61,9 @@ export enum AttendanceStatus {
 }
 
 export enum PaymentMethod {
-  MPESA = 'MPESA',
+  RAZORPAY = 'RAZORPAY',
+  UPI = 'UPI',
+  NET_BANKING = 'NET_BANKING',
   CASH = 'CASH',
   BANK_TRANSFER = 'BANK_TRANSFER',
   CHEQUE = 'CHEQUE',
@@ -87,13 +89,16 @@ export enum InvoiceStatus {
   CANCELLED = 'CANCELLED',
 }
 
-export enum MpesaStatus {
+export enum PaymentGatewayStatus {
   INITIATED = 'INITIATED',
   PENDING = 'PENDING',
+  AUTHORIZED = 'AUTHORIZED',
+  CAPTURED = 'CAPTURED',
   SUCCESS = 'SUCCESS',
   FAILED = 'FAILED',
   TIMEOUT = 'TIMEOUT',
   CANCELLED = 'CANCELLED',
+  REFUNDED = 'REFUNDED',
   RECONCILED = 'RECONCILED',
 }
 
@@ -123,7 +128,8 @@ export enum CommunicationChannel {
 export enum EducationLevel {
   PRE_PRIMARY = 'PRE_PRIMARY',
   PRIMARY = 'PRIMARY',
-  JUNIOR_SECONDARY = 'JUNIOR_SECONDARY',
+  MIDDLE = 'MIDDLE',
+  SECONDARY = 'SECONDARY',
   SENIOR_SECONDARY = 'SENIOR_SECONDARY',
 }
 

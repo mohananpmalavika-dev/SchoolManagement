@@ -1,11 +1,11 @@
 /**
- * Date utility functions for government integration
+ * Date utility functions for Indian government & academic compliance (April–March academic year, IST)
  */
 export class DateUtil {
   /**
-   * Get Kenyan academic terms for a given year
+   * Get Indian academic terms for a given start year (April–March)
    */
-  static getKenyanAcademicTerms(year: number): Array<{
+  static getIndianAcademicTerms(startYear: number): Array<{
     term: number;
     name: string;
     startDate: Date;
@@ -14,21 +14,15 @@ export class DateUtil {
     return [
       {
         term: 1,
-        name: 'Term 1',
-        startDate: new Date(year, 0, 2), // January 2
-        endDate: new Date(year, 3, 15), // April 15
+        name: 'Term 1 (Apr - Sep)',
+        startDate: new Date(startYear, 3, 1), // April 1
+        endDate: new Date(startYear, 8, 30), // September 30
       },
       {
         term: 2,
-        name: 'Term 2',
-        startDate: new Date(year, 4, 1), // May 1
-        endDate: new Date(year, 7, 15), // August 15
-      },
-      {
-        term: 3,
-        name: 'Term 3',
-        startDate: new Date(year, 8, 1), // September 1
-        endDate: new Date(year, 10, 30), // November 30
+        name: 'Term 2 (Oct - Mar)',
+        startDate: new Date(startYear, 9, 1), // October 1
+        endDate: new Date(startYear + 1, 2, 31), // March 31
       },
     ];
   }
@@ -41,49 +35,44 @@ export class DateUtil {
     name: string;
     year: number;
   } | null {
-    const year = date.getFullYear();
-    const terms = this.getKenyanAcademicTerms(year);
+    const startYear = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+    const terms = this.getIndianAcademicTerms(startYear);
 
     for (const term of terms) {
       if (date >= term.startDate && date <= term.endDate) {
         return {
           term: term.term,
           name: term.name,
-          year,
+          year: startYear,
         };
       }
     }
 
-    // If between terms, return the next term
-    const nextYear = year + 1;
-    const nextTerms = this.getKenyanAcademicTerms(nextYear);
-    
-    if (date > terms[2].endDate) {
-      return {
-        term: 1,
-        name: 'Term 1',
-        year: nextYear,
-      };
-    }
-
-    return null;
+    return {
+      term: 1,
+      name: 'Term 1 (Apr - Sep)',
+      year: startYear,
+    };
   }
 
   /**
    * Get next academic term
    */
-  static getNextTerm(currentTerm: number, currentYear: number): {
+  static getNextTerm(
+    currentTerm: number,
+    currentYear: number,
+  ): {
     term: number;
     year: number;
   } {
-    if (currentTerm === 3) {
+    if (currentTerm >= 2) {
       return { term: 1, year: currentYear + 1 };
     }
     return { term: currentTerm + 1, year: currentYear };
   }
 
   /**
-   * Calculate school days between two dates (excluding weekends)
+   * Calculate school days between two dates (excluding Sundays; Indian CBSE/State standard)
    */
   static calculateSchoolDays(startDate: Date, endDate: Date): number {
     let count = 0;
@@ -91,7 +80,6 @@ export class DateUtil {
 
     while (current <= endDate) {
       const dayOfWeek = current.getDay();
-      // Exclude weekends (0 = Sunday, 6 = Saturday)
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
         count++;
       }
@@ -102,204 +90,110 @@ export class DateUtil {
   }
 
   /**
-   * Get Kenyan public holidays for a given year
+   * Get Indian national & major school holidays for a given year
    */
-  static getKenyanPublicHolidays(year: number): Array<{
+  static getIndianNationalHolidays(year: number): Array<{
     name: string;
     date: Date;
   }> {
     return [
-      { name: 'New Year\'s Day', date: new Date(year, 0, 1) },
-      { name: 'Labour Day', date: new Date(year, 4, 1) },
-      { name: 'Madaraka Day', date: new Date(year, 5, 1) },
-      { name: 'Mashujaa Day', date: new Date(year, 9, 20) },
-      { name: 'Jamhuri Day', date: new Date(year, 11, 12) },
+      { name: "New Year's Day", date: new Date(year, 0, 1) },
+      { name: 'Republic Day', date: new Date(year, 0, 26) },
+      { name: 'May Day / Labour Day', date: new Date(year, 4, 1) },
+      { name: 'Independence Day', date: new Date(year, 7, 15) },
+      { name: 'Kerala Piravi / Foundation Day', date: new Date(year, 10, 1) },
+      { name: 'Gandhi Jayanti', date: new Date(year, 9, 2) },
+      { name: "Children's Day", date: new Date(year, 10, 14) },
       { name: 'Christmas Day', date: new Date(year, 11, 25) },
-      { name: 'Boxing Day', date: new Date(year, 11, 26) },
-      // Note: Eid ul-Fitr and Eid ul-Adha dates vary and should be added dynamically
     ];
   }
 
-  /**
-   * Check if a date is a Kenyan public holiday
-   */
-  static isPublicHoliday(date: Date): boolean {
-    const holidays = this.getKenyanPublicHolidays(date.getFullYear());
-    return holidays.some(holiday => 
-      holiday.date.getDate() === date.getDate() &&
-      holiday.date.getMonth() === date.getMonth()
-    );
-  }
+  static formatDate(date: Date, format: 'ISO' | 'DD/MM/YYYY' | 'YYYY-MM-DD' = 'YYYY-MM-DD'): string {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
 
-  /**
-   * Check if a date is a school day
-   */
-  static isSchoolDay(date: Date): boolean {
-    const dayOfWeek = date.getDay();
-    // Not a weekend
-    if (dayOfWeek === 0 || dayOfWeek === 6) return false;
-    // Not a public holiday
-    if (this.isPublicHoliday(date)) return false;
-    // Within term dates
-    const currentTerm = this.getCurrentTerm(date);
-    return currentTerm !== null;
-  }
-
-  /**
-   * Get age from date of birth
-   */
-  static calculateAge(dateOfBirth: Date, referenceDate: Date = new Date()): number {
-    const age = referenceDate.getFullYear() - dateOfBirth.getFullYear();
-    const monthDiff = referenceDate.getMonth() - dateOfBirth.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && referenceDate.getDate() < dateOfBirth.getDate())) {
-      return age - 1;
+    switch (format) {
+      case 'ISO':
+        return d.toISOString();
+      case 'DD/MM/YYYY':
+        return `${day}/${month}/${year}`;
+      case 'YYYY-MM-DD':
+      default:
+        return `${year}-${month}-${day}`;
     }
-    
-    return age;
   }
 
-  /**
-   * Format date range
-   */
-  static formatDateRange(startDate: Date, endDate: Date): string {
-    const start = startDate.toLocaleDateString('en-KE', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-    const end = endDate.toLocaleDateString('en-KE', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-    return `${start} - ${end}`;
+  static getStartOfMonth(date: Date = new Date()): Date {
+    return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
   }
 
-  /**
-   * Get start and end of month
-   */
-  static getMonthBounds(year: number, month: number): {
-    start: Date;
-    end: Date;
-  } {
-    return {
-      start: new Date(year, month, 1),
-      end: new Date(year, month + 1, 0),
-    };
+  static getEndOfMonth(date: Date = new Date()): Date {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
   }
 
-  /**
-   * Get start and end of year
-   */
-  static getYearBounds(year: number): {
-    start: Date;
-    end: Date;
-  } {
-    return {
-      start: new Date(year, 0, 1),
-      end: new Date(year, 11, 31),
-    };
+  static getStartOfQuarter(year: number, quarter: number): Date {
+    const month = (quarter - 1) * 3;
+    return new Date(year, month, 1, 0, 0, 0, 0);
   }
 
-  /**
-   * Get quarter bounds
-   */
-  static getQuarterBounds(year: number, quarter: number): {
-    start: Date;
-    end: Date;
-  } {
-    const startMonth = (quarter - 1) * 3;
-    const endMonth = startMonth + 2;
-    
-    return {
-      start: new Date(year, startMonth, 1),
-      end: new Date(year, endMonth + 1, 0),
-    };
+  static getEndOfQuarter(year: number, quarter: number): Date {
+    const month = quarter * 3;
+    return new Date(year, month, 0, 23, 59, 59, 999);
   }
 
-  /**
-   * Add business days to a date
-   */
-  static addBusinessDays(date: Date, days: number): Date {
+  static getCurrentQuarter(date: Date = new Date()): number {
+    return Math.floor(date.getMonth() / 3) + 1;
+  }
+
+  static isWithinDays(date: Date, days: number): boolean {
+    const now = new Date();
+    const diff = date.getTime() - now.getTime();
+    const daysDiff = diff / (1000 * 60 * 60 * 24);
+    return daysDiff >= 0 && daysDiff <= days;
+  }
+
+  static isOverdue(dueDate: Date): boolean {
+    return new Date() > new Date(dueDate);
+  }
+
+  static daysUntil(date: Date): number {
+    const now = new Date();
+    const diff = new Date(date).getTime() - now.getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  }
+
+  static addDays(date: Date, days: number): Date {
     const result = new Date(date);
-    let addedDays = 0;
-
-    while (addedDays < days) {
-      result.setDate(result.getDate() + 1);
-      const dayOfWeek = result.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !this.isPublicHoliday(result)) {
-        addedDays++;
-      }
-    }
-
+    result.setDate(result.getDate() + days);
     return result;
   }
 
-  /**
-   * Get days until deadline
-   */
-  static getDaysUntilDeadline(deadline: Date): number {
-    const now = new Date();
-    const diffTime = deadline.getTime() - now.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  }
-
-  /**
-   * Check if deadline is approaching (within specified days)
-   */
-  static isDeadlineApproaching(deadline: Date, daysThreshold: number = 7): boolean {
-    const daysUntil = this.getDaysUntilDeadline(deadline);
-    return daysUntil >= 0 && daysUntil <= daysThreshold;
-  }
-
-  /**
-   * Check if date is overdue
-   */
-  static isOverdue(deadline: Date): boolean {
-    return deadline < new Date();
-  }
-
-  /**
-   * Get fiscal year (Kenya: July - June)
-   */
-  static getFiscalYear(date: Date = new Date()): {
-    startYear: number;
-    endYear: number;
-    startDate: Date;
-    endDate: Date;
-  } {
+  static getReportingPeriodName(
+    type: 'MONTHLY' | 'TERMLY' | 'QUARTERLY' | 'ANNUAL',
+    date: Date = new Date(),
+  ): string {
     const year = date.getFullYear();
-    const month = date.getMonth();
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
 
-    // Fiscal year starts in July (month 6)
-    const startYear = month >= 6 ? year : year - 1;
-    const endYear = startYear + 1;
-
-    return {
-      startYear,
-      endYear,
-      startDate: new Date(startYear, 6, 1), // July 1
-      endDate: new Date(endYear, 5, 30), // June 30
-    };
-  }
-
-  /**
-   * Convert date to ISO string (YYYY-MM-DD)
-   */
-  static toIsoDateString(date: Date): string {
-    return date.toISOString().split('T')[0];
-  }
-
-  /**
-   * Parse ISO date string safely
-   */
-  static parseIsoDate(dateString: string): Date | null {
-    try {
-      const date = new Date(dateString);
-      return isNaN(date.getTime()) ? null : date;
-    } catch {
-      return null;
+    switch (type) {
+      case 'MONTHLY':
+        return `${monthNames[date.getMonth()]} ${year}`;
+      case 'TERMLY': {
+        const term = this.getCurrentTerm(date);
+        return term ? `${term.name} ${term.year}` : `${year}`;
+      }
+      case 'QUARTERLY':
+        return `Q${this.getCurrentQuarter(date)} ${year}`;
+      case 'ANNUAL':
+      default: {
+        const startYear = date.getMonth() >= 3 ? year : year - 1;
+        return `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`;
+      }
     }
   }
 }

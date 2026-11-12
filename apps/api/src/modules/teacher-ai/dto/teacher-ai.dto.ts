@@ -11,7 +11,7 @@ export class StudentObservationDto {
   @IsOptional() @IsString() @MaxLength(800) behaviourObservation?: string;
 }
 export class GenerateRemarksDto extends ClassTermDto {
-  @IsIn(['English', 'Malayalam', 'Swahili']) language: TeachingLanguage;
+  @IsIn(['English', 'Hindi', 'Malayalam']) language: TeachingLanguage;
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(10) @ArrayUnique((s: StudentObservationDto) => s.studentId)
   @ValidateNested({ each: true }) @Type(() => StudentObservationDto) students: StudentObservationDto[];
 }
@@ -26,13 +26,13 @@ export class GenerateQuizDto {
   @IsString() @MinLength(2) @MaxLength(100) subject: string;
   @IsString() @MinLength(2) @MaxLength(150) chapter: string;
   @IsString() @MinLength(80) @MaxLength(20000) sourceText: string;
-  @IsIn(['English', 'Malayalam', 'Swahili']) language: TeachingLanguage;
+  @IsIn(['English', 'Hindi', 'Malayalam']) language: TeachingLanguage;
   @IsIn(['QUIZ', 'WORKSHEET', 'QUESTION_PAPER']) format: 'QUIZ' | 'WORKSHEET' | 'QUESTION_PAPER';
   @IsIn(['MCQ', 'SHORT_ANSWER', 'MIXED']) questionType: 'MCQ' | 'SHORT_ANSWER' | 'MIXED';
   @IsIn(['FOUNDATION', 'STANDARD', 'CHALLENGE']) difficulty: 'FOUNDATION' | 'STANDARD' | 'CHALLENGE';
 }
 export class RiskReviewDto {
-  @IsIn(['English', 'Malayalam', 'Swahili']) language: TeachingLanguage;
+  @IsIn(['English', 'Hindi', 'Malayalam']) language: TeachingLanguage;
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(10) @ArrayUnique() @IsUUID('all', { each: true }) studentIds: string[];
 }
 
@@ -43,8 +43,8 @@ export class GenerateLessonPlanDto {
   @IsOptional() @IsString() @MaxLength(150) strand?: string;
   @IsOptional() @IsString() @MaxLength(150) subStrand?: string;
   @IsOptional() @Type(() => Number) durationMinutes?: number;
-  @IsOptional() @IsIn(['CBC', 'STANDARD', 'CAMBRIDGE', 'NCERT']) curriculum?: 'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT';
-  @IsOptional() @IsIn(['English', 'Malayalam', 'Swahili']) language?: TeachingLanguage;
+  @IsOptional() @IsIn(['CBSE', 'ICSE', 'STATE_BOARD', 'NCERT', 'CAMBRIDGE']) curriculum?: 'CBSE' | 'ICSE' | 'STATE_BOARD' | 'NCERT' | 'CAMBRIDGE';
+  @IsOptional() @IsIn(['English', 'Hindi', 'Malayalam']) language?: TeachingLanguage;
   @IsOptional() @IsString() @MaxLength(1000) additionalNotes?: string;
 }
 
@@ -56,8 +56,8 @@ export class GenerateSchemeOfWorkDto {
   @IsOptional() @Type(() => Number) termNumber?: number;
   @IsOptional() @Type(() => Number) weeksCount?: number;
   @IsOptional() @Type(() => Number) lessonsPerWeek?: number;
-  @IsOptional() @IsIn(['CBC', 'STANDARD', 'CAMBRIDGE', 'NCERT']) curriculum?: 'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT';
-  @IsOptional() @IsIn(['English', 'Malayalam', 'Swahili']) language?: TeachingLanguage;
+  @IsOptional() @IsIn(['CBSE', 'ICSE', 'STATE_BOARD', 'NCERT', 'CAMBRIDGE']) curriculum?: 'CBSE' | 'ICSE' | 'STATE_BOARD' | 'NCERT' | 'CAMBRIDGE';
+  @IsOptional() @IsIn(['English', 'Hindi', 'Malayalam']) language?: TeachingLanguage;
   @IsOptional() @IsString() @MaxLength(1000) additionalNotes?: string;
 }
 
@@ -71,6 +71,6 @@ export class ShareLessonToChatDto {
 
 export class CopilotQueryDto {
   @IsString() @MinLength(3) @MaxLength(500) query: string;
-  @IsOptional() @IsIn(['English', 'Malayalam', 'Swahili']) language?: TeachingLanguage;
+  @IsOptional() @IsIn(['English', 'Hindi', 'Malayalam']) language?: TeachingLanguage;
 }
 

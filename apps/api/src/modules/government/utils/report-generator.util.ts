@@ -190,12 +190,12 @@ export class ReportGeneratorUtil {
   }
 
   /**
-   * Format currency (Kenyan Shillings)
+   * Format currency (Indian Rupees)
    */
   static formatCurrency(amount: number): string {
-    // Convert from minor units (cents) to major units
+    // Convert from minor units (paise) to major units
     const majorAmount = amount / 100;
-    return `KES ${majorAmount.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `INR ${majorAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
   /**
@@ -203,16 +203,16 @@ export class ReportGeneratorUtil {
    */
   static formatDate(date: Date | string, format: 'short' | 'long' = 'short'): string {
     const d = typeof date === 'string' ? new Date(date) : date;
-    
+
     if (format === 'long') {
-      return d.toLocaleDateString('en-KE', {
+      return d.toLocaleDateString('en-IN', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       });
     }
-    
-    return d.toLocaleDateString('en-KE', {
+
+    return d.toLocaleDateString('en-IN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

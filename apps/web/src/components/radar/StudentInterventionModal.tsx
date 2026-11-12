@@ -35,7 +35,7 @@ interface StudentInterventionModalProps {
 export function StudentInterventionModal({
   student,
   onClose,
-  currency = 'KES',
+  currency = 'INR',
 }: StudentInterventionModalProps) {
   const [lang, setLang] = useState<'ml' | 'en'>('ml');
   const [sending, setSending] = useState(false);

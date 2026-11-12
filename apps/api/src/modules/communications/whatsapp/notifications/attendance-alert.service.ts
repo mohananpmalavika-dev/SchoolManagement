@@ -8,7 +8,7 @@ export interface AttendanceAlertOptions {
   classId?: string; // Specific class
   studentId?: string; // Specific student
   status?: 'ABSENT' | 'LATE' | 'EXCUSED' | 'ALL'; // Alert for specific status
-  language?: 'en' | 'sw' | 'ml';
+  language?: 'en' | 'hi' | 'ml';
 }
 
 export interface AttendanceAlertResult {
@@ -97,7 +97,7 @@ export class AttendanceAlertService {
           recipientPhone,
         )
           ? recipientPhone
-          : this.whatsAppService.formatPhoneNumber(recipientPhone, '254');
+          : this.whatsAppService.formatPhoneNumber(recipientPhone, '91');
 
         // Build message
         const message = this.buildAttendanceAlertMessage(record, language);
@@ -163,7 +163,7 @@ export class AttendanceAlertService {
    */
   async sendDailyAttendanceSummary(
     date?: Date,
-    language: 'en' | 'sw' = 'en',
+    language: 'en' | 'hi' | 'ml' = 'en',
   ): Promise<AttendanceAlertResult> {
     const tenantId = this.tenantService.requireTenantContext();
     const summaryDate = date || new Date();
@@ -230,7 +230,7 @@ export class AttendanceAlertService {
           guardianPhone,
         )
           ? guardianPhone
-          : this.whatsAppService.formatPhoneNumber(guardianPhone, '254');
+          : this.whatsAppService.formatPhoneNumber(guardianPhone, '91');
 
         const message = this.buildDailySummaryMessage(record, language);
 
@@ -265,7 +265,7 @@ export class AttendanceAlertService {
    */
   async sendInstantAlert(
     attendanceId: string,
-    language: 'en' | 'sw' = 'en',
+    language: 'en' | 'hi' | 'ml' = 'en',
   ): Promise<boolean> {
     const tenantId = this.tenantService.requireTenantContext();
 
@@ -387,7 +387,7 @@ export class AttendanceAlertService {
    */
   private buildAttendanceAlertMessage(
     attendance: any,
-    language: 'en' | 'sw' | 'ml',
+    language: 'en' | 'hi' | 'ml',
   ): string {
     const studentName = `${attendance.student.firstName} ${attendance.student.lastName}`;
     const className = attendance.student.class?.name || 'N/A';
@@ -430,41 +430,41 @@ export class AttendanceAlertService {
           `നന്ദി`
         );
       }
-    } else if (language === 'sw') {
-      // Swahili message
+    } else if (language === 'hi') {
+      // Hindi message
       if (status === 'ABSENT') {
         return (
-          `🏫 *Arifa ya Mahudhurio*\n\n` +
-          `Mzazi mpendwa,\n\n` +
-          `Mwanafunzi: *${studentName}*\n` +
-          `Darasa: *${className}*\n` +
-          `Tarehe: *${date}*\n\n` +
-          `⚠️ Mtoto wako hakuhudhuria shuleni leo.\n\n` +
-          (remarks ? `Maelezo: ${remarks}\n\n` : '') +
-          `Ikiwa hii ni jambo la ajabu, tafadhali wasiliana na shule.\n\n` +
-          `Asante`
+          `🏫 *उपस्थिति सूचना*\n\n` +
+          `प्रिय अभिभावक,\n\n` +
+          `विद्यार्थी: *${studentName}*\n` +
+          `कक्षा: *${className}*\n` +
+          `दिनांक: *${date}*\n\n` +
+          `⚠️ आज आपका बच्चा विद्यालय में अनुपस्थित रहा है।\n\n` +
+          (remarks ? `टिप्पणी: ${remarks}\n\n` : '') +
+          `यदि यह अप्रत्याशित है, तो कृपया विद्यालय से संपर्क करें।\n\n` +
+          `धन्यवाद`
         );
       } else if (status === 'LATE') {
         return (
-          `🏫 *Arifa ya Kuchelewa*\n\n` +
-          `Mzazi mpendwa,\n\n` +
-          `Mwanafunzi: *${studentName}*\n` +
-          `Darasa: *${className}*\n` +
-          `Tarehe: *${date}*\n\n` +
-          `ℹ️ Mtoto wako alifika shuleni kwa kuchelewa leo.\n\n` +
-          (remarks ? `Maelezo: ${remarks}\n\n` : '') +
-          `Asante`
+          `🏫 *विलंब सूचना*\n\n` +
+          `प्रिय अभिभावक,\n\n` +
+          `विद्यार्थी: *${studentName}*\n` +
+          `कक्षा: *${className}*\n` +
+          `दिनांक: *${date}*\n\n` +
+          `ℹ️ आपका बच्चा आज विद्यालय देर से पहुँचा है।\n\n` +
+          (remarks ? `टिप्पणी: ${remarks}\n\n` : '') +
+          `धन्यवाद`
         );
       } else {
         return (
-          `🏫 *Arifa ya Mahudhurio*\n\n` +
-          `Mzazi mpendwa,\n\n` +
-          `Mwanafunzi: *${studentName}*\n` +
-          `Darasa: *${className}*\n` +
-          `Tarehe: *${date}*\n` +
-          `Hali: *${status}*\n\n` +
-          (remarks ? `Maelezo: ${remarks}\n\n` : '') +
-          `Asante`
+          `🏫 *उपस्थिति सूचना*\n\n` +
+          `प्रिय अभिभावक,\n\n` +
+          `विद्यार्थी: *${studentName}*\n` +
+          `कक्षा: *${className}*\n` +
+          `दिनांक: *${date}*\n` +
+          `स्थिति: *${status}*\n\n` +
+          (remarks ? `टिप्पणी: ${remarks}\n\n` : '') +
+          `धन्यवाद`
         );
       }
     } else {
@@ -512,7 +512,7 @@ export class AttendanceAlertService {
    */
   private buildDailySummaryMessage(
     attendance: any,
-    language: 'en' | 'sw',
+    language: 'en' | 'hi' | 'ml',
   ): string {
     const studentName = `${attendance.student.firstName} ${attendance.student.lastName}`;
     const className = attendance.student.class?.name || 'N/A';
@@ -528,21 +528,37 @@ export class AttendanceAlertService {
 
     const emoji = statusEmoji[status] || 'ℹ️';
 
-    if (language === 'sw') {
+    if (language === 'ml') {
       const statusText = {
-        PRESENT: 'Yupo',
-        ABSENT: 'Hayupo',
-        LATE: 'Amechelewa',
-        EXCUSED: 'Ruhusa',
+        PRESENT: 'ഹാജർ',
+        ABSENT: 'അവധിയാണ്',
+        LATE: 'വൈകി എത്തി',
+        EXCUSED: 'അവധിക്കായി അനുമതി',
       };
 
       return (
-        `🏫 *Muhtasari wa Mahudhurio ya Kila Siku*\n\n` +
-        `Mwanafunzi: *${studentName}*\n` +
-        `Darasa: *${className}*\n` +
-        `Tarehe: *${date}*\n\n` +
-        `Hali: ${emoji} *${statusText[status] || status}*\n\n` +
-        `Asante`
+        `🏫 *പ്രതിദിന ഹാജർ സംഗ്രഹം*\n\n` +
+        `വിദ്യാർത്ഥി: *${studentName}*\n` +
+        `ക്ലാസ്സ്: *${className}*\n` +
+        `തീയതി: *${date}*\n\n` +
+        `സ്റ്റാറ്റസ്: ${emoji} *${statusText[status] || status}*\n\n` +
+        `നന്ദി`
+      );
+    } else if (language === 'hi') {
+      const statusText = {
+        PRESENT: 'उपस्थित',
+        ABSENT: 'अनुपस्थित',
+        LATE: 'विलंबित',
+        EXCUSED: 'स्वीकृत अवकाश',
+      };
+
+      return (
+        `🏫 *दैनिक उपस्थिति सारांश*\n\n` +
+        `विद्यार्थी: *${studentName}*\n` +
+        `कक्षा: *${className}*\n` +
+        `दिनांक: *${date}*\n\n` +
+        `स्थिति: ${emoji} *${statusText[status] || status}*\n\n` +
+        `धन्यवाद`
       );
     } else {
       return (

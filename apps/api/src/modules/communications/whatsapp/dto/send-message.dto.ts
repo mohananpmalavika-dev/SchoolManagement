@@ -5,7 +5,7 @@ import { Type } from 'class-transformer';
 export class SendMessageDto {
   @ApiProperty({
     description: 'Recipient phone number in E.164 format',
-    example: '+254712345678',
+    example: '+919876543210',
   })
   @IsString()
   @IsNotEmpty()
@@ -32,7 +32,7 @@ export class SendMessageDto {
 export class RecipientDto {
   @ApiProperty({
     description: 'Recipient phone number',
-    example: '+254712345678',
+    example: '+919876543210',
   })
   @IsString()
   @IsNotEmpty()
@@ -53,8 +53,8 @@ export class SendBulkMessageDto {
     description: 'List of recipients',
     type: [RecipientDto],
     example: [
-      { phoneNumber: '+254712345678', name: 'John Doe' },
-      { phoneNumber: '+254723456789', name: 'Jane Smith' },
+      { phoneNumber: '+919876543210', name: 'Rajesh Nair' },
+      { phoneNumber: '+919847012345', name: 'Priya Menon' },
     ],
   })
   @IsArray()
@@ -74,7 +74,7 @@ export class SendBulkMessageDto {
 export class SendTemplateMessageDto {
   @ApiProperty({
     description: 'Recipient phone number',
-    example: '+254712345678',
+    example: '+919876543210',
   })
   @IsString()
   @IsNotEmpty()
@@ -103,11 +103,11 @@ export class SendTemplateMessageDto {
   @ApiProperty({
     description: 'Message language',
     example: 'en',
-    enum: ['en', 'sw'],
+    enum: ['en', 'hi', 'ml'],
     required: false,
   })
   @IsString()
   @IsOptional()
-  language?: 'en' | 'sw';
+  language?: 'en' | 'hi' | 'ml';
 }
 

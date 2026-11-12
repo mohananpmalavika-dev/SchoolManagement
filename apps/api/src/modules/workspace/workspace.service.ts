@@ -2,15 +2,15 @@ import {ExaminationsService} from '../examinations/examinations.service';
 import {Injectable,BadRequestException,ForbiddenException,NotFoundException} from '@nestjs/common';
 import {PrismaService} from '../../database/prisma.service';
 import {TenantService} from '../../database/tenant.service';
-import {FeesService} from '../fees/fees.service';
-import {MpesaService} from '../mpesa/mpesa.service';
-import {TimetableService} from '../timetable/timetable.service';
-import {FeeCategory} from '@krypton/types';
-import {recordSpecs,managers,parseRecord} from './records';
-const teacherRoles=['TEACHER','CLASS_TEACHER','EXAM_OFFICER'];
+import { FeesService } from '../fees/fees.service';
+import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.service';
+import { TimetableService } from '../timetable/timetable.service';
+import { FeeCategory } from '@krypton/types';
+import { recordSpecs, managers, parseRecord } from './records';
+const teacherRoles = ['TEACHER', 'CLASS_TEACHER', 'EXAM_OFFICER'];
 @Injectable()
-export class WorkspaceService{
- constructor(private prisma:PrismaService,private tenants:TenantService,private fees:FeesService,private mpesa:MpesaService,private timetable:TimetableService,private exams:ExaminationsService){}
+export class WorkspaceService {
+  constructor(private prisma: PrismaService, private tenants: TenantService, private fees: FeesService, private paymentsGateway: PaymentsGatewayService, private timetable: TimetableService, private exams: ExaminationsService) {}
  private tenant(){return this.tenants.requireTenantContext();}
  private staffRole(user:any){if(['PARENT','STUDENT'].includes(user.role))throw new ForbiddenException('Staff access required');}
  private async classIds(user:any):Promise<string[]|null>{
@@ -44,7 +44,7 @@ export class WorkspaceService{
   const present=attendance.filter(a=>['PRESENT','LATE'].includes(a.status)).length;
   return {student,invoices,payments,attendance,grades,reportCards,events,attendanceSummary:{totalDays:attendance.length,presentCount:present,attendanceRate:attendance.length?Math.round(present/attendance.length*100):0}};
  }
- async pay(user:any,dto:any){const invoice=await this.prisma.invoice.findFirst({where:{id:dto.invoiceId,tenantId:this.tenant()}});if(!invoice)throw new NotFoundException('Invoice not found');await this.authorizeStudent(user,invoice.studentId);return this.mpesa.initiateSTKPush(dto,user.userId);}
+ async pay(user:any,dto:any){const invoice=await this.prisma.invoice.findFirst({where:{id:dto.invoiceId,tenantId:this.tenant()}});if(!invoice)throw new NotFoundException('Invoice not found');await this.authorizeStudent(user,invoice.studentId);return this.paymentsGateway.initiatePayment(dto,user.userId);}
  async list(user:any,resource:string){
   this.staffRole(user);const tenantId=this.tenant();const classes=await this.classIds(user);
   const scope=classes?{currentClassId:{in:classes}}:{};
@@ -151,7 +151,7 @@ export class WorkspaceService{
   if(![...managers,...teacherRoles].includes(user.role))throw new ForbiddenException('Cannot save grades');
   const book=await this.gradebook(user,dto.examinationId,dto.subjectId);if(book.isPublished)throw new BadRequestException('Published assessments are locked');
   const ids=new Set(dto.records.map((r:any)=>r.studentId));if(ids.size!==dto.records.length||dto.records.some((r:any)=>r.score>book.totalMarks||!book.rows.some(s=>s.id===r.studentId)))throw new BadRequestException('Invalid students or marks');
-  const tenantId=this.tenant();await this.prisma.$transaction(dto.records.map((r:any)=>{const percentage=r.score/book.totalMarks*100;const letterGrade=percentage>=80?'A':percentage>=70?'B':percentage>=60?'C':percentage>=50?'D':'E';const data={score:r.score,totalMarks:book.totalMarks,percentage,letterGrade,marks:r.score,grade:letterGrade,enteredBy:user.userId};return this.prisma.grade.upsert({where:{examinationId_studentId_subjectId:{examinationId:dto.examinationId,studentId:r.studentId,subjectId:dto.subjectId}},create:{tenantId,examinationId:dto.examinationId,studentId:r.studentId,subjectId:dto.subjectId,...data},update:data});}));
+  const tenantId=this.tenant();await this.prisma.$transaction(dto.records.map((r:any)=>{const percentage=r.score/book.totalMarks*100;const letterGrade=percentage>=91?'A1':percentage>=81?'A2':percentage>=71?'B1':percentage>=61?'B2':percentage>=51?'C1':percentage>=41?'C2':percentage>=33?'D':'E';const data={score:r.score,totalMarks:book.totalMarks,percentage,letterGrade,marks:r.score,grade:letterGrade,enteredBy:user.userId};return this.prisma.grade.upsert({where:{examinationId_studentId_subjectId:{examinationId:dto.examinationId,studentId:r.studentId,subjectId:dto.subjectId}},create:{tenantId,examinationId:dto.examinationId,studentId:r.studentId,subjectId:dto.subjectId,...data},update:data});}));
   await this.audit(user,'GRADES_SAVED','examination',dto.examinationId);return {saved:dto.records.length};
  }
  async submission(user:any,input:Record<string,unknown>,id?:string){
@@ -187,7 +187,7 @@ export class WorkspaceService{
  async readNotification(user:any,id:string){const result=await this.prisma.communicationLog.updateMany({where:{id,recipient:user.userId,channel:'IN_APP',communication:{tenantId:this.tenant()}},data:{readAt:new Date(),status:'READ'}});if(!result.count)throw new NotFoundException('Message not found');return {message:'Marked as read'};}
  async overview(user:any){
   this.staffRole(user);const tenantId=this.tenant();const classes=await this.classIds(user);const classFilter=classes?{classId:{in:classes}}:{};
-  const today=new Date(new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Nairobi',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
+  const today=new Date(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
   const [students,staff,classCount,examinations,balance,attendance,events,activities,records]=await Promise.all([
    this.prisma.student.count({where:{tenantId,status:'ACTIVE',deletedAt:null,...(classes?{currentClassId:{in:classes}}:{})}}),
    this.prisma.staff.count({where:{tenantId,status:'ACTIVE'}}),this.prisma.class.count({where:{tenantId,...(classes?{id:{in:classes}}:{})}}),

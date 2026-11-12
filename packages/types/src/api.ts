@@ -96,34 +96,44 @@ export interface InvoiceItemRequest {
   feeCategory: string;
 }
 
-// M-Pesa API Types
-export interface MpesaSTKPushRequest {
-  phoneNumber: string;
-  amount: number;
-  accountReference: string;
+// Razorpay / UPI Payment Gateway API Types
+export interface CreatePaymentOrderRequest {
+  invoiceId: string;
+  gateway: 'RAZORPAY' | 'UPI';
+  amount: number; // in paise
+  upiVpa?: string;
+  phoneNumber?: string;
+  accountReference?: string;
   transactionDesc?: string;
 }
 
-export interface MpesaSTKPushResponse {
-  merchantRequestId: string;
-  checkoutRequestId: string;
-  responseCode: string;
-  responseDescription: string;
+export interface CreatePaymentOrderResponse {
+  orderId: string;
+  gatewayOrderId: string;
+  gateway: 'RAZORPAY' | 'UPI';
+  amount: number;
+  currency: string;
+  upiIntentUri?: string;
+  razorpayKeyId?: string;
   customerMessage: string;
 }
 
-export interface MpesaCallbackRequest {
-  Body: {
-    stkCallback: {
-      MerchantRequestID: string;
-      CheckoutRequestID: string;
-      ResultCode: number;
-      ResultDesc: string;
-      CallbackMetadata?: {
-        Item: Array<{
-          Name: string;
-          Value: any;
-        }>;
+export interface PaymentWebhookPayload {
+  event: string;
+  payload: {
+    payment?: {
+      entity: {
+        id: string;
+        order_id: string;
+        amount: number;
+        currency: string;
+        status: string;
+        method: string;
+        vpa?: string;
+        acquirer_data?: {
+          rrn?: string;
+          upi_transaction_id?: string;
+        };
       };
     };
   };

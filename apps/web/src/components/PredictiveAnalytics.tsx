@@ -86,7 +86,7 @@ function AnalyticsDashboard() {
   const pageCount = Math.max(1, Math.ceil(rows.length / 10));
   const currentPage = Math.min(page, pageCount);
   const visible = rows.slice((currentPage - 1) * 10, currentPage * 10);
-  const currency = (amount: number) => new Intl.NumberFormat(undefined, { style: 'currency', currency: report?.currency ?? 'KES', maximumFractionDigits: 0 }).format(amount / 100);
+  const currency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: report?.currency ?? 'INR', maximumFractionDigits: 0 }).format(amount / 100);
   const exportReport = () => {
     const records = rows.map(s => ({
       name: safeCsv(s.name), admission: safeCsv(s.admissionNumber), className: safeCsv(s.className),

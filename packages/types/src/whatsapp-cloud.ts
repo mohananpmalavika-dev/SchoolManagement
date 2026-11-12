@@ -8,7 +8,7 @@ export type WhatsAppMessageType =
   | 'SCHOOL_NOTICE_PDF'
   | 'CUSTOM_ANNOUNCEMENT';
 
-export type WhatsAppLanguage = 'ml' | 'en' | 'sw';
+export type WhatsAppLanguage = 'en' | 'hi' | 'ml';
 
 export interface WhatsAppButton {
   type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER';
@@ -39,6 +39,7 @@ export interface WhatsAppCloudMessage {
   language: WhatsAppLanguage;
   headerText?: string;
   bodyText: string;
+  bodyTextHi?: string;
   bodyTextMl?: string;
   footerText?: string;
   buttons?: WhatsAppButton[];
@@ -51,11 +52,11 @@ export interface WhatsAppCloudMessage {
     dueDate: string;
     paymentUrl: string;
     upiUri?: string;
-    paymentMethod?: 'MPESA_STK' | 'MPESA_PAYBILL' | 'AIRTEL_MONEY' | 'UPI' | 'CARD';
-    mpesaPaybill?: string;
-    mpesaAccountNumber?: string;
-    mpesaReceiptNumber?: string;
-    stkPushPromptSent?: boolean;
+    upiId?: string;
+    paymentMethod?: 'UPI' | 'RAZORPAY' | 'NET_BANKING' | 'CARD';
+    razorpayOrderId?: string;
+    utrNumber?: string;
+    paymentReceiptNumber?: string;
     status: 'PENDING' | 'PAID' | 'OVERDUE';
     paidAt?: string;
     transactionId?: string;

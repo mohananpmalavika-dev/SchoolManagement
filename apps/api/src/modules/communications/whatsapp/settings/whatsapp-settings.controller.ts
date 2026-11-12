@@ -59,7 +59,7 @@ export class WhatsAppSettingsController {
   })
   async getTemplates(
     @Query('type') type?: string,
-    @Query('language') language?: 'en' | 'sw',
+    @Query('language') language?: 'en' | 'hi' | 'ml',
   ) {
     return this.settingsService.getTemplates(type, language);
   }
@@ -146,7 +146,7 @@ export class WhatsAppSettingsController {
           {
             id: 'uuid',
             type: 'WHATSAPP',
-            recipient: '+254712345678',
+            recipient: '+919876543210',
             subject: 'Fee Reminder',
             status: 'SENT',
             sentAt: '2024-01-15T10:00:00Z',

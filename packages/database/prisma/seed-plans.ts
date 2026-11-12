@@ -3,17 +3,17 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function seedPlans() {
-  console.log('🌱 Seeding subscription plans...');
+  console.log('🌱 Seeding subscription plans (INR)...');
 
-  // Starter Plan - KES 15,000/year
+  // Starter Plan - INR 15,000/year
   const starter = await prisma.plan.upsert({
     where: { slug: 'starter' },
     update: {},
     create: {
       name: 'Starter',
       slug: 'starter',
-      description: 'Perfect for small schools just getting started',
-      price: 1500000, // KES 15,000 (in cents)
+      description: 'Perfect for small Indian schools just getting started',
+      price: 1500000, // INR 15,000 (in paise)
       billingCycle: 'ANNUAL',
       trialDays: 14,
       maxStudents: 200,
@@ -31,15 +31,15 @@ async function seedPlans() {
     },
   });
 
-  // Professional Plan - KES 40,000/year
+  // Professional Plan - INR 40,000/year
   const professional = await prisma.plan.upsert({
     where: { slug: 'professional' },
     update: {},
     create: {
       name: 'Professional',
       slug: 'professional',
-      description: 'For medium-sized schools with advanced needs',
-      price: 4000000, // KES 40,000 (in cents)
+      description: 'For growing CBSE, ICSE & State Board schools',
+      price: 4000000, // INR 40,000 (in paise)
       billingCycle: 'ANNUAL',
       trialDays: 14,
       maxStudents: 500,
@@ -49,10 +49,11 @@ async function seedPlans() {
       features: [
         'student_management',
         'fee_management',
-        'mpesa_integration',
+        'razorpay_upi_payments',
         'attendance',
         'examinations',
-        'cbc_assessment',
+        'cbse_icse_state_grading',
+        'udise_apaar_compliance',
         'communications',
         'timetable',
         'advanced_reporting',
@@ -64,15 +65,15 @@ async function seedPlans() {
     },
   });
 
-  // Enterprise Plan - KES 80,000/year
+  // Enterprise Plan - INR 80,000/year
   const enterprise = await prisma.plan.upsert({
     where: { slug: 'enterprise' },
     update: {},
     create: {
       name: 'Enterprise',
       slug: 'enterprise',
-      description: 'For large schools and school groups',
-      price: 8000000, // KES 80,000 (in cents)
+      description: 'For large institutions and multi-campus school trusts',
+      price: 8000000, // INR 80,000 (in paise)
       billingCycle: 'ANNUAL',
       trialDays: 14,
       maxStudents: 2000,
@@ -82,10 +83,11 @@ async function seedPlans() {
       features: [
         'student_management',
         'fee_management',
-        'mpesa_integration',
+        'razorpay_upi_payments',
         'attendance',
         'examinations',
-        'cbc_assessment',
+        'cbse_icse_state_grading',
+        'udise_apaar_compliance',
         'communications',
         'timetable',
         'library',
@@ -107,9 +109,9 @@ async function seedPlans() {
   });
 
   console.log('✅ Plans seeded successfully:');
-  console.log(`   - ${starter.name}: KES ${starter.price / 100}/year`);
-  console.log(`   - ${professional.name}: KES ${professional.price / 100}/year`);
-  console.log(`   - ${enterprise.name}: KES ${enterprise.price / 100}/year`);
+  console.log(`   - ${starter.name}: INR ${starter.price / 100}/year`);
+  console.log(`   - ${professional.name}: INR ${professional.price / 100}/year`);
+  console.log(`   - ${enterprise.name}: INR ${enterprise.price / 100}/year`);
 }
 
 seedPlans()

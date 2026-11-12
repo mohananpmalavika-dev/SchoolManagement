@@ -2,14 +2,14 @@ import { Prisma } from '@prisma/client';
 const directModels = new Set([
   'Subscription', 'School', 'User', 'Student', 'Guardian', 'Staff', 'StaffAttendance',
   'AcademicYear', 'Term', 'Class', 'Stream', 'Subject', 'Enrollment', 'AttendanceRecord',
-  'Examination', 'Grade', 'ReportCard', 'FeeStructure', 'Invoice', 'Payment', 'MpesaTransaction',
+  'Examination', 'Grade', 'ReportCard', 'FeeStructure', 'Invoice', 'Payment', 'PaymentGatewayTransaction',
   'TimetableEntry', 'SchoolEvent', 'Communication', 'MessageTemplate', 'Book', 'BookBorrowing',
   'Vehicle', 'Route', 'InventoryItem', 'AuditLog', 'SupportTicket', 'Assignment',
   'AssignmentSubmission', 'LearningMaterial',
-  'AdmissionRecord','AbsenceRequest','PortfolioEntry','SubstitutionDuty','QuizDefinition','QuizAttempt','TravelAssignment','TransportJourney','TripPassenger','IssuedCertificate',
+  'AdmissionRecord', 'AbsenceRequest', 'PortfolioEntry', 'SubstitutionDuty', 'QuizDefinition', 'QuizAttempt', 'TravelAssignment', 'TransportJourney', 'TripPassenger', 'IssuedCertificate',
   'ActivityFeed', 'MediaItem', 'BehaviorRecord', 'TeacherAvailability', 'ParentTeacherBooking',
-  'NemisIntegration', 'NemisSyncLog', 'NemisStudentRecord', 'NemisStaffRecord',
-  'KnecIntegration', 'KnecSyncLog', 'KnecExamRegistration',
+  'UdiseIntegration', 'UdiseSyncLog', 'UdiseStudentRecord', 'UdiseStaffRecord',
+  'BoardIntegration', 'BoardSyncLog', 'BoardExamRegistration',
   'ComplianceReport', 'ComplianceChecklist', 'DataQualityAudit', 'GovernmentApiLog', 'ComplianceAlert'
 ]);
 const relations: Record<string,string> = {GuardianStudentLink:'guardian',FeeItem:'feeStructure',InvoiceItem:'invoice',CommunicationLog:'communication',RouteStop:'route',ExaminationSubject:'examination'};

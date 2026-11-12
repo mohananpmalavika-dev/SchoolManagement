@@ -11,36 +11,52 @@ export function isValidEmail(email: string): boolean {
 }
 
 /**
- * Validate Kenyan phone number
+ * Validate Indian phone number
  */
-export function isValidKenyanPhone(phone: string): boolean {
-  // Remove spaces, dashes, and plus signs
+export function isValidIndianPhone(phone: string): boolean {
   const cleaned = phone.replace(/[\s\-\+]/g, '');
-  
+
   // Valid formats:
-  // 0712345678 (10 digits starting with 07 or 01)
-  // 254712345678 (12 digits starting with 254)
-  // 712345678 (9 digits)
-  
-  return /^(254|0)?[17]\d{8}$/.test(cleaned);
+  // 9847012345 (10 digits starting with 6-9)
+  // 09847012345 (11 digits starting with 0)
+  // 919847012345 (12 digits starting with 91)
+  return /^(91|0)?[6-9]\d{9}$/.test(cleaned);
 }
 
 /**
- * Validate national ID (Kenya)
+ * Validate Aadhaar number (12 digits) or masked last-4 format (XXXX-XXXX-1234 or 4 digits)
  */
-export function isValidKenyanNationalId(id: string): boolean {
-  // Kenyan national IDs are typically 7-8 digits
-  const cleaned = id.replace(/\s/g, '');
-  return /^\d{7,8}$/.test(cleaned);
+export function isValidAadhaarLast4(value: string): boolean {
+  const cleaned = value.replace(/[\s-]/g, '');
+  return /^\d{4}$/.test(cleaned) || /^X{8}\d{4}$/i.test(cleaned) || /^\d{12}$/.test(cleaned);
 }
 
 /**
- * Validate birth certificate number (Kenya)
+ * Validate APAAR ID (12-digit Academic Bank of Credits / APAAR ID)
+ */
+export function isValidApaarId(apaarId: string): boolean {
+  return /^\d{12}$/.test(apaarId.replace(/[\s-]/g, ''));
+}
+
+/**
+ * Validate Indian PIN code (6 digits, cannot start with 0)
+ */
+export function isValidPincode(pincode: string): boolean {
+  return /^[1-9]\d{5}$/.test(pincode.trim());
+}
+
+/**
+ * Validate UDISE+ 11-digit school code
+ */
+export function isValidUdiseCode(code: string): boolean {
+  return /^\d{11}$/.test(code.trim());
+}
+
+/**
+ * Validate birth certificate number (India municipal/panchayat registration)
  */
 export function isValidBirthCertNumber(certNumber: string): boolean {
-  // Kenyan birth certificates vary in format
-  // Basic validation: alphanumeric, 6-20 characters
-  return /^[A-Z0-9]{6,20}$/i.test(certNumber);
+  return /^[A-Z0-9\/-]{6,30}$/i.test(certNumber.trim());
 }
 
 /**

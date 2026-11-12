@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-export type Language = 'en' | 'sw';
+export type Language = 'en' | 'hi' | 'ml';
 
 interface LanguageContextType {
   language: Language;
@@ -22,7 +22,7 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
   // Load language from localStorage on mount
   useEffect(() => {
     const savedLanguage = localStorage.getItem('preferred-language') as Language;
-    if (savedLanguage === 'en' || savedLanguage === 'sw') {
+    if (savedLanguage === 'en' || savedLanguage === 'hi' || savedLanguage === 'ml') {
       setLanguageState(savedLanguage);
     }
   }, []);
@@ -37,8 +37,9 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
 
   // Toggle between English and Swahili
   const toggleLanguage = () => {
-    const newLang: Language = language === 'en' ? 'sw' : 'en';
-    setLanguage(newLang);
+    const order: Language[] = ['en', 'hi', 'ml'];
+    const next = order[(order.indexOf(language) + 1) % order.length];
+    setLanguage(next);
   };
 
   // Prevent hydration mismatch by not rendering until mounted

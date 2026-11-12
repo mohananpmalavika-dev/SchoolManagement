@@ -89,7 +89,7 @@ export class PredictiveAnalyticsService {
       cursor = batch[batch.length - 1].id;
     }
 
-    return buildAnalytics(students, now, tenant?.currency ?? 'KES');
+    return buildAnalytics(students, now, tenant?.currency ?? 'INR');
   }
 
   async dispatchIntervention(user: CurrentUserData, dto: DispatchInterventionDto) {

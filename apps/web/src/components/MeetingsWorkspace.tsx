@@ -35,7 +35,7 @@ export function MeetingsWorkspace() {
       if(!family&&options.data.teacherId)setAvailability((await apiClient.get('/bookings/availability/teacher/'+options.data.teacherId)).data);
     }catch(err){setError(messageFor(err));}finally{setLoading(false);}
   },[family]);
-  useEffect(()=>{void load();const now=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Nairobi'}).format(new Date());setToday(now);setDate(now);},[load]);
+  useEffect(()=>{void load();const now=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata'}).format(new Date());setToday(now);setDate(now);},[load]);
   useEffect(()=>{
     if(!family||!teacherId||!date)return;
     const controller=new AbortController();setSlots([]);setSlot('');setSlotError('');setSlotsLoading(true);

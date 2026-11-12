@@ -1,129 +1,162 @@
 /**
- * Application Constants
+ * Application Constants (India Education System - CBSE, ICSE, State Boards)
  */
 
-// Kenyan Education System
-export const KENYAN_EDUCATION_LEVELS = {
+export const INDIAN_EDUCATION_LEVELS = {
   PRE_PRIMARY: 'Pre-Primary',
   PRIMARY: 'Primary',
-  JUNIOR_SECONDARY: 'Junior Secondary',
+  MIDDLE: 'Middle',
+  SECONDARY: 'Secondary',
   SENIOR_SECONDARY: 'Senior Secondary',
 } as const;
 
-export const PRIMARY_GRADES = [
-  'Grade 1',
-  'Grade 2',
-  'Grade 3',
-  'Grade 4',
-  'Grade 5',
-  'Grade 6',
+export const INDIAN_EDUCATION_BOARDS = [
+  'CBSE',
+  'ICSE',
+  'STATE_BOARD',
+  'IB',
+  'IGCSE',
 ] as const;
 
-export const JUNIOR_SECONDARY_GRADES = [
-  'Grade 7',
-  'Grade 8',
-  'Grade 9',
+export const PRE_PRIMARY_CLASSES = ['Nursery', 'LKG', 'UKG'] as const;
+
+export const PRIMARY_CLASSES = [
+  'Class 1',
+  'Class 2',
+  'Class 3',
+  'Class 4',
+  'Class 5',
 ] as const;
 
-export const SENIOR_SECONDARY_FORMS = [
-  'Form 1',
-  'Form 2',
-  'Form 3',
-  'Form 4',
+export const MIDDLE_CLASSES = [
+  'Class 6',
+  'Class 7',
+  'Class 8',
 ] as const;
 
-// Kenyan CBC Subjects (Primary)
-export const CBC_PRIMARY_SUBJECTS = [
+export const SECONDARY_CLASSES = [
+  'Class 9',
+  'Class 10',
+] as const;
+
+export const SENIOR_SECONDARY_CLASSES = [
+  'Class 11',
+  'Class 12',
+] as const;
+
+export const ALL_INDIAN_CLASSES = [
+  ...PRE_PRIMARY_CLASSES,
+  ...PRIMARY_CLASSES,
+  ...MIDDLE_CLASSES,
+  ...SECONDARY_CLASSES,
+  ...SENIOR_SECONDARY_CLASSES,
+] as const;
+
+// Standard CBSE / NCERT / State Board Subjects
+export const INDIAN_SCHOOL_SUBJECTS = [
   { code: 'MATH', name: 'Mathematics' },
   { code: 'ENG', name: 'English' },
-  { code: 'KIS', name: 'Kiswahili' },
-  { code: 'SCI', name: 'Science and Technology' },
-  { code: 'SST', name: 'Social Studies' },
-  { code: 'CRE', name: 'Christian Religious Education' },
-  { code: 'IRE', name: 'Islamic Religious Education' },
-  { code: 'HRE', name: 'Hindu Religious Education' },
-  { code: 'CA', name: 'Creative Arts' },
+  { code: 'HIN', name: 'Hindi' },
+  { code: 'MAL', name: 'Malayalam' },
+  { code: 'SAN', name: 'Sanskrit' },
+  { code: 'SCI', name: 'Science' },
+  { code: 'EVS', name: 'Environmental Studies (EVS)' },
+  { code: 'SST', name: 'Social Science' },
+  { code: 'CS', name: 'Computer Science & AI' },
+  { code: 'PHY', name: 'Physics' },
+  { code: 'CHEM', name: 'Chemistry' },
+  { code: 'BIO', name: 'Biology' },
+  { code: 'ACC', name: 'Accountancy' },
+  { code: 'BST', name: 'Business Studies' },
+  { code: 'ECO', name: 'Economics' },
   { code: 'PE', name: 'Physical Education' },
-  { code: 'HYGIENE', name: 'Hygiene and Nutrition' },
-  { code: 'AGRI', name: 'Agriculture' },
+  { code: 'ART', name: 'Art & Craft' },
 ] as const;
 
 // Payment Methods
 export const PAYMENT_METHODS = {
-  MPESA: 'M-Pesa',
+  RAZORPAY: 'Razorpay',
+  UPI: 'UPI',
+  NET_BANKING: 'NetBanking (NEFT/RTGS/IMPS)',
   CASH: 'Cash',
   BANK_TRANSFER: 'Bank Transfer',
-  CHEQUE: 'Cheque',
+  CHEQUE: 'Cheque / DD',
   CARD: 'Card',
   OTHER: 'Other',
 } as const;
 
 // Fee Categories
 export const FEE_CATEGORIES = {
-  TUITION: 'Tuition',
-  ADMISSION: 'Admission',
-  EXAMINATION: 'Examination',
-  TRANSPORT: 'Transport',
-  BOARDING: 'Boarding',
-  MEALS: 'Meals',
-  LIBRARY: 'Library',
-  SPORTS: 'Sports',
-  ACTIVITY: 'Activity',
-  UNIFORM: 'Uniform',
-  BOOKS: 'Books',
-  LABORATORY: 'Laboratory',
-  OTHER: 'Other',
+  TUITION: 'Tuition Fee',
+  ADMISSION: 'Admission Fee',
+  EXAMINATION: 'Examination Fee',
+  TRANSPORT: 'Bus / Transport Fee',
+  BOARDING: 'Hostel / Boarding Fee',
+  MEALS: 'Canteen / Mess Fee',
+  LIBRARY: 'Library Fee',
+  SPORTS: 'Sports & Games Fee',
+  ACTIVITY: 'Co-Curricular / Activity Fee',
+  UNIFORM: 'Uniform Fee',
+  BOOKS: 'Books & Stationery',
+  LABORATORY: 'Science & Computer Lab Fee',
+  OTHER: 'Other Fee',
 } as const;
 
-// Kenyan Counties
-export const KENYAN_COUNTIES = [
-  'Baringo',
-  'Bomet',
-  'Bungoma',
-  'Busia',
-  'Elgeyo-Marakwet',
-  'Embu',
-  'Garissa',
-  'Homa Bay',
-  'Isiolo',
-  'Kajiado',
-  'Kakamega',
-  'Kericho',
-  'Kiambu',
-  'Kilifi',
-  'Kirinyaga',
-  'Kisii',
-  'Kisumu',
-  'Kitui',
-  'Kwale',
-  'Laikipia',
-  'Lamu',
-  'Machakos',
-  'Makueni',
-  'Mandera',
-  'Marsabit',
-  'Meru',
-  'Migori',
-  'Mombasa',
-  'Murang\'a',
-  'Nairobi',
-  'Nakuru',
-  'Nandi',
-  'Narok',
-  'Nyamira',
-  'Nyandarua',
-  'Nyeri',
-  'Samburu',
-  'Siaya',
-  'Taita-Taveta',
-  'Tana River',
-  'Tharaka-Nithi',
-  'Trans-Nzoia',
-  'Turkana',
-  'Uasin Gishu',
-  'Vihiga',
-  'Wajir',
-  'West Pokot',
+// Indian States and Union Territories
+export const INDIAN_STATES = [
+  'Andhra Pradesh',
+  'Arunachal Pradesh',
+  'Assam',
+  'Bihar',
+  'Chhattisgarh',
+  'Goa',
+  'Gujarat',
+  'Haryana',
+  'Himachal Pradesh',
+  'Jharkhand',
+  'Karnataka',
+  'Kerala',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Manipur',
+  'Meghalaya',
+  'Mizoram',
+  'Nagaland',
+  'Odisha',
+  'Punjab',
+  'Rajasthan',
+  'Sikkim',
+  'Tamil Nadu',
+  'Telangana',
+  'Tripura',
+  'Uttar Pradesh',
+  'Uttarakhand',
+  'West Bengal',
+  'Andaman and Nicobar Islands',
+  'Chandigarh',
+  'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi',
+  'Jammu and Kashmir',
+  'Ladakh',
+  'Lakshadweep',
+  'Puducherry',
+] as const;
+
+export const KERALA_DISTRICTS = [
+  'Alappuzha',
+  'Ernakulam',
+  'Idukki',
+  'Kannur',
+  'Kasaragod',
+  'Kollam',
+  'Kottayam',
+  'Kozhikode',
+  'Malappuram',
+  'Palakkad',
+  'Pathanamthitta',
+  'Thiruvananthapuram',
+  'Thrissur',
+  'Wayanad',
 ] as const;
 
 // Days of Week
@@ -161,7 +194,7 @@ export const ACCESS_TOKEN_EXPIRY = '15m';
 export const REFRESH_TOKEN_EXPIRY = '7d';
 export const SESSION_EXPIRY_DAYS = 7;
 
-// M-Pesa
-export const MPESA_TIMEOUT_SECONDS = 30;
-export const MPESA_MIN_AMOUNT = 10; // KES 0.10
-export const MPESA_MAX_AMOUNT = 70000000; // KES 70,000
+// Razorpay & UPI (in paise)
+export const GATEWAY_TIMEOUT_SECONDS = 300;
+export const RAZORPAY_MIN_AMOUNT = 100; // INR 1.00 (100 paise)
+export const UPI_MAX_AMOUNT = 10000000; // INR 1,00,000 (NPCI per-txn cap)

@@ -11,7 +11,7 @@ export const WHATSAPP_QUEUE = 'whatsapp-notifications';
 export interface WhatsAppJobData {
   type: 'fee-reminder' | 'attendance-alert' | 'report-card' | 'custom';
   payload: any;
-  language?: 'en' | 'sw';
+  language?: 'en' | 'hi' | 'ml';
 }
 
 @Processor(WHATSAPP_QUEUE)

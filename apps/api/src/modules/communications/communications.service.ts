@@ -259,7 +259,7 @@ export class CommunicationsService {
           in: ['PENDING', 'PARTIALLY_PAID', 'OVERDUE'],
         },
         balanceAmount: {
-          gte: dto.minimumAmount || 100, // Minimum 1 KES
+          gte: dto.minimumAmount || 100, // Minimum 1 INR
         },
         ...(dto.classId && {
           student: {

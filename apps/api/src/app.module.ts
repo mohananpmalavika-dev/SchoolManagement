@@ -20,7 +20,7 @@ import { PlatformModule } from './modules/platform/platform.module';
 import { StudentsModule } from './modules/students/students.module';
 import { GuardiansModule } from './modules/guardians/guardians.module';
 import { FeesModule } from './modules/fees/fees.module';
-import { MpesaModule } from './modules/mpesa/mpesa.module';
+import { PaymentsGatewayModule } from './modules/payments-gateway/payments-gateway.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { ExaminationsModule } from './modules/examinations/examinations.module';
 import { StaffModule } from './modules/staff/staff.module';
@@ -87,7 +87,7 @@ import { OperationsModule } from './modules/operations/operations.module';
     StudentsModule,
     GuardiansModule,
     FeesModule,
-    MpesaModule,
+    PaymentsGatewayModule,
     AttendanceModule,
     ExaminationsModule,
     StaffModule,

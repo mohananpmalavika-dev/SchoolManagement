@@ -12,23 +12,23 @@ export default function LanguageSwitcher({ variant = 'default', className = '' }
   const { language, setLanguage } = useLanguageContext();
 
   const languages: { code: Language; label: string; flag: string }[] = [
-    { code: 'en', label: 'English', flag: '🇬🇧' },
-    { code: 'sw', label: 'Kiswahili', flag: '🇰🇪' },
+    { code: 'en', label: 'English', flag: '🇮🇳' },
+    { code: 'hi', label: 'हिन्दी', flag: '🇮🇳' },
+    { code: 'ml', label: 'മലയാളം', flag: '🇮🇳' },
   ];
 
   if (variant === 'compact') {
+    const nextCode: Language = language === 'en' ? 'hi' : language === 'hi' ? 'ml' : 'en';
+    const nextLabel = nextCode === 'en' ? 'English' : nextCode === 'hi' ? 'हिन्दी' : 'മലയാളം';
+    const currentShort = language === 'en' ? 'EN' : language === 'hi' ? 'HI' : 'ML';
     return (
       <button
-        onClick={() => setLanguage(language === 'en' ? 'sw' : 'en')}
+        onClick={() => setLanguage(nextCode)}
         className={`flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${className}`}
-        title={language === 'en' ? 'Switch to Kiswahili' : 'Badilisha kwa English'}
+        title={`Switch to ${nextLabel}`}
       >
-        <span className="text-xl">
-          {language === 'en' ? '🇬🇧' : '🇰🇪'}
-        </span>
-        <span className="text-sm font-medium">
-          {language === 'en' ? 'EN' : 'SW'}
-        </span>
+        <span className="text-xl">🇮🇳</span>
+        <span className="text-sm font-medium">{currentShort}</span>
       </button>
     );
   }

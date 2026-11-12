@@ -5,17 +5,14 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule } from '../../database/database.module';
 import { EncryptionUtil } from '../../common/utils/encryption.util';
 
-// Services
-import { NemisService } from './services/nemis.service';
-import { KnecService } from './services/knec.service';
+import { UdiseService } from './services/udise.service';
+import { BoardExamService } from './services/board-exam.service';
 import { ComplianceService } from './services/compliance.service';
 
-// Controllers
-import { NemisController } from './controllers/nemis.controller';
-import { KnecController } from './controllers/knec.controller';
+import { UdiseController } from './controllers/udise.controller';
+import { BoardExamController } from './controllers/board-exam.controller';
 import { ComplianceController } from './controllers/compliance.controller';
 
-// Jobs
 import { GovernmentSyncProcessor } from './jobs/government-sync.processor';
 import { GovernmentSchedulerService } from './jobs/government-scheduler.service';
 
@@ -33,31 +30,31 @@ import { GovernmentSchedulerService } from './jobs/government-scheduler.service'
           delay: 2000,
         },
         removeOnComplete: {
-          age: 7 * 24 * 3600, // Keep completed jobs for 7 days
-          count: 1000, // Keep last 1000 jobs
+          age: 7 * 24 * 3600,
+          count: 1000,
         },
         removeOnFail: {
-          age: 30 * 24 * 3600, // Keep failed jobs for 30 days
+          age: 30 * 24 * 3600,
         },
       },
     }),
   ],
   controllers: [
-    NemisController,
-    KnecController,
+    UdiseController,
+    BoardExamController,
     ComplianceController,
   ],
   providers: [
     EncryptionUtil,
-    NemisService,
-    KnecService,
+    UdiseService,
+    BoardExamService,
     ComplianceService,
     GovernmentSyncProcessor,
     GovernmentSchedulerService,
   ],
   exports: [
-    NemisService,
-    KnecService,
+    UdiseService,
+    BoardExamService,
     ComplianceService,
     GovernmentSchedulerService,
   ],

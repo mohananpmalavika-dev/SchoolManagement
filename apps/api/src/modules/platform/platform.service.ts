@@ -78,7 +78,7 @@ export class PlatformService{
   if(resource==='announcements'&&!id)data.createdBy=user.userId;
   const result=await this.prisma.$transaction(async tx=>{
    const entity=id?await (tx as any)[spec.model].update({where:{id},data}):await (tx as any)[spec.model].create({data});
-   if(resource==='schools'&&!id)await tx.school.create({data:{tenantId:entity.id,name:entity.name,email:entity.contactEmail,phone:entity.contactPhone,address:entity.address||'Not provided',city:'Not provided',county:'Not provided',schoolType:'PRIVATE',educationLevel:['PRIMARY']}});
+   if(resource==='schools'&&!id)await tx.school.create({data:{tenantId:entity.id,name:entity.name,email:entity.contactEmail,phone:entity.contactPhone,address:entity.address||'Not provided',city:'Kochi',state:'Kerala',pincode:'682301',boardAffiliation:'CBSE',academicCalendar:'TWO_TERM',startMonth:4,schoolType:'PRIVATE',educationLevel:['PRIMARY']}});
    await tx.auditLog.create({data:{tenantId:user.tenantId,userId:user.userId,action:id?'PLATFORM_RECORD_UPDATED':'PLATFORM_RECORD_CREATED',entityType:resource,entityId:entity.id}});
    return entity;
   });return {id:result.id};

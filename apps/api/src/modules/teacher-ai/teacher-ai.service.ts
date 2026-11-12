@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AIRemarkResult, AIRiskReview, CBCSchemeOfWorkResponse, ERPCopilotFilterBadge, ERPCopilotQueryResponse, ERPCopilotStudentMatch, LessonPlanResponse, ShareLessonToChatResponse, TeacherAIOptions, TeacherAIRoster } from '@krypton/types';
+import { AIRemarkResult, AIRiskReview, SchemeOfWorkResponse, ERPCopilotFilterBadge, ERPCopilotQueryResponse, ERPCopilotStudentMatch, LessonPlanResponse, ShareLessonToChatResponse, TeacherAIOptions, TeacherAIRoster } from '@krypton/types';
 import { PrismaService } from '../../database/prisma.service';
 import { TenantService } from '../../database/tenant.service';
 import { CurrentUserData } from '../../common/decorators/current-user.decorator';
@@ -193,7 +193,7 @@ export class TeacherAIService {
   async lessonPlan(user: CurrentUserData, dto: GenerateLessonPlanDto): Promise<LessonPlanResponse> {
     const cls = await this.authorizeClass(user, dto.classId);
     const response = await this.ai.generate('lesson_plan',
-      'You are a master curriculum planner. Create a thorough 5E lesson plan for this class and topic aligned with CBC / KICD standards.',
+      'You are a master Indian curriculum planner. Create a thorough 5E lesson plan for this class and topic aligned with NEP 2020 / CBSE / ICSE / NCERT / State Board standards.',
       { ...dto, classLevel: cls.level },
       objectSchema({
         title: stringSchema, gradeLevel: stringSchema, subject: stringSchema, topic: stringSchema,
@@ -211,10 +211,10 @@ export class TeacherAIService {
     return { ...(response as any), model: this.ai.status().model, generatedAt: new Date().toISOString() };
   }
 
-  async schemeOfWork(user: CurrentUserData, dto: GenerateSchemeOfWorkDto): Promise<CBCSchemeOfWorkResponse> {
+  async schemeOfWork(user: CurrentUserData, dto: GenerateSchemeOfWorkDto): Promise<SchemeOfWorkResponse> {
     const cls = await this.authorizeClass(user, dto.classId);
     const response = await this.ai.generate('scheme_of_work',
-      'You are a master Kenyan CBC / KICD curriculum developer. Generate a comprehensive, professional termly Scheme of Work matrix.',
+      'You are a master Indian NCERT / CBSE / ICSE / State Board curriculum developer. Generate a comprehensive, professional termly Scheme of Work matrix.',
       { ...dto, classLevel: cls.level },
       objectSchema({
         title: stringSchema, gradeLevel: stringSchema, subject: stringSchema, strand: stringSchema,
@@ -346,15 +346,15 @@ export class TeacherAIService {
   async copilotQuery(user: CurrentUserData, dto: CopilotQueryDto): Promise<ERPCopilotQueryResponse> {
     const tenantId = this.tenant(user);
     const tenant = await this.prisma.tenant.findFirst({ where: { id: tenantId }, select: { currency: true, name: true } });
-    const currency = tenant?.currency ?? 'KES';
+    const currency = tenant?.currency ?? 'INR';
     const query = dto.query.trim();
 
     const parsedFilters: ERPCopilotFilterBadge[] = [];
     const queryLower = query.toLowerCase();
 
-    // Grade / Class matching: e.g. "grade 9", "form 4", "class 7"
+    // Class / Standard matching: e.g. "class 9", "std 10", "grade 7"
     let classFilter: string | null = null;
-    const gradeMatch = queryLower.match(/\b(grade|form|class|std|standard)\s*(\d+|[a-z]+)\b/i);
+    const gradeMatch = queryLower.match(/\b(class|std|standard|grade)\s*(\d+|[a-z]+)\b/i);
     if (gradeMatch) {
       classFilter = gradeMatch[2].trim();
       parsedFilters.push({
@@ -392,7 +392,7 @@ export class TeacherAIService {
     let feeMinThreshold: number | null = null;
     if (/\b(unpaid|fee balance|arrears|overdue|pending fee|fee debt|unpaid fee balance)\b/i.test(queryLower)) {
       requireUnpaidFee = true;
-      const feeNumMatch = queryLower.match(/(?:>|above|over|more than|greater than|exceeding)\s*(?:kes|inr|\$)?\s*(\d+)/i);
+      const feeNumMatch = queryLower.match(/(?:>|above|over|more than|greater than|exceeding)\s*(?:inr|rs\.?|₹|\$)?\s*(\d+)/i);
       if (feeNumMatch) {
         feeMinThreshold = parseInt(feeNumMatch[1], 10);
         parsedFilters.push({

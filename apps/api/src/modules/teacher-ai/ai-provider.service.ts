@@ -249,13 +249,13 @@ export class AIProviderService {
         } else {
           text = 'വിദ്യാർത്ഥി ക്ലാസ്സ് മുറിയിൽ നല്ല പെരുമാറ്റവും പഠിക്കാൻ ആത്മാർത്ഥമായ സന്നദ്ധതയും പ്രകടിപ്പിക്കുന്നു. പ്രായോഗിക പ്രവർത്തനങ്ങളിലും അധ്യാപകരുടെ മേൽനോട്ടത്തിലുള്ള പഠനത്തിലും നല്ല താല്പര്യം കാണിക്കുന്നുണ്ട്. അടിസ്ഥാന വിഷയങ്ങളിൽ കൂടുതൽ ശ്രദ്ധയും നിരന്തര പരിശീലനവും ആവശ്യമാണ്. ക്രമമായ പഠനക്രമം രൂപീകരിക്കുകയും കൂട്ടായ പഠനത്തിൽ പങ്കാളിയാവുകയും ചെയ്യുന്നത് ആത്മവിശ്വാസവും മാർക്കുകളും വർദ്ധിപ്പിക്കാൻ സഹായകരമാകും.';
         }
-      } else if (lang === 'Swahili') {
+      } else if (lang === 'Hindi') {
         if (avg !== null && avg >= 70) {
-          text = 'Mwanafunzi ameonyesha bidii kubwa na uwezo wa hali ya juu katika masomo yote muhula huu. Anaelewa vyema dhana za msingi na anafanya vizuri katika tathmini zote za darasani. Kufanya mazoezi ya maswali magumu kutasaidia kuimarisha zaidi uwezo wake wa kiakademia. Ushiriki thabiti katika majadiliano ya darasa na kusaidia wenzake utamwezesha kudumisha matokeo bora katika muhula ujao.';
+          text = 'विद्यार्थी ने इस सत्र में सभी विषयों में उत्कृष्ट परिश्रम, गहन समझ और निरंतर उत्साह का प्रदर्शन किया है। कक्षा की चर्चाओं में सक्रिय भागीदारी और समय पर गृहकार्य पूरा करने की आदत सराहनीय है। जटिल प्रश्नों के नियमित अभ्यास से आगामी परीक्षाओं में भी श्रेष्ठ परिणाम प्राप्त होंगे। इसी अनुशासन और जिज्ञासा के साथ निरंतर आगे बढ़ते रहें।';
         } else if (avg !== null && avg >= 50) {
-          text = 'Mwanafunzi anaonyesha mwenendo mzuri na nia thabiti ya kujifunza masomo mbalimbali darasani. Maarifa ya kimsingi yanaimarika kupitia mazoezi ya kila siku na mwongozo wa walimu. Kuweka mkazo katika umaliziaji wa kazi za nyumbani kutaleta matokeo mazuri zaidi ya mitihani. Kujitolea kusoma kila siku na kuuliza maswali bila woga kutachangia pakubwa katika kufikia malengo yake ya kitaaluma.';
+          text = 'विद्यार्थी ने कक्षा की गतिविधियों में अच्छा प्रयास और सीखने के प्रति सकारात्मक दृष्टिकोण दिखाया है। मुख्य अवधारणाओं की समझ नियमित अभ्यास और शिक्षकों के मार्गदर्शन से लगातार सुधर रही है। समय पर कार्य पूरा करने और लेखन अभ्यास बढ़ाने से परीक्षा परिणामों में और सुधार होगा। नियमित पुनरावृत्ति से आत्मविश्वास और शैक्षणिक प्रदर्शन दोनों मजबूत होंगे।';
         } else {
-          text = 'Mwanafunzi anashirikiana vyema na walimu pamoja na wanafunzi wenzake katika shughuli za darasani. Anaonyesha nia njema ya kujifunza anapopewa maelekezo ya kina na usimamizi wa karibu. Mazoezi ya ziada katika masomo yenye changamoto yatasaidia kujenga msingi imara na kuongeza alama. Kuendelea na mahudhurio mazuri ya kila siku kutampa mazingira bora ya maendeleo endelevu.';
+          text = 'विद्यार्थी कक्षा में अच्छा व्यवहार करता है और शिक्षकों तथा सहपाठियों के साथ सहयोगपूर्ण ढंग से सीखने का प्रयास करता है। प्रयोगात्मक और निर्देशित अभ्यास सत्रों में सक्रिय रुचि दिखती है। बुनियादी विषयों में अतिरिक्त अभ्यास और नियमित मार्गदर्शन से अंकों में निश्चित सुधार होगा। प्रतिदिन नियमित अध्ययन समय निर्धारित करने से आत्मविश्वास बढ़ेगा।';
         }
       } else {
         // English (45-75 words)
@@ -403,16 +403,19 @@ export class AIProviderService {
   private generateBuiltinLessonPlan(input: any) {
     const subject = input?.subject || 'General Studies';
     const chapter = input?.chapter || 'Core Concepts';
-    const gradeLevel = input?.classLevel ? `Grade/Class ${input.classLevel}` : 'Standard Grade';
+    const gradeLevel = input?.classLevel ? `Class ${input.classLevel}` : 'Class 6 - 8 Middle Stage';
     const duration = typeof input?.durationMinutes === 'number' ? input.durationMinutes : 45;
-    const curriculum = input?.curriculum || 'CBC';
+    const curriculum = input?.curriculum || 'CBSE';
     const lang = input?.language || 'English';
 
     const isMalayalam = lang === 'Malayalam';
+    const isHindi = lang === 'Hindi';
 
     const title = isMalayalam
       ? `${chapter} (${subject}) - വിശദമായ പാഠ്യപദ്ധതി (Lesson Plan)`
-      : `${chapter} (${subject}) - Comprehensive 5E Lesson Plan`;
+      : isHindi
+      ? `${chapter} (${subject}) - विस्तृत 5E पाठ योजना (Lesson Plan)`
+      : `${chapter} (${subject}) - Comprehensive 5E Lesson Plan (${curriculum})`;
 
     const learningObjectives = isMalayalam ? [
       `${chapter} എന്ന പാഠഭാഗത്തിലെ അടിസ്ഥാന ആശയങ്ങളും സാങ്കേതിക പദാവലികളും കൃത്യമായി നിർവ്വചിക്കുക.`,
@@ -593,11 +596,11 @@ export class AIProviderService {
       'സത്യസന്ധതയും ശാസ്ത്രീയ കൃത്യതയും',
       'ഉത്തരവാദിത്തബോധം',
       'പരിസ്ഥിതി സംരക്ഷണ മനോഭാവം',
-    ] : lang === 'Swahili' ? [
-      'Heshima kwa wengine na ushirikiano',
-      'Uadilifu na ukweli katika tathmini',
-      'Uwajibikaji wa kibinafsi na kijamii',
-      'Uzendo na utunzaji wa mazingira',
+    ] : isHindi ? [
+      'विविध दृष्टिकोणों के प्रति सम्मान और सहयोग',
+      'प्रयोगात्मक कार्य में सत्यनिष्ठा और सटीकता',
+      'सीखने के संसाधनों के प्रति उत्तरदायित्व',
+      'टीम भावना और सामाजिक सद्भाव',
     ] : [
       'Respect for diverse perspectives',
       'Integrity in experimental reporting',
@@ -609,22 +612,24 @@ export class AIProviderService {
       'പരിസ്ഥിതി സംരക്ഷണവും സുസ്ഥിര വികസനവും',
       'സാമ്പത്തിക വിവേകവും വിഭവ സംരക്ഷണവും',
       'ആരോഗ്യ-ശുചിത്വ ശീലങ്ങൾ',
-    ] : lang === 'Swahili' ? [
-      'Uhifadhi wa mazingira na mabadiliko ya tabianchi',
-      'Ujuzi wa kifedha na matumizi endelevu',
-      'Elimu ya afya, usalama na usafi',
+    ] : isHindi ? [
+      'पर्यावरण संरक्षण और सतत विकास जागरूकता',
+      'वित्तीय साक्षरता और संसाधन प्रबंधन',
+      'स्वास्थ्य, स्वच्छता और सुरक्षा शिक्षा',
     ] : [
       'Environmental conservation and climate change awareness',
       'Financial literacy and resource stewardship',
       'Health and safety education in learning spaces',
     ];
 
-    const homeworkAssignment = `Complete a short practice task on ${chapter} and explain your reasoning. The teacher should adapt this task to the learners and language of instruction.`;
+    const homeworkAssignment = isHindi
+      ? `${chapter} पर एक संक्षिप्त अभ्यास कार्य पूरा करें और अपना तर्क लिखें।`
+      : `Complete a short practice task on ${chapter} and explain your reasoning. The teacher should adapt this task to the learners and language of instruction.`;
 
     const reflectionPrompt = isMalayalam
       ? `${chapter} എന്ന പാഠഭാഗത്തിൽ കുട്ടികൾ ലക്ഷ്യമിട്ട നിർദ്ദിഷ്ട പഠനഫലങ്ങൾ (Specific Learning Outcomes) എത്രത്തോളം നേടി? അടുത്ത ഘട്ടത്തിൽ എന്ത് പരിഹാരബോധനമാണ് ആവശ്യമായുള്ളത്?`
-      : lang === 'Swahili'
-      ? `Je, wanafunzi walifikia matokeo maalum ya ujifunzaji kwa mada ya ${chapter}? Ni marekebisho gani ya kifalsafa yanahitajika kwa hatua inayofuata?`
+      : isHindi
+      ? `क्या विद्यार्थियों ने ${chapter} के निर्धारित शिक्षण प्रतिफल (NEP Learning Outcomes) प्राप्त किए? अगले सत्र के लिए किन सुधारात्मक गतिविधियों की आवश्यकता है?`
       : `To what extent did learners attain the specific learning outcomes for ${chapter}? What targeted interventions or extension activities should follow in subsequent sessions?`;
 
     return {
@@ -651,36 +656,36 @@ export class AIProviderService {
   }
 
   private generateBuiltinSchemeOfWork(input: any) {
-    const subject = input?.subject || 'Integrated Science';
-    const strand = input?.strand || 'Science & Living World';
-    const gradeLevel = input?.classLevel ? `Grade/Class ${input.classLevel}` : 'Grade 7 Junior School';
+    const subject = input?.subject || 'Science';
+    const strand = input?.strand || 'Matter, Energy & Living World';
+    const gradeLevel = input?.classLevel ? `Class ${input.classLevel}` : 'Class 7 Middle Stage';
     const termNum = typeof input?.termNumber === 'number' ? input.termNumber : 1;
     const term = `Term ${termNum}`;
-    const academicYear = '2026';
-    const curriculum = input?.curriculum || 'CBC';
+    const academicYear = '2026-27';
+    const curriculum = input?.curriculum || 'CBSE';
     const lang = input?.language || 'English';
     const isMalayalam = lang === 'Malayalam';
-    const isSwahili = lang === 'Swahili';
+    const isHindi = lang === 'Hindi';
 
     const weeksCount = typeof input?.weeksCount === 'number' && input.weeksCount >= 1 && input.weeksCount <= 14 ? input.weeksCount : 10;
     const lessonsPerWeek = typeof input?.lessonsPerWeek === 'number' && input.lessonsPerWeek >= 1 && input.lessonsPerWeek <= 6 ? input.lessonsPerWeek : 4;
 
     const title = isMalayalam
-      ? `${gradeLevel} - ${subject}: സമഗ്ര പ്രവർത്തനപദ്ധതി (CBC Scheme of Work) - ${term}`
-      : isSwahili
-      ? `${gradeLevel} - ${subject}: Mpango wa Kazi wa CBC (Scheme of Work) - Muhula wa ${termNum}`
-      : `${gradeLevel} - ${subject}: Official KICD CBC Scheme of Work (${term})`;
+      ? `${gradeLevel} - ${subject}: സമഗ്ര പ്രവർത്തനപദ്ധതി (${curriculum} Scheme of Work) - ${term}`
+      : isHindi
+      ? `${gradeLevel} - ${subject}: ${curriculum} / NCERT वार्षिक एवं सत्र कार्य योजना (${term})`
+      : `${gradeLevel} - ${subject}: ${curriculum} / NCERT Scheme of Work (${term})`;
 
     const generalOutcomes = isMalayalam ? [
       `${subject} വിഷയത്തിലെ പ്രധാന ആശയങ്ങളും സിദ്ധാന്തങ്ങളും തിരിച്ചറിഞ്ഞ് പ്രയോഗിക്കുക.`,
       `സാമൂഹിക-പരിസ്ഥിതി പ്രശ്നങ്ങൾക്ക് യുക്തിസഹമായ പരിഹാരങ്ങൾ കണ്ടെത്താൻ ശാസ്ത്രീയ രീതികൾ ഉപയോഗിക്കുക.`,
       `കൂട്ടായ പഠനത്തിലൂടെയും പരീക്ഷണങ്ങളിലൂടെയും സഹകരണ മനോഭാവവും നേതൃത്വപാടവവും വികസിപ്പിക്കുക.`,
       `സാങ്കേതിക വിദ്യയും ഡിജിറ്റൽ ഉപകരണങ്ങളും പ്രയോജനപ്പെടുത്തി സ്വയം പഠനശേഷി ആർജ്ജിക്കുക.`,
-    ] : isSwahili ? [
-      `Kutambua na kutumia dhana msingi za ${subject} katika miktadha ya maisha halisi.`,
-      `Kutumia mbinu za kiuchunguzi katika kutatua changamoto za kijamii na kimazingira.`,
-      `Kujenga ustadi wa ushirikiano, uongozi na mawasiliano kupitia kazi za vikundi.`,
-      `Kutumia zana za kidijitali na nyenzo halisi katika kukuza ujifunzaji endelevu.`,
+    ] : isHindi ? [
+      `दैनिक जीवन के संदर्भों में ${subject} की मूल अवधारणाओं और सिद्धांतों को समझना और लागू करना।`,
+      `सामाजिक और पर्यावरणीय चुनौतियों के समाधान के लिए वैज्ञानिक व तार्किक जांच पद्धति का उपयोग करना।`,
+      `समूह गतिविधियों के माध्यम से सहयोग, नेतृत्व और प्रभावी संवाद कौशल का विकास करना।`,
+      `सतत स्व-अध्ययन को बढ़ावा देने के लिए डिजिटल उपकरणों और NCERT संसाधनों का उपयोग करना।`,
     ] : [
       `Demonstrate mastery of core principles and analytical frameworks in ${subject}.`,
       `Apply inquiry-based problem solving to investigate contemporary community challenges.`,
@@ -695,7 +700,7 @@ export class AIProviderService {
       'Digital Literacy',
       'Learning to Learn',
       'Self-Efficacy',
-      'Citizenship',
+      'Responsible Citizenship',
     ];
 
     const values = isMalayalam ? [
@@ -703,22 +708,22 @@ export class AIProviderService {
       'ഉത്തരവാദിത്തം (Responsibility)',
       'ഐക്യം (Unity)',
       'സത്യസന്ധത (Integrity)',
-      'സ്നേഹം (Love)',
-      'സമാധാനം (Peace)',
-    ] : isSwahili ? [
-      'Heshima (Respect)',
-      'Uwajibikaji (Responsibility)',
-      'Umoja (Unity)',
-      'Uadilifu (Integrity)',
-      'Upendo (Love)',
-      'Amani (Peace)',
+      'സ്നേഹം (Compassion)',
+      'സമാധാനം (Harmony)',
+    ] : isHindi ? [
+      'परस्पर सम्मान (Respect)',
+      'उत्तरदायित्व (Responsibility)',
+      'राष्ट्रीय एकता (Unity)',
+      'ईमानदारी एवं सत्यनिष्ठा (Integrity)',
+      'करुणा (Compassion)',
+      'शांति एवं सद्भाव (Harmony)',
     ] : [
       'Respect',
       'Responsibility',
       'Unity',
       'Integrity',
-      'Love',
-      'Peace',
+      'Compassion',
+      'Harmony',
     ];
 
     const pcis = isMalayalam ? [
@@ -726,11 +731,11 @@ export class AIProviderService {
       'സാമ്പത്തിക സാക്ഷരതയും വിഭവ വിനിയോഗവും (Financial Literacy)',
       'ആരോഗ്യ-സുരക്ഷാ വിദ്യാഭ്യാസം (Health & Safety Education)',
       'ദുരന്ത നിവാരണ ബോധവൽക്കരണം (Disaster Risk Reduction)',
-    ] : isSwahili ? [
-      'Uhifadhi wa Mazingira na Mabadiliko ya Tabianchi',
-      'Ujuzi wa Kifedha na Usimamizi wa Rasilimali',
-      'Elimu ya Afya, Usafi na Usalama',
-      'Uwezo wa Kukabiliana na Majanga',
+    ] : isHindi ? [
+      'पर्यावरण संरक्षण और जलवायु जागरूकता (Environmental Awareness)',
+      'वित्तीय साक्षरता और संसाधन प्रबंधन (Financial Literacy)',
+      'स्वास्थ्य, स्वच्छता और सुरक्षा शिक्षा (Health & Safety Education)',
+      'आपदा जोखिम न्यूनीकरण और तैयारी (Disaster Preparedness)',
     ] : [
       'Environmental Awareness and Climate Action',
       'Financial Literacy and Resource Management',
@@ -749,17 +754,17 @@ export class AIProviderService {
       { subStrand: 'നൂതന സാങ്കേതിക വിദ്യകളും പ്രയോഗങ്ങളും', outcomes: ['ആധുനിക സങ്കേതങ്ങൾ തിരിച്ചറിയുക', 'നൂതന പ്രോജക്ടുകൾ ആസൂത്രണം ചെയ്യുക'], kiqs: ['ഭാവിയിൽ ഈ സാങ്കേതികവിദ്യ എങ്ങനെ മാറും?'] },
       { subStrand: 'കമ്യൂണിറ്റി പ്രോജക്ടും പ്രായോഗിക പ്രവർത്തനവും', outcomes: ['കമ്മ്യൂണിറ്റി സേവന പ്രവർത്തനങ്ങളിൽ പങ്കാളികളാവുക', 'റിപ്പോർട്ട് തയ്യാറാക്കുക'], kiqs: ['ഈ അറിവ് സമൂഹത്തിന് എങ്ങനെ ഗുണകരമാക്കാം?'] },
       { subStrand: 'ടേം സംഗ്രഹവും സമ്പൂർണ്ണ വിലയിരുത്തലും', outcomes: ['ടേം പഠനനേട്ടങ്ങൾ അവലോകനം ചെയ്യുക', 'പോർട്ട്ഫോളിയോ പൂർത്തിയാക്കുക'], kiqs: ['ഈ ടേമിൽ ആർജ്ജിച്ച പ്രധാന കഴിവുകൾ എന്തെല്ലാം?'] },
-    ] : isSwahili ? [
-      { subStrand: 'Utangulizi na Dhana za Msingi', outcomes: ['Kueleza dhana za msingi na maneno maalum', 'Kutambua mifano kutoka mazingira ya kila siku'], kiqs: ['Dhana hii inajidhihirishaje katika jamii yetu?'] },
-      { subStrand: 'Uainishaji na Vipengele Muhimu', outcomes: ['Kuainisha vipengele mbalimbali kwa usahihi', 'Kulinganisha tabia na sifa za kimsingi'], kiqs: ['Kuna tofauti gani kuu kati ya makundi haya?'] },
-      { subStrand: 'Uchunguzi wa Vitendo na Majaribio', outcomes: ['Kutumia vifaa vya maabara kwa usalama', 'Kurekodi matokeo ya uchunguzi kwenye daftari'], kiqs: ['Tunaweza kujifunza nini kutokana na matokeo haya?'] },
-      { subStrand: 'Uchambuzi wa Data na Michoro', outcomes: ['Kuchora vielelezo na majedwali ya data', 'Kutoa tafsiri sahihi ya ushahidi uliokusanywa'], kiqs: ['Data hizi zinaonyesha mwelekeo gani?'] },
-      { subStrand: 'Mazingira na Maisha ya Jamii', outcomes: ['Kutathmini athari za somo hili kwa jamii', 'Kupendekeza suluhu endelevu za kimazingira'], kiqs: ['Tunawezaje kulinda mazingira yetu tunapotumia rasilimali hizi?'] },
-      { subStrand: 'Ujifunzaji wa Kidijitali na Modeli', outcomes: ['Kutumia vifaa vya kidijitali kuunda modeli', 'Kuwasilisha kazi kwa njia ya mtandao'], kiqs: ['Teknolojia inatusaidiaje kuelewa dhana ngumu?'] },
-      { subStrand: 'Tathmini ya Kati ya Muhula na Marudio', outcomes: ['Kupitia dhana zilizofundishwa awali', 'Kufanya tathmini binafsi ya maendeleo'], kiqs: ['Tumepiga hatua gani katika kufikia malengo yetu?'] },
-      { subStrand: 'Ubunifu na Miradi ya Vitendo', outcomes: ['Kubuni suluhisho za kiubunifu kwa changamoto zilizopo', 'Kutengeneza mifano halisi darasani'], kiqs: ['Tunawezaje kutumia ubunifu kuboresha maisha?'] },
-      { subStrand: 'Huduma kwa Jamii (CSL) na Ushirikiano', outcomes: ['Kushiriki katika shughuli za kijamii zinazohusiana na mada', 'Kuandika ripoti ya uchunguzi'], kiqs: ['Elimu yetu inasaidiaje jamii inayotuzunguka?'] },
-      { subStrand: 'Muhtasari wa Muhula na Tathmini Kamili', outcomes: ['Kujumuisha maarifa yote yaliyopatikana muhula huu', 'Kukamilisha na kuwasilisha faili ya kazi (portfolio)'], kiqs: ['Ni ujuzi gani mkuu tulioupata muhula huu?'] },
+    ] : isHindi ? [
+      { subStrand: 'प्रस्तावना और मूलभूत अवधारणाएँ', outcomes: ['मुख्य अवधारणाओं और शब्दावली को स्पष्ट करना', 'दैनिक जीवन से व्यावहारिक उदाहरण पहचानना'], kiqs: ['यह अवधारणा हमारे दैनिक जीवन में कैसे दिखाई देती है?'] },
+      { subStrand: 'वर्गीकरण और प्रमुख घटक', outcomes: ['विभिन्न घटकों का सही वर्गीकरण करना', 'मूलभूत विशेषताओं की तुलना करना'], kiqs: ['इन प्रमुख समूहों के बीच मुख्य अंतर क्या हैं?'] },
+      { subStrand: 'प्रयोगात्मक कार्य और अवलोकन', outcomes: ['प्रयोगशाला उपकरणों का सुरक्षित उपयोग करना', 'अवलोकन परिणामों को क्रमबद्ध लिखना'], kiqs: ['प्रयोग के परिणामों से हम क्या निष्कर्ष निकाल सकते हैं?'] },
+      { subStrand: 'डेटा विश्लेषण और आरेखण', outcomes: ['डेटा तालिकाएँ और ग्राफ तैयार करना', 'एकत्रित साक्ष्यों की तार्किक व्याख्या करना'], kiqs: ['यह डेटा किस प्रमुख प्रवृत्ति को दर्शाता है?'] },
+      { subStrand: 'पर्यावरण और सामाजिक अनुप्रयोग', outcomes: ['समाज और पर्यावरण पर प्रभाव का मूल्यांकन करना', 'सतत और पर्यावरण-अनुकूल समाधान सुझाना'], kiqs: ['संसाधनों का उपयोग करते समय हम पर्यावरण की रक्षा कैसे करें?'] },
+      { subStrand: 'डिजिटल सिमुलेशन और आईसीटी अधिगम', outcomes: ['डिजिटल उपकरणों से वैज्ञानिक मॉडल बनाना', 'ऑनलाइन शिक्षण सामग्री प्रस्तुत करना'], kiqs: ['तकनीक कठिन अवधारणाओं को समझने में कैसे मदद करती है?'] },
+      { subStrand: 'मध्यावधि मूल्यांकन और पुनरावृत्ति', outcomes: ['पिछले अध्यायों की अवधारणाओं का दोहराव करना', 'अपनी शैक्षणिक प्रगति का स्व-मूल्यांकन करना'], kiqs: ['हमने अपने निर्धारित लक्ष्यों की दिशा में कितनी प्रगति की है?'] },
+      { subStrand: 'नवाचार और अनुभवात्मक परियोजना', outcomes: ['व्यावहारिक समस्याओं के लिए नवाचारी समाधान डिज़ाइन करना', 'कक्षा में कार्यशील मॉडल तैयार करना'], kiqs: ['हम रचनात्मकता से समाज की समस्याओं को कैसे सुलझा सकते हैं?'] },
+      { subStrand: 'समुदाय सेवा और सहयोगात्मक कार्य (SUPW)', outcomes: ['सामुदायिक जागरूकता गतिविधियों में भाग लेना', 'अवलोकन रिपोर्ट तैयार करना'], kiqs: ['हमारी शिक्षा आसपास के समुदाय के लिए कैसे उपयोगी है?'] },
+      { subStrand: 'सत्र सारांश और समग्र पोर्टफोलियो समीक्षा', outcomes: ['पूरे सत्र के अर्जित ज्ञान का संकलन करना', 'विद्यार्थी कार्य पोर्टफोलियो प्रस्तुत करना'], kiqs: ['इस सत्र में हमने कौन-कौन से प्रमुख कौशल सीखे?'] },
     ] : [
       { subStrand: 'Foundations & Core Conceptualization', outcomes: [`Define core terminology related to ${strand}`, `Identify everyday authentic applications in learners' community`], kiqs: [`How do baseline principles of ${strand} govern everyday phenomena?`, `Why is systematic observation vital in ${subject}?`] },
       { subStrand: 'Component Analysis & Structural Inquiry', outcomes: [`Classify structural components systematically`, `Investigate interrelationships between internal and external variables`], kiqs: [`What patterns emerge when comparing different specimens?`, `How do changes in one component affect the whole system?`] },
@@ -769,7 +774,7 @@ export class AIProviderService {
       { subStrand: 'Digital Simulation & Virtual Explorations', outcomes: [`Navigate digital learning simulations to test abstract models`, `Document digital findings collaboratively in team portfolios`], kiqs: [`How do digital tools extend our sensory observational capacity?`] },
       { subStrand: 'Mid-Term Diagnostic Review & Remediation', outcomes: [`Consolidate mastery of preceding concepts and address misconceptions`, `Engage in peer assessment and metacognitive target setting`], kiqs: [`Where are our strongest competencies, and which areas require reinforcement?`] },
       { subStrand: 'Engineering Design & Creative Problem Solving', outcomes: [`Prototype a functional model addressing a real-world community need`, `Test prototype durability and iterate on design flaws`], kiqs: [`How does engineering design transform scientific principles into practical solutions?`] },
-      { subStrand: 'Community Service Learning (CSL) Linkage', outcomes: [`Participate in a contextual community-focused application activity`, `Record reflective journals demonstrating social responsibility`], kiqs: [`How can learners share these practical skills with parents and community members?`] },
+      { subStrand: 'Experiential Learning & Community Linkage (NEP 2020)', outcomes: [`Participate in a contextual community-focused application activity`, `Record reflective journals demonstrating social responsibility`], kiqs: [`How can learners share these practical skills with parents and community members?`] },
       { subStrand: 'Termly Synthesis, Portfolio Defense & Evaluation', outcomes: [`Present comprehensive portfolio of evidence demonstrating core competency growth`, `Complete summative formative assessment tasks`], kiqs: [`How has mastery of ${strand} transformed our understanding of the world?`] },
     ];
 
@@ -786,26 +791,26 @@ export class AIProviderService {
           subStrand: weekSubStrand,
           specificLearningOutcomes: [
             ...template.outcomes,
-            isMalayalam ? `സഹപാഠികളുമായി ചർച്ച ചെയ്ത് നിഗമനങ്ങൾ പങ്കുവെക്കുക.` : isSwahili ? `Kushirikiana na wenzake na kuwasilisha matokeo.` : `Collaborate constructively in small-group station investigations.`,
+            isMalayalam ? `സഹപാഠികളുമായി ചർച്ച ചെയ്ത് നിഗമനങ്ങൾ പങ്കുവെക്കുക.` : isHindi ? `सहपाठियों के साथ चर्चा करें और अपने निष्कर्ष प्रस्तुत करें।` : `Collaborate constructively in small-group station investigations.`,
           ],
           keyInquiryQuestions: template.kiqs,
           learningExperiences: isMalayalam ? [
             `ചെറുകൂട്ടങ്ങളായി തിരിഞ്ഞ് നിരീക്ഷണ പ്രവർത്തനങ്ങളിൽ ഏർപ്പെടുന്നു.`,
             `ലഭ്യമായ വിവരങ്ങൾ താരതമ്യം ചെയ്ത് വർക്ക്ഷീറ്റിൽ രേഖപ്പെടുത്തുന്നു.`,
             `ക്ലാസ്സ് ചർച്ചയിൽ കണ്ടെത്തിയ ആശയങ്ങൾ വിശദീകരിക്കുന്നു.`,
-          ] : isSwahili ? [
-            `Katika vikundi, wanafunzi wanachunguza vielelezo na vifaa halisi.`,
-            `Kujadili na kurekodi matokeo ya uchunguzi kwenye majedwali.`,
-            `Kuwasilisha matokeo ya kazi ya kikundi mbele ya darasa lote.`,
+          ] : isHindi ? [
+            `छोटे समूहों में विद्यार्थी नमूनों और शिक्षण सामग्री का अवलोकन करते हैं।`,
+            `अवलोकनों पर चर्चा कर कार्यपत्रक में व्यवस्थित रूप से अंकित करते हैं।`,
+            `पूरी कक्षा के समक्ष समूह के निष्कर्ष प्रस्तुत करते हैं।`,
           ] : [
             `In collaborative pairs, learners observe physical specimens and interactive demonstrations.`,
             `Record observations systematically in structured inquiry task sheets.`,
             `Present group consensus in plenary session and reflect against success criteria.`,
           ],
           learningResources: [
-            `KICD Approved ${subject} Learner\'s Book & Teacher\'s Guide (${gradeLevel})`,
+            `NCERT / ${curriculum} ${subject} Textbook & Teacher's Manual (${gradeLevel})`,
             'Manipulative realia, illustrated wall charts, and experimental materials',
-            'Digital tablets / Projector, Internet research access, and Formative assessment rubrics',
+            'DIKSHA Portal resources / Projector, Smart Board, and Formative assessment rubrics',
           ],
           assessmentMethods: [
             'Teacher Observation Checklist',
@@ -815,8 +820,8 @@ export class AIProviderService {
           ],
           reflection: isMalayalam
             ? `പാഠ്യലക്ഷ്യങ്ങൾ കൈവരിച്ചുവെന്ന് പരിശോധിച്ചു. ആവശ്യമായ കുട്ടികൾക്ക് അധിക പിന്തുണ ഉറപ്പാക്കും.`
-            : isSwahili
-            ? `Malengo ya somo yalifikiwa kwa ufanisi. Ufuatiliaji utafanywa kwa wanafunzi wanaohitaji mwongozo zaidi.`
+            : isHindi
+            ? `अधिगम प्रतिफलों की प्राप्ति का मूल्यांकन किया गया। आवश्यकतानुसार विद्यार्थियों को उपचारात्मक सहायता दी जाएगी।`
             : `Specific learning outcomes attained by majority of learners. Differentiated follow-up noted for guided support.`,
         });
       }

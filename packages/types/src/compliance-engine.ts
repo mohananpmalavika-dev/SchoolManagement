@@ -1,19 +1,19 @@
 export type EducationalBoard =
   | 'CBSE'
+  | 'ICSE'
   | 'STATE_BOARD'
   | 'UDISE_PLUS'
-  | 'NEMIS'
-  | 'MOE'
-  | 'KNEC';
+  | 'APAAR'
+  | 'NCERT';
 
 export type ExportFormat = 'EXCEL' | 'CSV' | 'JSON';
 
 export type ExportTemplateType =
   | 'CBSE_OASIS_LOC'
+  | 'ICSE_COUNCIL_RETURN'
   | 'STATE_BOARD_ANNUAL_RETURN'
   | 'UDISE_PLUS_SDMIS'
-  | 'NEMIS_STUDENT_MASTER'
-  | 'MOE_ANNUAL_COMPLIANCE'
+  | 'APAAR_PEN_REGISTRY'
   | 'TEACHER_MANDATORY_DISCLOSURE'
   | 'EXAM_BOARD_REGISTER';
 
@@ -65,7 +65,7 @@ export type AuditAction =
   | 'CASH_TRANSACTION_ADJUSTMENT'
   | 'STUDENT_RECORD_MODIFIED'
   | 'DOB_ALTERED'
-  | 'NATIONAL_ID_UPDATED'
+  | 'AADHAAR_APAAR_UPDATED'
   | 'CERTIFICATE_ISSUED'
   | 'CERTIFICATE_REVOKED';
 

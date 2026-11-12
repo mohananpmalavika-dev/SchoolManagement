@@ -4,8 +4,8 @@ export function messageFor(error: unknown) {
  const message = value.response?.data?.message;
  return Array.isArray(message) ? message.join('. ') : message || (error instanceof Error && !('isAxiosError' in error) ? error.message : 'Could not complete the request. Please try again.');
 }
-export const money = (value: number) => new Intl.NumberFormat('en-KE',{style:'currency',currency:'KES',maximumFractionDigits:0}).format(value / 100);
-export const dateLabel = (value?: string) => value && !Number.isNaN(new Date(value).getTime()) ? new Date(value).toLocaleDateString('en-KE',{day:'numeric',month:'short',year:'numeric'}) : '—';
+export const money = (value: number) => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(value / 100);
+export const dateLabel = (value?: string) => value && !Number.isNaN(new Date(value).getTime()) ? new Date(value).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '—';
 export async function getRows(endpoint: string, params?: Record<string,string>) {
  const {data} = await apiClient.get(endpoint,{params});
  return Array.isArray(data) ? data : data.items || data.data || [];

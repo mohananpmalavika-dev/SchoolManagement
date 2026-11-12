@@ -31,7 +31,10 @@ export interface Student {
   middleName?: string;
   dateOfBirth: Date;
   gender: string;
-  nationalId?: string;
+  aadhaarLast4?: string;
+  apaarId?: string;
+  penNumber?: string;
+  state?: string;
   email?: string;
   phone?: string;
   currentClassId?: string;
@@ -49,7 +52,7 @@ export interface Guardian {
   firstName: string;
   lastName: string;
   middleName?: string;
-  nationalId?: string;
+  aadhaarLast4?: string;
   email?: string;
   phone: string;
   alternatePhone?: string;
@@ -191,7 +194,8 @@ export interface Staff {
   middleName?: string;
   dateOfBirth?: Date;
   gender: string;
-  nationalId?: string;
+  aadhaarLast4?: string;
+  panNumber?: string;
   email: string;
   phone: string;
   department: string;
@@ -205,16 +209,20 @@ export interface Staff {
   updatedAt: Date;
 }
 
-export interface MpesaTransaction {
+export interface PaymentGatewayTransaction {
   id: string;
   tenantId: string;
-  merchantRequestId: string;
-  checkoutRequestId: string;
+  gateway: 'RAZORPAY' | 'UPI';
+  gatewayOrderId: string;
+  gatewayPaymentId?: string;
   transactionType: string;
   amount: number;
-  phoneNumber: string;
+  currency: string;
+  phoneNumber?: string;
+  upiVpa?: string;
+  utrNumber?: string;
   accountReference: string;
-  mpesaReceiptNumber?: string;
+  receiptNumber?: string;
   transactionDate?: Date;
   resultCode?: string;
   resultDesc?: string;

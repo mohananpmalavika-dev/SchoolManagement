@@ -1,35 +1,35 @@
 /**
  * Currency Utilities
- * Handle all currency operations in minor units (cents) for precision
+ * Handle all currency operations in minor units (paise) for precision
  */
 
 export const CURRENCY_PRECISION = 2;
 export const MINOR_UNIT_MULTIPLIER = 100;
 
 /**
- * Convert major units to minor units (e.g., KES 15.50 -> 1550 cents)
+ * Convert major units to minor units (e.g., INR 15.50 -> 1550 paise)
  */
 export function toMinorUnits(amount: number): number {
   return Math.round(amount * MINOR_UNIT_MULTIPLIER);
 }
 
 /**
- * Convert minor units to major units (e.g., 1550 cents -> KES 15.50)
+ * Convert minor units to major units (e.g., 1550 paise -> INR 15.50)
  */
 export function toMajorUnits(amount: number): number {
   return amount / MINOR_UNIT_MULTIPLIER;
 }
 
 /**
- * Format amount in minor units to currency string
+ * Format amount in minor units to currency string (default INR / en-IN)
  */
 export function formatCurrency(
   amountInMinorUnits: number,
-  currency: string = 'KES',
-  locale: string = 'en-KE'
+  currency: string = 'INR',
+  locale: string = 'en-IN'
 ): string {
   const majorUnits = toMajorUnits(amountInMinorUnits);
-  
+
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currency,
@@ -43,10 +43,10 @@ export function formatCurrency(
  */
 export function formatAmount(
   amountInMinorUnits: number,
-  locale: string = 'en-KE'
+  locale: string = 'en-IN'
 ): string {
   const majorUnits = toMajorUnits(amountInMinorUnits);
-  
+
   return new Intl.NumberFormat(locale, {
     minimumFractionDigits: CURRENCY_PRECISION,
     maximumFractionDigits: CURRENCY_PRECISION,
@@ -60,11 +60,11 @@ export function parseCurrency(currencyString: string): number {
   // Remove currency symbols and commas
   const cleaned = currencyString.replace(/[^\d.-]/g, '');
   const amount = parseFloat(cleaned);
-  
+
   if (isNaN(amount)) {
     throw new Error('Invalid currency string');
   }
-  
+
   return toMinorUnits(amount);
 }
 
@@ -73,7 +73,7 @@ export function parseCurrency(currencyString: string): number {
  */
 export function calculatePercentage(part: number, total: number): number {
   if (total === 0) return 0;
-  return Math.round((part / total) * 100 * 100) / 100; // Round to 2 decimals
+  return Math.round((part / total) * 100 * 100) / 100;
 }
 
 /**
@@ -98,30 +98,33 @@ export function isPartiallyPaid(total: number, paid: number): boolean {
 }
 
 /**
- * Validate M-Pesa phone number format
+ * Normalize Indian mobile number to 91XXXXXXXXXX
  */
-export function formatMpesaPhone(phone: string): string {
-  // Remove spaces, dashes, and plus signs
+export function formatIndianPhone(phone: string): string {
   let cleaned = phone.replace(/[\s\-\+]/g, '');
-  
-  // If starts with 0, replace with 254
-  if (cleaned.startsWith('0')) {
-    cleaned = '254' + cleaned.substring(1);
+
+  if (cleaned.startsWith('0') && cleaned.length === 11) {
+    cleaned = '91' + cleaned.substring(1);
   }
-  
-  // If doesn't start with 254, add it
-  if (!cleaned.startsWith('254')) {
-    cleaned = '254' + cleaned;
+
+  if (!cleaned.startsWith('91') && cleaned.length === 10) {
+    cleaned = '91' + cleaned;
   }
-  
+
   return cleaned;
 }
 
 /**
- * Validate M-Pesa phone number
+ * Validate Indian mobile number (10 digits starting 6-9, optional +91/0 prefix)
  */
-export function isValidMpesaPhone(phone: string): boolean {
-  const formatted = formatMpesaPhone(phone);
-  // Kenyan phone numbers: 254XXXXXXXXX (12 digits)
-  return /^254[17]\d{8}$/.test(formatted);
+export function isValidIndianPhoneNumber(phone: string): boolean {
+  const formatted = formatIndianPhone(phone);
+  return /^91[6-9]\d{9}$/.test(formatted);
+}
+
+/**
+ * Validate UPI Virtual Payment Address (e.g., parent@okhdfcbank)
+ */
+export function isValidUpiId(vpa: string): boolean {
+  return /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/.test(vpa.trim());
 }

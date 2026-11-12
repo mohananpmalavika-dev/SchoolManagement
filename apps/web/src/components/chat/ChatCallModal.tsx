@@ -140,7 +140,7 @@ export function ChatCallModal({
                 </div>
                 <div className="space-y-3">
                   <h4 className="text-lg font-bold text-white">
-                    Kenya CBC Curriculum · Mathematics Form 1 & 4
+                    CBSE / NCERT Curriculum · Mathematics Class 9 & 10
                   </h4>
                   <p className="text-xs text-slate-300 leading-relaxed">
                     Lesson Slides: Fractions, Ratios and Percentages in Daily Life.

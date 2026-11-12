@@ -176,7 +176,7 @@ export class ComplianceService {
   }
 
   /**
-   * Generate teacher data report for TSC compliance
+   * Generate teacher data report for UDISE+ / CBSE Teacher Registry compliance
    */
   async generateTeacherDataReport(
     tenantId: string,
@@ -192,19 +192,19 @@ export class ComplianceService {
       },
     });
 
-    // Get NEMIS staff records for TSC numbers
-    const nemisRecords = await this.prisma.nemisStaffRecord.findMany({
+    // Get UDISE+ staff records for National Teacher Codes
+    const udiseRecords = await this.prisma.udiseStaffRecord.findMany({
       where: {
         tenantId,
         staffId: { in: teachers.map((t: any) => t.id) },
       },
     });
 
-    const tscMap = new Map(nemisRecords.map((r: any) => [r.staffId, r.tscNumber]));
+    const teacherCodeMap = new Map(udiseRecords.map((r: any) => [r.staffId, r.teacherCode]));
 
     const teacherData = teachers.map((teacher: any) => ({
       staffNumber: teacher.staffNumber,
-      tscNumber: tscMap.get(teacher.id) || 'PENDING',
+      teacherCode: teacherCodeMap.get(teacher.id) || 'PENDING',
       name: `${teacher.firstName} ${teacher.middleName || ''} ${teacher.lastName}`,
       gender: teacher.gender,
       email: teacher.email,
@@ -230,7 +230,7 @@ export class ComplianceService {
         contractTeachers: byEmploymentType['CONTRACT'] || 0,
         maleTeachers: byGender['MALE'] || 0,
         femaleTeachers: byGender['FEMALE'] || 0,
-        registeredWithTSC: nemisRecords.filter((r: any) => r.tscNumber).length,
+        registeredWithUdise: udiseRecords.filter((r: any) => r.teacherCode).length,
       },
       byStatus,
       byEmploymentType,
@@ -247,7 +247,7 @@ export class ComplianceService {
         reportYear,
         status: ReportStatus.DRAFT,
         reportData,
-        submittedTo: 'TSC',
+        submittedTo: 'UDISE_PLUS',
         isAutomated: true,
       },
     });
@@ -574,19 +574,19 @@ export class ComplianceService {
       if (student.admissionDate) studentCompleteness++;
       if (student.currentClassId) studentCompleteness++;
       if (student.email || student.phone) studentCompleteness++;
-      if (student.nationalId || student.birthCertNumber) studentCompleteness++;
+      if (student.aadhaarLast4 || student.apaarId || student.birthCertNumber) studentCompleteness++;
       if (student.address) studentCompleteness++;
 
       completenessScore += (studentCompleteness / requiredFields) * 100;
 
       // Identify issues
-      if (!student.nationalId && !student.birthCertNumber) {
+      if (!student.aadhaarLast4 && !student.apaarId && !student.birthCertNumber) {
         issues.push({
           severity: 'CRITICAL',
           entity: 'STUDENT',
           entityId: student.id,
           field: 'identification',
-          message: `Student ${student.admissionNumber} missing both National ID and Birth Certificate`,
+          message: `Student ${student.admissionNumber} missing Aadhaar (last 4), APAAR ID, and Birth Certificate`,
         });
       }
 
@@ -639,14 +639,14 @@ export class ComplianceService {
 
       completenessScore += (staffCompleteness / requiredFields) * 100;
 
-      // Check TSC registration for teachers
+      // Check UDISE+ teacher code registration
       if (member.isTeacher) {
         issues.push({
           severity: 'WARNING',
           entity: 'STAFF',
           entityId: member.id,
-          field: 'tscNumber',
-          message: `Teacher ${member.staffNumber} - verify TSC registration`,
+          field: 'teacherCode',
+          message: `Teacher ${member.staffNumber} - verify UDISE+ National Teacher Code`,
         });
       }
     });
@@ -876,10 +876,10 @@ export class ComplianceService {
 
   private calculatePassingRate(grades: any[]): number {
     if (grades.length === 0) return 0;
-    
-    const passingGrades = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-'];
-    const passing = grades.filter(g => passingGrades.includes(g.grade || '')).length;
-    
+
+    const passingGrades = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'D', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D'];
+    const passing = grades.filter(g => passingGrades.includes(g.grade || g.letterGrade || '')).length;
+
     return parseFloat(((passing / grades.length) * 100).toFixed(2));
   }
 
@@ -887,11 +887,11 @@ export class ComplianceService {
     const monthly = payments.reduce((acc, payment) => {
       const date = new Date(payment.paymentDate);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      
+
       if (!acc[monthKey]) {
         acc[monthKey] = { month: monthKey, count: 0, amount: 0 };
       }
-      
+
       acc[monthKey].count++;
       acc[monthKey].amount += payment.amount;
       return acc;
@@ -902,22 +902,22 @@ export class ComplianceService {
 
   private getSubmissionDestination(reportType: ComplianceReportType): string {
     const destinations: Record<ComplianceReportType, string> = {
-      [ComplianceReportType.ENROLLMENT_STATISTICS]: 'NEMIS',
-      [ComplianceReportType.ATTENDANCE_SUMMARY]: 'NEMIS',
-      [ComplianceReportType.TEACHER_DATA_REPORT]: 'TSC',
-      [ComplianceReportType.EXAMINATION_ANALYSIS]: 'KNEC',
-      [ComplianceReportType.FINANCIAL_SUMMARY]: 'MOE',
-      [ComplianceReportType.INFRASTRUCTURE_STATUS]: 'MOE',
-      [ComplianceReportType.SAFETY_AUDIT]: 'MOE',
-      [ComplianceReportType.TSC_COMPLIANCE]: 'TSC',
-      [ComplianceReportType.ANNUAL_SCHOOL_CENSUS]: 'NEMIS',
-      [ComplianceReportType.TERMLY_RETURNS]: 'NEMIS',
-      [ComplianceReportType.LEARNER_TRACKING]: 'NEMIS',
-      [ComplianceReportType.DROPOUT_ANALYSIS]: 'NEMIS',
-      [ComplianceReportType.SPECIAL_NEEDS_REPORT]: 'NEMIS',
+      [ComplianceReportType.ENROLLMENT_STATISTICS]: 'UDISE_PLUS',
+      [ComplianceReportType.ATTENDANCE_SUMMARY]: 'UDISE_PLUS',
+      [ComplianceReportType.TEACHER_DATA_REPORT]: 'UDISE_PLUS',
+      [ComplianceReportType.EXAMINATION_ANALYSIS]: 'CBSE',
+      [ComplianceReportType.FINANCIAL_SUMMARY]: 'MOE_INDIA',
+      [ComplianceReportType.INFRASTRUCTURE_STATUS]: 'UDISE_PLUS',
+      [ComplianceReportType.SAFETY_AUDIT]: 'CBSE',
+      [ComplianceReportType.TEACHER_COMPLIANCE]: 'UDISE_PLUS',
+      [ComplianceReportType.ANNUAL_SCHOOL_CENSUS]: 'UDISE_PLUS',
+      [ComplianceReportType.TERM_RETURNS]: 'STATE_BOARD',
+      [ComplianceReportType.LEARNER_TRACKING]: 'APAAR',
+      [ComplianceReportType.DROPOUT_ANALYSIS]: 'UDISE_PLUS',
+      [ComplianceReportType.SPECIAL_NEEDS_REPORT]: 'UDISE_PLUS',
     };
 
-    return destinations[reportType] || 'NEMIS';
+    return destinations[reportType] || 'UDISE_PLUS';
   }
 
   private getEntityType(auditType: DataAuditType): string {

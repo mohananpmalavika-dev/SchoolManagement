@@ -24,7 +24,7 @@ export class WhatsAppSchedulerService {
    */
   async scheduleFeeReminders(
     payload: any,
-    options?: { delay?: number; priority?: number; language?: 'en' | 'sw' },
+    options?: { delay?: number; priority?: number; language?: 'en' | 'hi' | 'ml' },
   ): Promise<string> {
     const job = await this.whatsappQueue.add(
       'send-fee-reminders',
@@ -53,7 +53,7 @@ export class WhatsAppSchedulerService {
    */
   async scheduleAttendanceAlerts(
     payload: any,
-    options?: { delay?: number; priority?: number; language?: 'en' | 'sw' },
+    options?: { delay?: number; priority?: number; language?: 'en' | 'hi' | 'ml' },
   ): Promise<string> {
     const job = await this.whatsappQueue.add(
       'send-attendance-alerts',
@@ -82,7 +82,7 @@ export class WhatsAppSchedulerService {
    */
   async scheduleReportCards(
     payload: any,
-    options?: { delay?: number; priority?: number; language?: 'en' | 'sw' },
+    options?: { delay?: number; priority?: number; language?: 'en' | 'hi' | 'ml' },
   ): Promise<string> {
     const job = await this.whatsappQueue.add(
       'send-report-cards',
@@ -249,7 +249,7 @@ export class WhatsAppSchedulerService {
    */
   @Cron('0 16 * * 1-5', {
     name: 'send-daily-attendance-summary',
-    timeZone: 'Africa/Nairobi',
+    timeZone: 'Asia/Kolkata',
   })
   async handleDailyAttendanceSummary() {
     if (!this.schedulerEnabled) return;
@@ -276,7 +276,7 @@ export class WhatsAppSchedulerService {
    */
   @Cron('0 11 * * 1-5', {
     name: 'send-absence-alerts',
-    timeZone: 'Africa/Nairobi',
+    timeZone: 'Asia/Kolkata',
   })
   async handleAbsenceAlerts() {
     if (!this.schedulerEnabled) return;

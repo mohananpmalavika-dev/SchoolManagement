@@ -98,7 +98,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
       "name": "text!",
       "schoolId": "ref:school!",
       "level": "text!",
-      "educationLevel": "enum:PRE_PRIMARY,PRIMARY,JUNIOR_SECONDARY,SENIOR_SECONDARY!"
+      "educationLevel": "enum:PRE_PRIMARY,PRIMARY,MIDDLE,SECONDARY,SENIOR_SECONDARY!"
     }
   },
   "streams": {
@@ -115,7 +115,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
     "fields": {
       "name": "text!",
       "code": "text!",
-      "educationLevel": "enum:PRE_PRIMARY,PRIMARY,JUNIOR_SECONDARY,SENIOR_SECONDARY!"
+      "educationLevel": "enum:PRE_PRIMARY,PRIMARY,MIDDLE,SECONDARY,SENIOR_SECONDARY!"
     }
   },
   "schools": {
@@ -126,7 +126,10 @@ export const recordSpecs:Record<string,RecordSpec> = {
       "phone": "text!",
       "address": "text!",
       "city": "text!",
-      "county": "text!",
+      "district": "text",
+      "state": "text!",
+      "pincode": "text",
+      "boardAffiliation": "enum:CBSE,ICSE,STATE_BOARD,IB,IGCSE",
       "schoolType": "enum:PUBLIC,PRIVATE,ACADEMY,TUITION_CENTRE,INTERNATIONAL!"
     }
   },
@@ -254,7 +257,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
     "fields": {
       "invoiceId": "ref:invoice!",
       "amount": "int:1:100000000!",
-      "paymentMethod": "enum:CASH,BANK_TRANSFER,CHEQUE,CARD,OTHER!",
+      "paymentMethod": "enum:RAZORPAY,UPI,NET_BANKING,CASH,BANK_TRANSFER,CHEQUE,CARD,OTHER!",
       "reference": "text!",
       "paymentDate": "date"
     }

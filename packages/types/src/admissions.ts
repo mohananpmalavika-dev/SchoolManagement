@@ -17,7 +17,7 @@ export type LeadPriority = 'HIGH' | 'MEDIUM' | 'NORMAL';
 
 export type InterviewResult = 'RECOMMENDED' | 'PENDING' | 'REJECTED' | 'NOT_ATTENDED';
 
-export type AdmissionPaymentMethod = 'UPI' | 'NET_BANKING' | 'CARD' | 'CASH' | 'MPESA' | 'BANK_TRANSFER';
+export type AdmissionPaymentMethod = 'UPI' | 'RAZORPAY' | 'NET_BANKING' | 'CARD' | 'CASH' | 'BANK_TRANSFER';
 
 export interface AdmissionStudentInfo {
   firstName: string;

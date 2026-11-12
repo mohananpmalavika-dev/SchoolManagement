@@ -40,10 +40,10 @@ class GuardianInfoDto {
   @MaxLength(50)
   middleName?: string;
 
-  @ApiProperty({ description: 'Guardian phone number' })
+  @ApiProperty({ description: 'Guardian phone number', example: '+919847012345' })
   @IsString()
-  @Matches(/^(\+?254|0)?[17]\d{8}$/, {
-    message: 'Phone must be a valid Kenyan number',
+  @Matches(/^(\+?91|0)?[6-9]\d{9}$/, {
+    message: 'Phone must be a valid Indian mobile number',
   })
   phone: string;
 
@@ -88,19 +88,19 @@ export class CreateStudentDto {
   })
   admissionNumber: string;
 
-  @ApiProperty({ description: 'Student first name', example: 'Jane' })
+  @ApiProperty({ description: 'Student first name', example: 'Ananya' })
   @IsString()
   @MinLength(2)
   @MaxLength(50)
   firstName: string;
 
-  @ApiProperty({ description: 'Student last name', example: 'Wanjiku' })
+  @ApiProperty({ description: 'Student last name', example: 'Nair' })
   @IsString()
   @MinLength(2)
   @MaxLength(50)
   lastName: string;
 
-  @ApiPropertyOptional({ description: 'Student middle name', example: 'Njeri' })
+  @ApiPropertyOptional({ description: 'Student middle name', example: 'K.' })
   @IsOptional()
   @IsString()
   @MaxLength(50)
@@ -122,15 +122,33 @@ export class CreateStudentDto {
   gender: Gender;
 
   @ApiPropertyOptional({
-    description: 'National ID number',
-    example: '12345678',
+    description: 'Aadhaar last 4 digits (masked storage for student privacy)',
+    example: '4512',
   })
   @IsOptional()
   @IsString()
-  @Matches(/^\d{7,8}$/, {
-    message: 'National ID must be 7-8 digits',
+  @Matches(/^(\d{4}|X{4}-X{4}-\d{4})$/i, {
+    message: 'Aadhaar must be last 4 digits or XXXX-XXXX-1234 format',
   })
-  nationalId?: string;
+  aadhaarLast4?: string;
+
+  @ApiPropertyOptional({
+    description: '12-digit APAAR ID (One Nation One Student ID)',
+    example: '910012345678',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{12}$/, {
+    message: 'APAAR ID must be 12 digits',
+  })
+  apaarId?: string;
+
+  @ApiPropertyOptional({
+    description: 'UDISE+ Permanent Education Number (PEN)',
+  })
+  @IsOptional()
+  @IsString()
+  penNumber?: string;
 
   @ApiPropertyOptional({
     description: 'Birth certificate number',
@@ -141,7 +159,7 @@ export class CreateStudentDto {
 
   @ApiPropertyOptional({
     description: 'Student email address',
-    example: 'jane.wanjiku@example.com',
+    example: 'ananya.nair@kryptonschool.edu.in',
   })
   @IsOptional()
   @IsEmail()
@@ -162,12 +180,31 @@ export class CreateStudentDto {
   address?: string;
 
   @ApiPropertyOptional({
-    description: 'County',
-    example: 'Nairobi',
+    description: 'District',
+    example: 'Ernakulam',
   })
   @IsOptional()
   @IsString()
-  county?: string;
+  district?: string;
+
+  @ApiPropertyOptional({
+    description: 'Indian State / Union Territory',
+    example: 'Kerala',
+  })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiPropertyOptional({
+    description: 'Indian 6-digit PIN Code',
+    example: '682301',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[1-9]\d{5}$/, {
+    message: 'PIN code must be 6 digits',
+  })
+  pincode?: string;
 
   @ApiPropertyOptional({
     description: 'Blood group',
@@ -207,7 +244,7 @@ export class CreateStudentDto {
 
   @ApiProperty({
     description: 'Admission date',
-    example: '2024-01-08',
+    example: '2026-04-06',
   })
   @IsDateString()
   admissionDate: string;

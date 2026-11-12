@@ -46,12 +46,12 @@ export class SendReportCardsDto {
   @ApiProperty({
     description: 'Message language',
     example: 'en',
-    enum: ['en', 'sw'],
+    enum: ['en', 'hi', 'ml'],
     required: false,
   })
-  @IsEnum(['en', 'sw'])
+  @IsEnum(['en', 'hi', 'ml'])
   @IsOptional()
-  language?: 'en' | 'sw';
+  language?: 'en' | 'hi' | 'ml';
 
   @ApiProperty({
     description: "Include teacher's remarks in the message",

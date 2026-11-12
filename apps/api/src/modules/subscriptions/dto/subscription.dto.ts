@@ -50,7 +50,7 @@ export class CreateSubscriptionDto {
 
   @ApiPropertyOptional({
     description: 'Payment method',
-    example: 'MPESA',
+    example: 'UPI',
   })
   @IsOptional()
   @IsString()
@@ -75,12 +75,12 @@ export class UpdateSubscriptionDto {
 }
 
 export class RenewSubscriptionDto {
-  @ApiProperty({ description: 'Payment reference (M-Pesa code, receipt)' })
+  @ApiProperty({ description: 'Payment reference (Razorpay ID / UTR / receipt)' })
   @IsString()
   paymentReference: string;
 
   @ApiPropertyOptional({
-    description: 'Payment amount in KES (minor units)',
+    description: 'Payment amount in INR (minor units)',
     example: 4000000,
   })
   @IsOptional()

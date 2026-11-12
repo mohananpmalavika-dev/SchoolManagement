@@ -6,9 +6,9 @@ import { ConfigService } from '@nestjs/config';
  * AES-256-GCM Encryption Utility
  * 
  * Provides secure encryption/decryption for sensitive credentials such as:
- * - M-Pesa API keys and secrets
- * - NEMIS API credentials
- * - KNEC API credentials
+ * - Razorpay / Payment Gateway API keys and secrets
+ * - UDISE+ API credentials
+ * - Board Examination (CBSE/ICSE/State Board) API credentials
  * - Other sensitive school configuration
  * 
  * Security Features:

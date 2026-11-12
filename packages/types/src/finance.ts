@@ -1,12 +1,12 @@
 export type PaymentGatewayType =
-  | 'MPESA'
-  | 'STRIPE'
-  | 'PAYPAL'
+  | 'RAZORPAY'
   | 'UPI'
+  | 'NET_BANKING'
   | 'CARD'
-  | 'NET_BANKING';
+  | 'STRIPE'
+  | 'PAYPAL';
 
-export type CurrencyCode = 'INR' | 'USD' | 'KES' | 'EUR' | 'GBP';
+export type CurrencyCode = 'INR' | 'USD' | 'EUR' | 'GBP';
 
 export interface CurrencyConfig {
   code: CurrencyCode;

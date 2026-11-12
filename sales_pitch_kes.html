@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HustlerTech School ERP - Sales Pitch (KES)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap');
+
+    @page {
+      size: 1920px 1080px;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #0f172a;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .slide {
+      width: 1920px;
+      height: 1080px;
+      page-break-after: always;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 70px 90px;
+      background: #f8fafc;
+    }
+
+    /* Dark Slide Variation */
+    .slide.dark {
+      background: #090d16;
+      color: #f8fafc;
+    }
+
+    /* Background decorative ambient lights */
+    .ambient-glow-1 {
+      position: absolute;
+      top: -150px;
+      right: -100px;
+      width: 700px;
+      height: 700px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%);
+      pointer-events: none;
+    }
+
+    .ambient-glow-2 {
+      position: absolute;
+      bottom: -150px;
+      left: -100px;
+      width: 650px;
+      height: 650px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0) 70%);
+      pointer-events: none;
+    }
+
+    /* Header styling */
+    .slide-header {
+      margin-bottom: 40px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      border-radius: 9999px;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      background: #eef2ff;
+      color: #4f46e5;
+      margin-bottom: 16px;
+    }
+
+    .dark .badge {
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .badge-emerald {
+      background: rgba(16, 185, 129, 0.15) !important;
+      color: #10b981 !important;
+      border: 1px solid rgba(16, 185, 129, 0.3) !important;
+    }
+
+    .slide-title {
+      font-size: 40px;
+      font-weight: 800;
+      line-height: 1.2;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+    }
+
+    .dark .slide-title {
+      color: #ffffff;
+    }
+
+    .slide-subtitle {
+      font-size: 20px;
+      color: #64748b;
+      margin-top: 10px;
+      font-weight: 400;
+      max-width: 1400px;
+    }
+
+    .dark .slide-subtitle {
+      color: #94a3b8;
+    }
+
+    /* Layout containers */
+    .content-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 50px;
+      flex: 1;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .content-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 36px;
+      flex: 1;
+      align-items: stretch;
+      position: relative;
+      z-index: 2;
+    }
+
+    .content-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 28px;
+      flex: 1;
+      align-items: stretch;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Cards */
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dark .card {
+      background: #141b2d;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.4);
+    }
+
+    .card.card-accent-emerald {
+      border-top: 5px solid #10b981;
+    }
+
+    .card.card-accent-indigo {
+      border-top: 5px solid #4f46e5;
+    }
+
+    .card.card-accent-purple {
+      border-top: 5px solid #8b5cf6;
+    }
+
+    .card.card-accent-rose {
+      border-top: 5px solid #f43f5e;
+    }
+
+    .card.card-accent-amber {
+      border-top: 5px solid #f59e0b;
+    }
+
+    .card-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .dark .card-title {
+      color: #ffffff;
+    }
+
+    .card-text {
+      font-size: 16px;
+      line-height: 1.6;
+      color: #475569;
+    }
+
+    .dark .card-text {
+      color: #94a3b8;
+    }
+
+    /* Screenshot Browser Mockup */
+    .mockup-window {
+      background: #ffffff;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-height: 720px;
+    }
+
+    .dark .mockup-window {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6);
+    }
+
+    .mockup-bar {
+      height: 44px;
+      background: #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 8px;
+    }
+
+    .dark .mockup-bar {
+      background: #0f172a;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .mockup-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    .mockup-url {
+      background: #ffffff;
+      height: 26px;
+      border-radius: 6px;
+      margin-left: 20px;
+      flex: 1;
+      max-width: 480px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 12px;
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+    }
+
+    .dark .mockup-url {
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .mockup-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: cover;
+      object-position: top;
+    }
+
+    /* Bullet List Features */
+    .feature-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .feature-item {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      background: #ffffff;
+      padding: 18px 22px;
+      border-radius: 14px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+    }
+
+    .dark .feature-item {
+      background: #141b2d;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .feature-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .feature-content h4 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .dark .feature-content h4 {
+      color: #ffffff;
+    }
+
+    .feature-content p {
+      font-size: 14.5px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    .dark .feature-content p {
+      color: #94a3b8;
+    }
+
+    /* Metric stats badge */
+    .metric-number {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 44px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    /* Pricing Card Styles */
+    .price-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 24px;
+      padding: 40px 32px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+    }
+
+    .price-card.popular {
+      border: 3px solid #4f46e5;
+      transform: translateY(-8px);
+      box-shadow: 0 25px 50px -12px rgba(79, 70, 229, 0.25);
+    }
+
+    .popular-tag {
+      position: absolute;
+      top: -16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #4f46e5;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 6px 20px;
+      border-radius: 9999px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .plan-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+
+    .plan-price {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 42px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .plan-period {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-bottom: 24px;
+    }
+
+    .plan-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 30px;
+      flex: 1;
+    }
+
+    .plan-features li {
+      font-size: 14.5px;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .plan-features li span.check {
+      color: #10b981;
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    /* ROI Calculation Highlights */
+    .roi-highlight-banner {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.2) 100%);
+      border: 2px solid #10b981;
+      border-radius: 20px;
+      padding: 30px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 30px;
+    }
+
+    .slide-footer {
+      position: absolute;
+      bottom: 25px;
+      left: 90px;
+      right: 90px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #94a3b8;
+      border-top: 1px solid rgba(226, 232, 240, 0.5);
+      padding-top: 15px;
+      z-index: 2;
+    }
+
+    .dark .slide-footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================== -->
+  <!-- SLIDE 1: COVER / TITLE SLIDE (DARK) -->
+  <!-- ========================================== -->
+  <div class="slide dark">
+    <div class="ambient-glow-1"></div>
+    <div class="ambient-glow-2"></div>
+
+    <div style="flex: 1; display: flex; align-items: center; gap: 80px; position: relative; z-index: 2;">
+      <div style="flex: 1.1;">
+        <div class="badge badge-emerald">KENYA EDUCATION TRANSFORMATION PROPOSAL</div>
+        <h1 style="font-size: 56px; font-weight: 800; line-height: 1.15; color: #ffffff; letter-spacing: -0.03em; margin-bottom: 20px;">
+          HustlerTech <br/>
+          <span style="background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            School ERP Workspace
+          </span>
+        </h1>
+        <p style="font-size: 22px; color: #cbd5e1; line-height: 1.5; margin-bottom: 35px; max-width: 680px;">
+          The Next-Generation AI & Operating System for Kenyan Schools. Zero fee leakage, instant Safaricom M-Pesa reconciliation, and automated CBC report cards.
+        </p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 650px;">
+          <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 14px 18px; border-radius: 12px; display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 20px; color: #10b981;">✓</div>
+            <div style="font-size: 15px; font-weight: 600; color: #e2e8f0;">Safaricom M-Pesa STK Push</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 14px 18px; border-radius: 12px; display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 20px; color: #38bdf8;">✓</div>
+            <div style="font-size: 15px; font-weight: 600; color: #e2e8f0;">AI CBC Teacher Copilot</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 14px 18px; border-radius: 12px; display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 20px; color: #a855f7;">✓</div>
+            <div style="font-size: 15px; font-weight: 600; color: #e2e8f0;">WhatsApp Reminders in KES</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 14px 18px; border-radius: 12px; display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 20px; color: #fbbf24;">✓</div>
+            <div style="font-size: 15px; font-weight: 600; color: #e2e8f0;">Digital QR Certificates</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 45px; display: flex; align-items: center; gap: 30px;">
+          <div>
+            <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8;">Currency Standard</div>
+            <div style="font-size: 18px; font-weight: 700; color: #ffffff;">Kenyan Shillings (KES)</div>
+          </div>
+          <div style="width: 1px; height: 35px; background: rgba(255,255,255,0.15);"></div>
+          <div>
+            <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8;">Target Leadership</div>
+            <div style="font-size: 18px; font-weight: 700; color: #ffffff;">School Directors, Principals & Bursars</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex: 1.25;">
+        <div class="mockup-window">
+          <div class="mockup-bar">
+            <div class="mockup-dot dot-red"></div>
+            <div class="mockup-dot dot-yellow"></div>
+            <div class="mockup-dot dot-green"></div>
+            <div class="mockup-url">https://portal.evidenceacademy.ke/dashboard</div>
+          </div>
+          <img src="assets/sales_pitch/dashboard_hero.png" class="mockup-img" alt="HustlerTech Dashboard" />
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Nairobi, Kenya</div>
+      <div>Confidential B2B Sales Deck • Page 1 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 2: THE 5 PAIN POINTS IN KENYAN SCHOOLS -->
+  <!-- ========================================== -->
+  <div class="slide">
+    <div class="slide-header">
+      <div class="badge">Operational Crisis</div>
+      <h2 class="slide-title">The 5 Crippling Pain Points Kenyan Schools Face Every Term</h2>
+      <p class="slide-subtitle">Manual administration, uncollected fees, and teacher exhaustion prevent schools from thriving.</p>
+    </div>
+
+    <div class="content-grid-3" style="gap: 28px;">
+      <div class="card card-accent-rose">
+        <div class="card-title">
+          <span style="color: #f43f5e; font-size: 26px;">📉</span>
+          1. Severe Fee Arrears & Bad Debt
+        </div>
+        <p class="card-text">
+          20% to 35% of student term fees remain unpaid at term end. With no automated tracking, schools face acute cashflow crises, delayed teacher payroll, and strained vendor credit.
+        </p>
+        <div style="margin-top: auto; padding-top: 15px; font-size: 13px; font-weight: 700; color: #f43f5e;">
+          Average loss: KES 800,000+ per term
+        </div>
+      </div>
+
+      <div class="card card-accent-amber">
+        <div class="card-title">
+          <span style="color: #f59e0b; font-size: 26px;">⏳</span>
+          2. Manual M-Pesa & Slip Matching
+        </div>
+        <p class="card-text">
+          Bursars waste 20+ hours a week manually checking M-Pesa transaction SMS messages, comparing bank counter slips, and handwriting receipt books. Fake M-Pesa screenshots go undetected.
+        </p>
+        <div style="margin-top: auto; padding-top: 15px; font-size: 13px; font-weight: 700; color: #f59e0b;">
+          20+ admin hours wasted every week
+        </div>
+      </div>
+
+      <div class="card card-accent-indigo">
+        <div class="card-title">
+          <span style="color: #4f46e5; font-size: 26px;">📝</span>
+          3. CBC Assessment Burden
+        </div>
+        <p class="card-text">
+          Kenya's Competency-Based Curriculum (CBC) demands detailed formative rubrics and personalized learner remarks. Teachers spend weeks manually writing reports instead of teaching.
+        </p>
+        <div style="margin-top: auto; padding-top: 15px; font-size: 13px; font-weight: 700; color: #4f46e5;">
+          High teacher burnout & turnover
+        </div>
+      </div>
+
+      <div class="card card-accent-purple">
+        <div class="card-title">
+          <span style="color: #8b5cf6; font-size: 26px;">💬</span>
+          4. WhatsApp Chaos & Lost Letters
+        </div>
+        <p class="card-text">
+          Scattered WhatsApp groups, lost paper circulars, and unanswered phone calls create friction between parents and school leadership. Fee reminders are ignored or lost in chat clutter.
+        </p>
+        <div style="margin-top: auto; padding-top: 15px; font-size: 13px; font-weight: 700; color: #8b5cf6;">
+          Parent dissatisfaction & mistrust
+        </div>
+      </div>
+
+      <div class="card card-accent-emerald" style="grid-column: span 2;">
+        <div class="card-title">
+          <span style="color: #10b981; font-size: 26px;">👁️</span>
+          5. Executive Blindspots & Multi-Campus Disconnect
+        </div>
+        <p class="card-text">
+          School Directors and Board members cannot see live school performance. How much cash was collected today in KES? What is today's school-wide attendance rate? Who is at risk of dropping out? Without modern software, decisions are based on guesswork.
+        </p>
+        <div style="margin-top: auto; padding-top: 15px; font-size: 13px; font-weight: 700; color: #10b981;">
+          Zero real-time data for board decisions
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Problem Analysis</div>
+      <div>Page 2 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 3: UNIFIED SOLUTION OVERVIEW (DARK) -->
+  <!-- ========================================== -->
+  <div class="slide dark">
+    <div class="slide-header">
+      <div class="badge">The Operating System</div>
+      <h2 class="slide-title">HustlerTech ERP: Complete Modern School Operating System</h2>
+      <p class="slide-subtitle">A unified, cloud-native platform replacing 6 disjointed tools with one powerful ecosystem.</p>
+    </div>
+
+    <div class="content-grid-3" style="gap: 28px;">
+      <div class="card" style="border-left: 4px solid #10b981;">
+        <div class="card-title"><span style="color: #10b981;">💳</span> Smart Fees & M-Pesa</div>
+        <p class="card-text">
+          Instant STK push to parent phones, automatic Paybill/Till code reconciliation, real-time invoicing in KES, and zero gate cash handling.
+        </p>
+      </div>
+
+      <div class="card" style="border-left: 4px solid #38bdf8;">
+        <div class="card-title"><span style="color: #38bdf8;">🤖</span> AI Academic Copilot</div>
+        <p class="card-text">
+          Instant CBC student report card remarks, exam analysis, auto quiz generation, and personalized learner progression tracking.
+        </p>
+      </div>
+
+      <div class="card" style="border-left: 4px solid #fbbf24;">
+        <div class="card-title"><span style="color: #fbbf24;">📈</span> Predictive Analytics</div>
+        <p class="card-text">
+          Machine learning forecasts fee default risks and identifies chronic absenteeism and dropout patterns weeks in advance.
+        </p>
+      </div>
+
+      <div class="card" style="border-left: 4px solid #a855f7;">
+        <div class="card-title"><span style="color: #a855f7;">👨‍👩‍👧</span> Parent & Family Portal</div>
+        <p class="card-text">
+          Live fee ledger, instant PDF receipts, academic report cards, classroom media feed, and 1-click parent-teacher conference booking.
+        </p>
+      </div>
+
+      <div class="card" style="border-left: 4px solid #f43f5e;">
+        <div class="card-title"><span style="color: #f43f5e;">📜</span> Tamper-Proof Certificates</div>
+        <p class="card-text">
+          Official Transfer & Leaving Certificates with institutional crest, cryptographic Principal signature, and 2-second QR verification.
+        </p>
+      </div>
+
+      <div class="card" style="border-left: 4px solid #6366f1;">
+        <div class="card-title"><span style="color: #6366f1;">🚌</span> Multi-Campus Operations</div>
+        <p class="card-text">
+          Transport fleet tracking, library catalog management, staff biometric attendance & payroll, and central multi-branch oversight.
+        </p>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Solution Architecture</div>
+      <div>Page 3 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 4: EXECUTIVE DASHBOARD (SCREENSHOT) -->
+  <!-- ========================================== -->
+  <div class="slide">
+    <div class="slide-header">
+      <div class="badge">Executive Intelligence</div>
+      <h2 class="slide-title">Executive Command Center: Complete School Pulse in One View</h2>
+      <p class="slide-subtitle">Instant visibility into enrollments, daily attendance rates, fee collection velocity, and campus alerts.</p>
+    </div>
+
+    <div class="content-grid-2">
+      <div class="feature-list">
+        <div class="feature-item">
+          <div class="feature-icon" style="background: #eef2ff; color: #4f46e5;">📊</div>
+          <div class="feature-content">
+            <h4>Live School Operational Pulse</h4>
+            <p>Monitor total active students, teachers on duty, class capacities, and scheduled campus assessments in real time.</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon" style="background: #ecfdf5; color: #10b981;">🎯</div>
+          <div class="feature-content">
+            <h4>96%+ Daily Attendance Tracking</h4>
+            <p>One-tap digital roll call automatically identifies absent learners and sends instant notification SMS to parents' phones.</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon" style="background: #fdf4ff; color: #c026d3;">💰</div>
+          <div class="feature-content">
+            <h4>Fee Collection Velocity (KES)</h4>
+            <p>Live progress meters showing total invoiced fees versus collected revenue in Kenyan Shillings, highlighting overdue cohorts.</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon" style="background: #f8fafc; color: #0284c7; border: 1px solid #e2e8f0;">🔒</div>
+          <div class="feature-content">
+            <h4>Role-Based Access Control</h4>
+            <p>Tailored dashboards for Directors, Headteachers, Class Teachers, Bursars, and Guardians with strict privacy boundaries.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mockup-window">
+        <div class="mockup-bar">
+          <div class="mockup-dot dot-red"></div>
+          <div class="mockup-dot dot-yellow"></div>
+          <div class="mockup-dot dot-green"></div>
+          <div class="mockup-url">https://portal.evidenceacademy.ke/admin/dashboard</div>
+        </div>
+        <img src="assets/sales_pitch/school_dashboard.png" class="mockup-img" alt="School Dashboard Screenshot" />
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Executive Features</div>
+      <div>Page 4 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 5: REVENUE ENGINE & M-PESA DARAJA -->
+  <!-- ========================================== -->
+  <div class="slide">
+    <div class="slide-header">
+      <div class="badge badge-emerald">Financial Engine</div>
+      <h2 class="slide-title">Automated Fee Collection & Safaricom M-Pesa: Recover 95%+ of Fees</h2>
+      <p class="slide-subtitle">Eliminate manual bank slips, fake payment claims, and awkward debt collection phone calls.</p>
+    </div>
+
+    <div class="content-grid-2">
+      <div class="feature-list">
+        <div class="feature-item" style="border-left: 4px solid #10b981;">
+          <div class="feature-icon" style="background: #ecfdf5; color: #10b981;">📱</div>
+          <div class="feature-content">
+            <h4>Lipa Na M-Pesa STK Push</h4>
+            <p>Parents receive an immediate payment request directly on their mobile screen. They simply enter their PIN and the student ledger updates in 3 seconds.</p>
+          </div>
+        </div>
+
+        <div class="feature-item" style="border-left: 4px solid #38bdf8;">
+          <div class="feature-icon" style="background: #f0f9ff; color: #0284c7;">⚡</div>
+          <div class="feature-content">
+            <h4>Zero-Effort C2B Auto-Reconciliation</h4>
+            <p>Every Paybill or Till transaction automatically matches with the student's unique admission number. No manual receipt books needed.</p>
+          </div>
+        </div>
+
+        <div class="feature-item" style="border-left: 4px solid #8b5cf6;">
+          <div class="feature-icon" style="background: #f5f3ff; color: #7c3aed;">💬</div>
+          <div class="feature-content">
+            <h4>Automated Bilingual WhatsApp & SMS</h4>
+            <p>Gentle reminders in English & Swahili with exact KES balances and instant 1-tap payment links sent before late fee cutoffs.</p>
+          </div>
+        </div>
+
+        <div class="feature-item" style="border-left: 4px solid #f43f5e;">
+          <div class="feature-icon" style="background: #fff1f2; color: #e11d48;">🛡️</div>
+          <div class="feature-content">
+            <h4>Zero Cash Gate Handling</h4>
+            <p>Eliminate cash handling by gatekeepers or clerks, sealing all theft, loss, and counterfeit note risks permanently.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mockup-window">
+        <div class="mockup-bar">
+          <div class="mockup-dot dot-red"></div>
+          <div class="mockup-dot dot-yellow"></div>
+          <div class="mockup-dot dot-green"></div>
+          <div class="mockup-url">https://portal.evidenceacademy.ke/finance/analytics</div>
+        </div>
+        <img src="assets/sales_pitch/executive_analytics.png" class="mockup-img" alt="Fee & Analytics Screenshot" />
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Finance & M-Pesa Module</div>
+      <div>Page 5 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 6: TEACHER AI & CBC COPILOT -->
+  <!-- ========================================== -->
+  <div class="slide">
+    <div class="slide-header">
+      <div class="badge">Academic Innovation</div>
+      <h2 class="slide-title">AI Teacher Copilot & Kenyan CBC Rubrics: Save 80% Report Time</h2>
+      <p class="slide-subtitle">Built specifically for Kenya's CBC structure: Exceeding, Meeting, Approaching, and Below Expectation bands.</p>
+    </div>
+
+    <div class="content-grid-2">
+      <div class="feature-list">
+        <div class="feature-item">
+          <div class="feature-icon" style="background: #eef2ff; color: #4f46e5;">🤖</div>
+          <div class="feature-content">
+            <h4>Instant AI Student Remarks</h4>
+            <p>Generate individualized, constructive comments for 500+ students in seconds, analyzing subject trends, behavior, and attendance.</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon" style="background: #f0fdf4; color: #16a34a;">📋</div>
+          <div class="feature-content">
+            <h4>Automated CBC Rubrics & Strands</h4>
+            <p>Fully compliant with Ministry of Education & KNEC competency strands. Automatically categorizes EE, ME, AE, and BE performance.</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon" style="background: #fdf2f8; color: #db2777;">✏️</div>
+          <div class="feature-content">
+            <h4>1-Click Quiz & Revision Creator</h4>
+            <p>Teachers create tailored classroom tests, marking schemes, and lesson plans matched to Kenyan curriculum strands in 30 seconds.</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon" style="background: #fffbeb; color: #d97706;">⏰</div>
+          <div class="feature-content">
+            <h4>40+ Teacher Hours Saved Per Term</h4>
+            <p>Eliminate end-of-term paperwork stress. Teachers focus on high-impact teaching and individualized student mentorship.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mockup-window">
+        <div class="mockup-bar">
+          <div class="mockup-dot dot-red"></div>
+          <div class="mockup-dot dot-yellow"></div>
+          <div class="mockup-dot dot-green"></div>
+          <div class="mockup-url">https://portal.evidenceacademy.ke/teacher/copilot</div>
+        </div>
+        <img src="assets/sales_pitch/teacher_copilot.png" class="mockup-img" alt="Teacher AI Screenshot" />
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Academic Copilot</div>
+      <div>Page 6 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 7: PREDICTIVE ANALYTICS & RETENTION -->
+  <!-- ========================================== -->
+  <div class="slide">
+    <div class="slide-header">
+      <div class="badge">Predictive Governance</div>
+      <h2 class="slide-title">Predictive Analytics: Catch Fee Defaults & Dropouts Before They Occur</h2>
+      <p class="slide-subtitle">Stop reacting to unpaid balances after term end. Identify at-risk families and intervene proactively.</p>
+    </div>
+
+    <div class="content-grid-2">
+      <div class="feature-list">
+        <div class="feature-item" style="border-left: 4px solid #f43f5e;">
+          <div class="feature-icon" style="background: #fff1f2; color: #e11d48;">⚠️</div>
+          <div class="feature-content">
+            <h4>Fee Default Risk Index</h4>
+            <p>AI algorithms calculate a default risk rating for every family based on payment latency, term cadence, and partial installment history.</p>
+          </div>
+        </div>
+
+        <div class="feature-item" style="border-left: 4px solid #f59e0b;">
+          <div class="feature-icon" style="background: #fffbeb; color: #d97706;">📉</div>
+          <div class="feature-content">
+            <h4>Academic Dropout Early Warning</h4>
+            <p>Detect subtle compounding indicators: small drops in attendance paired with grade slumps trigger automated pastoral alerts.</p>
+          </div>
+        </div>
+
+        <div class="feature-item" style="border-left: 4px solid #10b981;">
+          <div class="feature-icon" style="background: #ecfdf5; color: #10b981;">🤝</div>
+          <div class="feature-content">
+            <h4>Bursar Payment Restructuring Plans</h4>
+            <p>The system suggests customized micro-payment schedules for at-risk families, turning potential bad debts into recovered revenue.</p>
+          </div>
+        </div>
+
+        <div class="feature-item" style="border-left: 4px solid #6366f1;">
+          <div class="feature-icon" style="background: #eef2ff; color: #4f46e5;">🏫</div>
+          <div class="feature-content">
+            <h4>Multi-Campus Benchmarking</h4>
+            <p>Compare collection efficiency and academic progress across campuses (e.g. Nairobi Primary vs. Eldoret High) from one screen.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mockup-window">
+        <div class="mockup-bar">
+          <div class="mockup-dot dot-red"></div>
+          <div class="mockup-dot dot-yellow"></div>
+          <div class="mockup-dot dot-green"></div>
+          <div class="mockup-url">https://portal.evidenceacademy.ke/analytics/predictive</div>
+        </div>
+        <img src="assets/sales_pitch/predictive_ai.png" class="mockup-img" alt="Predictive Analytics Screenshot" />
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Predictive Analytics</div>
+      <div>Page 7 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 8: PARENT & FAMILY PORTAL -->
+  <!-- ========================================== -->
+  <div class="slide">
+    <div class="slide-header">
+      <div class="badge">Family Delight</div>
+      <h2 class="slide-title">Connected Parent Portal: Full Transparency, Zero Misunderstandings</h2>
+      <p class="slide-subtitle">Parents view live fee balances, download official receipts, track homework, and book teacher meetings.</p>
+    </div>
+
+    <div class="content-grid-2">
+      <div class="feature-list">
+        <div class="feature-item">
+          <div class="feature-icon" style="background: #ecfdf5; color: #10b981;">📄</div>
+          <div class="feature-content">
+            <h4>Live KES Ledger & Official PDF Receipts</h4>
+            <p>Parents see exact itemized invoices and download stamped PDF receipts instantly, eliminating disputes over lost slips.</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon" style="background: #eef2ff; color: #4f46e5;">📅</div>
+          <div class="feature-content">
+            <h4>1-Click PTM Conference Booking</h4>
+            <p>Parents schedule dedicated 15-minute consultations during teacher office hours without phone tag or classroom disruptions.</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon" style="background: #fdf2f8; color: #db2777;">📸</div>
+          <div class="feature-content">
+            <h4>Classroom Activity & Media Feed</h4>
+            <p>Safe, school-isolated photo and video updates of sports day, science fairs, and daily learning milestones directly to the guardian.</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon" style="background: #f0f9ff; color: #0284c7;">📱</div>
+          <div class="feature-content">
+            <h4>Lightweight Mobile Web App (PWA)</h4>
+            <p>Works fast on all smartphones without large downloads from app stores. Offline caching ensures access on low bandwidth.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mockup-window">
+        <div class="mockup-bar">
+          <div class="mockup-dot dot-red"></div>
+          <div class="mockup-dot dot-yellow"></div>
+          <div class="mockup-dot dot-green"></div>
+          <div class="mockup-url">https://portal.evidenceacademy.ke/parent/student-portal</div>
+        </div>
+        <img src="assets/sales_pitch/family_portal.png" class="mockup-img" alt="Parent Portal Screenshot" />
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Parent Engagement</div>
+      <div>Page 8 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 9: DIGITAL CERTIFICATES & SECURITY -->
+  <!-- ========================================== -->
+  <div class="slide">
+    <div class="slide-header">
+      <div class="badge">Compliance & Trust</div>
+      <h2 class="slide-title">Tamper-Proof Digital Certificates & Principal Digital Signatures</h2>
+      <p class="slide-subtitle">Issue Ministry-compliant Transfer Certificates (TC) and Leaving Diplomas with instant 2-second QR verification.</p>
+    </div>
+
+    <div class="content-grid-2" style="align-items: stretch;">
+      <div style="display: flex; flex-direction: column; gap: 24px; justify-content: center;">
+        <div class="card card-accent-indigo">
+          <div class="card-title">📜 Instant Transfer Certificates (TC)</div>
+          <p class="card-text">
+            Generate official Leaving and Transfer Certificates formatted with your school crest, student biodata, academic history, and conduct assessment in 1 click.
+          </p>
+        </div>
+
+        <div class="card card-accent-purple">
+          <div class="card-title">✍️ Cryptographic Principal Signature</div>
+          <p class="card-text">
+            Authorized Principals digitally sign credentials using cryptographically secured tokens, eliminating administrative delays when school leadership is off-campus.
+          </p>
+        </div>
+
+        <div class="card card-accent-emerald">
+          <div class="card-title">🔍 2-Second QR-Code Authenticity Check</div>
+          <p class="card-text">
+            Admitting secondary schools, colleges, and education county officers scan the certificate QR code with any smartphone to confirm legitimacy, eradicating credential forgery.
+          </p>
+        </div>
+      </div>
+
+      <div class="card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff; padding: 45px; justify-content: space-between; border: 1px solid rgba(255,255,255,0.1);">
+        <div>
+          <div class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+            SAVINGS IMPACT
+          </div>
+          <h3 style="font-size: 32px; font-weight: 800; margin: 15px 0 10px; color: #ffffff;">Stop Wasting Money on Paper Security Seals</h3>
+          <p style="font-size: 16px; color: #94a3b8; line-height: 1.6;">
+            Traditional school certificate printing requires expensive watermark stationery, embossers, physical seal stamps, and registered courier mail.
+          </p>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.06); border-radius: 16px; padding: 25px; border: 1px solid rgba(255,255,255,0.1);">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+            <span style="color: #cbd5e1; font-size: 15px;">Watermark paper & seal costs:</span>
+            <span style="color: #ef4444; font-weight: 700;">- KES 35,000 / yr</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+            <span style="color: #cbd5e1; font-size: 15px;">Manual verification courier/calls:</span>
+            <span style="color: #ef4444; font-weight: 700;">- KES 25,000 / yr</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.15);">
+            <span style="color: #ffffff; font-weight: 700; font-size: 17px;">Total Annual Savings:</span>
+            <span style="color: #10b981; font-weight: 800; font-size: 20px;">KES 60,000 / yr</span>
+          </div>
+        </div>
+
+        <div style="font-size: 14px; color: #38bdf8;">
+          ✓ Fully aligned with Kenya Ministry of Education Guidelines
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Digital Certificates</div>
+      <div>Page 9 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 10: PRICING PACKAGES IN KES -->
+  <!-- ========================================== -->
+  <div class="slide">
+    <div class="slide-header" style="text-align: center; margin-bottom: 30px;">
+      <div class="badge badge-emerald">Investment Plans</div>
+      <h2 class="slide-title">Simple, Transparent Pricing in Kenyan Shillings (KES)</h2>
+      <p class="slide-subtitle" style="margin: 10px auto 0;">All plans include automatic software updates, data migration, and zero server hosting charges.</p>
+    </div>
+
+    <div class="content-grid-3" style="gap: 30px; align-items: stretch;">
+      <!-- Starter Plan -->
+      <div class="price-card">
+        <div class="plan-name">STARTER</div>
+        <div class="plan-price">KES 15,000</div>
+        <div class="plan-period">per year (or KES 1,500 / month)</div>
+        <div style="font-size: 14px; color: #64748b; margin-bottom: 20px; font-weight: 600;">Ideal for small academies up to 200 learners</div>
+        
+        <ul class="plan-features">
+          <li><span class="check">✓</span> Up to 200 Students & 30 Staff</li>
+          <li><span class="check">✓</span> Student Admissions & Profiles</li>
+          <li><span class="check">✓</span> Core Invoicing & Fee Tracking</li>
+          <li><span class="check">✓</span> Class Registers & Attendance</li>
+          <li><span class="check">✓</span> 500 SMS Credits / month</li>
+          <li><span class="check">✓</span> 5 GB Cloud Storage</li>
+          <li><span class="check">✓</span> Standard Email Support</li>
+        </ul>
+
+        <div style="text-align: center; font-size: 13px; color: #94a3b8; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+          Only KES 75 per student / year
+        </div>
+      </div>
+
+      <!-- Professional Plan (Popular) -->
+      <div class="price-card popular">
+        <div class="popular-tag">★ MOST POPULAR FOR SCHOOLS</div>
+        <div class="plan-name" style="color: #4f46e5;">PROFESSIONAL</div>
+        <div class="plan-price">KES 40,000</div>
+        <div class="plan-period">per year (or KES 4,000 / month)</div>
+        <div style="font-size: 14px; color: #4f46e5; margin-bottom: 20px; font-weight: 700;">Ideal for medium schools up to 500 learners</div>
+        
+        <ul class="plan-features">
+          <li><span class="check">✓</span> <strong>Up to 500 Students & 75 Staff</strong></li>
+          <li><span class="check">✓</span> <strong>Safaricom M-Pesa STK & Paybill Integration</strong></li>
+          <li><span class="check">✓</span> <strong>Kenyan CBC Assessment & Report Cards</strong></li>
+          <li><span class="check">✓</span> <strong>Parent & Family Mobile Portal</strong></li>
+          <li><span class="check">✓</span> <strong>Automated WhatsApp & SMS (1,500/mo)</strong></li>
+          <li><span class="check">✓</span> Timetable & Exam Management</li>
+          <li><span class="check">✓</span> 15 GB Cloud Storage</li>
+          <li><span class="check">✓</span> Priority WhatsApp Technical Support</li>
+        </ul>
+
+        <div style="text-align: center; font-size: 13px; color: #4f46e5; font-weight: 700; padding-top: 15px; border-top: 1px solid #e0e7ff;">
+          Only KES 80 per student / year
+        </div>
+      </div>
+
+      <!-- Enterprise Plan -->
+      <div class="price-card">
+        <div class="plan-name">ENTERPRISE</div>
+        <div class="plan-price">KES 80,000</div>
+        <div class="plan-period">per year (or KES 8,000 / month)</div>
+        <div style="font-size: 14px; color: #64748b; margin-bottom: 20px; font-weight: 600;">For large institutions & multi-campus groups</div>
+        
+        <ul class="plan-features">
+          <li><span class="check">✓</span> <strong>Up to 2,000 Students & 200 Staff</strong></li>
+          <li><span class="check">✓</span> <strong>Multi-Campus Central Dashboard</strong></li>
+          <li><span class="check">✓</span> <strong>Teacher AI Copilot & Automated Remarks</strong></li>
+          <li><span class="check">✓</span> <strong>Predictive Fee Default Analytics</strong></li>
+          <li><span class="check">✓</span> <strong>Digital TC with QR & Principal Signature</strong></li>
+          <li><span class="check">✓</span> Transport Fleet & Library Inventory</li>
+          <li><span class="check">✓</span> Staff HR & Biometric Payroll</li>
+          <li><span class="check">✓</span> 5,000 SMS/mo + 50 GB Cloud Storage</li>
+          <li><span class="check">✓</span> Dedicated 24/7 Account Manager</li>
+        </ul>
+
+        <div style="text-align: center; font-size: 13px; color: #94a3b8; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+          Only KES 40 per student / year
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Pricing Matrix (KES)</div>
+      <div>Page 10 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 11: ROI & BUSINESS CASE (DARK) -->
+  <!-- ========================================== -->
+  <div class="slide dark">
+    <div class="ambient-glow-2"></div>
+    <div class="slide-header">
+      <div class="badge badge-emerald">Return on Investment</div>
+      <h2 class="slide-title">The System that Pays for Itself in 14 Days</h2>
+      <p class="slide-subtitle">Concrete financial analysis for an average 400-student Kenyan school with term fees of KES 25,000.</p>
+    </div>
+
+    <div class="content-grid-3" style="gap: 32px;">
+      <div class="card" style="border-top: 4px solid #10b981;">
+        <div class="metric-number" style="color: #10b981;">KES 1.5M</div>
+        <div style="font-size: 20px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">Bad Debt Recovery</div>
+        <p class="card-text">
+          By activating automated Safaricom M-Pesa STK prompts and WhatsApp fee reminders, schools recover at least 5% of unpaid fees previously written off as bad debt.
+        </p>
+      </div>
+
+      <div class="card" style="border-top: 4px solid #38bdf8;">
+        <div class="metric-number" style="color: #38bdf8;">KES 150K</div>
+        <div style="font-size: 20px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">Paper & Printing Savings</div>
+        <p class="card-text">
+          Eliminate hundreds of printed receipt books, manual paper report cards, parent circular letters, and physical student ledger files every term.
+        </p>
+      </div>
+
+      <div class="card" style="border-top: 4px solid #fbbf24;">
+        <div class="metric-number" style="color: #fbbf24;">KES 240K</div>
+        <div style="font-size: 20px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">Admin & Teacher Time Saved</div>
+        <p class="card-text">
+          Free over 15 hours weekly from bursars and teachers previously wasted on manual data entry, redirecting labor value into student academic achievement.
+        </p>
+      </div>
+    </div>
+
+    <div class="roi-highlight-banner">
+      <div>
+        <div style="font-size: 14px; text-transform: uppercase; font-weight: 700; color: #10b981; letter-spacing: 0.08em; margin-bottom: 6px;">
+          ANNUAL FINANCIAL GAIN
+        </div>
+        <div style="font-size: 38px; font-weight: 800; color: #ffffff; font-family: 'Space Grotesk';">
+          + KES 1,890,000 <span style="font-size: 20px; font-weight: 400; color: #94a3b8;">net recovered value</span>
+        </div>
+      </div>
+
+      <div style="text-align: right;">
+        <div style="font-size: 14px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; margin-bottom: 6px;">
+          ANNUAL SOFTWARE INVESTMENT (PROFESSIONAL)
+        </div>
+        <div style="font-size: 38px; font-weight: 800; color: #38bdf8; font-family: 'Space Grotesk';">
+          KES 40,000 <span style="font-size: 20px; font-weight: 600; color: #10b981;">(47x ROI / 4,725%)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • ROI Analysis</div>
+      <div>Page 11 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 12: SECURITY & COMPLIANCE -->
+  <!-- ========================================== -->
+  <div class="slide">
+    <div class="slide-header">
+      <div class="badge">Institutional Trust</div>
+      <h2 class="slide-title">Kenya Data Protection Compliance & 99.9% Cloud Reliability</h2>
+      <p class="slide-subtitle">Your school data is completely private, legally protected, and backed up in secure cloud facilities.</p>
+    </div>
+
+    <div class="content-grid-2" style="gap: 32px;">
+      <div class="card card-accent-indigo">
+        <div class="card-title">🛡️ Kenya Data Protection Act (DPA 2019) Compliant</div>
+        <p class="card-text">
+          Strict tenant isolation prevents any cross-school data leakage. Student records, grades, and parent phone numbers are encrypted both at rest and in transit.
+        </p>
+      </div>
+
+      <div class="card card-accent-emerald">
+        <div class="card-title">☁️ Automated Daily Cloud Backups</div>
+        <p class="card-text">
+          Zero data loss guarantee. Offsite automated snapshots mean a damaged school computer, fire, or break-in will never destroy student records.
+        </p>
+      </div>
+
+      <div class="card card-accent-amber">
+        <div class="card-title">📶 Offline Resilience & PWA Caching</div>
+        <p class="card-text">
+          Intermittent internet? Our Progressive Web App architecture allows teachers to record attendance and grades offline, auto-syncing when internet returns.
+        </p>
+      </div>
+
+      <div class="card card-accent-purple">
+        <div class="card-title">🔐 Comprehensive Audit Trail & Fraud Prevention</div>
+        <p class="card-text">
+          Every fee transaction, grade adjustment, and user login is recorded with exact timestamp and IP address. Bursar theft or unauthorized grade alterations are impossible.
+        </p>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Security & Compliance</div>
+      <div>Page 12 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 13: 4-WEEK ONBOARDING ROADMAP -->
+  <!-- ========================================== -->
+  <div class="slide">
+    <div class="slide-header" style="text-align: center; margin-bottom: 30px;">
+      <div class="badge">Smooth Transition</div>
+      <h2 class="slide-title">4-Week Rapid Implementation: Zero Disruption to School Routine</h2>
+      <p class="slide-subtitle" style="margin: 10px auto 0;">Our technical engineers handle data migration, M-Pesa testing, and staff training end-to-end.</p>
+    </div>
+
+    <div class="content-grid-4" style="gap: 24px;">
+      <div class="card" style="border-top: 4px solid #4f46e5; text-align: center;">
+        <div class="badge" style="background: #eef2ff; color: #4f46e5; margin: 0 auto 15px;">WEEK 1</div>
+        <div style="font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 12px;">Data Onboarding</div>
+        <p class="card-text" style="font-size: 14px;">
+          Send us your current student rosters and staff lists in Excel/CSV. Our team formats and uploads all records in 24 hours.
+        </p>
+      </div>
+
+      <div class="card" style="border-top: 4px solid #0284c7; text-align: center;">
+        <div class="badge" style="background: #f0f9ff; color: #0284c7; margin: 0 auto 15px;">WEEK 2</div>
+        <div style="font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 12px;">M-Pesa & Fee Setup</div>
+        <p class="card-text" style="font-size: 14px;">
+          We link your school's Safaricom Paybill or Till number to our Daraja API and configure your custom term fee structures.
+        </p>
+      </div>
+
+      <div class="card" style="border-top: 4px solid #7c3aed; text-align: center;">
+        <div class="badge" style="background: #f5f3ff; color: #7c3aed; margin: 0 auto 15px;">WEEK 3</div>
+        <div style="font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 12px;">Staff Training</div>
+        <p class="card-text" style="font-size: 14px;">
+          Interactive hands-on training for teachers, bursars, and headteachers. Everyone feels 100% confident using the system.
+        </p>
+      </div>
+
+      <div class="card" style="border-top: 4px solid #10b981; text-align: center;">
+        <div class="badge badge-emerald" style="margin: 0 auto 15px;">WEEK 4</div>
+        <div style="font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 12px;">Parent Launch</div>
+        <p class="card-text" style="font-size: 14px;">
+          Welcome SMS with portal login credentials sent to parents. Automated M-Pesa fee collection goes live smoothly!
+        </p>
+      </div>
+    </div>
+
+    <div style="background: #eef2ff; border-radius: 16px; padding: 20px 30px; display: flex; align-items: center; justify-content: space-between; margin-top: 30px; border: 1px solid #c7d2fe;">
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <span style="font-size: 26px;">⭐</span>
+        <span style="font-size: 16px; font-weight: 600; color: #312e81;">Includes Dedicated WhatsApp Account Manager & 24/7 Bursar Help Desk at no extra fee.</span>
+      </div>
+      <div style="font-size: 14px; font-weight: 700; color: #4338ca;">Zero Setup Fees This Month</div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Onboarding Roadmap</div>
+      <div>Page 13 of 14</div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SLIDE 14: CALL TO ACTION & FREE PILOT (DARK) -->
+  <!-- ========================================== -->
+  <div class="slide dark">
+    <div class="ambient-glow-1"></div>
+    <div class="slide-header" style="text-align: center; margin-bottom: 35px;">
+      <div class="badge badge-emerald">Risk-Free Opportunity</div>
+      <h2 class="slide-title">Experience HustlerTech This Term — 100% Risk-Free</h2>
+      <p class="slide-subtitle" style="margin: 10px auto 0;">Test the full Enterprise suite in your school for 30 days with our Ironclad Guarantee.</p>
+    </div>
+
+    <div class="content-grid-2" style="align-items: stretch;">
+      <!-- Guarantee Box -->
+      <div class="card" style="background: rgba(255,255,255,0.04); border: 2px solid #4f46e5; padding: 45px; justify-content: space-between;">
+        <div>
+          <div style="font-size: 14px; font-weight: 800; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 15px;">
+            OUR DIRECTORS' GUARANTEE:
+          </div>
+          <h3 style="font-size: 26px; font-weight: 700; color: #ffffff; line-height: 1.4; margin-bottom: 25px;">
+            "If HustlerTech does not recover at least 3X its annual subscription cost in collected fee arrears during your first term, your subscription is 100% FREE."
+          </h3>
+          <div style="color: #94a3b8; font-size: 16px; line-height: 1.6;">
+            We bear all the financial risk because we know how transformative automated Safaricom M-Pesa billing is for Kenyan school cashflows.
+          </div>
+        </div>
+
+        <div style="background: rgba(99, 102, 241, 0.15); border-radius: 14px; padding: 20px; border: 1px solid rgba(99, 102, 241, 0.3);">
+          <div style="color: #c7d2fe; font-size: 15px; font-weight: 600;">
+            ✓ Full Enterprise features unlocked for 30 days<br/>
+            ✓ Free student roster migration from Excel<br/>
+            ✓ Full on-site or Zoom staff training included
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact Booking Box -->
+      <div class="card" style="background: linear-gradient(135deg, #141b2d 0%, #0d121f 100%); border: 2px solid #10b981; padding: 45px; justify-content: space-between;">
+        <div>
+          <div style="color: #10b981; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;">
+            SCHEDULE A LIVE DEMO
+          </div>
+          <h3 style="font-size: 32px; font-weight: 800; color: #ffffff; margin-bottom: 25px;">
+            Ready to upgrade your school?
+          </h3>
+
+          <div style="display: flex; flex-direction: column; gap: 18px;">
+            <div>
+              <div style="font-size: 12px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Phone / WhatsApp Direct Hotline</div>
+              <div style="font-size: 22px; font-weight: 700; color: #ffffff;">+254 700 000 000 / +254 711 000 000</div>
+            </div>
+
+            <div>
+              <div style="font-size: 12px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Official Sales Email</div>
+              <div style="font-size: 20px; font-weight: 700; color: #38bdf8;">sales@hustlertech.co.ke</div>
+            </div>
+
+            <div>
+              <div style="font-size: 12px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Web & Demo Booking</div>
+              <div style="font-size: 20px; font-weight: 700; color: #818cf8;">https://hustlertech.co.ke/demo</div>
+            </div>
+
+            <div>
+              <div style="font-size: 12px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Regional Representatives</div>
+              <div style="font-size: 16px; color: #cbd5e1;">Nairobi • Mombasa • Kisumu • Eldoret • Nakuru</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 13px; color: #94a3b8;">
+          All quotes and invoices provided in Kenyan Shillings (KES). Tax compliant.
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div>HustlerTech Software Solutions • Schedule Demo Today</div>
+      <div>Page 14 of 14</div>
+    </div>
+  </div>
+
+</body>
+</html>

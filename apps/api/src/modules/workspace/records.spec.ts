@@ -11,5 +11,5 @@ describe('record validation',()=>{
  });
  it('validates reference IDs before database queries',()=>expect(()=>parseRecord(recordSpecs.borrowings,{bookId:'not-a-uuid',borrowerId:'not-a-uuid',dueDate:'2027-01-01'})).toThrow());
  it('accepts partial edits without requiring absent fields',()=>expect(parseRecord(recordSpecs.books,{title:'Updated'},true)).toEqual({title:'Updated'}));
- it('normalizes email addresses while preserving valid data',()=>expect(parseRecord(recordSpecs.guardians,{firstName:' Jane ',lastName:'Doe',phone:'254700000101',email:'JANE@example.com'})).toMatchObject({firstName:'Jane',email:'jane@example.com'}));
+ it('normalizes email addresses while preserving valid data',()=>expect(parseRecord(recordSpecs.guardians,{firstName:' Jane ',lastName:'Doe',phone:'919847000101',email:'JANE@example.com'})).toMatchObject({firstName:'Jane',email:'jane@example.com'}));
 });

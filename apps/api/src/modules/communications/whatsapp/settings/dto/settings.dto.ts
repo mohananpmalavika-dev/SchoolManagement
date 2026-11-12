@@ -50,12 +50,12 @@ export class UpdateSettingsDto {
   @ApiProperty({
     description: 'Default language for messages',
     example: 'en',
-    enum: ['en', 'sw'],
+    enum: ['en', 'hi', 'ml'],
     required: false,
   })
-  @IsEnum(['en', 'sw'])
+  @IsEnum(['en', 'hi', 'ml'])
   @IsOptional()
-  defaultLanguage?: 'en' | 'sw';
+  defaultLanguage?: 'en' | 'hi' | 'ml';
 
   @ApiProperty({
     description: 'Auto-send fee reminders',
@@ -122,10 +122,10 @@ export class CreateTemplateDto {
   @ApiProperty({
     description: 'Template language',
     example: 'en',
-    enum: ['en', 'sw'],
+    enum: ['en', 'hi', 'ml'],
   })
-  @IsEnum(['en', 'sw'])
-  language: 'en' | 'sw';
+  @IsEnum(['en', 'hi', 'ml'])
+  language: 'en' | 'hi' | 'ml';
 
   @ApiProperty({
     description: 'Template content with variables in {variableName} format',

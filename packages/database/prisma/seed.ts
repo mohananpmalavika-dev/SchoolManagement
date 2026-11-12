@@ -4,18 +4,18 @@ import * as bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding database...');
+  console.log('🌱 Seeding Indian School ERP database...');
 
-  // Create Plans
+  // Create Plans (INR in paise)
   console.log('Creating subscription plans...');
-  const starterPlan = await prisma.plan.upsert({
+  await prisma.plan.upsert({
     where: { slug: 'starter' },
     update: {},
     create: {
       name: 'Starter',
       slug: 'starter',
       description: 'Perfect for small schools getting started',
-      price: 1500000, // KES 15,000 in cents
+      price: 1500000, // INR 15,000 in paise
       billingCycle: 'ANNUAL',
       trialDays: 14,
       maxStudents: 200,
@@ -24,7 +24,7 @@ async function main() {
       smsCredits: 500,
       features: JSON.stringify([
         'Student Management',
-        'Fee Management',
+        'Fee Management (UPI & Razorpay)',
         'Basic Reporting',
         'Parent Portal',
         'Attendance Tracking',
@@ -40,8 +40,8 @@ async function main() {
     create: {
       name: 'Professional',
       slug: 'professional',
-      description: 'For growing schools with advanced needs',
-      price: 4000000, // KES 40,000 in cents
+      description: 'For growing CBSE, ICSE & State Board schools',
+      price: 4000000, // INR 40,000 in paise
       billingCycle: 'ANNUAL',
       trialDays: 14,
       maxStudents: 500,
@@ -51,8 +51,9 @@ async function main() {
       features: JSON.stringify([
         'All Starter Features',
         'Examination Management',
-        'Report Cards',
-        'SMS Notifications',
+        'CBSE/ICSE/State Report Cards',
+        'WhatsApp & SMS Notifications',
+        'UDISE+ & APAAR Compliance',
         'Advanced Analytics',
         'Transport Management',
         'Library Management',
@@ -62,14 +63,14 @@ async function main() {
     },
   });
 
-  const enterprisePlan = await prisma.plan.upsert({
+  await prisma.plan.upsert({
     where: { slug: 'enterprise' },
     update: {},
     create: {
       name: 'Enterprise',
       slug: 'enterprise',
-      description: 'For large schools and school groups',
-      price: 8000000, // KES 80,000 in cents
+      description: 'For large schools and multi-campus trusts',
+      price: 8000000, // INR 80,000 in paise
       billingCycle: 'ANNUAL',
       trialDays: 14,
       maxStudents: 999999,
@@ -83,7 +84,7 @@ async function main() {
         'API Access',
         'Dedicated Support',
         'Custom Integrations',
-        'HR Management',
+        'HR & Payroll Management',
         'Inventory Management',
       ]),
       isActive: true,
@@ -99,20 +100,19 @@ async function main() {
     where: { subdomain: 'demo' },
     update: {},
     create: {
-      name: 'Demo School',
+      name: 'Krypton International Public School',
       subdomain: 'demo',
       status: 'TRIAL',
-      contactEmail: 'admin@demo.kryptonschool.com',
-      contactPhone: '+254700000000',
-      address: 'Nairobi, Kenya',
-      timezone: 'Africa/Nairobi',
-      locale: 'en',
-      currency: 'KES',
+      contactEmail: 'admin@kryptonschool.edu.in',
+      contactPhone: '+919847000000',
+      address: 'Hill Palace Road, Tripunithura, Kochi, Kerala - 682301',
+      timezone: 'Asia/Kolkata',
+      locale: 'en-IN',
+      currency: 'INR',
     },
   });
 
-  // Create Subscription for Demo Tenant
-  const subscription = await prisma.subscription.upsert({
+  await prisma.subscription.upsert({
     where: { tenantId: demoTenant.id },
     update: {},
     create: {
@@ -120,7 +120,7 @@ async function main() {
       planId: professionalPlan.id,
       status: 'TRIAL',
       startDate: new Date(),
-      endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+      endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
       trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
       autoRenew: true,
     },
@@ -128,108 +128,109 @@ async function main() {
 
   console.log('✅ Demo tenant created');
 
-  // Create School
+  // Create School (Kerala / Kochi CBSE Default)
   console.log('Creating demo school...');
   const school = await prisma.school.create({
     data: {
       tenantId: demoTenant.id,
-      name: 'Demo Academy',
-      shortName: 'DA',
-      motto: 'Excellence in Education',
-      vision: 'To be the leading educational institution in Kenya',
-      mission: 'Providing quality education for all',
-      email: 'info@demoacademy.ac.ke',
-      phone: '+254700000000',
-      address: '123 Education Road',
-      city: 'Nairobi',
-      county: 'Nairobi',
-      postalCode: '00100',
-      country: 'Kenya',
+      name: 'Krypton International Public School',
+      shortName: 'KIPS',
+      motto: 'Excellence in Holistic Education',
+      vision: 'Empowering learners across India for academic and personal excellence',
+      mission: 'Providing NEP 2020 aligned CBSE education in an inclusive environment',
+      registrationNumber: 'CBSE/AFF/930124',
+      boardAffiliation: 'CBSE',
+      udiseCode: '32080501204',
+      affiliationNumber: '930124',
+      email: 'info@kryptonschool.edu.in',
+      phone: '+914842780123',
+      address: 'Green Valley Campus, Hill Palace Road, Tripunithura',
+      city: 'Kochi',
+      district: 'Ernakulam',
+      state: 'Kerala',
+      pincode: '682301',
+      country: 'India',
       schoolType: 'PRIVATE',
-      educationLevel: ['PRIMARY', 'JUNIOR_SECONDARY'],
-      academicCalendar: 'THREE_TERM',
-      startMonth: 1,
+      educationLevel: ['PRE_PRIMARY', 'PRIMARY', 'MIDDLE', 'SECONDARY', 'SENIOR_SECONDARY'],
+      academicCalendar: 'TWO_TERM',
+      startMonth: 4,
       isActive: true,
     },
   });
 
   console.log('✅ School created');
 
-  // Create Super Admin User
-  console.log('Creating super admin user...');
+  // Create Demo Users
+  console.log('Creating demo users...');
   const passwordHash = await bcrypt.hash('Admin@123', 10);
-  
-  const superAdmin = await prisma.user.create({
+
+  await prisma.user.create({
     data: {
       tenantId: demoTenant.id,
-      email: 'admin@kryptonschool.com',
+      email: 'admin@kryptonschool.edu.in',
       passwordHash,
       firstName: 'Super',
       lastName: 'Admin',
-      phone: '+254700000001',
+      phone: '+919847000001',
       role: 'SUPER_ADMIN',
       isActive: true,
       emailVerified: true,
     },
   });
 
-  // Create School Admin User
-  const schoolAdmin = await prisma.user.create({
+  await prisma.user.create({
     data: {
       tenantId: demoTenant.id,
-      email: 'principal@demoacademy.ac.ke',
+      email: 'principal@kryptonschool.edu.in',
       passwordHash,
-      firstName: 'John',
-      lastName: 'Kamau',
-      phone: '+254700000002',
+      firstName: 'Dr. K. R.',
+      lastName: 'Nambiar',
+      phone: '+919847000002',
       role: 'PRINCIPAL',
       isActive: true,
       emailVerified: true,
     },
   });
 
-  // Create Student User
   const studentPasswordHash = await bcrypt.hash('Student@123', 10);
   await prisma.user.create({
     data: {
       tenantId: demoTenant.id,
-      email: 'student@demoacademy.ac.ke',
+      email: 'student@kryptonschool.edu.in',
       passwordHash: studentPasswordHash,
-      firstName: 'Jane',
-      lastName: 'Wanjiku',
-      phone: '+254700000003',
+      firstName: 'Ananya',
+      lastName: 'Nair',
+      phone: '+919847000003',
       role: 'STUDENT',
       isActive: true,
       emailVerified: true,
     },
   });
 
-  // Create Teacher User
   const teacherPasswordHash = await bcrypt.hash('Teacher@123', 10);
   await prisma.user.create({
     data: {
       tenantId: demoTenant.id,
-      email: 'teacher@demoacademy.ac.ke',
+      email: 'teacher@kryptonschool.edu.in',
       passwordHash: teacherPasswordHash,
-      firstName: 'David',
-      lastName: 'Mwangi',
-      phone: '+254700000004',
+      firstName: 'Meera',
+      lastName: 'Menon',
+      phone: '+919847000004',
       role: 'TEACHER',
       isActive: true,
       emailVerified: true,
     },
   });
 
-  // Create Parent User
   const parentPasswordHash = await bcrypt.hash('Parent@123', 10);
   await prisma.user.create({
     data: {
       tenantId: demoTenant.id,
-      email: 'parent@demoacademy.ac.ke',
+      email: 'parent@kryptonschool.edu.in',
       passwordHash: parentPasswordHash,
-      firstName: 'Mary',
-      lastName: 'Wanjiku',
-      phone: '+254700000005',
+      firstName: 'Rajesh',
+      lastName: 'Nair',
+      phone: '+919847000005',
       role: 'PARENT',
       isActive: true,
       emailVerified: true,
@@ -238,14 +239,14 @@ async function main() {
 
   console.log('✅ Users created');
 
-  // Create Academic Year and Terms
+  // Create Indian Academic Year (April 2026 – March 2027) and Two Terms
   console.log('Creating academic year and terms...');
   const academicYear = await prisma.academicYear.create({
     data: {
       tenantId: demoTenant.id,
-      name: '2024',
-      startDate: new Date('2024-01-01'),
-      endDate: new Date('2024-12-31'),
+      name: '2026-27',
+      startDate: new Date('2026-04-01'),
+      endDate: new Date('2027-03-31'),
       isCurrent: true,
     },
   });
@@ -254,85 +255,72 @@ async function main() {
     data: {
       tenantId: demoTenant.id,
       academicYearId: academicYear.id,
-      name: 'Term 1',
+      name: 'Term 1 (Apr - Sep)',
       termNumber: 1,
-      startDate: new Date('2024-01-08'),
-      endDate: new Date('2024-04-05'),
+      startDate: new Date('2026-04-01'),
+      endDate: new Date('2026-09-30'),
       isCurrent: true,
     },
   });
 
-  const term2 = await prisma.term.create({
+  await prisma.term.create({
     data: {
       tenantId: demoTenant.id,
       academicYearId: academicYear.id,
-      name: 'Term 2',
+      name: 'Term 2 (Oct - Mar)',
       termNumber: 2,
-      startDate: new Date('2024-05-06'),
-      endDate: new Date('2024-08-02'),
-      isCurrent: false,
-    },
-  });
-
-  const term3 = await prisma.term.create({
-    data: {
-      tenantId: demoTenant.id,
-      academicYearId: academicYear.id,
-      name: 'Term 3',
-      termNumber: 3,
-      startDate: new Date('2024-09-02'),
-      endDate: new Date('2024-11-22'),
+      startDate: new Date('2026-10-01'),
+      endDate: new Date('2027-03-31'),
       isCurrent: false,
     },
   });
 
   console.log('✅ Academic year and terms created');
 
-  // Create Classes
+  // Create Indian Classes
   console.log('Creating classes...');
-  const grade1 = await prisma.class.create({
+  const class1 = await prisma.class.create({
     data: {
       tenantId: demoTenant.id,
       schoolId: school.id,
-      name: 'Grade 1',
-      level: 'Grade 1',
+      name: 'Class 1',
+      level: 'Class 1',
       educationLevel: 'PRIMARY',
       sortOrder: 1,
     },
   });
 
-  const grade2 = await prisma.class.create({
+  await prisma.class.create({
     data: {
       tenantId: demoTenant.id,
       schoolId: school.id,
-      name: 'Grade 2',
-      level: 'Grade 2',
+      name: 'Class 2',
+      level: 'Class 2',
       educationLevel: 'PRIMARY',
       sortOrder: 2,
     },
   });
 
-  // Create Streams
-  const grade1StreamA = await prisma.stream.create({
+  const class1SectionA = await prisma.stream.create({
     data: {
       tenantId: demoTenant.id,
       schoolId: school.id,
-      classId: grade1.id,
-      name: 'Stream A',
+      classId: class1.id,
+      name: 'Section A',
       capacity: 40,
     },
   });
 
-  console.log('✅ Classes and streams created');
+  console.log('✅ Classes and sections created');
 
-  // Create Subjects
+  // Create Indian CBSE / State Board Subjects
   console.log('Creating subjects...');
   const subjects = [
-    { name: 'Mathematics', code: 'MATH', educationLevel: 'PRIMARY', isCore: true },
-    { name: 'English', code: 'ENG', educationLevel: 'PRIMARY', isCore: true },
-    { name: 'Kiswahili', code: 'KIS', educationLevel: 'PRIMARY', isCore: true },
-    { name: 'Science', code: 'SCI', educationLevel: 'PRIMARY', isCore: true },
-    { name: 'Social Studies', code: 'SST', educationLevel: 'PRIMARY', isCore: true },
+    { name: 'Mathematics', code: 'MATH', educationLevel: 'PRIMARY' as const, isCore: true },
+    { name: 'English', code: 'ENG', educationLevel: 'PRIMARY' as const, isCore: true },
+    { name: 'Hindi', code: 'HIN', educationLevel: 'PRIMARY' as const, isCore: true },
+    { name: 'Malayalam', code: 'MAL', educationLevel: 'PRIMARY' as const, isCore: true },
+    { name: 'Environmental Studies (EVS)', code: 'EVS', educationLevel: 'PRIMARY' as const, isCore: true },
   ];
 
   for (const subject of subjects) {
@@ -351,32 +339,40 @@ async function main() {
   const student1 = await prisma.student.create({
     data: {
       tenantId: demoTenant.id,
-      admissionNumber: 'STD001',
-      firstName: 'Jane',
-      lastName: 'Wanjiku',
-      dateOfBirth: new Date('2015-05-15'),
+      admissionNumber: 'KPS2026001',
+      firstName: 'Ananya',
+      lastName: 'Nair',
+      dateOfBirth: new Date('2019-05-15'),
       gender: 'FEMALE',
-      currentClassId: grade1.id,
-      currentStreamId: grade1StreamA.id,
+      aadhaarLast4: '4512',
+      state: 'Kerala',
+      district: 'Ernakulam',
+      pincode: '682301',
+      currentClassId: class1.id,
+      currentStreamId: class1SectionA.id,
       status: 'ACTIVE',
-      admissionDate: new Date('2024-01-08'),
-      email: 'jane.wanjiku@example.com',
+      admissionDate: new Date('2026-04-06'),
+      email: 'ananya.nair@kryptonschool.edu.in',
     },
   });
 
-  const student2 = await prisma.student.create({
+  await prisma.student.create({
     data: {
       tenantId: demoTenant.id,
-      admissionNumber: 'STD002',
-      firstName: 'James',
-      lastName: 'Ochieng',
-      dateOfBirth: new Date('2015-08-20'),
+      admissionNumber: 'KPS2026002',
+      firstName: 'Aarav',
+      lastName: 'Patel',
+      dateOfBirth: new Date('2019-08-20'),
       gender: 'MALE',
-      currentClassId: grade1.id,
-      currentStreamId: grade1StreamA.id,
+      aadhaarLast4: '6781',
+      state: 'Kerala',
+      district: 'Ernakulam',
+      pincode: '682030',
+      currentClassId: class1.id,
+      currentStreamId: class1SectionA.id,
       status: 'ACTIVE',
-      admissionDate: new Date('2024-01-08'),
-      email: 'james.ochieng@example.com',
+      admissionDate: new Date('2026-04-06'),
+      email: 'aarav.patel@kryptonschool.edu.in',
     },
   });
 
@@ -387,16 +383,15 @@ async function main() {
   const guardian1 = await prisma.guardian.create({
     data: {
       tenantId: demoTenant.id,
-      firstName: 'Mary',
-      lastName: 'Wanjiku',
-      phone: '+254700123456',
-      email: 'mary.wanjiku@example.com',
-      occupation: 'Teacher',
-      address: 'Nairobi',
+      firstName: 'Deepa',
+      lastName: 'Nair',
+      phone: '+919847122334',
+      email: 'deepa.nair@example.in',
+      occupation: 'Software Engineer',
+      address: 'Kakkanad, Kochi, Kerala',
     },
   });
 
-  // Link Guardian to Student
   await prisma.guardianStudentLink.create({
     data: {
       guardianId: guardian1.id,
@@ -410,42 +405,41 @@ async function main() {
 
   console.log('✅ Guardians created and linked');
 
-  // Create Fee Structure
+  // Create Fee Structure (INR in paise)
   console.log('Creating fee structure...');
   const feeStructure = await prisma.feeStructure.create({
     data: {
       tenantId: demoTenant.id,
       termId: term1.id,
-      classId: grade1.id,
-      name: 'Grade 1 Term 1 Fees',
-      description: 'Fee structure for Grade 1 students in Term 1 2024',
+      classId: class1.id,
+      name: 'Class 1 Term 1 Fees (INR)',
+      description: 'Fee structure for Class 1 students in Term 1 2026-27',
       isActive: true,
     },
   });
 
-  // Create Fee Items
   await prisma.feeItem.createMany({
     data: [
       {
         feeStructureId: feeStructure.id,
         name: 'Tuition Fee',
-        amount: 1500000, // KES 15,000
+        amount: 1500000, // INR 15,000
         feeCategory: 'TUITION',
         isOptional: false,
         sortOrder: 1,
       },
       {
         feeStructureId: feeStructure.id,
-        name: 'Activity Fee',
-        amount: 200000, // KES 2,000
+        name: 'Co-Curricular & Activity Fee',
+        amount: 200000, // INR 2,000
         feeCategory: 'ACTIVITY',
         isOptional: false,
         sortOrder: 2,
       },
       {
         feeStructureId: feeStructure.id,
-        name: 'Transport Fee',
-        amount: 300000, // KES 3,000
+        name: 'School Bus Transport Fee',
+        amount: 300000, // INR 3,000
         feeCategory: 'TRANSPORT',
         isOptional: true,
         sortOrder: 3,
@@ -460,18 +454,17 @@ async function main() {
   const invoice = await prisma.invoice.create({
     data: {
       tenantId: demoTenant.id,
-      invoiceNumber: 'INV-2024-001',
+      invoiceNumber: 'INV-2026-001',
       studentId: student1.id,
       termId: term1.id,
-      totalAmount: 1700000, // KES 17,000
+      totalAmount: 1700000, // INR 17,000
       paidAmount: 0,
       balanceAmount: 1700000,
       status: 'PENDING',
-      dueDate: new Date('2024-02-15'),
+      dueDate: new Date('2026-05-15'),
     },
   });
 
-  // Create Invoice Items
   await prisma.invoiceItem.createMany({
     data: [
       {
@@ -490,16 +483,11 @@ async function main() {
   });
 
   console.log('✅ Invoices created');
-
   console.log('\n✅ Seeding completed successfully!');
   console.log('\n📝 Demo Credentials:');
-  console.log('Super Admin:');
-  console.log('  Email: admin@kryptonschool.com');
-  console.log('  Password: Admin@123');
-  console.log('\nSchool Admin:');
-  console.log('  Email: principal@demoacademy.ac.ke');
-  console.log('  Password: Admin@123');
-  console.log('\nDemo School Subdomain: demo.kryptonschool.local');
+  console.log('Super Admin: admin@kryptonschool.edu.in / Admin@123');
+  console.log('Principal:   principal@kryptonschool.edu.in / Admin@123');
+  console.log('Demo School Subdomain: demo.kryptonschool.local');
 }
 
 main()

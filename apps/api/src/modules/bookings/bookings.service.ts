@@ -186,7 +186,7 @@ export class BookingsService {
     // Validate time slot
     this.validateTimeSlot(dto.startTime, dto.endTime);
     const bookingDate = this.bookingDay(dto.bookingDate);
-    const today = new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Nairobi'}).format(new Date());
+    const today = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata'}).format(new Date());
     if (dto.bookingDate < today) throw new BadRequestException('Choose today or a future meeting date');
     const slots = await this.getAvailableSlots(dto.teacherId,dto.bookingDate);
     if (!slots.some(slot=>slot.startTime===dto.startTime&&slot.endTime===dto.endTime)) throw new ConflictException('This time is not available. Refresh the meeting slots.');
@@ -479,8 +479,8 @@ export class BookingsService {
       }
     }
 
-    const clock = new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Nairobi',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    const time = new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Nairobi',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date());
+    const clock = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const time = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date());
     const unique = new Map(slots.filter(slot=>date>clock||date===clock&&slot.startTime>time).map(slot=>[slot.startTime+'-'+slot.endTime,slot]));
     return Array.from(unique.values()).sort((a,b)=>a.startTime.localeCompare(b.startTime));
   }

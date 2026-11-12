@@ -2,7 +2,7 @@
 
 ## Overview
 
-Complete WhatsApp integration for the School Management System using Twilio's WhatsApp API with bilingual support (English/Swahili).
+Complete WhatsApp integration for the School Management System using Twilio's WhatsApp API with trilingual support (English / Hindi / Malayalam).
 
 ## Features
 
@@ -38,9 +38,10 @@ Complete WhatsApp integration for the School Management System using Twilio's Wh
    - Communication logs
    - Statistics and analytics
 
-6. **Bilingual Support**
+6. **Trilingual Support**
    - English (en)
-   - Swahili (ml)
+   - Hindi (hi)
+   - Malayalam (ml)
    - Template-based messages
    - Automatic language detection
 
@@ -107,7 +108,7 @@ curl http://localhost:3001/api/v1/whatsapp/status
 # Send test message
 curl -X POST http://localhost:3001/api/v1/whatsapp/send \
   -H "Content-Type: application/json" \
-  -d '{"to": "+254712345678", "message": "Test"}'
+  -d '{"to": "+919876543210", "message": "Test"}'
 ```
 
 ## API Routes
@@ -182,7 +183,7 @@ constructor(private feeReminderService: FeeReminderService) {}
 const result = await this.feeReminderService.sendFeeReminders({
   classId: 'class-uuid',
   overdueOnly: true,
-  language: 'sw',
+  language: 'ml',
 });
 
 console.log(`Sent: ${result.successful}/${result.totalProcessed}`);

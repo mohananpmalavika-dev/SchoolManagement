@@ -10,7 +10,7 @@ export interface PTMAcademicSnapshot {
   needsImprovement: string;
   termExamRank: string;
   homeworkCompletionRate: number;
-  cbcCoreCompetencies: {
+  nepCompetencies: {
     communication: 'EXCEEDING' | 'MEETING' | 'APPROACHING' | 'EMERGING';
     criticalThinking: 'EXCEEDING' | 'MEETING' | 'APPROACHING' | 'EMERGING';
     collaboration: 'EXCEEDING' | 'MEETING' | 'APPROACHING' | 'EMERGING';

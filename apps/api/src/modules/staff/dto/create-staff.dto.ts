@@ -37,10 +37,15 @@ export class CreateStaffDto {
   @IsEnum(Gender)
   gender: Gender;
 
-  @ApiPropertyOptional({ description: 'National ID or Passport number' })
+  @ApiPropertyOptional({ description: 'Aadhaar last 4 digits', example: '4512' })
   @IsOptional()
   @IsString()
-  nationalId?: string;
+  aadhaarLast4?: string;
+
+  @ApiPropertyOptional({ description: 'PAN Number (for TDS/Payroll)', example: 'ABCDE1234F' })
+  @IsOptional()
+  @IsString()
+  panNumber?: string;
 
   @ApiProperty({ description: 'Email address' })
   @IsEmail()

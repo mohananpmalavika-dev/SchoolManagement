@@ -1,6 +1,6 @@
 import { TeachingLanguage } from './teacher-ai';
 
-export type RemarksTone = 'CBC' | 'HOLISTIC' | 'ACADEMIC_RIGOR' | 'GROWTH_MINDSET';
+export type RemarksTone = 'NEP_HOLISTIC' | 'HOLISTIC' | 'ACADEMIC_RIGOR' | 'GROWTH_MINDSET';
 
 export interface ERPCopilotQueryRequest {
   query: string;
@@ -56,7 +56,7 @@ export interface LessonPlanRequest {
   strand?: string;
   subStrand?: string;
   durationMinutes: number;
-  curriculum: 'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT';
+  curriculum: 'CBSE' | 'ICSE' | 'STATE_BOARD' | 'NCERT' | 'CAMBRIDGE';
   language?: TeachingLanguage;
   additionalNotes?: string;
 }
@@ -108,7 +108,7 @@ export interface LessonPlanResponse {
   generatedAt: string;
 }
 
-export interface CBCSchemeOfWorkWeekLesson {
+export interface SchemeOfWorkWeekLesson {
   week: number;
   lessonNumber: number;
   strand: string;
@@ -121,7 +121,7 @@ export interface CBCSchemeOfWorkWeekLesson {
   reflection?: string;
 }
 
-export interface CBCSchemeOfWorkRequest {
+export interface SchemeOfWorkRequest {
   classId: string;
   subject: string;
   strand: string;
@@ -129,12 +129,12 @@ export interface CBCSchemeOfWorkRequest {
   termNumber?: number;
   weeksCount?: number;
   lessonsPerWeek?: number;
-  curriculum?: 'CBC' | 'STANDARD' | 'CAMBRIDGE' | 'NCERT';
+  curriculum?: 'CBSE' | 'ICSE' | 'STATE_BOARD' | 'NCERT' | 'CAMBRIDGE';
   language?: TeachingLanguage;
   additionalNotes?: string;
 }
 
-export interface CBCSchemeOfWorkResponse {
+export interface SchemeOfWorkResponse {
   title: string;
   gradeLevel: string;
   subject: string;
@@ -146,7 +146,7 @@ export interface CBCSchemeOfWorkResponse {
   coreCompetencies: string[];
   values: string[];
   pcis: string[];
-  weeks: CBCSchemeOfWorkWeekLesson[];
+  weeks: SchemeOfWorkWeekLesson[];
   assessmentRubrics: LessonPlanRubricCriterion[];
   model: string;
   generatedAt: string;

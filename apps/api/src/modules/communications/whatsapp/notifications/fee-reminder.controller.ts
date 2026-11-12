@@ -30,8 +30,8 @@ export class FeeReminderController {
         details: [
           {
             studentId: 'uuid',
-            studentName: 'John Doe',
-            guardianPhone: '+254712345678',
+            studentName: 'Aarav Menon',
+            guardianPhone: '+919876543210',
             success: true,
           },
         ],
@@ -60,7 +60,7 @@ export class FeeReminderController {
     status: 200,
     description: 'Overdue fee reminders sent',
   })
-  async sendOverdueReminders(@Body() dto: { language?: 'en' | 'sw' }) {
+  async sendOverdueReminders(@Body() dto: { language?: 'en' | 'hi' | 'ml' }) {
     return this.feeReminderService.sendFeeReminders({
       overdueOnly: true,
       language: dto.language || 'en',
@@ -75,7 +75,7 @@ export class FeeReminderController {
     description: 'Upcoming fee reminders sent',
   })
   async sendUpcomingReminders(
-    @Body() dto: { days?: number; language?: 'en' | 'sw' },
+    @Body() dto: { days?: number; language?: 'en' | 'hi' | 'ml' },
   ) {
     return this.feeReminderService.sendFeeReminders({
       daysBeforeDue: dto.days || 7, // Default 7 days before due
@@ -91,7 +91,7 @@ export class FeeReminderController {
     description: 'Payment confirmation sent',
   })
   async sendPaymentConfirmation(
-    @Body() dto: { paymentId: string; language?: 'en' | 'sw' },
+    @Body() dto: { paymentId: string; language?: 'en' | 'hi' | 'ml' },
   ) {
     const result = await this.feeReminderService.sendPaymentConfirmation(
       dto.paymentId,

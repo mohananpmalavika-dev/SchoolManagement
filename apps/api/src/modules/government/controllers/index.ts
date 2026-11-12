@@ -1,3 +1,3 @@
-export * from './nemis.controller';
-export * from './knec.controller';
+export * from './udise.controller';
+export * from './board-exam.controller';
 export * from './compliance.controller';

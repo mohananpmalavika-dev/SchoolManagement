@@ -8,7 +8,7 @@ export interface ReportCardDeliveryOptions {
   termId?: string; // All report cards for a term
   classId?: string; // All report cards for a class
   studentId?: string; // Report card for specific student
-  language?: 'en' | 'sw' | 'ml';
+  language?: 'en' | 'hi' | 'ml';
   includeRemarks?: boolean; // Include teacher's remarks in message
 }
 
@@ -95,7 +95,7 @@ export class ReportCardService {
           recipientPhone,
         )
           ? recipientPhone
-          : this.whatsAppService.formatPhoneNumber(recipientPhone, '254');
+          : this.whatsAppService.formatPhoneNumber(recipientPhone, '91');
 
         // Build message
         const message = this.buildReportCardMessage(
@@ -174,7 +174,7 @@ export class ReportCardService {
   async sendReportCardWithPdf(
     reportCardId: string,
     pdfUrl: string,
-    language: 'en' | 'sw' = 'en',
+    language: 'en' | 'hi' | 'ml' = 'en',
   ): Promise<boolean> {
     const tenantId = this.tenantService.requireTenantContext();
 
@@ -208,7 +208,7 @@ export class ReportCardService {
       guardianPhone,
     )
       ? guardianPhone
-      : this.whatsAppService.formatPhoneNumber(guardianPhone, '254');
+      : this.whatsAppService.formatPhoneNumber(guardianPhone, '91');
 
     const message = this.buildReportCardMessage(reportCard, language, true);
 
@@ -231,7 +231,7 @@ export class ReportCardService {
    */
   async sendReportCardSummary(
     reportCardId: string,
-    language: 'en' | 'sw' = 'en',
+    language: 'en' | 'hi' | 'ml' = 'en',
   ): Promise<boolean> {
     const tenantId = this.tenantService.requireTenantContext();
 
@@ -274,7 +274,7 @@ export class ReportCardService {
       guardianPhone,
     )
       ? guardianPhone
-      : this.whatsAppService.formatPhoneNumber(guardianPhone, '254');
+      : this.whatsAppService.formatPhoneNumber(guardianPhone, '91');
 
     const message = this.buildDetailedReportCardMessage(reportCard, language);
 
@@ -347,7 +347,7 @@ export class ReportCardService {
    */
   private buildReportCardMessage(
     reportCard: any,
-    language: 'en' | 'sw' | 'ml',
+    language: 'en' | 'hi' | 'ml',
     includeRemarks: boolean = false,
   ): string {
     const studentName = `${reportCard.student.firstName} ${reportCard.student.lastName}`;
@@ -376,22 +376,22 @@ export class ReportCardService {
         `ഔദ്യോഗിക ഡിജിറ്റൽ പ്രോഗ്രസ് കാർഡ് PDF താഴെ ചേർത്തിരിക്കുന്നു. ചാറ്റിൽ നിന്ന് നേരിട്ട് ഡൗൺലോഡ് ചെയ്യാം.\n\n` +
         `അഭിനന്ദനങ്ങൾ! 🎉`
       );
-    } else if (language === 'sw') {
-      // Swahili message
+    } else if (language === 'hi') {
+      // Hindi message
       return (
-        `📊 *Kadi ya Ripoti Iko Tayari*\n\n` +
-        `Mzazi mpendwa,\n\n` +
-        `Mwanafunzi: *${studentName}*\n` +
-        `Darasa: *${className}*\n` +
-        `Muhula: *${termName}*\n\n` +
-        `📈 Muhtasari wa Utendaji:\n` +
-        `Jumla ya Alama: ${obtainedMarks}/${totalMarks}\n` +
-        `Asilimia: ${percentage}%\n` +
-        `Daraja: *${grade}*\n` +
-        `Nafasi: *${position}*\n\n` +
-        (includeRemarks && remarks ? `Maoni ya Mwalimu:\n${remarks}\n\n` : '') +
-        `Tafadhali angalia kadi ya ripoti kamili iliyoambatishwa kama PDF.\n\n` +
-        `Hongera! 🎉`
+        `📊 *प्रगति पत्र तैयार है (Report Card Ready)*\n\n` +
+        `प्रिय अभिभावक,\n\n` +
+        `विद्यार्थी: *${studentName}*\n` +
+        `कक्षा: *${className}*\n` +
+        `सत्र: *${termName}*\n\n` +
+        `📈 प्रदर्शन सारांश:\n` +
+        `कुल अंक: ${obtainedMarks}/${totalMarks}\n` +
+        `प्रतिशत: ${percentage}%\n` +
+        `ग्रेड: *${grade}*\n` +
+        `स्थान: *${position}*\n\n` +
+        (includeRemarks && remarks ? `शिक्षक की टिप्पणी:\n${remarks}\n\n` : '') +
+        `विस्तृत प्रगति पत्र PDF के रूप में संलग्न है।\n\n` +
+        `हार्दिक बधाई! 🎉`
       );
     } else {
       // English message
@@ -418,7 +418,7 @@ export class ReportCardService {
    */
   private buildDetailedReportCardMessage(
     reportCard: any,
-    language: 'en' | 'sw',
+    language: 'en' | 'hi' | 'ml',
   ): string {
     const studentName = `${reportCard.student.firstName} ${reportCard.student.lastName}`;
     const className = reportCard.student.class?.name || 'N/A';
@@ -435,24 +435,31 @@ export class ReportCardService {
         const total = gradeEntry.totalMarks || 0;
         const subjectGrade = gradeEntry.grade || 'N/A';
         
-        if (language === 'sw') {
-          subjectBreakdown += `• ${subjectName}: ${marks}/${total} (${subjectGrade})\n`;
-        } else {
-          subjectBreakdown += `• ${subjectName}: ${marks}/${total} (${subjectGrade})\n`;
-        }
+        subjectBreakdown += `• ${subjectName}: ${marks}/${total} (${subjectGrade})\n`;
       });
     }
 
-    if (language === 'sw') {
+    if (language === 'ml') {
       return (
-        `📊 *Muhtasari wa Kadi ya Ripoti*\n\n` +
-        `Mwanafunzi: *${studentName}*\n` +
-        `Darasa: *${className}*\n` +
-        `Muhula: *${termName}*\n\n` +
-        `📚 Utendaji wa Masomo:\n${subjectBreakdown}\n` +
-        `Daraja la Jumla: *${grade}*\n` +
-        `Nafasi: *${position}*\n\n` +
-        `Umefanya vizuri! 🎓`
+        `📊 *വിശദമായ പ്രോഗ്രസ് റിപ്പോർട്ട്*\n\n` +
+        `വിദ്യാർത്ഥി: *${studentName}*\n` +
+        `ക്ലാസ്സ്: *${className}*\n` +
+        `ടേം: *${termName}*\n\n` +
+        `📚 വിഷയാടിസ്ഥാനത്തിലുള്ള മാർക്കുകൾ:\n${subjectBreakdown}\n` +
+        `ആകെ ഗ്രേഡ്: *${grade}*\n` +
+        `ക്ലാസ്സ് റാങ്ക്: *${position}*\n\n` +
+        `മികച്ച പ്രകടനം തുടരുക! 🎓`
+      );
+    } else if (language === 'hi') {
+      return (
+        `📊 *विस्तृत प्रगति पत्र सारांश*\n\n` +
+        `विद्यार्थी: *${studentName}*\n` +
+        `कक्षा: *${className}*\n` +
+        `सत्र: *${termName}*\n\n` +
+        `📚 विषयवार अंक विवरण:\n${subjectBreakdown}\n` +
+        `समग्र ग्रेड: *${grade}*\n` +
+        `स्थान: *${position}*\n\n` +
+        `बहुत बढ़िया प्रदर्शन! 🎓`
       );
     } else {
       return (

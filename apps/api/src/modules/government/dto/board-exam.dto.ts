@@ -1,57 +1,64 @@
 import { IsString, IsOptional, IsInt, IsEnum, IsArray, IsBoolean, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { KnecExamLevel, RegistrationStatus } from '@prisma/client';
+import { BoardExamLevel, RegistrationStatus } from '@prisma/client';
 
-export class InitializeKnecDto {
-  @ApiProperty({ description: 'KNEC Centre Number' })
+export class InitializeBoardDto {
+  @ApiPropertyOptional({ description: 'Board Name (CBSE, ICSE, STATE_BOARD)', default: 'CBSE' })
+  @IsOptional()
   @IsString()
-  knecCentreNumber: string;
+  boardName?: string;
 
-  @ApiPropertyOptional({ description: 'KNEC API Key (encrypted)' })
+  @ApiProperty({ description: 'Board Affiliation Number', example: '930124' })
+  @IsString()
+  affiliationNumber: string;
+
+  @ApiPropertyOptional({ description: 'Board School Code', example: '75432' })
+  @IsOptional()
+  @IsString()
+  schoolCode?: string;
+
+  @ApiPropertyOptional({ description: 'Board Portal API Key (encrypted)' })
   @IsOptional()
   @IsString()
   apiKey?: string;
 
-  @ApiPropertyOptional({ description: 'KNEC API Secret (encrypted)' })
+  @ApiPropertyOptional({ description: 'Board Portal API Secret (encrypted)' })
   @IsOptional()
   @IsString()
   apiSecret?: string;
 }
 
-export class UpdateKnecConfigDto {
-  @ApiPropertyOptional({ description: 'Enable/disable KNEC integration' })
+export class UpdateBoardConfigDto {
+  @ApiPropertyOptional({ description: 'Enable/disable Board Exam integration' })
   @IsOptional()
   @IsBoolean()
   isEnabled?: boolean;
 
-  @ApiPropertyOptional({ description: 'KNEC API Key' })
+  @ApiPropertyOptional({ description: 'Board API Key' })
   @IsOptional()
   @IsString()
   apiKey?: string;
 
-  @ApiPropertyOptional({ description: 'KNEC API Secret' })
+  @ApiPropertyOptional({ description: 'Board API Secret' })
   @IsOptional()
   @IsString()
   apiSecret?: string;
 }
 
 export class RegisterCandidatesDto {
-  @ApiProperty({ description: 'Examination year', example: 2024 })
+  @ApiProperty({ description: 'Examination year', example: 2027 })
   @IsInt()
   @Min(2020)
   @Max(2100)
   examYear: number;
 
-  @ApiProperty({ description: 'Examination session', example: 'November 2024' })
+  @ApiProperty({ description: 'Examination session', example: 'March 2027' })
   @IsString()
   examSession: string;
 
-  @ApiProperty({ 
-    description: 'Examination level',
-    enum: KnecExamLevel,
-  })
-  @IsEnum(KnecExamLevel)
-  examLevel: KnecExamLevel;
+  @ApiProperty({ description: 'Board examination level', enum: BoardExamLevel })
+  @IsEnum(BoardExamLevel)
+  examLevel: BoardExamLevel;
 
   @ApiProperty({ description: 'Array of student IDs to register', type: [String] })
   @IsArray()
@@ -60,41 +67,35 @@ export class RegisterCandidatesDto {
 }
 
 export class DownloadResultsDto {
-  @ApiProperty({ description: 'Examination year', example: 2024 })
+  @ApiProperty({ description: 'Examination year', example: 2027 })
   @IsInt()
   @Min(2020)
   @Max(2100)
   examYear: number;
 
-  @ApiProperty({ 
-    description: 'Examination level',
-    enum: KnecExamLevel,
-  })
-  @IsEnum(KnecExamLevel)
-  examLevel: KnecExamLevel;
+  @ApiProperty({ description: 'Board examination level', enum: BoardExamLevel })
+  @IsEnum(BoardExamLevel)
+  examLevel: BoardExamLevel;
 }
 
 export class GetExamTimetableDto {
-  @ApiProperty({ description: 'Examination year', example: 2024 })
+  @ApiProperty({ description: 'Examination year', example: 2027 })
   @IsInt()
   @Min(2020)
   @Max(2100)
   examYear: number;
 
-  @ApiProperty({ 
-    description: 'Examination level',
-    enum: KnecExamLevel,
-  })
-  @IsEnum(KnecExamLevel)
-  examLevel: KnecExamLevel;
+  @ApiProperty({ description: 'Board examination level', enum: BoardExamLevel })
+  @IsEnum(BoardExamLevel)
+  examLevel: BoardExamLevel;
 }
 
 export class SubmitIrregularityReportDto {
-  @ApiProperty({ description: 'Candidate number' })
+  @ApiProperty({ description: 'Candidate Roll Number' })
   @IsString()
   candidateNumber: string;
 
-  @ApiProperty({ description: 'Type of irregularity', example: 'CHEATING' })
+  @ApiProperty({ description: 'Type of irregularity', example: 'UNFAIR_MEANS' })
   @IsString()
   irregularityType: string;
 
@@ -115,21 +116,29 @@ export class GetRegistrationsQueryDto {
   @IsInt()
   examYear?: number;
 
-  @ApiPropertyOptional({ 
-    description: 'Filter by examination level',
-    enum: KnecExamLevel,
-  })
+  @ApiPropertyOptional({ description: 'Filter by examination level', enum: BoardExamLevel })
   @IsOptional()
-  @IsEnum(KnecExamLevel)
-  examLevel?: KnecExamLevel;
+  @IsEnum(BoardExamLevel)
+  examLevel?: BoardExamLevel;
+
+  @ApiPropertyOptional({ description: 'Filter by registration status', enum: RegistrationStatus })
+  @IsOptional()
+  @IsEnum(RegistrationStatus)
+  status?: RegistrationStatus;
 }
 
-export class KnecIntegrationResponseDto {
+export class BoardIntegrationResponseDto {
   @ApiProperty()
   id: string;
 
   @ApiProperty()
-  knecCentreNumber: string;
+  boardName: string;
+
+  @ApiProperty()
+  affiliationNumber: string;
+
+  @ApiPropertyOptional()
+  schoolCode?: string;
 
   @ApiProperty()
   isEnabled: boolean;
@@ -147,7 +156,7 @@ export class KnecIntegrationResponseDto {
   updatedAt: Date;
 }
 
-export class KnecRegistrationResponseDto {
+export class BoardRegistrationResponseDto {
   @ApiProperty()
   id: string;
 
@@ -161,19 +170,19 @@ export class KnecRegistrationResponseDto {
   examSession: string;
 
   @ApiProperty()
-  examLevel: KnecExamLevel;
+  examLevel: BoardExamLevel;
 
   @ApiPropertyOptional()
   candidateNumber?: string;
 
   @ApiPropertyOptional()
-  indexNumber?: string;
+  locReference?: string;
 
   @ApiProperty()
   registrationStatus: RegistrationStatus;
 
   @ApiProperty()
-  subjects: any;
+  resultsAvailable: boolean;
 
   @ApiProperty()
   registrationFee: number;
@@ -182,10 +191,7 @@ export class KnecRegistrationResponseDto {
   isPaid: boolean;
 
   @ApiProperty()
-  resultsAvailable: boolean;
-
-  @ApiPropertyOptional()
-  student?: any;
+  createdAt: Date;
 }
 
 export class CandidateRegistrationResultDto {
@@ -201,10 +207,10 @@ export class CandidateRegistrationResultDto {
   @ApiProperty()
   failed: number;
 
-  @ApiProperty({ type: [KnecRegistrationResponseDto] })
-  registrations: KnecRegistrationResponseDto[];
+  @ApiPropertyOptional()
+  registrations?: any[];
 
-  @ApiPropertyOptional({ type: [Object] })
+  @ApiPropertyOptional()
   errors?: any[];
 }
 
@@ -221,9 +227,9 @@ export class ResultsDownloadResultDto {
   @ApiProperty()
   failed: number;
 
-  @ApiProperty({ type: [Object] })
-  downloaded: any[];
+  @ApiPropertyOptional()
+  results?: any[];
 
-  @ApiPropertyOptional({ type: [Object] })
+  @ApiPropertyOptional()
   errors?: any[];
 }

@@ -9,7 +9,7 @@ import { OperationsService, Actor } from './operations.service';
 export class CheckInService {
   constructor(private db: PrismaService, private tenants: TenantService, private redis: RedisService, private operations: OperationsService) {}
   private key(id: string) { return 'attendance-session:' + this.tenants.requireTenantContext() + ':' + id; }
-  private today() { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+  private today() { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
   private async session(id: string) {
     if (!/^[a-f0-9-]{36}$/.test(id)) throw new NotFoundException('Check-in session not found');
     const value = await this.redis.get(this.key(id));

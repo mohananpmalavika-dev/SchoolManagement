@@ -37,22 +37,21 @@ export function getInitials(firstName: string, lastName: string): string {
 }
 
 /**
- * Format phone number for display
+ * Format phone number for display (Indian mobile format)
  */
 export function formatPhone(phone: string): string {
-  // Remove all non-numeric characters
   const cleaned = phone.replace(/\D/g, '');
-  
-  // Format as +254 712 345 678
-  if (cleaned.startsWith('254')) {
-    return `+254 ${cleaned.slice(3, 6)} ${cleaned.slice(6, 9)} ${cleaned.slice(9)}`;
+
+  // Format as +91 XXXXX XXXXX
+  if (cleaned.startsWith('91') && cleaned.length === 12) {
+    return `+91 ${cleaned.slice(2, 7)} ${cleaned.slice(7)}`;
   }
-  
-  // Format as 0712 345 678
-  if (cleaned.startsWith('0')) {
-    return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
+
+  // Format 10-digit Indian mobile as +91 XXXXX XXXXX
+  if (cleaned.length === 10 && /^[6-9]/.test(cleaned)) {
+    return `+91 ${cleaned.slice(0, 5)} ${cleaned.slice(5)}`;
   }
-  
+
   return phone;
 }
 
@@ -81,9 +80,9 @@ export function formatFileSize(bytes: number): string {
 }
 
 /**
- * Format number with commas
+ * Format number with Indian grouping commas
  */
-export function formatNumber(num: number, locale: string = 'en-KE'): string {
+export function formatNumber(num: number, locale: string = 'en-IN'): string {
   return new Intl.NumberFormat(locale).format(num);
 }
 

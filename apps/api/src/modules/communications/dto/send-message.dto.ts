@@ -43,7 +43,7 @@ export class SendMessageDto {
 
   @ApiProperty({
     description: 'Recipient phone numbers (for SMS) or emails',
-    example: ['254712345678', '254723456789'],
+    example: ['919876543210', '919847012345'],
   })
   @IsArray()
   @IsString({ each: true })

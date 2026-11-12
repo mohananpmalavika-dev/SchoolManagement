@@ -576,7 +576,7 @@ export function StudentDigitalPortfolioHub({
             <div className="bg-gradient-to-br from-indigo-50 to-slate-50 p-6 rounded-2xl border border-indigo-200/80">
               <h4 className="font-bold text-indigo-950 text-sm mb-2 flex items-center gap-2">
                 <Sparkles size={16} className="text-indigo-600" />
-                CBC & Holistic Student Ledger
+                NEP 2020 & Holistic Student Ledger
               </h4>
               <p className="text-xs text-gray-600 leading-relaxed">
                 This digital profile unifies academic grading with co-curricular prowess, sports participation, and community leadership over the student&apos;s entire school tenure.

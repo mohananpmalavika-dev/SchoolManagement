@@ -440,9 +440,10 @@ export class ExportPortalDataDto {
     description: 'Target Government Board Template',
     enum: [
       'CBSE_OASIS_LOC',
+      'ICSE_COUNCIL_RETURN',
       'STATE_BOARD_ANNUAL_RETURN',
       'UDISE_PLUS_SDMIS',
-      'NEMIS_STUDENT_MASTER',
+      'APAAR_PEN_REGISTRY',
       'TEACHER_MANDATORY_DISCLOSURE',
       'EXAM_BOARD_REGISTER',
     ],

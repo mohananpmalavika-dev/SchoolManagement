@@ -28,25 +28,25 @@ model Tenant {
   contactPhone   String
   address        String?
   website        String?
-  timezone       String       @default("Africa/Nairobi")
-  locale         String       @default("en")
-  currency       String       @default("KES")
+  timezone       String       @default("Asia/Kolkata")
+  locale         String       @default("en-IN")
+  currency       String       @default("INR")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  subscription      Subscription?
-  users             User[]
-  schools           School[]
-  students          Student[]
-  guardians         Guardian[]
-  staff             Staff[]
-  academicYears     AcademicYear[]
-  feeStructures     FeeStructure[]
-  invoices          Invoice[]
-  payments          Payment[]
-  mpesaTransactions MpesaTransaction[]
+  subscription               Subscription?
+  users                      User[]
+  schools                    School[]
+  students                   Student[]
+  guardians                  Guardian[]
+  staff                      Staff[]
+  academicYears              AcademicYear[]
+  feeStructures              FeeStructure[]
+  invoices                   Invoice[]
+  payments                   Payment[]
+  paymentGatewayTransactions PaymentGatewayTransaction[]
   attendanceRecords AttendanceRecord[]
   examinations      Examination[]
   timetableEntries  TimetableEntry[]
@@ -113,7 +113,7 @@ model Plan {
   name         String
   slug         String       @unique
   description  String?
-  price        Int // In KES minor units (cents)
+  price        Int // In INR minor units (paise)
   billingCycle BillingCycle @default(ANNUAL)
   trialDays    Int          @default(14)
 
@@ -164,22 +164,26 @@ model School {
   alternatePhone String?
   address        String
   city           String
-  county         String
-  postalCode     String?
-  country        String  @default("Kenya")
+  district       String?
+  state          String  @default("Kerala")
+  pincode        String?
+  country        String  @default("India")
 
-  // Configuration
-  schoolType       SchoolType
-  educationLevel   EducationLevel[]
-  academicCalendar AcademicCalendar @default(THREE_TERM)
-  startMonth       Int              @default(1) // January
+  // Indian Board & Academic Configuration
+  schoolType        SchoolType
+  boardAffiliation  String           @default("CBSE") // CBSE, ICSE, STATE_BOARD, IB, IGCSE
+  udiseCode         String?
+  affiliationNumber String?
+  educationLevel    EducationLevel[]
+  academicCalendar  AcademicCalendar @default(TWO_TERM)
+  startMonth        Int              @default(4) // April
 
-  // M-Pesa Configuration (encrypted)
-  mpesaEnabled        Boolean @default(false)
-  mpesaShortcode      String?
-  mpesaConsumerKey    String? // Encrypted
-  mpesaConsumerSecret String? // Encrypted
-  mpesaPasskey        String? // Encrypted
+  // Razorpay / UPI Payment Gateway Configuration (encrypted secrets)
+  razorpayEnabled       Boolean @default(false)
+  razorpayKeyId         String?
+  razorpayKeySecret     String? // Encrypted
+  razorpayWebhookSecret String? // Encrypted
+  upiVpa                String? // School merchant UPI ID (e.g. school@okhdfcbank)
 
   isActive Boolean @default(true)
 
@@ -205,11 +209,13 @@ enum SchoolType {
 enum EducationLevel {
   PRE_PRIMARY
   PRIMARY
-  JUNIOR_SECONDARY
+  MIDDLE
+  SECONDARY
   SENIOR_SECONDARY
 }
 
 enum AcademicCalendar {
+  TWO_TERM
   THREE_TERM
   TWO_SEMESTER
   CONTINUOUS
@@ -304,14 +310,18 @@ model Student {
   middleName      String?
   dateOfBirth     DateTime
   gender          Gender
-  nationalId      String?
+  aadhaarLast4    String?
+  apaarId         String?
+  penNumber       String?
   birthCertNumber String?
 
   // Contact
-  email   String?
-  phone   String?
-  address String?
-  county  String?
+  email    String?
+  phone    String?
+  address  String?
+  district String?
+  state    String?
+  pincode  String?
 
   // Medical
   bloodGroup        String?
@@ -380,10 +390,10 @@ model Guardian {
   tenantId String
 
   // Personal Information
-  firstName  String
-  lastName   String
-  middleName String?
-  nationalId String?
+  firstName    String
+  lastName     String
+  middleName   String?
+  aadhaarLast4 String?
 
   // Contact
   email          String?
@@ -456,12 +466,13 @@ model Staff {
   userId      String? // Link to User account
 
   // Personal Information
-  firstName   String
-  lastName    String
-  middleName  String?
-  dateOfBirth DateTime?
-  gender      Gender
-  nationalId  String?
+  firstName    String
+  lastName     String
+  middleName   String?
+  dateOfBirth  DateTime?
+  gender       Gender
+  aadhaarLast4 String?
+  panNumber    String?
 
   // Contact
   email          String
@@ -610,7 +621,7 @@ model Class {
   tenantId          String
   schoolId          String
   name              String
-  level             String // e.g., "Grade 1", "Form 1"
+  level             String // e.g., "Class 1", "Class 10"
   educationLevel    EducationLevel
   sortOrder         Int                @default(0)
 
@@ -900,7 +911,7 @@ model FeeItem {
   feeStructureId String
   name           String
   description    String?
-  amount         Int // In minor units (cents)
+  amount         Int // In minor units (paise)
   feeCategory    FeeCategory
   isOptional     Boolean     @default(false)
   sortOrder      Int         @default(0)
@@ -931,10 +942,10 @@ enum FeeCategory {
 }
 
 model Invoice {
-  feeStructureId    String?
-  feeStructure      FeeStructure?      @relation(fields: [feeStructureId], references: [id])
-  mpesaTransactions MpesaTransaction[]
-  id                String             @id @default(uuid())
+  feeStructureId             String?
+  feeStructure               FeeStructure?               @relation(fields: [feeStructureId], references: [id])
+  paymentGatewayTransactions PaymentGatewayTransaction[]
+  id                         String                      @id @default(uuid())
   tenantId          String
   invoiceNumber     String
   studentId         String
@@ -987,18 +998,18 @@ model InvoiceItem {
 }
 
 model Payment {
-  allocatedTransactions MpesaTransaction[] @relation("AllocatedPayment")
-  id                    String             @id @default(uuid())
+  allocatedTransactions PaymentGatewayTransaction[] @relation("AllocatedPayment")
+  id                    String                      @id @default(uuid())
   tenantId              String
   invoiceId             String
-  amount                Int // In minor units
+  amount                Int // In minor units (paise)
   paymentMethod         PaymentMethod
-  reference             String // M-Pesa code, bank ref, etc.
-  status                PaymentStatus      @default(PENDING)
-  paymentDate           DateTime           @default(now())
+  reference             String // UTR, Razorpay payment ID, cheque ref, etc.
+  status                PaymentStatus               @default(PENDING)
+  paymentDate           DateTime                    @default(now())
 
-  // M-Pesa specific
-  mpesaTransactionId String?
+  // Payment Gateway specific (Razorpay / UPI)
+  gatewayTransactionId String?
 
   // Receipt
   receiptNumber   String?
@@ -1011,9 +1022,9 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  invoice          Invoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  mpesaTransaction MpesaTransaction? @relation(fields: [mpesaTransactionId], references: [id])
+  tenant             Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice            Invoice                    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  gatewayTransaction PaymentGatewayTransaction? @relation(fields: [gatewayTransactionId], references: [id])
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -1024,7 +1035,9 @@ model Payment {
 }
 
 enum PaymentMethod {
-  MPESA
+  RAZORPAY
+  UPI
+  NET_BANKING
   CASH
   BANK_TRANSFER
   CHEQUE
@@ -1042,10 +1055,10 @@ enum PaymentStatus {
 }
 
 // ===================================
-// M-PESA INTEGRATION
+// RAZORPAY / UPI PAYMENT GATEWAY
 // ===================================
 
-model MpesaTransaction {
+model PaymentGatewayTransaction {
   payment              Payment?  @relation("AllocatedPayment", fields: [paymentId], references: [id])
   invoiceId            String?
   paymentId            String?
@@ -1060,25 +1073,29 @@ model MpesaTransaction {
   id                   String    @id @default(uuid())
   tenantId             String
 
-  // Request Details
-  merchantRequestId String? @unique
-  checkoutRequestId String? @unique
+  // Gateway Provider & Request Details
+  gateway          PaymentGatewayProvider @default(RAZORPAY)
+  gatewayOrderId   String?                @unique
+  gatewayPaymentId String?                @unique
 
   // Transaction Details
-  transactionType  MpesaTransactionType
-  amount           Int // In minor units
-  phoneNumber      String
+  transactionType  PaymentGatewayTxType
+  amount           Int // In minor units (paise)
+  currency         String               @default("INR")
+  phoneNumber      String?
+  upiVpa           String?
   accountReference String // Student admission number or invoice number
   transactionDesc  String?
 
   // Response Details
-  mpesaReceiptNumber String?   @unique
-  transactionDate    DateTime?
-  resultCode         Int?
-  resultDesc         String?
+  utrNumber       String?   @unique
+  receiptNumber   String?   @unique
+  transactionDate DateTime?
+  resultCode      Int?
+  resultDesc      String?
 
   // Status
-  status MpesaStatus @default(INITIATED)
+  status PaymentGatewayStatus @default(INITIATED)
 
   // Metadata
   requestPayload  Json?
@@ -1095,30 +1112,41 @@ model MpesaTransaction {
   payments Payment[]
 
   @@index([tenantId])
-  @@index([merchantRequestId])
-  @@index([checkoutRequestId])
-  @@index([mpesaReceiptNumber])
+  @@index([gatewayOrderId])
+  @@index([gatewayPaymentId])
+  @@index([utrNumber])
+  @@index([receiptNumber])
   @@index([status])
   @@index([isReconciled])
-  @@map("mpesa_transactions")
+  @@map("payment_gateway_transactions")
 }
 
-enum MpesaTransactionType {
+enum PaymentGatewayProvider {
+  RAZORPAY
+  UPI
   MANUAL
-  STK_PUSH
-  C2B
-  B2C
-  B2B
 }
 
-enum MpesaStatus {
+enum PaymentGatewayTxType {
+  MANUAL
+  RAZORPAY_ORDER
+  UPI_INTENT
+  UPI_QR
+  NET_BANKING
+  CARD
+}
+
+enum PaymentGatewayStatus {
   COMPLETED
   INITIATED
   PENDING
+  AUTHORIZED
+  CAPTURED
   SUCCESS
   FAILED
   TIMEOUT
   CANCELLED
+  REFUNDED
   RECONCILED
 }
 
@@ -1814,19 +1842,19 @@ enum MeetingType {
 }
 
 // ===================================
-// GOVERNMENT INTEGRATION
+// GOVERNMENT INTEGRATION (INDIA: UDISE+ / APAAR & BOARD EXAMS)
 // ===================================
 
-// NEMIS (National Education Management Information System) Integration
-model NemisIntegration {
+// UDISE+ (Unified District Information System for Education Plus) Integration
+model UdiseIntegration {
   id       String @id @default(uuid())
   tenantId String
 
   // Configuration
-  nemisSchoolCode String  @unique
+  udiseSchoolCode String  @unique // 11-digit UDISE+ Code
   apiKey          String? // Encrypted
   apiSecret       String? // Encrypted
-  baseUrl         String  @default("https://nemis.education.go.ke/api")
+  baseUrl         String  @default("https://udiseplus.gov.in/api")
 
   // Status
   isEnabled  Boolean    @default(false)
@@ -1843,21 +1871,21 @@ model NemisIntegration {
   updatedAt DateTime @updatedAt
 
   // Relations
-  syncLogs NemisSyncLog[]
+  syncLogs UdiseSyncLog[]
 
   @@index([tenantId])
-  @@index([nemisSchoolCode])
-  @@map("nemis_integrations")
+  @@index([udiseSchoolCode])
+  @@map("udise_integrations")
 }
 
-// NEMIS Sync Logs
-model NemisSyncLog {
+// UDISE+ Sync Logs
+model UdiseSyncLog {
   id                 String @id @default(uuid())
   tenantId           String
-  nemisIntegrationId String
+  udiseIntegrationId String
 
   // Sync Details
-  syncType  NemisSyncType
+  syncType  UdiseSyncType
   status    SyncStatus
   direction SyncDirection @default(OUTBOUND)
 
@@ -1881,23 +1909,24 @@ model NemisSyncLog {
 
   createdAt DateTime @default(now())
 
-  nemisIntegration NemisIntegration @relation(fields: [nemisIntegrationId], references: [id], onDelete: Cascade)
+  udiseIntegration UdiseIntegration @relation(fields: [udiseIntegrationId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
-  @@index([nemisIntegrationId])
+  @@index([udiseIntegrationId])
   @@index([syncType])
   @@index([status])
   @@index([startedAt])
-  @@map("nemis_sync_logs")
+  @@map("udise_sync_logs")
 }
 
-enum NemisSyncType {
+enum UdiseSyncType {
   STUDENT_ENROLLMENT
   TEACHER_DATA
   SCHOOL_PROFILE
   ATTENDANCE_DATA
   EXAMINATION_RESULTS
   INFRASTRUCTURE_DATA
+  APAAR_VERIFICATION
   FULL_SYNC
 }
 
@@ -1912,20 +1941,21 @@ enum SyncStatus {
 }
 
 enum SyncDirection {
-  INBOUND // From NEMIS to School
-  OUTBOUND // From School to NEMIS
+  INBOUND // From UDISE+ / APAAR to School
+  OUTBOUND // From School to UDISE+ / SDMIS
   BIDIRECTIONAL
 }
 
-// NEMIS Student Records - Track student data synced with NEMIS
-model NemisStudentRecord {
+// UDISE+ / APAAR Student Records - Track student data synced with UDISE+ SDMIS & APAAR
+model UdiseStudentRecord {
   id        String @id @default(uuid())
   tenantId  String
   studentId String @unique
 
-  // NEMIS Identifiers
-  nemisUpi       String? @unique // Universal Personal Identifier
-  nemisStudentId String? @unique
+  // Indian Government Identifiers
+  apaarId        String? @unique // 12-digit APAAR (Automated Permanent Academic Account Registry) ID
+  penNumber      String? @unique // Permanent Education Number (UDISE+ SDMIS)
+  udiseStudentId String? @unique
 
   // Sync Status
   syncStatus   SyncStatus @default(NEVER_SYNCED)
@@ -1943,20 +1973,21 @@ model NemisStudentRecord {
 
   @@index([tenantId])
   @@index([studentId])
-  @@index([nemisUpi])
+  @@index([apaarId])
+  @@index([penNumber])
   @@index([syncStatus])
-  @@map("nemis_student_records")
+  @@map("udise_student_records")
 }
 
-// NEMIS Staff Records - Track teacher data synced with NEMIS
-model NemisStaffRecord {
+// UDISE+ Staff Records - Track teacher data synced with UDISE+ National Teacher Registry
+model UdiseStaffRecord {
   id       String @id @default(uuid())
   tenantId String
   staffId  String @unique
 
-  // NEMIS/TSC Identifiers
-  tscNumber    String? @unique // Teachers Service Commission Number
-  nemisStaffId String? @unique
+  // UDISE+ / Board Teacher Identifiers
+  teacherCode  String? @unique // National Teacher Code / UDISE+ Staff Code
+  udiseStaffId String? @unique
 
   // Registration
   isRegistered     Boolean   @default(false)
@@ -1970,7 +2001,7 @@ model NemisStaffRecord {
   validationStatus ValidationStatus @default(PENDING)
   validationErrors Json?
 
-  // Qualifications (synced from TSC)
+  // Qualifications (synced from B.Ed / CTET / KTET / TET verification)
   qualifications Json?
 
   // Data Snapshot
@@ -1981,9 +2012,9 @@ model NemisStaffRecord {
 
   @@index([tenantId])
   @@index([staffId])
-  @@index([tscNumber])
+  @@index([teacherCode])
   @@index([syncStatus])
-  @@map("nemis_staff_records")
+  @@map("udise_staff_records")
 }
 
 enum ValidationStatus {
@@ -1993,16 +2024,18 @@ enum ValidationStatus {
   REQUIRES_UPDATE
 }
 
-// KNEC (Kenya National Examinations Council) Integration
-model KnecIntegration {
+// Indian Board Examination Integration (CBSE / ICSE / State Board e.g. Kerala Pareeksha Bhavan / DHSE)
+model BoardIntegration {
   id       String @id @default(uuid())
   tenantId String
 
   // Configuration
-  knecCentreNumber String  @unique
-  apiKey           String? // Encrypted
-  apiSecret        String? // Encrypted
-  baseUrl          String  @default("https://portal.knec.ac.ke/api")
+  boardName         String  @default("CBSE") // CBSE, ICSE, STATE_BOARD
+  affiliationNumber String  @unique
+  schoolCode        String?
+  apiKey            String? // Encrypted
+  apiSecret         String? // Encrypted
+  baseUrl           String  @default("https://cbse.gov.in/api")
 
   // Status
   isEnabled  Boolean    @default(false)
@@ -2013,22 +2046,22 @@ model KnecIntegration {
   updatedAt DateTime @updatedAt
 
   // Relations
-  examRegistrations KnecExamRegistration[]
-  syncLogs          KnecSyncLog[]
+  examRegistrations BoardExamRegistration[]
+  syncLogs          BoardSyncLog[]
 
   @@index([tenantId])
-  @@index([knecCentreNumber])
-  @@map("knec_integrations")
+  @@index([affiliationNumber])
+  @@map("board_integrations")
 }
 
-// KNEC Sync Logs
-model KnecSyncLog {
-  id                String @id @default(uuid())
-  tenantId          String
-  knecIntegrationId String
+// Board Exam Sync Logs
+model BoardSyncLog {
+  id                 String @id @default(uuid())
+  tenantId           String
+  boardIntegrationId String
 
   // Sync Details
-  syncType KnecSyncType
+  syncType BoardSyncType
   status   SyncStatus
 
   // Metrics
@@ -2051,38 +2084,40 @@ model KnecSyncLog {
 
   createdAt DateTime @default(now())
 
-  knecIntegration KnecIntegration @relation(fields: [knecIntegrationId], references: [id], onDelete: Cascade)
+  boardIntegration BoardIntegration @relation(fields: [boardIntegrationId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
-  @@index([knecIntegrationId])
+  @@index([boardIntegrationId])
   @@index([syncType])
   @@index([status])
-  @@map("knec_sync_logs")
+  @@map("board_sync_logs")
 }
 
-enum KnecSyncType {
+enum BoardSyncType {
   CANDIDATE_REGISTRATION
+  LOC_SUBMISSION
   EXAM_TIMETABLE
   RESULTS_DOWNLOAD
-  CENTRE_UPDATE
+  SCHOOL_PROFILE_UPDATE
+  PRACTICAL_MARKS_UPLOAD
   IRREGULARITY_REPORT
 }
 
-// KNEC Exam Registration
-model KnecExamRegistration {
-  id                String @id @default(uuid())
-  tenantId          String
-  knecIntegrationId String
-  studentId         String
+// Board Exam Registration (CBSE AISSE / AISSCE, ICSE / ISC, State SSLC / HSC)
+model BoardExamRegistration {
+  id                 String @id @default(uuid())
+  tenantId           String
+  boardIntegrationId String
+  studentId          String
 
   // Exam Details
   examYear    Int
-  examSession String // e.g., "November 2024"
-  examLevel   KnecExamLevel
+  examSession String // e.g., "March 2027"
+  examLevel   BoardExamLevel
 
   // Candidate Information
-  candidateNumber String? @unique
-  indexNumber     String? @unique
+  candidateNumber String? @unique // Board Roll Number
+  locReference    String? @unique // List of Candidates (LOC) Registration Number
 
   // Registration
   registrationDate   DateTime?
@@ -2108,20 +2143,23 @@ model KnecExamRegistration {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  knecIntegration KnecIntegration @relation(fields: [knecIntegrationId], references: [id], onDelete: Cascade)
+  boardIntegration BoardIntegration @relation(fields: [boardIntegrationId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([studentId])
   @@index([candidateNumber])
   @@index([examYear])
   @@index([registrationStatus])
-  @@map("knec_exam_registrations")
+  @@map("board_exam_registrations")
 }
 
-enum KnecExamLevel {
-  KCPE // Kenya Certificate of Primary Education
-  KCSE // Kenya Certificate of Secondary Education
-  KPSEA // Kenya Primary School Education Assessment
+enum BoardExamLevel {
+  CBSE_AISSE       // Class 10 All India Secondary School Examination
+  CBSE_AISSCE      // Class 12 All India Senior School Certificate Examination
+  ICSE_10          // CISCE Class 10
+  ISC_12           // CISCE Class 12
+  STATE_SSLC       // State Board Class 10 (e.g. Kerala SSLC)
+  STATE_HSC        // State Board Class 12 (e.g. Kerala Plus Two / DHSE)
 }
 
 enum RegistrationStatus {
@@ -2140,7 +2178,7 @@ model ComplianceReport {
 
   // Report Details
   reportType    ComplianceReportType
-  reportPeriod  String // e.g., "Term 1 2024", "Q1 2024", "2024"
+  reportPeriod  String // e.g., "Term 1 2026-27", "Q1 2026", "2026-27"
   reportYear    Int
   reportQuarter Int?
   reportMonth   Int?
@@ -2149,7 +2187,7 @@ model ComplianceReport {
   status ReportStatus @default(DRAFT)
 
   // Submission
-  submittedTo String? // Government body (NEMIS, MOE, TSC, etc.)
+  submittedTo String? // Government body (UDISE+, CBSE, ICSE, State Education Dept, etc.)
   submittedAt DateTime?
   submittedBy String? // User ID
 
@@ -2191,9 +2229,9 @@ enum ComplianceReportType {
   FINANCIAL_SUMMARY
   INFRASTRUCTURE_STATUS
   SAFETY_AUDIT
-  TSC_COMPLIANCE
+  TEACHER_COMPLIANCE
   ANNUAL_SCHOOL_CENSUS
-  TERMLY_RETURNS
+  TERM_RETURNS
   LEARNER_TRACKING
   DROPOUT_ANALYSIS
   SPECIAL_NEEDS_REPORT
@@ -2219,7 +2257,7 @@ model ComplianceChecklist {
   complianceArea ComplianceArea
 
   // Requirements
-  requiredBy String // Government body/regulation
+  requiredBy String // Government body/regulation (CBSE, UDISE+, RTE, State Dept)
   frequency  String // DAILY, WEEKLY, MONTHLY, TERMLY, ANNUAL
   dueDate    DateTime?
 
@@ -2258,8 +2296,9 @@ enum ComplianceArea {
   CHILD_PROTECTION
   HEALTH_STANDARDS
   INFRASTRUCTURE
-  NEMIS_REPORTING
-  TSC_COMPLIANCE
+  UDISE_REPORTING
+  BOARD_COMPLIANCE
+  RTE_COMPLIANCE
 }
 
 enum ChecklistStatus {
@@ -2334,7 +2373,7 @@ model GovernmentApiLog {
   tenantId String
 
   // Request Details
-  service  String // NEMIS, KNEC, TSC, etc.
+  service  String // UDISE_PLUS, CBSE, ICSE, STATE_BOARD, etc.
   endpoint String
   method   String // GET, POST, PUT, DELETE
 

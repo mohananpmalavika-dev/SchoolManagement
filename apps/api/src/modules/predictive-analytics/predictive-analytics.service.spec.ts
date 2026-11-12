@@ -13,7 +13,7 @@ describe('predictive analytics access and tenant isolation', () => {
     expect(prisma.student.findMany).not.toHaveBeenCalled(); expect(prisma.tenant.findFirst).not.toHaveBeenCalled();
   });
   it('scopes students and each sensitive nested relation to the authenticated tenant', async () => {
-    const prisma = { student: { findMany: jest.fn().mockResolvedValue([]) }, tenant: { findFirst: jest.fn().mockResolvedValue({ currency: 'KES' }) } };
+    const prisma = { student: { findMany: jest.fn().mockResolvedValue([]) }, tenant: { findFirst: jest.fn().mockResolvedValue({ currency: 'INR' }) } };
     const service = new PredictiveAnalyticsService(prisma as any, { requireTenantContext: () => 'school-a' } as any);
     const report = await service.report();
     const query = prisma.student.findMany.mock.calls[0][0];
