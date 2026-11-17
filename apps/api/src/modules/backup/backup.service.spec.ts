@@ -4,6 +4,7 @@ import { Logger } from '@nestjs/common';
 import { BackupService } from './backup.service';
 import * as fs from 'fs';
 import * as path from 'path';
+import { createCipheriv, createHash, randomBytes } from 'crypto';
 
 describe('BackupService', () => {
   let service: BackupService;
@@ -303,15 +304,37 @@ describe('BackupService', () => {
 
   describe('Encryption and Decryption', () => {
     it('should encrypt and decrypt file successfully', async () => {
-      // This is tested indirectly through backup verification
-      // Direct encryption/decryption methods are private
-      expect(service).toBeDefined();
+      const input = path.join(mockConfigService.get('BACKUP_DIR'), 'plain.sql');
+      const archive = input + '.enc', restored = input + '.restored';
+      fs.writeFileSync(input, 'School backup fixture');
+      await (service as any).encryptFile(input, archive);
+      await (service as any).decryptFile(archive, restored);
+      expect(fs.readFileSync(restored, 'utf8')).toBe('School backup fixture');
     });
 
     it('should use unique IV for each encryption', async () => {
-      // IVs should be different for each backup
-      // This is tested by creating multiple backups and checking IV files
-      expect(service).toBeDefined();
+      const input = path.join(mockConfigService.get('BACKUP_DIR'), 'plain.sql');
+      fs.writeFileSync(input, 'Identical school record');
+      await (service as any).encryptFile(input, input + '.one');
+      await (service as any).encryptFile(input, input + '.two');
+      expect(fs.readFileSync(input + '.one').equals(fs.readFileSync(input + '.two'))).toBe(false);
+    });
+    it('rejects tampered encrypted data and removes partial plaintext', async () => {
+      const input = path.join(mockConfigService.get('BACKUP_DIR'), 'plain.sql');
+      const archive = input + '.enc', restored = input + '.restored';
+      fs.writeFileSync(input, 'Do not restore unauthenticated records');
+      await (service as any).encryptFile(input, archive);
+      const data = fs.readFileSync(archive); data[data.length - 2] ^= 1; fs.writeFileSync(archive, data);
+      await expect((service as any).decryptFile(archive, restored)).rejects.toThrow();
+      expect(fs.existsSync(restored)).toBe(false);
+    });
+    it('retains recovery compatibility with existing CBC backup archives', async () => {
+      const input = path.join(mockConfigService.get('BACKUP_DIR'), 'legacy.enc');
+      const iv = randomBytes(16), key = createHash('sha256').update(mockConfigService.get('ENCRYPTION_MASTER_KEY')).digest();
+      const cipher = createCipheriv('aes-256-cbc', key, iv);
+      fs.writeFileSync(input, Buffer.concat([iv, cipher.update('Historical school record'), cipher.final()]));
+      await (service as any).decryptFile(input, input + '.restored');
+      expect(fs.readFileSync(input + '.restored', 'utf8')).toBe('Historical school record');
     });
   });
 

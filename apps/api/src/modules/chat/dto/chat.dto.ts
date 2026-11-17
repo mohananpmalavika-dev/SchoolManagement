@@ -7,6 +7,7 @@ import {
   IsUUID,
   MaxLength,
   MinLength,
+  ArrayMaxSize,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -44,6 +45,8 @@ export class CreateChannelDto {
   @ApiPropertyOptional({ description: 'Initial member user IDs', type: [String] })
   @IsArray()
   @IsOptional()
+  @ArrayMaxSize(500)
+  @IsUUID('all', { each: true })
   memberUserIds?: string[];
 }
 
@@ -75,6 +78,7 @@ export class AddReactionDto {
   @ApiProperty({ description: 'Emoji reaction character' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(32)
   emoji: string;
 }
 
@@ -87,5 +91,6 @@ export class DirectChatDto {
   @ApiPropertyOptional({ description: 'Initial message content' })
   @IsString()
   @IsOptional()
+  @MaxLength(5000)
   initialMessage?: string;
 }

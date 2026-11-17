@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
@@ -51,6 +52,7 @@ export class SendFeeRemindersDto {
     example: false,
     required: false,
   })
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   @IsOptional()
   overdueOnly?: boolean;

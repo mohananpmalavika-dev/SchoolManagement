@@ -44,6 +44,8 @@ async function contextFor(role, auth = true) {
     if (path === '/api/workspace/submissions' && route.request().method()==='POST') { submittedWork=true;return ok({id:'submission-1'}); }
     if (path === '/api/students/me/materials') return ok({curriculumMaterials:[{id:'material-1',title:'Saved teacher notes',url:'https://example.test/notes'}],borrowedBooks:[{id:'loan-1',book:{title:'Saved library book',author:'Author'},dueDate:'2026-11-01',status:'BORROWED'}]});
     if (path === '/api/workspace/terms') return ok([{id:'term-1',name:'Term 3'}]);
+    if (path === '/api/payments-gateway/options') return ok({razorpay:false,upi:true,merchantName:'Fixture school'});
+    if (path === '/api/workspace/pay') return ok({gatewayOrderId:'upi-fixture',amount:body.amount,currency:'INR',upiIntentUri:'upi://pay?pa=fixture%40upi&am=250.00&cu=INR'});
     if (path === '/api/workspace/invoices') return ok([]);
     if (path === '/api/teacher-ai/options') return ok({classes:[],terms:[],status:{configured:false}});
     if (path === '/api/teacher-ai/at-risk' || path === '/api/predictive-analytics') return ok({students:[],summary:{highRisk:0,incompleteData:0}});
@@ -214,16 +216,16 @@ try {
   await family.page.getByRole('heading',{name:'Growing, learning, belonging.',exact:true}).waitFor();
   await family.page.screenshot({path:fileURLToPath(new URL('family-desktop.png',output)),fullPage:true});
   await family.page.goto(base+'/dashboard/fees');
-  await family.page.getByRole('button',{name:'Pay with M-Pesa',exact:true}).click();
-  await family.page.getByLabel('M-Pesa mobile number').fill('0712 345 678');
-  await family.page.getByLabel('Amount (KES)').fill('250');
-  await family.page.getByRole('button',{name:'Send payment request',exact:true}).click();
-  await family.page.getByRole('status').filter({hasText:'balance updates after confirmation'}).waitFor();
-  assert.deepEqual(requests.find(request=>request.path==='/api/workspace/pay')?.body,{invoiceId:'invoice-1',amount:25000,phoneNumber:'254712345678'});
+  await family.page.getByRole('button',{name:'Pay via UPI / Razorpay',exact:true}).click();
+  await family.page.getByLabel('Mobile number (+91)').fill('98470 12345');
+  await family.page.getByLabel(/Amount \(INR/).fill('250');
+  await family.page.getByRole('button',{name:'Show UPI payment code',exact:true}).click();
+  await family.page.getByRole('img',{name:'School UPI payment QR code'}).waitFor();
+  assert.deepEqual(requests.find(request=>request.path==='/api/workspace/pay')?.body,{invoiceId:'invoice-1',amount:25000,phoneNumber:'919847012345',gateway:'UPI'});
   await family.page.setViewportSize({width:390,height:844});
   assert.equal(await family.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await family.context.close();
-  checks.push('Family portal loads linked records and sends normalized M-Pesa requests without claiming confirmed payment');
+  checks.push('Family portal loads linked records and opens school UPI QR payments without claiming confirmed receipt');
 
   const learner=await contextFor('STUDENT');
   await learner.page.goto(base+'/student/dashboard');
@@ -251,12 +253,12 @@ try {
   await invoiceForm.getByLabel('Student *',{exact:true}).selectOption('s-0');
   await invoiceForm.getByLabel('Term *',{exact:true}).selectOption('term-1');
   await invoiceForm.getByLabel('Description *',{exact:true}).fill('Tuition');
-  await invoiceForm.getByLabel('Amount (KES) *',{exact:true}).fill('1250.50');
+  await invoiceForm.getByLabel('Amount (INR) *',{exact:true}).fill('1250.50');
   await invoiceForm.getByRole('button',{name:'Create record',exact:true}).click();
   await finance.page.getByRole('status').filter({hasText:'saved successfully'}).waitFor();
   assert.equal(requests.find(request=>request.path==='/api/workspace/invoices'&&request.body)?.body.data.amount,125050);
   await finance.context.close();
-  checks.push('Finance staff see their permitted navigation and currency forms convert shillings to integer cents');
+  checks.push('Finance staff see their permitted navigation and currency forms convert rupees to integer paise');
   if (process.env.UI_PRODUCTION === 'true') {
     const production=await contextFor('SCHOOL_ADMIN');
     await production.page.goto(base+'/school/admissions');

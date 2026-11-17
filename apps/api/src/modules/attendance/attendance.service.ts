@@ -1,3 +1,4 @@
+import { ParentEngagementNotificationsService } from '../parent-engagement-notifications/parent-engagement-notifications.service';
 import {
   Injectable,
   NotFoundException,
@@ -32,6 +33,7 @@ export class AttendanceService {
   constructor(
     private prisma: PrismaService,
     private tenantService: TenantService,
+    private notifications: ParentEngagementNotificationsService,
   ) {}
 
   // ==================== STUDENT ATTENDANCE ====================
@@ -119,17 +121,8 @@ export class AttendanceService {
       `Bulk attendance marked: ${records.length} students for ${dto.date}`,
     );
 
-    // TODO: Send notifications to parents for absent students
-    const absentStudents = records.filter(
-      (r) =>
-        r.status === AttendanceStatus.ABSENT,
-    );
-
-    if (absentStudents.length > 0) {
-      this.logger.log(
-        `${absentStudents.length} absent students - notifications pending`,
-      );
-    }
+    const absentStudents = records.filter(r => r.status === AttendanceStatus.ABSENT);
+    for (const record of absentStudents) await this.notifications.sendAttendanceAlert(record.id);
 
     return {
       success: true,
@@ -204,6 +197,7 @@ export class AttendanceService {
       `Attendance marked: ${student.firstName} ${student.lastName} - ${dto.status}`,
     );
 
+    await this.notifications.sendAttendanceAlert(record.id);
     return record;
   }
 
@@ -237,6 +231,7 @@ export class AttendanceService {
       },
     });
 
+    await this.notifications.sendAttendanceAlert(updated.id);
     return updated;
   }
 
@@ -379,7 +374,6 @@ export class AttendanceService {
           status: {
             in: [
               AttendanceStatus.ABSENT,
-              AttendanceStatus.ABSENT,
             ],
           },
         },
@@ -395,7 +389,7 @@ export class AttendanceService {
       }),
     ]);
 
-    const attendanceRate = total > 0 ? (present / total) * 100 : 0;
+    const attendanceRate = total > 0 ? ((present + late + halfDay * 0.5) / total) * 100 : 0;
 
     return {
       total,
@@ -462,7 +456,7 @@ export class AttendanceService {
       return acc;
     }, {} as any);
 
-    const presentDays = statusCounts[AttendanceStatus.PRESENT] || 0;
+    const presentDays = (statusCounts[AttendanceStatus.PRESENT] || 0) + (statusCounts[AttendanceStatus.LATE] || 0) + (statusCounts[AttendanceStatus.HALF_DAY] || 0) * 0.5;
     const attendanceRate = totalDays > 0 ? (presentDays / totalDays) * 100 : 0;
 
     return {
@@ -482,8 +476,7 @@ export class AttendanceService {
         totalDays,
         present: statusCounts[AttendanceStatus.PRESENT] || 0,
         absent:
-          (statusCounts[AttendanceStatus.ABSENT] || 0) +
-          (statusCounts[AttendanceStatus.ABSENT] || 0),
+          statusCounts[AttendanceStatus.ABSENT] || 0,
         late: statusCounts[AttendanceStatus.LATE] || 0,
         excused: statusCounts[AttendanceStatus.EXCUSED] || 0,
         halfDay: statusCounts[AttendanceStatus.HALF_DAY] || 0,

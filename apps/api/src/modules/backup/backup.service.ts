@@ -1,3 +1,4 @@
+import { open } from 'fs/promises';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
@@ -11,6 +12,7 @@ import { createGzip, createGunzip } from 'zlib';
 import * as path from 'path';
 
 const execFileAsync = promisify(execFile);
+const BACKUP_MAGIC = Buffer.from('KRYPTON-BACKUP-GCM2\n');
 
 export interface BackupResult {
   success: boolean;
@@ -140,7 +142,7 @@ export class BackupService {
       const gzip = createGzip({ level: 9 });
       await pipeline(readStream, gzip, writeStream);
 
-      // Step 3: Encrypt with AES-256-CBC
+      // Step 3: Encrypt with authenticated AES-256-GCM
       const encryptedFile = `${gzipFile}.enc`;
       await this.encryptFile(gzipFile, encryptedFile);
 
@@ -202,6 +204,7 @@ export class BackupService {
   async verifyBackup(backupId: string): Promise<boolean> {
     this.logger.log(`Verifying backup: ${backupId}`);
 
+    const temporaryFiles: string[] = [];
     try {
       const filename = this.backupFilename(backupId);
       const localPath = path.join(this.localBackupDir, filename);
@@ -222,8 +225,10 @@ export class BackupService {
       this.logger.log(`Backup checksum: ${checksum}`);
 
       // Try to decrypt and decompress first few bytes to verify integrity
-      const decryptedFile = `${localPath}.dec`;
+      const decryptedFile = `${localPath}.${randomBytes(8).toString('hex')}.dec`;
+      temporaryFiles.push(decryptedFile);
       const decompressedFile = `${decryptedFile}.sql`;
+      temporaryFiles.push(decompressedFile);
 
       await this.decryptFile(localPath, decryptedFile);
       
@@ -241,6 +246,8 @@ export class BackupService {
     } catch (error: any) {
       this.logger.error(`Backup verification failed: ${error.message}`, error.stack);
       return false;
+    } finally {
+      for (const file of temporaryFiles) if (existsSync(file)) unlinkSync(file);
     }
   }
 
@@ -252,6 +259,7 @@ export class BackupService {
     const startTime = Date.now();
     this.logger.warn(`Starting database restore from backup: ${backupId}`);
 
+    const temporaryFiles: string[] = [];
     try {
       const filename = this.backupFilename(backupId);
       const localPath = path.join(this.localBackupDir, filename);
@@ -268,12 +276,14 @@ export class BackupService {
       }
 
       // Step 1: Decrypt
-      const decryptedFile = `${localPath}.dec`;
+      const decryptedFile = `${localPath}.${randomBytes(8).toString('hex')}.dec`;
+      temporaryFiles.push(decryptedFile);
       this.logger.log('Decrypting backup...');
       await this.decryptFile(localPath, decryptedFile);
 
       // Step 2: Decompress
       const decompressedFile = `${decryptedFile}.sql`;
+      temporaryFiles.push(decompressedFile);
       this.logger.log('Decompressing backup...');
       const readStream = createReadStream(decryptedFile);
       const writeStream = createWriteStream(decompressedFile);
@@ -318,6 +328,8 @@ export class BackupService {
         duration,
         error: error.message,
       };
+    } finally {
+      for (const file of temporaryFiles) if (existsSync(file)) unlinkSync(file);
     }
   }
 
@@ -389,35 +401,41 @@ export class BackupService {
     return backupId.endsWith('.enc') ? backupId : `${backupId}.sql.gz.enc`;
   }
 
-  /**
-   * Encrypt file using AES-256-CBC
-   */
+  /** New archives authenticate their header and ciphertext with AES-256-GCM.
+   * Legacy CBC archives remain readable for disaster recovery. */
   private async encryptFile(inputPath: string, outputPath: string): Promise<void> {
-    const iv = randomBytes(16);
-    const cipher = createCipheriv('aes-256-cbc', this.encryptionKey, iv);
-
-    const input = createReadStream(inputPath);
-    const output = createWriteStream(outputPath);
-
-    // Write IV as first 16 bytes
-    output.write(iv);
-
-    await pipeline(input, cipher, output);
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', this.encryptionKey, iv);
+    cipher.setAAD(BACKUP_MAGIC);
+    const output = createWriteStream(outputPath, { mode: 0o600 });
+    output.write(Buffer.concat([BACKUP_MAGIC, iv, Buffer.alloc(16)]));
+    await pipeline(createReadStream(inputPath), cipher, output);
+    const file = await open(outputPath, 'r+');
+    try { await file.write(cipher.getAuthTag(), 0, 16, BACKUP_MAGIC.length + 12); }
+    finally { await file.close(); }
   }
 
-  /**
-   * Decrypt file using AES-256-CBC
-   */
   private async decryptFile(inputPath: string, outputPath: string): Promise<void> {
-    // Read IV from first 16 bytes
-    const iv = await this.readBytes(inputPath, 16);
-    if (iv.length !== 16) throw new Error('Backup file is truncated');
-    const decipher = createDecipheriv('aes-256-cbc', this.encryptionKey, iv);
-
-    // Skip first 16 bytes (IV) when decrypting
-    const encryptedStream = createReadStream(inputPath, { start: 16 });
-    const output = createWriteStream(outputPath);
-    await pipeline(encryptedStream, decipher, output);
+    const header = await this.readBytes(inputPath, BACKUP_MAGIC.length + 28);
+    const modern = header.subarray(0, BACKUP_MAGIC.length).equals(BACKUP_MAGIC);
+    const offset = modern ? BACKUP_MAGIC.length + 28 : 16;
+    if (header.length < offset || statSync(inputPath).size <= offset) throw new Error('Backup file is truncated');
+    const output = createWriteStream(outputPath, { mode: 0o600 });
+    try {
+      if (modern) {
+        const decipher = createDecipheriv('aes-256-gcm', this.encryptionKey, header.subarray(BACKUP_MAGIC.length, BACKUP_MAGIC.length + 12));
+        decipher.setAAD(BACKUP_MAGIC);
+        decipher.setAuthTag(header.subarray(BACKUP_MAGIC.length + 12, offset));
+        await pipeline(createReadStream(inputPath, { start: offset }), decipher, output);
+      } else {
+        const decipher = createDecipheriv('aes-256-cbc', this.encryptionKey, header.subarray(0, 16));
+        await pipeline(createReadStream(inputPath, { start: 16 }), decipher, output);
+      }
+    } catch (error) {
+      output.destroy();
+      if (existsSync(outputPath)) unlinkSync(outputPath);
+      throw error;
+    }
   }
 
   /**
@@ -462,7 +480,7 @@ export class BackupService {
         Body: fileStream,
         Metadata: {
           checksum,
-          'backup-version': '1.0',
+          'backup-version': '2.0-gcm',
         },
       },
     });

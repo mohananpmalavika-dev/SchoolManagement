@@ -1,3 +1,5 @@
+> Historical report. For the current school/preschool release scope, verified checks and go-live requirements, use [School production readiness](docs/SCHOOL_PRODUCTION_READINESS.md). Statements below are not current release certification.
+
 # KRYPTON SCHOOL ERP — PRODUCTION GAP REPORT
 
 **Date:** October 11, 2026  

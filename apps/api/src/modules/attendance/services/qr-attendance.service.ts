@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -88,9 +89,10 @@ export class QRAttendanceService {
     expiresAt: Date;
   }> {
     // Generate unique session ID
-    const sessionId = `qr-session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const sessionId = 'qr-session-' + randomUUID();
     
-    const expiryMinutes = config.expiryMinutes || this.DEFAULT_EXPIRY_MINUTES;
+    const expiryMinutes = config.expiryMinutes ?? this.DEFAULT_EXPIRY_MINUTES;
+    if (!Number.isSafeInteger(expiryMinutes) || expiryMinutes < 1 || expiryMinutes > 15) throw new BadRequestException('QR sessions last between 1 and 15 minutes');
     const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
 
     // Create JWT payload
@@ -108,7 +110,6 @@ export class QRAttendanceService {
     // Sign JWT with short-lived secret
     const token = this.jwtService.sign(payload, {
       secret: this.configService.get('JWT_SECRET'),
-      expiresIn: `${expiryMinutes}m`,
     });
 
     this.logger.log(
@@ -190,13 +191,15 @@ export class QRAttendanceService {
       }
 
       // 6. Mark attendance
-      const scannedAt = request.scannedAt || new Date();
+      const scannedAt = new Date();
+      const schoolDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(scannedAt);
       const attendance = await this.prisma.attendanceRecord.create({
         data: {
           studentId: request.studentId,
           classId: student.currentClassId!,
           streamId: student.currentStreamId,
-          date: scannedAt,
+          date: new Date(schoolDate),
+          period: 1,
           status: this.calculateAttendanceStatus(scannedAt),
           remarks: `QR scan - Session: ${payload.sessionId} (DYNAMIC_QR)`,
           markedBy: payload.createdBy,
@@ -269,6 +272,9 @@ export class QRAttendanceService {
         throw new UnauthorizedException('QR session has expired or is invalid');
       }
 
+      const session = JSON.parse(sessionData);
+      if (session.tenantId !== payload.tenantId) throw new UnauthorizedException('Invalid QR session');
+
       return payload;
     } catch (error: any) {
       if (error instanceof UnauthorizedException) {
@@ -308,7 +314,7 @@ export class QRAttendanceService {
   /**
    * Get active session information
    */
-  async getSessionInfo(sessionId: string): Promise<any> {
+  async getSessionInfo(sessionId: string, tenantId: string, actorId?: string): Promise<any> {
     const sessionKey = `qr:session:${sessionId}`;
     const sessionData = await this.redis.get(sessionKey);
 
@@ -317,6 +323,7 @@ export class QRAttendanceService {
     }
 
     const session = JSON.parse(sessionData);
+    if (session.tenantId !== tenantId || actorId && session.createdBy !== actorId) throw new UnauthorizedException('Session access denied');
 
     // Get scan count for this session
     const scanKeys = await this.redis.keys(`${this.QR_SCANS_PREFIX}${sessionId}:*`);
@@ -331,7 +338,7 @@ export class QRAttendanceService {
   /**
    * Invalidate a QR session (emergency stop)
    */
-  async invalidateSession(sessionId: string, tenantId: string): Promise<void> {
+  async invalidateSession(sessionId: string, tenantId: string, actorId?: string): Promise<void> {
     const sessionKey = `qr:session:${sessionId}`;
     const sessionData = await this.redis.get(sessionKey);
 
@@ -339,7 +346,7 @@ export class QRAttendanceService {
       const session = JSON.parse(sessionData);
       
       // Verify tenant owns this session
-      if (session.tenantId !== tenantId) {
+      if (session.tenantId !== tenantId || actorId && session.createdBy !== actorId) {
         throw new UnauthorizedException('Cannot invalidate session from another school');
       }
 
@@ -351,7 +358,7 @@ export class QRAttendanceService {
   /**
    * Get session statistics (for teacher dashboard)
    */
-  async getSessionStats(sessionId: string, tenantId: string): Promise<{
+  async getSessionStats(sessionId: string, tenantId: string, actorId?: string): Promise<{
     sessionId: string;
     totalScans: number;
     uniqueStudents: string[];
@@ -372,7 +379,7 @@ export class QRAttendanceService {
     const session = JSON.parse(sessionData);
 
     // Verify tenant
-    if (session.tenantId !== tenantId) {
+    if (session.tenantId !== tenantId || actorId && session.createdBy !== actorId) {
       throw new UnauthorizedException('Cannot access session from another school');
     }
 

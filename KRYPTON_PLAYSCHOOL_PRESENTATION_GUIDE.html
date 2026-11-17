@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Krypton Playing School ERP & INKY AI - Field Pitch & Presentation Playbook</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Malayalam:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap');
+
+    @page {
+      size: A4 portrait;
+      margin: 12mm 14mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', 'Noto Sans Malayalam', sans-serif;
+      background: #ffffff;
+      color: #0f172a;
+      line-height: 1.55;
+      font-size: 10pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .page {
+      page-break-after: always;
+      position: relative;
+      min-height: 270mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .page:last-child {
+      page-break-after: auto;
+    }
+
+    /* Header Bar */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 16px;
+    }
+
+    .brand-logos {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 13pt;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-title span {
+      color: #ec4899; /* Playful magenta/pink */
+    }
+
+    .badge-pill {
+      background: #fdf2f8;
+      color: #db2777;
+      border: 1px solid #fbcfe8;
+      font-size: 7.5pt;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .doc-meta {
+      text-align: right;
+      font-size: 8pt;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    /* Headings */
+    h1.playbook-title {
+      font-size: 18pt;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.25;
+      margin-bottom: 5px;
+      letter-spacing: -0.5px;
+    }
+
+    .playbook-subtitle {
+      font-size: 9.5pt;
+      color: #475569;
+      margin-bottom: 16px;
+    }
+
+    h2.section-header {
+      font-size: 11.5pt;
+      font-weight: 700;
+      color: #1e293b;
+      background: #fdf4ff;
+      border-left: 4px solid #d946ef;
+      padding: 6px 12px;
+      border-radius: 0 6px 6px 0;
+      margin: 12px 0 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h3.sub-header {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 9px 0 5px 0;
+    }
+
+    /* Speech & Action Boxes */
+    .dialogue-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-left: 4px solid #16a34a;
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin: 8px 0;
+    }
+
+    .dialogue-box.english {
+      background: #faf5ff;
+      border: 1px solid #f3e8ff;
+      border-left: 4px solid #a855f7;
+    }
+
+    .dialogue-box.alert {
+      background: #fffbeb;
+      border: 1px solid #fef3c7;
+      border-left: 4px solid #f59e0b;
+    }
+
+    .box-label {
+      font-size: 8pt;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .box-label.ml { color: #15803d; }
+    .box-label.en { color: #7e22ce; }
+    .box-label.action { color: #b45309; }
+
+    .speech-text-ml {
+      font-family: 'Noto Sans Malayalam', sans-serif;
+      font-size: 9.3pt;
+      color: #14532d;
+      line-height: 1.6;
+    }
+
+    .speech-text-en {
+      font-size: 9pt;
+      color: #581c87;
+      line-height: 1.5;
+    }
+
+    .action-text {
+      font-size: 8.8pt;
+      color: #78350f;
+      line-height: 1.5;
+    }
+
+    /* Tables */
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0;
+      font-size: 8.6pt;
+    }
+
+    table.data-table th {
+      background: #fdf2f8;
+      color: #831843;
+      text-align: left;
+      padding: 6px 10px;
+      font-weight: 700;
+      border-bottom: 2px solid #fbcfe8;
+    }
+
+    table.data-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+
+    /* Two column grid */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 8px 0;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #f1f5f9;
+      border-radius: 8px;
+      padding: 9px 11px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .card-title {
+      font-weight: 700;
+      font-size: 9pt;
+      color: #0f172a;
+      margin-bottom: 3px;
+    }
+
+    .card-desc {
+      font-size: 8.3pt;
+      color: #64748b;
+      line-height: 1.45;
+    }
+
+    ul.bullet-list {
+      padding-left: 18px;
+      margin: 5px 0;
+      font-size: 8.8pt;
+      color: #334155;
+    }
+
+    ul.bullet-list li {
+      margin-bottom: 3px;
+    }
+
+    .highlight-pill {
+      display: inline-block;
+      background: #fce7f3;
+      color: #9d174d;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 8pt;
+    }
+
+    /* Footer */
+    .footer-bar {
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 7.5pt;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= PAGE 1 ================= -->
+  <div class="page">
+    <div>
+      <div class="header-bar">
+        <div class="brand-logos">
+          <div class="brand-title">KRYPTON<span>PLAY</span> &times; <strong>OM SYSTEM</strong></div>
+          <span class="badge-pill">Play School Playbook</span>
+        </div>
+        <div class="doc-meta">
+          Preschools &bull; Daycares &bull; Nurseries<br>
+          Playgroup &bull; LKG &bull; UKG
+        </div>
+      </div>
+
+      <h1 class="playbook-title">Play School & Pre-School Pitch Guide</h1>
+      <p class="playbook-subtitle">In-person meeting script, emotional talking points, INKY AI demo walkthrough, and closing techniques for Play School Owners, Directors, and Headmistresses.</p>
+
+      <h2 class="section-header">1. Play School Management Psychology (അവരുടെ പ്രധാന ആശങ്കകൾ)</h2>
+      <p style="font-size: 8.8pt; color: #475569; margin-bottom: 6px;">റെഗുലർ സ്കൂളുകളിൽ നിന്ന് തികച്ചും വ്യത്യസ്തമാണ് പ്ലേ-സ്കൂളുകളുടെ മാനസികാവസ്ഥ. അവരുടെ വികാരം മനസ്സിലാക്കുക:</p>
+      
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 25%;">വിഷയം</th>
+            <th style="width: 38%;">മാനേജ്‌മെന്റിന്റെ ആശങ്ക (Owner's Anxiety)</th>
+            <th style="width: 37%;">നമ്മുടെ കൃത്യമായ പരിഹാരം (Pitch Focus)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>മാതാപിതാക്കളുടെ ആശങ്ക (Parent Anxiety)</strong></td>
+            <td>ചെറിയ കുട്ടികളാണ് (2-5 വയസ്സ്). കുട്ടി ഭക്ഷണം കഴിച്ചോ, കരഞ്ഞോ, സ്കൂളിൽ സുരക്ഷിതനാണോ എന്ന് മാതാപിതാക്കൾ തുടരെ അന്വേഷിക്കുന്നു.</td>
+            <td><strong>Daily Care Updates</strong> (ഭക്ഷണം, ഉറക്കം, മൂഡ്), <strong>CCTV Live Sharing</strong> (നിശ്ചിത സമയങ്ങളിൽ മാത്രം), <strong>Safe Pickup Verification</strong>.</td>
+          </tr>
+          <tr>
+            <td><strong>അഡ്മിഷൻ മത്സരം (Brand Competition)</strong></td>
+            <td>വൻകിട ചെയിൻ സ്കൂളുകൾ (EuroKids, Kangaroo Kids മുതലായവ) വൻ ഫീച്ചറുകൾ നൽകി സാധാരണ പ്ലേ-സ്കൂളുകളിൽ നിന്ന് അഡ്മിഷൻ തട്ടിയെടുക്കുന്നു.</td>
+            <td><strong>"കുറഞ്ഞ ചെലവിൽ ലോകോത്തര ബ്രാൻഡ് ഇമേജ്"</strong>. ആപ്പും AI ടീച്ചിംഗ് അസിസ്റ്റന്റും (INKY) നൽകി സ്വന്തം സ്കൂളിനെ ഹൈ-ടെക് ആക്കാം!</td>
+          </tr>
+          <tr>
+            <td><strong>ടീച്ചർമാരുടെ ജോലിഭാരം (Teacher Workload)</strong></td>
+            <td>ചെറിയ കുട്ടികൾക്ക് അനുയോജ്യമായ പാട്ടുകൾ, കഥകൾ, കളറിംഗ് ഷീറ്റുകൾ, ആക്റ്റിവിറ്റികൾ എന്നിവ ദിവസവും കണ്ടെത്താൻ ടീച്ചർമാർ വലയുന്നു.</td>
+            <td><strong>INKY AI Teaching Assistant</strong>: LKG, UKG, Nursery കുട്ടികൾക്കായി നിമിഷങ്ങൾക്കകം മലയാളത്തിലും ഇംഗ്ലീഷിലും പാട്ടുകളും വർക്ക്ഷീറ്റുകളും തരും!</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="section-header">2. The Emotional Opening Hook (ആദ്യത്തെ 2 മിനിറ്റ് - എങ്ങനെ തുടങ്ങണം)</h2>
+      <p style="font-size: 8.8pt; color: #334155; margin-bottom: 6px;">പ്ലേ-സ്കൂൾ ഓണർമാർ കുട്ടികളോട് വളരെ വാത്സല്യമുള്ളവരായിരിക്കും. അതിനാൽ ടെക്നിക്കൽ കാര്യങ്ങൾ പറയുന്നതിന് മുൻപ് കുട്ടികളുടെ സുരക്ഷയും രക്ഷിതാക്കളുടെ സന്തോഷവും മുൻനിർത്തി സംസാരിക്കുക:</p>
+
+      <div class="dialogue-box">
+        <div class="box-label ml">🗣️ മലയാളത്തിൽ സംസാരിച്ചു തുടങ്ങാൻ (Speaking Script):</div>
+        <div class="speech-text-ml">
+          "നമസ്കാരം മേഡം / സാർ. ഞാൻ ക്രിപ്റ്റൺലോജിക്കിൽ നിന്നാണ് വരുന്നത്. ഞങ്ങളുടെ എഞ്ചിനീയറിംഗ് പാർട്ണറായ <strong>OM System & Service</strong> മായി ചേർന്നാണ് ഞങ്ങൾ പ്ലേ-സ്കൂളുകൾക്കായി പ്രത്യേകം രൂപകൽപ്പന ചെയ്ത <strong>Krypton Playing School ERP & INKY AI</strong> അവതരിപ്പിക്കുന്നത്.<br>
+          ഇന്നത്തെ മാതാപിതാക്കൾ ഒരു പ്ലേ-സ്കൂൾ തിരഞ്ഞെടുക്കുമ്പോൾ നോക്കുന്നത് രണ്ട് കാര്യങ്ങൾ മാത്രമാണ്:<br>
+          1. <em>തങ്ങളുടെ കുഞ്ഞ് അവിടെ എത്രത്തോളം സുരക്ഷിതനാണ്?</em> (ബസ് എവിടെയെത്തി, കുഞ്ഞ് ഭക്ഷണം കഴിച്ചോ, ആർക്കൊപ്പമാണ് സ്കൂളിൽ നിന്ന് മടങ്ങിയത്).<br>
+          2. <em>എത്രത്തോളം സ്നേഹത്തോടെയും ക്രിയേറ്റീവായുമാണ് അവിടെ പഠിപ്പിക്കുന്നത്?</em><br>
+          വൻകിട ഇന്റർനാഷണൽ ബ്രാൻഡുകൾ ലക്ഷങ്ങൾ ഈടാക്കി നൽകുന്ന <strong>Live Baby Bus Tracking, സെക്യൂർ CCTV വ്യൂവിംഗ്, INKY എന്ന AI ടീച്ചർ കോപൈലറ്റ്</strong> എന്നിവ തുച്ഛമായ ചിലവിൽ നിങ്ങളുടെ പ്ലേ-സ്കൂളിലും ഒരുക്കാൻ ഞങ്ങൾ സജ്ജമാണ്. വെറും 5 മിനിറ്റ് കൊണ്ട് ഇതിന്റെ ലൈവ് മാജിക് ഞാൻ ഫോണിൽ കാണിച്ചുതരാം."
+        </div>
+      </div>
+
+      <div class="dialogue-box english">
+        <div class="box-label en">🌐 English Script for Premium Play Schools / Daycare Chains:</div>
+        <div class="speech-text-en">
+          "Good morning Ma'am / Sir. Early childhood education is 90% trust and 10% curriculum. Today's young IT/corporate parents expect complete transparency—real-time van tracking, daily meal/nap logs, and engaging early-learning activities. We have built Krypton Playing School ERP with INKY, an AI early-childhood copilot that creates theme-based rhymes, coloring sheets, and developmental observations in English and Malayalam in seconds. Combined with OM System's CCTV and hardware support, this elevates your institution into the most premium preschool in your locality."
+        </div>
+      </div>
+
+    </div>
+
+    <div class="footer-bar">
+      <span>KryptonLogic &bull; OM System and Service</span>
+      <span>Page 1 of 3 &bull; Play School Field Sales Playbook</span>
+      <span>Strictly for Internal Field Representatives</span>
+    </div>
+  </div>
+
+  <!-- ================= PAGE 2 ================= -->
+  <div class="page">
+    <div>
+      <div class="header-bar">
+        <div class="brand-logos">
+          <div class="brand-title">KRYPTON<span>PLAY</span> &times; <strong>OM SYSTEM</strong></div>
+          <span class="badge-pill">Poster Features & Demo</span>
+        </div>
+        <div class="doc-meta">
+          Live Walkthrough for Play School Owners
+        </div>
+      </div>
+
+      <h2 class="section-header">3. Two Hero Posters - Core Features Walkthrough</h2>
+      <p style="font-size: 8.8pt; color: #475569; margin-bottom: 6px;">നമ്മുടെ 2 കളർ പോസ്റ്ററുകളിലുള്ള ഫീച്ചറുകൾ ലാപ്ടോപ്പിലോ ടാബ്‌ലെറ്റിലോ ഈ ക്രമത്തിൽ കാണിക്കുക:</p>
+
+      <div class="grid-2">
+        <div class="card" style="border-left: 3px solid #3b82f6;">
+          <div class="card-title">🚌 1. Track Your Baby Bus (ബേബി ബസ് ട്രാക്കർ)</div>
+          <div class="card-desc">
+            <strong>സ്ക്രീൻ:</strong> <code>/parent/transport</code><br>
+            <strong>ഡെമോ ഹൈലൈറ്റ്:</strong> "മഞ്ഞ നിറത്തിലുള്ള സ്കൂൾ ബസ് കുട്ടികളുടെ വീട്ടുപടിക്കലേക്ക് എത്ര മിനിറ്റിൽ (ETA: 8 min) എത്തുമെന്ന് മാതാപിതാക്കൾക്ക് മൊബൈലിൽ കാണാം. കുഞ്ഞ് ബസിൽ കയറുമ്പോഴും തിരികെ ഇറങ്ങുമ്പോഴും ഉടൻ ഫോൺ നോട്ടിഫിക്കേഷൻ ലഭിക്കും!"
+          </div>
+        </div>
+
+        <div class="card" style="border-left: 3px solid #10b981;">
+          <div class="card-title">📹 2. CCTV Live Sharing with Parents</div>
+          <div class="card-desc">
+            <strong>സ്ക്രീൻ:</strong> <code>/dashboard/preschool</code> (Cameras)<br>
+            <strong>ഡെമോ ഹൈലൈറ്റ്:</strong> "24 മണിക്കൂറും കാമറ തുറന്നുവെച്ച് ടീച്ചർമാരെ ബുദ്ധിമുട്ടിക്കില്ല! സ്കൂൾ സമയം മാത്രം, അതും രക്ഷിതാവിന്റെ സമ്മതത്തോടെ (Consent) 2 മിനിറ്റ് നേരത്തേക്ക് മാത്രമുള്ള ഹൈ-സെക്യൂരിറ്റി വ്യൂവിംഗ് വിൻഡോ. മാതാപിതാക്കൾക്ക് 100% സമാധാനം!"
+          </div>
+        </div>
+
+        <div class="card" style="border-left: 3px solid #ec4899;">
+          <div class="card-title">🤖 3. INKY AI Teaching Assistant</div>
+          <div class="card-desc">
+            <strong>സ്ക്രീൻ:</strong> <code>/teacher/preschool</code> (Copilot)<br>
+            <strong>ഡെമോ ഹൈലൈറ്റ്:</strong> "ചെറിയ റോബോട്ടിന്റെ രൂപത്തിലുള്ള ഞങ്ങളുടെ ഇൻകി (INKY). 'മഴക്കാലത്തെക്കുറിച്ച് 3 വയസ്സുള്ള കുഞ്ഞുങ്ങൾക്ക് പഠിപ്പിക്കാൻ ഒരു മലയാളം പാട്ടും കളറിംഗ് ഷീറ്റും വേണം' എന്ന് ടൈപ്പ് ചെയ്താൽ 5 സെക്കൻഡിൽ റെഡി! നേരെ പ്രിന്റ് എടുക്കാം!"
+          </div>
+        </div>
+
+        <div class="card" style="border-left: 3px solid #f59e0b;">
+          <div class="card-title">🥣 4. Daily Care & Child Milestones</div>
+          <div class="card-desc">
+            <strong>സ്ക്രീൻ:</strong> <code>/school/preschool</code> (Daily Care)<br>
+            <strong>ഡെമോ ഹൈലൈറ്റ്:</strong> "കുട്ടി ഉച്ചയ്ക്ക് ഭക്ഷണം നന്നായി കഴിച്ചോ (Meals), എത്ര സമയം ഉറങ്ങി (Nap), മൂഡ് എങ്ങനെയുണ്ടായിരുന്നു (Happy/Playful) എന്നിവ ഒറ്റ ടാപ്പിൽ രക്ഷിതാവിന് അപ്‌ഡേറ്റായി പോകും. ഒപ്പം 7 സ്കിൽ ഡൊമെയ്‌നുകളിലെ പുരോഗതിയും!"
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-header">4. Play School Objection Handling (ഓണറുടെ സംശയങ്ങളും പരിഹാരങ്ങളും)</h2>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 33%;">പ്ലേ-സ്കൂൾ ഓണർ ചോദിക്കുന്ന ചോദ്യം</th>
+            <th style="width: 67%;">നമ്മൾ നൽകേണ്ട ഉറച്ച മറുപടി (Bulletproof Answer)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>"ഞങ്ങൾക്ക് ആകെ 35 കുട്ടികളേ ഉള്ളൂ, ഇത്രയും വലിയ സിസ്റ്റം ആവശ്യമുണ്ടോ?"</strong></td>
+            <td>
+              <em>"മേഡം, 35 കുട്ടികളുള്ള നിങ്ങളുടെ സ്കൂൾ നാളെ 100 കുട്ടികളിലേക്ക് വളരണമെങ്കിൽ ഈ സിസ്റ്റം അത്യാവശ്യമാണ്. തൊട്ടടുത്തുള്ള മറ്റ് പ്ലേ-സ്കൂളുകളിൽ ഇതൊന്നുമില്ലാത്തപ്പോൾ, നിങ്ങളുടെ സ്കൂളിൽ ലൈവ് ബേബി ബസ് ട്രാക്കിംഗും INKY AI പഠനരീതിയും ഉണ്ടെന്ന് ബോർഡിൽ എഴുതിവെച്ചാൽ അടുത്ത മാസം തന്നെ പുതിയ അഡ്മിഷനുകളുടെ പ്രവാഹമായിരിക്കും!"</em>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>"CCTV ലൈവായി കൊടുത്താൽ ടീച്ചർമാർക്ക് അസ്വസ്ഥത ഉണ്ടാകില്ലേ?"</strong></td>
+            <td>
+              <em>"ഇല്ല മേഡം! ഇത് ഒരിക്കലും 24 മണിക്കൂർ ലൈവ് സ്ട്രീമിംഗ് അല്ല. കുട്ടിയുടെ അമ്മയ്ക്ക് ആവശ്യമുണ്ടെങ്കിൽ മാത്രം പ്രിൻസിപ്പൽ അനുമതി നൽകുന്ന സമയത്ത് 2 മിനിറ്റ് മാത്രം ഓപ്പൺ ആകുന്ന പ്രത്യേക സെക്യൂരിറ്റി ലിങ്ക് ആണിത്. അധ്യാപകരുടെ പ്രൈവസിയെയും സ്വാതന്ത്ര്യത്തെയും പൂർണ്ണമായി സംരക്ഷിച്ചുകൊണ്ടാണ് ഇത് ഡിസൈൻ ചെയ്തിരിക്കുന്നത്."</em>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>"ടീച്ചർമാർ ഫോൺ നോക്കിക്കൊണ്ടിരുന്നാൽ കുട്ടികളെ ആര് നോക്കും?"</strong></td>
+            <td>
+              <em>"ക്ലാസ്സ് നടക്കുമ്പോൾ ടീച്ചർമാർ ഫോൺ ഉപയോഗിക്കേണ്ടതില്ല! ഉച്ചയ്ക്ക് കുട്ടികൾ ഉറങ്ങുന്ന സമയത്തോ അല്ലെങ്കിൽ വൈകുന്നേരം 1:30 നോ ഒരൊറ്റ ക്ലിക്കിൽ (Bulk Update) മുഴുവൻ കുട്ടികളുടെയും മീൽ & മൂഡ് അപ്‌ഡേറ്റ് ചെയ്യാൻ വെറും 2 മിനിറ്റ് മതി."</em>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>"ബസിൽ ജിപിഎസ് ഡിവൈസ് ഫിറ്റ് ചെയ്യാൻ അധികം ചിലവാകുമോ?"</strong></td>
+            <td>
+              <em>"ഒരു രൂപ പോലും അധിക ചിലവില്ല! ഡ്രൈവറുടെ സാധാരണ സ്മാർട്ട്‌ഫോണിൽ ഞങ്ങളുടെ ഡ്രൈവർ മോഡ് ലോഗിൻ ചെയ്താൽ മതി. വാനിൽ പ്രത്യേക ഉപകരണങ്ങളോ വയറിംഗോ വെക്കേണ്ടതില്ല."</em>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+
+    <div class="footer-bar">
+      <span>KryptonLogic &bull; OM System and Service</span>
+      <span>Page 2 of 3 &bull; Play School Field Sales Playbook</span>
+      <span>Strictly for Internal Field Representatives</span>
+    </div>
+  </div>
+
+  <!-- ================= PAGE 3 ================= -->
+  <div class="page">
+    <div>
+      <div class="header-bar">
+        <div class="brand-logos">
+          <div class="brand-title">KRYPTON<span>PLAY</span> &times; <strong>OM SYSTEM</strong></div>
+          <span class="badge-pill">Pricing & Demo Day Booking</span>
+        </div>
+        <div class="doc-meta">
+          Preschool Packages & Handshake Strategy
+        </div>
+      </div>
+
+      <h2 class="section-header">5. Play School Friendly Pricing Structure</h2>
+      <p style="font-size: 8.8pt; color: #475569; margin-bottom: 8px;">പ്ലേ-സ്കൂളുകൾക്ക് അനുയോജ്യമായ ഫ്ലെക്സിബിൾ പാക്കേജുകൾ:</p>
+
+      <div class="grid-2">
+        <div class="card" style="border-top: 3px solid #ec4899;">
+          <div class="card-title">പ്ലാൻ A: എസൻഷ്യൽ പ്ലേ-സ്കൂൾ പാക്കേജ്</div>
+          <div class="card-desc">
+            <span class="highlight-pill">₹30 – ₹45 / Child / Month</span> (അല്ലെങ്കിൽ ഫ്ലാറ്റ് റേറ്റ്)<br><br>
+            &bull; അഡ്മിഷൻ & പാരന്റ് ആപ്പ്.<br>
+            &bull; ഡെയ്ലി കെയർ ലോഗ് & ഫോട്ടോ ഷെയറിംഗ്.<br>
+            &bull; ഡ്രൈവർ ഫോൺ GPS ബേബി ബസ് ട്രാക്കർ.<br>
+            &bull; INKY AI അൺലിമിറ്റഡ് ആക്റ്റിവിറ്റികൾ & വർക്ക്ഷീറ്റുകൾ.
+          </div>
+        </div>
+
+        <div class="card" style="border-top: 3px solid #8b5cf6;">
+          <div class="card-title">പ്ലാൻ B: പ്രീമിയം സേഫ്റ്റി കോംബോ (With CCTV)</div>
+          <div class="card-desc">
+            <span class="highlight-pill">ERP + OM System HD CCTV ഇൻസ്റ്റലേഷൻ</span><br><br>
+            &bull; എസൻഷ്യൽ സോഫ്റ്റ്‌വെയറിന്റെ എല്ലാ ഫീച്ചറുകളും.<br>
+            &bull; ക്ലാസ്റൂമുകളിലും പ്ലേ ഏരിയയിലും OM System നേരിട്ട് ഘടിപ്പിക്കുന്ന ഹൈ-ഡെഫനിഷൻ CCTV കാമറകൾ.<br>
+            &bull; പാരന്റ്സ് ലൈവ് വ്യൂവിംഗ് ഗേറ്റ്‌വേ സപ്പോർട്ട്.<br>
+            &bull; ഓൺ-സൈറ്റ് എഞ്ചിനീയറിംഗ് വാറന്റി.
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-header">6. How to Close the Deal - "The Free Demo Day" Offer</h2>
+      <p style="font-size: 9pt; color: #334155; margin-bottom: 6px;">പ്ലേ-സ്കൂൾ ഓണർമാരോട് ഡയറക്റ്റ് സെയിൽസ് പുഷ് ചെയ്യുന്നതിന് പകരം <strong>"ഒരു പാരന്റ്സ് ഡെമോ ഈവനിംഗ്"</strong> ഓഫർ ചെയ്യുക:</p>
+
+      <div class="dialogue-box">
+        <div class="box-label ml">🤝 ക്ലോസിംഗ് ഡയലോഗ് (Malayalam Closing Script):</div>
+        <div class="speech-text-ml">
+          "മേഡം, നിങ്ങളുടെ സ്കൂളിലെ രക്ഷിതാക്കൾക്ക് ഈ ആപ്പ് എത്രത്തോളം ഇഷ്ടപ്പെടുമെന്ന് നമുക്ക് നേരിട്ട് ബോധ്യപ്പെടുത്താം. വരുന്ന ശനിയാഴ്ച നിങ്ങളുടെ സ്കൂളിലെ മാതാപിതാക്കളുടെ ഒരു ചെറിയ മീറ്റിംഗിൽ <strong>'സ്മാർട്ട് ചൈൽഡ് സേഫ്റ്റി & INKY ലേണിംഗ്'</strong> എന്ന വിഷയത്തിൽ 15 മിനിറ്റിന്റെ ഒരു ലൈവ് പ്രസന്റേഷൻ ഞങ്ങൾ സൗജന്യമായി നടത്തിത്തരാം.<br>
+          മാതാപിതാക്കൾക്ക് ഇത് കണ്ട് ഇഷ്ടപ്പെടുകയും അവരുടെ പൂർണ്ണ പിന്തുണ ലഭിക്കുകയും ചെയ്താൽ മാത്രം നമുക്ക് ഇത് നടപ്പിലാക്കാം. മാഡത്തിന് ഒരു രൂപയുടെയും റിസ്ക് ഇല്ല!<br>
+          നമുക്ക് അടുത്ത ശനിയാഴ്ച രാവിലെ 10 മണിക്ക് ഇത് പ്ലാൻ ചെയ്താലോ?"
+        </div>
+      </div>
+
+      <div class="dialogue-box english">
+        <div class="box-label en">🤝 English Closing Script:</div>
+        <div class="speech-text-en">
+          "Ma'am / Sir, let the parents be the judge. Allow us to sponsor a 15-minute 'Child Safety & Modern Early Education' showcase during your upcoming PTA or weekend orientation. When parents see their baby's bus location, secure classroom viewing, and INKY's creative worksheets with your school's branding, they will be thrilled. You take zero financial risk. Shall we lock in this coming Saturday morning for a trial setup?"
+        </div>
+      </div>
+
+      <h3 class="sub-header" style="margin-top: 12px;">🎒 പ്ലേ-സ്കൂൾ മീറ്റിംഗ് കിറ്റിൽ കരുതേണ്ടവ (Field Kit):</h3>
+      <ul class="bullet-list">
+        <li>&check; നമ്മുടെ രണ്ട് കളർ പോസ്റ്ററുകളുടെയും (Playing School ERP & INKY AI Assistant) കളർ പ്രിന്റൗട്ട്.</li>
+        <li>&check; ടാബ്‌ലെറ്റിലോ സ്മാർട്ട്‌ഫോണിലോ ലൈവ് ഡെമോ അക്കൗണ്ട് ഓപ്പൺ ചെയ്തു വെക്കുക.</li>
+        <li>&check; സ്കൂളിന്റെ പേര്, ഓണറുടെ വാട്ട്സ്ആപ്പ് നമ്പർ, ബസുകളുടെ എണ്ണം, സ്കൂളിലുള്ള കുട്ടികളുടെ ആകെ എണ്ണം എന്നിവ നോട്ട് ചെയ്യുക.</li>
+        <li>&check; പോസ്റ്റർ സ്കൂളിന്റെ നോട്ടീസ് ബോർഡിൽ ഒട്ടിക്കാൻ അനുമതി ചോദിക്കുക.</li>
+      </ul>
+
+      <div style="background: #fdf2f8; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 8.5pt; text-align: center; color: #831843;">
+        <strong>ഹെഡ് ഓഫീസ് & ടെക്നിക്കൽ സപ്പോർട്ട്:</strong> KryptonLogic Intelligent Solutions &bull; OM System and Service, Kerala, India.<br>
+        24x7 എഞ്ചിനീയറിംഗ് ഹെൽപ്‌ലൈൻ | direct@kryptonlogic.com | omsystemandservice@gmail.com
+      </div>
+    </div>
+
+    <div class="footer-bar">
+      <span>KryptonLogic &bull; OM System and Service</span>
+      <span>Page 3 of 3 &bull; Play School Field Sales Playbook</span>
+      <span>Strictly for Internal Field Representatives</span>
+    </div>
+  </div>
+
+</body>
+</html>

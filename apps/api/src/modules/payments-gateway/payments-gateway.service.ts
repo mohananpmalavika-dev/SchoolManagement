@@ -7,6 +7,7 @@ import {
   ConflictException,
   Logger,
   InternalServerErrorException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
@@ -48,12 +49,16 @@ export class PaymentsGatewayService {
       this.configService.get('RAZORPAY_WEBHOOK_SECRET', '') ||
       this.configService.get('PAYMENT_WEBHOOK_SECRET', '');
     this.defaultUpiVpa =
-      this.configService.get('SCHOOL_UPI_VPA', '') || 'kryptonschool@okhdfcbank';
+      this.configService.get('SCHOOL_UPI_VPA', '');
     this.schoolMerchantName =
-      this.configService.get('SCHOOL_MERCHANT_NAME', '') || 'Krypton Public School';
+      this.configService.get('SCHOOL_MERCHANT_NAME', '') || 'School fees';
   }
 
   // ==================== INITIATE ORDER / UPI INTENT ====================
+
+  options() {
+    return { razorpay: !!this.razorpayKeyId && !!this.razorpayKeySecret, upi: /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/.test(this.defaultUpiVpa), merchantName: this.schoolMerchantName };
+  }
 
   async initiatePayment(
     dto: InitiatePaymentDto,
@@ -83,6 +88,7 @@ export class PaymentsGatewayService {
     const transactionDesc = dto.transactionDesc || 'School Fee Payment';
 
     if (gateway === GatewayChoice.UPI) {
+      if (!/^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/.test(this.defaultUpiVpa)) throw new ServiceUnavailableException('School UPI payments are not configured');
       const gatewayOrderId = `upi_${Date.now()}_${randomUUID().slice(0, 8)}`;
       const amountInRupees = (dto.amount / 100).toFixed(2);
       const payeeVpa = this.defaultUpiVpa;
@@ -102,7 +108,7 @@ export class PaymentsGatewayService {
           amount: dto.amount,
           currency: 'INR',
           phoneNumber: dto.phoneNumber,
-          upiVpa: dto.upiVpa || payeeVpa,
+          upiVpa: payeeVpa,
           accountReference,
           transactionDesc,
           invoiceId: dto.invoiceId,
@@ -138,7 +144,7 @@ export class PaymentsGatewayService {
         {
           amount: dto.amount, // paise
           currency: 'INR',
-          receipt: accountReference,
+          receipt: 'fee_' + randomUUID().replace(/-/g, ''),
           notes: {
             tenantId,
             invoiceId: dto.invoiceId,
@@ -146,6 +152,7 @@ export class PaymentsGatewayService {
           },
         },
         {
+          timeout: 15000,
           headers: {
             Authorization: `Basic ${auth}`,
             'Content-Type': 'application/json',
@@ -223,10 +230,21 @@ export class PaymentsGatewayService {
       throw new NotFoundException('Payment order not found');
     }
 
+    // A valid checkout signature can still refer to an authorized payment.
+    // Credit fees only after the provider confirms capture and exact order value.
+    let captured: any;
+    try {
+      const response = await axios.get(`${this.razorpayBaseUrl}/payments/${encodeURIComponent(dto.razorpayPaymentId)}`, {
+        auth: { username: this.razorpayKeyId, password: this.razorpayKeySecret }, timeout: 15000,
+      });
+      captured = response.data;
+    } catch { throw new ServiceUnavailableException('Payment confirmation is temporarily unavailable. Your school can reconcile the payment after confirmation.'); }
+    if (captured?.id !== dto.razorpayPaymentId || captured.order_id !== transaction.gatewayOrderId || captured.status !== 'captured' || captured.amount !== transaction.amount || captured.currency !== transaction.currency) throw new BadRequestException('Payment has not been captured for this order and amount');
+
     return this.completeTransaction(transaction, {
       gatewayPaymentId: dto.razorpayPaymentId,
-      receiptNumber: dto.utrNumber || dto.razorpayPaymentId,
-      utrNumber: dto.utrNumber,
+      receiptNumber: dto.razorpayPaymentId,
+      utrNumber: captured.acquirer_data?.rrn || captured.acquirer_data?.upi_transaction_id,
       method: PaymentMethod.RAZORPAY,
       notes: `Razorpay payment ${dto.razorpayPaymentId}`,
     });
@@ -257,7 +275,7 @@ export class PaymentsGatewayService {
 
     this.tenantService.setTenantId(transaction.tenantId);
 
-    if (transaction.callbackReceived) {
+    if (transaction.callbackReceived && transaction.status !== 'FAILED') {
       this.logger.warn(`Duplicate webhook dropped for order: ${orderId}`);
       return { received: true };
     }
@@ -324,75 +342,23 @@ export class PaymentsGatewayService {
       notes: string;
     },
   ) {
-    // Atomic CAS: ensure callback/verification only processes once
-    const updateResult = await this.prisma.paymentGatewayTransaction.updateMany({
-      where: { id: transaction.id, callbackReceived: false },
-      data: {
-        status: 'COMPLETED',
-        gatewayPaymentId: details.gatewayPaymentId,
-        receiptNumber: details.receiptNumber,
-        utrNumber: details.utrNumber,
-        upiVpa: details.upiVpa || transaction.upiVpa,
-        transactionDate: new Date(),
-        callbackReceived: true,
-        callbackReceivedAt: new Date(),
-        callbackPayload: details.callbackPayload,
-        reconciliationStatus: 'PENDING',
-      },
-    });
-
-    if (updateResult.count === 0) {
-      this.logger.warn(`Concurrent duplicate settlement safely dropped for tx: ${transaction.id}`);
-      return { status: 'ALREADY_PROCESSED', transactionId: transaction.id };
-    }
-
-    if (transaction.invoiceId && !transaction.paymentId) {
-      try {
-        const payment = await this.feesService.recordPayment(
-          {
-            invoiceId: transaction.invoiceId,
-            amount: transaction.amount,
-            paymentMethod: details.method,
-            reference: details.receiptNumber,
-            paymentDate: new Date().toISOString(),
-            notes: details.notes,
-          },
-          transaction.initiatedBy || undefined,
-        );
-
-        await this.prisma.paymentGatewayTransaction.update({
-          where: { id: transaction.id },
-          data: {
-            paymentId: payment!.id,
-            isReconciled: true,
-            reconciledAt: new Date(),
-            reconciliationStatus: 'MATCHED',
-          },
-        });
-
-        this.logger.log(
-          `Payment auto-allocated: ${details.receiptNumber} -> Invoice ${transaction.invoiceId}`,
-        );
-        return {
-          status: 'COMPLETED',
-          transactionId: transaction.id,
-          paymentId: payment!.id,
-          receiptNumber: details.receiptNumber,
-        };
-      } catch (error: any) {
-        this.logger.error('Failed to auto-allocate payment to invoice', error);
-        await this.prisma.paymentGatewayTransaction.update({
-          where: { id: transaction.id },
-          data: { reconciliationStatus: 'UNMATCHED' },
-        });
+    try { return await this.prisma.$transaction(async tx => {
+      // Settlement and ledger posting commit together. A process failure cannot
+      // consume a webhook while leaving the invoice uncredited.
+      const changed = await tx.paymentGatewayTransaction.updateMany({ where: { id: transaction.id, tenantId: transaction.tenantId, OR: [{ callbackReceived: false }, { status: 'FAILED' }] }, data: { status: 'COMPLETED', gatewayPaymentId: details.gatewayPaymentId, receiptNumber: details.receiptNumber, utrNumber: details.utrNumber, upiVpa: details.upiVpa || transaction.upiVpa, transactionDate: new Date(), callbackReceived: true, callbackReceivedAt: new Date(), callbackPayload: details.callbackPayload, reconciliationStatus: 'PENDING' } });
+      if (!changed.count) return { status: 'ALREADY_PROCESSED', transactionId: transaction.id };
+      if (!transaction.invoiceId) {
+        await tx.paymentGatewayTransaction.update({ where: { id: transaction.id }, data: { reconciliationStatus: 'UNMATCHED' } });
+        return { status: 'UNMATCHED', transactionId: transaction.id };
       }
+      const payment = await this.feesService.recordPayment({ invoiceId: transaction.invoiceId, amount: transaction.amount, paymentMethod: details.method, reference: details.gatewayPaymentId || details.receiptNumber, paymentDate: new Date().toISOString(), notes: details.notes }, transaction.initiatedBy || undefined, tx);
+      await tx.paymentGatewayTransaction.update({ where: { id: transaction.id }, data: { paymentId: payment.id, isReconciled: true, reconciledAt: new Date(), reconciliationStatus: 'MATCHED' } });
+      return { status: 'COMPLETED', transactionId: transaction.id, paymentId: payment.id, receiptNumber: details.receiptNumber };
+    }); } catch (error) {
+      if (!(error instanceof BadRequestException || error instanceof ConflictException)) throw error;
+      await this.prisma.paymentGatewayTransaction.updateMany({ where: { id: transaction.id, tenantId: transaction.tenantId, OR: [{ callbackReceived: false }, { status: 'FAILED' }] }, data: { status: 'COMPLETED', gatewayPaymentId: details.gatewayPaymentId, receiptNumber: details.receiptNumber, transactionDate: new Date(), callbackReceived: true, callbackReceivedAt: new Date(), callbackPayload: details.callbackPayload, reconciliationStatus: 'UNMATCHED', resultDesc: 'Captured payment needs school reconciliation' } });
+      return { status: 'UNMATCHED', transactionId: transaction.id };
     }
-
-    return {
-      status: 'COMPLETED',
-      transactionId: transaction.id,
-      receiptNumber: details.receiptNumber,
-    };
   }
 
   // ==================== STATUS & RECONCILIATION ====================
@@ -439,35 +405,17 @@ export class PaymentsGatewayService {
 
   async manualReconcile(dto: ManualReconciliationDto, userId?: string) {
     const tenantId = this.tenantService.requireTenantContext();
-    const tx = await this.prisma.paymentGatewayTransaction.findFirst({
-      where: { id: dto.transactionId, tenantId },
-    });
-    if (!tx) throw new NotFoundException('Transaction not found');
-    if (tx.paymentId) throw new ConflictException('Transaction already linked to a payment');
-
-    const reference = tx.receiptNumber || tx.utrNumber || tx.gatewayPaymentId || tx.gatewayOrderId || tx.id;
-    const payment = await this.feesService.recordPayment(
-      {
-        invoiceId: dto.invoiceId,
-        amount: tx.amount,
-        paymentMethod: tx.gateway === 'UPI' ? PaymentMethod.UPI : PaymentMethod.RAZORPAY,
-        reference,
-        paymentDate: (tx.transactionDate || tx.createdAt).toISOString(),
-        notes: dto.notes || `Manual reconciliation (${reference})`,
-      },
-      userId,
-    );
-
-    return this.prisma.paymentGatewayTransaction.update({
-      where: { id: tx.id },
-      data: {
-        invoiceId: dto.invoiceId,
-        paymentId: payment!.id,
-        isReconciled: true,
-        reconciledAt: new Date(),
-        reconciliationStatus: 'MATCHED',
-      },
+    return this.prisma.$transaction(async client => {
+      const changed = await client.paymentGatewayTransaction.updateMany({ where: { id: dto.transactionId, tenantId }, data: { updatedAt: new Date() } });
+      if (!changed.count) throw new NotFoundException('Transaction not found');
+      const transaction = await client.paymentGatewayTransaction.findFirstOrThrow({ where: { id: dto.transactionId, tenantId } });
+      if (transaction.paymentId) throw new ConflictException('Transaction already linked to a payment');
+      if (transaction.gateway !== 'UPI' && transaction.status !== 'COMPLETED') throw new BadRequestException('Only captured gateway payments can be reconciled');
+      const reference = transaction.gatewayPaymentId || transaction.receiptNumber || transaction.utrNumber || transaction.gatewayOrderId || transaction.id;
+      const payment = await this.feesService.recordPayment({ invoiceId: dto.invoiceId, amount: transaction.amount, paymentMethod: transaction.gateway === 'UPI' ? PaymentMethod.UPI : PaymentMethod.RAZORPAY, reference, paymentDate: (transaction.transactionDate || transaction.createdAt).toISOString(), notes: dto.notes || `Manual bank reconciliation (${reference})` }, userId, client);
+      return client.paymentGatewayTransaction.update({ where: { id: transaction.id }, data: { invoiceId: dto.invoiceId, paymentId: payment.id, status: 'COMPLETED', callbackReceived: true, callbackReceivedAt: new Date(), isReconciled: true, reconciledAt: new Date(), reconciliationStatus: 'MATCHED' } });
     });
   }
+
 }
 

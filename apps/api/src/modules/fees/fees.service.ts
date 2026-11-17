@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { FeeCategory } from '@krypton/types';
 import {
@@ -175,8 +176,11 @@ export class FeesService {
       throw new NotFoundException('Term not found');
     }
 
-    // Check if invoice already exists for this student and term
-    const existing = await this.prisma.invoice.findFirst({
+    return this.prisma.$transaction(async tx => {
+    // Serialize billing for a pupil. Concurrent generation must not create two
+    // active invoices for the same term, even on separate application instances.
+    await tx.student.update({ where: { id: dto.studentId, tenantId }, data: { updatedAt: new Date() } });
+    const existing = await tx.invoice.findFirst({
       where: {
         tenantId,
         studentId: dto.studentId,
@@ -190,13 +194,15 @@ export class FeesService {
     }
 
     // Calculate total amount
+    if (!dto.items.length || dto.items.some(item => !Number.isSafeInteger(item.amount) || item.amount <= 0)) throw new BadRequestException('Invoice items must use positive whole minor units');
     const totalAmount = dto.items.reduce((sum, item) => sum + item.amount, 0);
+    if (!Number.isSafeInteger(totalAmount) || totalAmount > 2147483647) throw new BadRequestException('Invoice total exceeds the supported amount');
 
     // Generate invoice number
     const invoiceNumber = await this.generateInvoiceNumber();
 
     // Create invoice with items
-    const invoice = await this.prisma.invoice.create({
+    const invoice = await tx.invoice.create({
       data: {
         tenantId,
         invoiceNumber,
@@ -232,6 +238,7 @@ export class FeesService {
     });
 
     return invoice;
+    });
   }
 
   async generateInvoices(dto: GenerateInvoicesDto) {
@@ -424,40 +431,45 @@ export class FeesService {
   async cancelInvoice(id: string) {
     const tenantId = this.tenantService.requireTenantContext();
 
-    const invoice = await this.findOneInvoice(id);
-
-    if (invoice.paidAmount > 0) {
-      throw new BadRequestException('Cannot cancel invoice with payments');
-    }
-
-    const updated = await this.prisma.invoice.update({
-      where: { id },
+    await this.findOneInvoice(id);
+    // This predicate is evaluated after acquiring the same row lock as payment
+    // posting; a payment racing cancellation can never leave a cancelled receipt.
+    const changed = await this.prisma.invoice.updateMany({
+      where: { id, tenantId, paidAmount: 0, status: { in: ['PENDING', 'OVERDUE', 'CANCELLED'] } },
       data: { status: 'CANCELLED' },
     });
-
-    return updated;
+    if (!changed.count) throw new BadRequestException('Cannot cancel invoice with payments');
+    return this.findOneInvoice(id);
   }
 
   // ==================== PAYMENTS ====================
 
-  async recordPayment(dto: RecordPaymentDto, userId?: string) {
+  async recordPayment(dto: RecordPaymentDto, userId?: string, transaction?: Prisma.TransactionClient) {
     const tenantId = this.tenantService.requireTenantContext();
     if (!Number.isSafeInteger(dto.amount) || dto.amount <= 0) throw new BadRequestException('Amount must be positive minor units');
-    const existing = await this.prisma.payment.findFirst({where:{tenantId,reference:dto.reference}});
+    const existing = await (transaction || this.prisma).payment.findFirst({where:{tenantId,reference:dto.reference}});
     if(existing){
       if(existing.invoiceId===dto.invoiceId&&existing.amount===dto.amount&&existing.status==='COMPLETED')return existing;
       throw new ConflictException('Payment reference is already in use');
     }
     try {
-      return await this.prisma.$transaction(async tx=>{
+      const apply = async (tx: Prisma.TransactionClient) => {
         // The conditional decrement obtains the invoice row lock and prevents concurrent overpayments.
         const changed=await tx.invoice.updateMany({where:{id:dto.invoiceId,tenantId,status:{in:['PENDING','PARTIALLY_PAID','OVERDUE']},balanceAmount:{gte:dto.amount}},data:{paidAmount:{increment:dto.amount},balanceAmount:{decrement:dto.amount}}});
-        if(!changed.count)throw new BadRequestException('Invoice unavailable or payment exceeds the remaining balance');
+        if(!changed.count){
+          // A simultaneous retry may have completed while this request waited
+          // on the invoice lock. Return that receipt without applying it twice.
+          const retry = await tx.payment.findFirst({where:{tenantId,reference:dto.reference}});
+          if(retry?.invoiceId===dto.invoiceId&&retry.amount===dto.amount&&retry.status==='COMPLETED')return retry;
+          throw new BadRequestException('Invoice unavailable or payment exceeds the remaining balance');
+        }
         const invoice=await tx.invoice.findFirstOrThrow({where:{id:dto.invoiceId,tenantId}});
         await tx.invoice.update({where:{id:invoice.id,tenantId},data:{status:invoice.balanceAmount===0?'PAID':'PARTIALLY_PAID'}});
         return tx.payment.create({data:{tenantId,invoiceId:dto.invoiceId,amount:dto.amount,paymentMethod:dto.paymentMethod,reference:dto.reference,status:'COMPLETED',paymentDate:dto.paymentDate?new Date(dto.paymentDate):new Date(),receiptNumber:'RCT-'+randomUUID().slice(0,12).toUpperCase(),receiptIssued:true,receiptIssuedAt:new Date(),notes:dto.notes,processedBy:userId}});
-      });
+      };
+      return transaction ? await apply(transaction) : await this.prisma.$transaction(apply);
     }catch(error:any){
+      if(transaction) throw error;
       if(error.code==='P2002'){
         const duplicate=await this.prisma.payment.findFirst({where:{tenantId,reference:dto.reference}});
         if(duplicate?.invoiceId===dto.invoiceId&&duplicate.amount===dto.amount&&duplicate.status==='COMPLETED')return duplicate;
@@ -580,13 +592,8 @@ export class FeesService {
   // ==================== UTILITIES ====================
 
   private async generateInvoiceNumber(): Promise<string> {
-    const tenantId = this.tenantService.requireTenantContext();
     const year = new Date().getFullYear();
-    const count = await this.prisma.invoice.count({
-      where: { tenantId },
-    });
-
-    return 'INV-'+year+'-'+randomUUID().slice(0,8).toUpperCase();
+    return 'INV-'+year+'-'+randomUUID().replace(/-/g, '').slice(0,30).toUpperCase();
   }
 
   private async generateReceiptNumber(): Promise<string> {

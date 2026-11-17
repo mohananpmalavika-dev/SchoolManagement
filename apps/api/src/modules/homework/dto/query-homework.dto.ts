@@ -1,4 +1,4 @@
-import { IsOptional, IsUUID, IsEnum, IsDateString, IsInt, Min } from 'class-validator';
+import { IsOptional, IsUUID, IsEnum, IsDateString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum HomeworkStatus {
@@ -43,5 +43,6 @@ export class QueryHomeworkDto {
   @Min(1)
   @Type(() => Number)
   @IsOptional()
+  @Max(100)
   limit?: number = 20;
 }

@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { IsString, IsEnum, IsOptional, IsBoolean, IsInt, IsUUID, IsDateString } from 'class-validator';
 
 export enum BehaviorType {
@@ -61,6 +62,7 @@ export class CreateBehaviorDto {
   @IsOptional()
   actionTaken?: string;
 
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   @IsOptional()
   followUpRequired?: boolean = false;
@@ -69,6 +71,7 @@ export class CreateBehaviorDto {
   @IsOptional()
   followUpDate?: string;
 
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   @IsOptional()
   parentNotified?: boolean = false;

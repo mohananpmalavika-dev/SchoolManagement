@@ -1,3 +1,4 @@
+import { ParentEngagementNotificationsModule } from '../parent-engagement-notifications/parent-engagement-notifications.module';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -8,7 +9,7 @@ import { DatabaseModule } from '../../database/database.module';
 import { RedisService } from '../../common/services/redis.service';
 
 @Module({
-  imports: [
+  imports: [ParentEngagementNotificationsModule,
     DatabaseModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -258,22 +258,11 @@ export class TeacherAIService {
     const tenantId = this.tenant(user);
     const cls = await this.authorizeClass(user, dto.classId);
 
-    // Look for existing class channel
+    // Class shares cannot target an arbitrary private conversation or another class.
     let channel = dto.channelId ? await this.prisma.chatChannel.findFirst({
-      where: { id: dto.channelId, tenantId, isArchived: false },
-    }) : null;
-
-    if (!channel) {
-      channel = await this.prisma.chatChannel.findFirst({
-        where: { tenantId, classId: dto.classId, isArchived: false },
-      });
-    }
-
-    if (!channel) {
-      channel = await this.prisma.chatChannel.findFirst({
-        where: { tenantId, name: { contains: cls.name }, isArchived: false },
-      });
-    }
+      where: { id: dto.channelId, tenantId, classId: dto.classId, type: 'CLASS', isArchived: false },
+    }) : await this.prisma.chatChannel.findFirst({ where: { tenantId, classId: dto.classId, type: 'CLASS', isArchived: false } });
+    if (dto.channelId && !channel) throw new BadRequestException('Select a conversation for this class');
 
     if (!channel) {
       channel = await this.prisma.chatChannel.create({

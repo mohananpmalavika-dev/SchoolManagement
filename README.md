@@ -1,8 +1,8 @@
 ﻿# Krypton School ERP
 
-**A multi-tenant school management platform for Kenyan schools.**
+**A multi-tenant school and preschool management platform for Indian schools.**
 
-The shared UI and core workflows have been redesigned and hardened. Advanced services still include previews, and live integrations require release validation. See the current [UI redesign and release status](docs/UI_REDESIGN_AND_RELEASE_STATUS.md) before deploying. Historical progress reports below are not release certification.
+The connected school and preschool workflows have been hardened and tested. See the current [school release readiness and deployment requirements](docs/SCHOOL_PRODUCTION_READINESS.md) before deploying. Live provider acceptance is still required; historical completion reports are not release certification.
 
 ## Preschool support
 

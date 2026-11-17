@@ -1,3 +1,4 @@
+import { NotImplementedException } from '@nestjs/common';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { UserRole } from '@krypton/types';
 import {
@@ -55,7 +56,7 @@ export class BoardExamController {
   @Put('integration')
   @ApiOperation({ summary: 'Update Board Exam integration settings' })
   async updateIntegration(@Request() req: any, @Body() _dto: UpdateBoardConfigDto): Promise<any> {
-    return this.boardExamService.getIntegration(req.user.tenantId);
+    throw new NotImplementedException('Official integration settings cannot be enabled until an authorized provider adapter is configured');
   }
 
   @Post('register-candidates')

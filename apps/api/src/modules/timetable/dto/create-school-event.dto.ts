@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
@@ -74,6 +75,7 @@ export class CreateSchoolEventDto {
     default: true,
   })
   @IsOptional()
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   isAllDay?: boolean;
 
@@ -106,6 +108,7 @@ export class CreateSchoolEventDto {
     default: false,
   })
   @IsOptional()
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   isHoliday?: boolean;
 }
@@ -143,6 +146,7 @@ export class UpdateSchoolEventDto {
 
   @ApiPropertyOptional({ description: 'Is all-day event' })
   @IsOptional()
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   isAllDay?: boolean;
 
@@ -163,6 +167,7 @@ export class UpdateSchoolEventDto {
 
   @ApiPropertyOptional({ description: 'Is school closure' })
   @IsOptional()
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   isHoliday?: boolean;
 }
@@ -193,6 +198,7 @@ export class QuerySchoolEventsDto {
 
   @ApiPropertyOptional({ description: 'Holidays only' })
   @IsOptional()
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   holidaysOnly?: boolean;
 }

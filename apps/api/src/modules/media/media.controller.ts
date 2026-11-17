@@ -24,7 +24,7 @@ export class MediaController {
 
   @Post('upload')
   @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024, files: 1, fields: 12 } }))
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @Body() uploadMediaDto: UploadMediaDto,

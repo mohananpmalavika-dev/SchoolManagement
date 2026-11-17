@@ -78,6 +78,10 @@ assert.equal(
   ),
   'MIDDLE'
 );
+for (const name of names.filter((name) => name > alignment))
+  execFileSync(psql, ['--no-psqlrc', '-v', 'ON_ERROR_STOP=1', '-d', url, '-f', fileURLToPath(new URL(name + '/migration.sql', migrations))], { stdio: 'pipe' });
+assert.equal(run(`SELECT count(*) FROM information_schema.columns WHERE table_name='communications' AND column_name='deliveryKey'`), '1');
+assert.equal(run(`SELECT count(*) FROM information_schema.columns WHERE table_name='report_cards' AND column_name='gradeSnapshot'`), '1');
 console.log(
   'PASS: Complete migration replay, preschool tables and additive India alignment; legacy payments, education levels and address data preserved.'
 );

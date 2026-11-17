@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
@@ -12,6 +13,8 @@ import {
   IsArray,
   ValidateNested,
   IsBoolean,
+  ArrayMinSize,
+  ArrayMaxSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Gender } from '@krypton/types';
@@ -61,6 +64,7 @@ class GuardianInfoDto {
 
   @ApiPropertyOptional({ description: 'Is primary guardian', default: false })
   @IsOptional()
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   isPrimary?: boolean;
 
@@ -110,7 +114,7 @@ export class CreateStudentDto {
     description: 'Date of birth',
     example: '2015-05-15',
   })
-  @IsDateString()
+  @IsDateString({ strict: true })
   dateOfBirth: string;
 
   @ApiProperty({
@@ -246,7 +250,7 @@ export class CreateStudentDto {
     description: 'Admission date',
     example: '2026-04-06',
   })
-  @IsDateString()
+  @IsDateString({ strict: true })
   admissionDate: string;
 
   @ApiPropertyOptional({
@@ -261,6 +265,8 @@ export class CreateStudentDto {
     type: [GuardianInfoDto],
   })
   @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => GuardianInfoDto)
   guardians: GuardianInfoDto[];

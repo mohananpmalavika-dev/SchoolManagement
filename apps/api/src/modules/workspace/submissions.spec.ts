@@ -14,7 +14,7 @@ describe('Connected assignment submissions', () => {
       class: {findFirst:jest.fn().mockResolvedValue({id:'class-1'})},
       auditLog: {create:jest.fn().mockResolvedValue({})},
     };
-    service = new WorkspaceService(prisma,{requireTenantContext:()=>tenantId} as any,{} as any,{} as any,{} as any,{} as any);
+    service = new WorkspaceService(prisma,{requireTenantContext:()=>tenantId} as any,{} as any,{} as any,{} as any,{} as any,{} as any);
   });
   it('routes student writes into the linked student and class submission workflow', async () => {
     expect(await service.write({role:'STUDENT',userId:'user-1'},'submissions',{assignmentId,text:'My reviewed work'})).toEqual({id:'submission-1'});

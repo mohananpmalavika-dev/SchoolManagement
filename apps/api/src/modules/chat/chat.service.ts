@@ -26,58 +26,53 @@ export class ChatService {
    * Ensure default school channels exist for this tenant
    */
   async ensureDefaultChannels(tenantId: string, userId?: string) {
-    const existing = await this.prisma.chatChannel.count({
-      where: { tenantId },
-    });
-
-    if (existing === 0) {
-      this.logger.log(`Initializing default chat channels for tenant ${tenantId}`);
+    const user = userId ? await this.prisma.user.findFirst({ where: { id: userId, tenantId, isActive: true } }) : null;
+    if (!user) throw new ForbiddenException('Active school account required');
+    await this.prisma.$transaction(async tx => {
+      await tx.tenant.update({ where: { id: tenantId }, data: { updatedAt: new Date() } });
       const defaults = [
-        {
-          name: '📢 Announcements',
-          description: 'Official school-wide updates, circulars, and notices',
-          type: ChannelType.ANNOUNCEMENT,
-        },
-        {
-          name: '☕ Staff Room',
-          description: 'Faculty, teachers, and administrative collaboration',
-          type: ChannelType.GROUP,
-        },
-        {
-          name: '🤝 Parents & Guardians Forum',
-          description: 'Open discussion and community forum for school parents',
-          type: ChannelType.GROUP,
-        },
-        {
-          name: '🚌 Transport & Safety Desk',
-          description: 'Live route alerts, bus updates, and arrival notices',
-          type: ChannelType.GROUP,
-        },
+        { name: 'Announcements', description: 'Official school-wide updates, circulars, and notices', type: ChannelType.ANNOUNCEMENT, allowed: true },
+        { name: 'Staff Room', description: 'Faculty, teachers, and administrative collaboration', type: ChannelType.GROUP, allowed: !['PARENT', 'STUDENT'].includes(user.role) },
+        { name: 'Parents & Guardians Forum', description: 'Open discussion and community forum for school parents', type: ChannelType.GROUP, allowed: user.role === 'PARENT' || ['SCHOOL_OWNER', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'SCHOOL_ADMIN'].includes(user.role) },
+        { name: 'Transport & Safety Desk', description: 'Live route alerts, bus updates, and arrival notices', type: ChannelType.GROUP, allowed: true },
       ];
-
       for (const ch of defaults) {
-        const created = await this.prisma.chatChannel.create({
-          data: {
-            tenantId,
-            name: ch.name,
-            description: ch.description,
-            type: ch.type,
-            createdById: userId,
-          },
-        });
-
-        // Add creator as member if present
-        if (userId) {
-          await this.prisma.chatChannelMember.create({
-            data: {
-              channelId: created.id,
-              userId,
-              role: 'ADMIN',
-            },
-          });
-        }
+        let channel = await tx.chatChannel.findFirst({ where: { tenantId, description: ch.description, isArchived: false } });
+        if (!channel) channel = await tx.chatChannel.create({ data: { tenantId, name: ch.name, description: ch.description, type: ch.type } });
+        if (ch.allowed) await tx.chatChannelMember.upsert({ where: { channelId_userId: { channelId: channel.id, userId: user.id } }, update: {}, create: { channelId: channel.id, userId: user.id, role: 'MEMBER' } });
+        else await tx.chatChannelMember.deleteMany({ where: { channelId: channel.id, userId: user.id } });
       }
+    });
+  }
+
+  private async accessibleClasses(tenantId: string, user: { id: string; role: string }) {
+    if (['PARENT', 'STUDENT'].includes(user.role)) {
+      const children = await this.prisma.student.findMany({ where: { tenantId, deletedAt: null, ...(user.role === 'STUDENT' ? { userId: user.id } : { guardianLinks: { some: { guardian: { tenantId, userId: user.id } } } }) }, select: { currentClassId: true } });
+      return children.map(child => child.currentClassId).filter((id): id is string => !!id);
     }
+    if (['TEACHER', 'CLASS_TEACHER', 'EXAM_OFFICER'].includes(user.role)) {
+      const staff = await this.prisma.staff.findFirst({ where: { tenantId, userId: user.id, status: 'ACTIVE' } });
+      if (!staff) return [];
+      const [entries, assignments] = await Promise.all([
+        this.prisma.timetableEntry.findMany({ where: { tenantId, teacherId: staff.id }, select: { classId: true } }),
+        this.prisma.preschoolStaffAssignment.findMany({ where: { tenantId, staffId: staff.id }, select: { classId: true } }),
+      ]);
+      return [...new Set([...entries, ...assignments].map(entry => entry.classId))];
+    }
+    if (['SUPER_ADMIN', 'SCHOOL_OWNER', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'SCHOOL_ADMIN'].includes(user.role)) return (await this.prisma.class.findMany({ where: { tenantId }, select: { id: true } })).map(cls => cls.id);
+    return [];
+  }
+
+  private async authorizeChannel(channelId: string, tenantId: string, userId: string) {
+    const channel = await this.prisma.chatChannel.findFirst({ where: { id: channelId, tenantId, isArchived: false } });
+    if (!channel) throw new NotFoundException('Channel not found');
+    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId, isActive: true } });
+    if (!user) throw new ForbiddenException('Active school account required');
+    if ((channel.name.includes('Staff Room') || channel.description === 'Faculty, teachers, and administrative collaboration') && ['PARENT', 'STUDENT'].includes(user.role)) throw new ForbiddenException('Staff channel access denied');
+    if (channel.type === ChannelType.CLASS) {
+      if (!channel.classId || !(await this.accessibleClasses(tenantId, user)).includes(channel.classId)) throw new ForbiddenException('Class conversation access denied');
+    } else if (channel.type !== ChannelType.ANNOUNCEMENT && !await this.prisma.chatChannelMember.findUnique({ where: { channelId_userId: { channelId, userId } } })) throw new ForbiddenException('Access denied to this conversation');
+    return channel;
   }
 
   /**
@@ -85,6 +80,8 @@ export class ChatService {
    */
   async getChannels(userId: string, tenantId: string) {
     await this.ensureDefaultChannels(tenantId, userId);
+    const user = await this.prisma.user.findFirstOrThrow({ where: { id: userId, tenantId, isActive: true } });
+    const classIds = await this.accessibleClasses(tenantId, user);
 
     // Fetch channels: public/group/announcement or direct channels where user is a member
     const channels = await this.prisma.chatChannel.findMany({
@@ -92,8 +89,9 @@ export class ChatService {
         tenantId,
         isArchived: false,
         OR: [
-          { type: { in: [ChannelType.GROUP, ChannelType.ANNOUNCEMENT, ChannelType.CLASS] } },
-          { members: { some: { userId } } },
+          { type: ChannelType.ANNOUNCEMENT },
+          { type: ChannelType.CLASS, classId: { in: classIds } },
+          { type: { not: ChannelType.CLASS }, members: { some: { userId } } },
         ],
       },
       include: {
@@ -172,41 +170,16 @@ export class ChatService {
    * Create a new chat channel
    */
   async createChannel(userId: string, tenantId: string, dto: CreateChannelDto) {
-    const channel = await this.prisma.chatChannel.create({
-      data: {
-        tenantId,
-        name: dto.name,
-        description: dto.description,
-        type: dto.type || ChannelType.GROUP,
-        classId: dto.classId,
-        createdById: userId,
-      },
-    });
-
-    // Add creator as ADMIN member
-    await this.prisma.chatChannelMember.create({
-      data: {
-        channelId: channel.id,
-        userId,
-        role: 'ADMIN',
-      },
-    });
-
-    // Add initial members if provided
-    if (dto.memberUserIds && dto.memberUserIds.length > 0) {
-      const uniqueIds = Array.from(new Set(dto.memberUserIds)).filter(
-        (id) => id !== userId,
-      );
-      for (const mId of uniqueIds) {
-        await this.prisma.chatChannelMember.upsert({
-          where: { channelId_userId: { channelId: channel.id, userId: mId } },
-          update: {},
-          create: { channelId: channel.id, userId: mId, role: 'MEMBER' },
-        });
-      }
-    }
-
-    return channel;
+    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId, isActive: true } });
+    if (!user || ['PARENT', 'STUDENT'].includes(user.role)) throw new ForbiddenException('Staff access required to create group channels');
+    if (dto.type === ChannelType.DIRECT) throw new BadRequestException('Use the direct conversation endpoint');
+    if (dto.type === ChannelType.ANNOUNCEMENT && !['SCHOOL_OWNER', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(user.role)) throw new ForbiddenException('School management creates announcements');
+    if (dto.classId && !await this.prisma.class.findFirst({ where: { id: dto.classId, tenantId } })) throw new BadRequestException('Class not found');
+    if (dto.type === ChannelType.CLASS && !dto.classId) throw new BadRequestException('Class channel requires a class');
+    if (dto.type === ChannelType.CLASS && !(await this.accessibleClasses(tenantId, user)).includes(dto.classId!)) throw new ForbiddenException('Class is not assigned to you');
+    const memberIds = [...new Set([userId, ...(dto.memberUserIds || [])])];
+    if (memberIds.length > 500 || await this.prisma.user.count({ where: { id: { in: memberIds }, tenantId, isActive: true } }) !== memberIds.length) throw new BadRequestException('Select active members from this school');
+    return this.prisma.chatChannel.create({ data: { tenantId, name: dto.name, description: dto.description, type: dto.type || ChannelType.GROUP, classId: dto.classId, createdById: userId, members: { create: memberIds.map(id => ({ userId: id, role: id === userId ? 'ADMIN' : 'MEMBER' })) } } });
   }
 
   /**
@@ -218,42 +191,14 @@ export class ChatService {
     userId: string,
     limit = 50,
   ) {
-    const channel = await this.prisma.chatChannel.findFirst({
-      where: { id: channelId, tenantId },
-    });
-
-    if (!channel) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    // Auto-join member if open channel
-    if (
-      channel.type === ChannelType.GROUP ||
-      channel.type === ChannelType.ANNOUNCEMENT
-    ) {
-      await this.prisma.chatChannelMember.upsert({
-        where: { channelId_userId: { channelId, userId } },
-        update: { lastReadAt: new Date() },
-        create: { channelId, userId, lastReadAt: new Date(), role: 'MEMBER' },
-      });
-    } else {
-      // Direct or restricted: ensure membership
-      const member = await this.prisma.chatChannelMember.findUnique({
-        where: { channelId_userId: { channelId, userId } },
-      });
-      if (!member) {
-        throw new ForbiddenException('Access denied to this conversation');
-      }
-      await this.prisma.chatChannelMember.update({
-        where: { channelId_userId: { channelId, userId } },
-        data: { lastReadAt: new Date() },
-      });
-    }
+    await this.authorizeChannel(channelId, tenantId, userId);
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new BadRequestException('Message limit must be between 1 and 100');
+    await this.prisma.chatChannelMember.upsert({ where: { channelId_userId: { channelId, userId } }, update: { lastReadAt: new Date() }, create: { channelId, userId, lastReadAt: new Date(), role: 'MEMBER' } });
 
     const messages = await this.prisma.chatMessage.findMany({
       where: { channelId, isDeleted: false },
       take: limit,
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         sender: {
           select: {
@@ -279,7 +224,7 @@ export class ChatService {
       },
     });
 
-    return messages.map((m) => ({
+    return messages.reverse().map((m) => ({
       id: m.id,
       channelId: m.channelId,
       content: m.content,
@@ -313,13 +258,9 @@ export class ChatService {
     userId: string,
     dto: SendChatMessageDto,
   ) {
-    const channel = await this.prisma.chatChannel.findFirst({
-      where: { id: channelId, tenantId },
-    });
-
-    if (!channel) {
-      throw new NotFoundException('Channel not found');
-    }
+    const channel = await this.authorizeChannel(channelId, tenantId, userId);
+    if (dto.replyToId && !await this.prisma.chatMessage.findFirst({ where: { id: dto.replyToId, channelId, isDeleted: false } })) throw new BadRequestException('Reply must reference a message in this conversation');
+    if (dto.attachments?.some(a => { try { return new URL(a.url).protocol !== 'https:'; } catch { return true; } })) throw new BadRequestException('Attachments require HTTPS links');
 
     // Verify announcements permissions
     if (channel.type === ChannelType.ANNOUNCEMENT) {
@@ -329,6 +270,7 @@ export class ChatService {
       });
       const allowedRoles = [
         'SUPER_ADMIN',
+        'SCHOOL_OWNER',
         'PRINCIPAL',
         'DEPUTY_PRINCIPAL',
         'SCHOOL_ADMIN',
@@ -420,37 +362,18 @@ export class ChatService {
     userId: string,
     emoji: string,
   ) {
-    const message = await this.prisma.chatMessage.findUnique({
-      where: { id: messageId },
-    });
-
-    if (!message || message.channelId !== channelId) {
-      throw new NotFoundException('Message not found');
-    }
-
-    const currentReactions: Record<string, string[]> =
-      (message.reactions as Record<string, string[]>) || {};
-
-    const usersForEmoji = currentReactions[emoji] || [];
-    let updatedUsers: string[];
-
-    if (usersForEmoji.includes(userId)) {
-      // Toggle off
-      updatedUsers = usersForEmoji.filter((id) => id !== userId);
-    } else {
-      // Toggle on
-      updatedUsers = [...usersForEmoji, userId];
-    }
-
-    if (updatedUsers.length > 0) {
-      currentReactions[emoji] = updatedUsers;
-    } else {
-      delete currentReactions[emoji];
-    }
-
-    const updated = await this.prisma.chatMessage.update({
-      where: { id: messageId },
-      data: { reactions: currentReactions },
+    const tenantId = this.tenantService.requireTenantContext();
+    await this.authorizeChannel(channelId, tenantId, userId);
+    if (typeof emoji !== 'string' || !emoji.trim() || emoji.length > 32) throw new BadRequestException('Invalid reaction');
+    const updated = await this.prisma.$transaction(async tx => {
+      const locked = await tx.chatMessage.updateMany({ where: { id: messageId, channelId, isDeleted: false }, data: { updatedAt: new Date() } });
+      if (!locked.count) throw new NotFoundException('Message not found');
+      const message = await tx.chatMessage.findFirstOrThrow({ where: { id: messageId, channelId } });
+      const reactions: Record<string, string[]> = Object.assign(Object.create(null), message.reactions || {});
+      const previous = reactions[emoji] || [];
+      const next = previous.includes(userId) ? previous.filter(id => id !== userId) : [...previous, userId];
+      if (next.length) reactions[emoji] = next; else delete reactions[emoji];
+      return tx.chatMessage.update({ where: { id: messageId }, data: { reactions } });
     });
 
     return {
@@ -474,7 +397,7 @@ export class ChatService {
 
     // Verify target user exists in same tenant
     const target = await this.prisma.user.findFirst({
-      where: { id: targetUserId, tenantId },
+      where: { id: targetUserId, tenantId, isActive: true },
       select: { id: true, firstName: true, lastName: true, role: true },
     });
 
@@ -482,8 +405,13 @@ export class ChatService {
       throw new NotFoundException('Contact not found');
     }
 
+    const sender = await this.prisma.user.findFirst({ where: { id: userId, tenantId, isActive: true } });
+    if (!sender || ['PARENT', 'STUDENT'].includes(sender.role) && ['PARENT', 'STUDENT'].includes(target.role)) throw new ForbiddenException('Families can contact school staff');
+
     // Look for existing direct channel between these two users
-    const existing = await this.prisma.chatChannel.findFirst({
+    const channelId = await this.prisma.$transaction(async tx => {
+      await tx.tenant.update({ where: { id: tenantId }, data: { updatedAt: new Date() } });
+    const existing = await tx.chatChannel.findFirst({
       where: {
         tenantId,
         type: ChannelType.DIRECT,
@@ -497,7 +425,7 @@ export class ChatService {
     let channelId = existing?.id;
 
     if (!channelId) {
-      const created = await this.prisma.chatChannel.create({
+      const created = await tx.chatChannel.create({
         data: {
           tenantId,
           name: `Direct: ${target.firstName} & You`,
@@ -508,13 +436,16 @@ export class ChatService {
       channelId = created.id;
 
       // Add both members
-      await this.prisma.chatChannelMember.createMany({
+      await tx.chatChannelMember.createMany({
         data: [
           { channelId, userId, role: 'ADMIN' },
           { channelId, userId: targetUserId, role: 'MEMBER' },
         ],
       });
     }
+
+      return channelId!;
+    });
 
     // Send initial message if provided
     if (initialMessage && initialMessage.trim().length > 0) {
@@ -533,10 +464,13 @@ export class ChatService {
    * Get contact directory for current tenant to start direct chats
    */
   async getDirectory(tenantId: string, currentUserId: string) {
+    const current = await this.prisma.user.findFirst({ where: { id: currentUserId, tenantId, isActive: true } });
+    if (!current) throw new ForbiddenException('Active school account required');
     const users = await this.prisma.user.findMany({
       where: {
         tenantId,
         isActive: true,
+        ...(['PARENT', 'STUDENT'].includes(current.role) ? { role: { notIn: ['PARENT', 'STUDENT'] as any } } : {}),
         id: { not: currentUserId },
       },
       select: {

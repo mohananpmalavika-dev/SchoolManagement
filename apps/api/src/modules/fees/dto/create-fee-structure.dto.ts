@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
@@ -44,6 +45,7 @@ export class FeeItemDto {
 
   @ApiPropertyOptional({ description: 'Is this fee optional?', default: false })
   @IsOptional()
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   isOptional?: boolean;
 

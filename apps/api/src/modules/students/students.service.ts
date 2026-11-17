@@ -44,7 +44,8 @@ export class StudentsService {
     }
 
     if (createStudentDto.currentStreamId) {
-      await this.validateStream(createStudentDto.currentStreamId);
+      const stream = await this.validateStream(createStudentDto.currentStreamId);
+      if (stream.classId !== createStudentDto.currentClassId) throw new BadRequestException('Stream does not belong to the selected class');
     }
 
     // Extract guardians data
@@ -57,6 +58,8 @@ export class StudentsService {
         data: {
           tenantId,
           ...studentData,
+          dateOfBirth: new Date(studentData.dateOfBirth),
+          admissionDate: new Date(studentData.admissionDate),
           status: 'ACTIVE',
         },
       });
@@ -292,7 +295,7 @@ export class StudentsService {
     const tenantId = this.tenantService.requireTenantContext();
 
     // Verify student exists
-    await this.findOne(id);
+    const existing = await this.findOne(id);
 
     // Validate class and stream if provided
     if (updateStudentDto.currentClassId) {
@@ -300,12 +303,13 @@ export class StudentsService {
     }
 
     if (updateStudentDto.currentStreamId) {
-      await this.validateStream(updateStudentDto.currentStreamId);
+      const stream = await this.validateStream(updateStudentDto.currentStreamId);
+      if (stream.classId !== (updateStudentDto.currentClassId || existing.currentClassId)) throw new BadRequestException('Stream does not belong to the selected class');
     }
 
     const student = await this.prisma.student.update({
       where: { id },
-      data: updateStudentDto,
+      data: { ...updateStudentDto, ...(updateStudentDto.dateOfBirth ? { dateOfBirth: new Date(updateStudentDto.dateOfBirth) } : {}), ...(updateStudentDto.admissionDate ? { admissionDate: new Date(updateStudentDto.admissionDate) } : {}), ...(updateStudentDto.currentClassId && updateStudentDto.currentClassId !== existing.currentClassId && !updateStudentDto.currentStreamId ? { currentStreamId: null } : {}) },
       include: {
         currentClass: {
           select: { id: true, name: true, level: true },
@@ -360,38 +364,12 @@ export class StudentsService {
       }
     }
 
-    // Update student
-    const updated = await this.prisma.student.update({
-      where: { id },
-      data: {
-        currentClassId: assignClassDto.classId,
-        currentStreamId: assignClassDto.streamId || null,
-      },
-      include: {
-        currentClass: true,
-        currentStream: true,
-      },
+    return this.prisma.$transaction(async tx => {
+      await tx.student.update({ where: { id, tenantId }, data: { currentClassId: assignClassDto.classId, currentStreamId: assignClassDto.streamId || null } });
+      const currentYear = await tx.academicYear.findFirst({ where: { tenantId, isCurrent: true } }) || await tx.academicYear.findFirst({ where: { tenantId }, orderBy: { startDate: 'desc' } });
+      if (currentYear && !await tx.enrollment.findFirst({ where: { tenantId, studentId: id, academicYearId: currentYear.id, classId: assignClassDto.classId, streamId: assignClassDto.streamId || null } })) await tx.enrollment.create({ data: { tenantId, studentId: id, academicYearId: currentYear.id, classId: assignClassDto.classId, streamId: assignClassDto.streamId, enrollmentDate: new Date() } });
+      return tx.student.findFirstOrThrow({ where: { id, tenantId }, include: { currentClass: true, currentStream: true } });
     });
-
-    const currentYear = (await this.prisma.academicYear.findFirst({
-      where: { tenantId, isCurrent: true },
-    })) || (await this.prisma.academicYear.findFirst({ where: { tenantId } }));
-
-    if (currentYear) {
-      // Create enrollment record
-      await this.prisma.enrollment.create({
-        data: {
-          tenantId,
-          studentId: id,
-          academicYearId: currentYear.id,
-          classId: assignClassDto.classId,
-          streamId: assignClassDto.streamId,
-          enrollmentDate: new Date(),
-        },
-      });
-    }
-
-    return updated;
   }
 
   async getGuardians(id: string) {

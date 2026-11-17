@@ -1,3 +1,5 @@
+import { SchoolRecordAccessGuard } from '../../common/guards/school-record-access.guard';
+import { UseGuards as ScopedGuard } from '@nestjs/common';
 import {
   Controller,
   Get,
@@ -34,6 +36,7 @@ import { UserRole } from '@krypton/types';
 @ApiBearerAuth()
 @Controller('students')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@ScopedGuard(SchoolRecordAccessGuard)
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
 

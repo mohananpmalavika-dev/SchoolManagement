@@ -276,6 +276,8 @@ export class ExaminationsService {
       throw new BadRequestException('Subject not part of this examination');
     }
 
+    if (examination.isPublished) throw new BadRequestException('Published assessments are locked');
+
     // Validate score doesn't exceed total marks
     if (dto.score > examSubject.totalMarks) {
       throw new BadRequestException(
@@ -345,6 +347,7 @@ export class ExaminationsService {
 
     // Validate examination and subject
     const examination = await this.findOneExamination(dto.examinationId);
+    if (examination.isPublished) throw new BadRequestException('Published assessments are locked');
 
     const examSubject = await this.prisma.examinationSubject.findFirst({
       where: {
@@ -443,6 +446,11 @@ export class ExaminationsService {
       throw new NotFoundException('Grade not found');
     }
 
+    if (dto.score !== undefined && (!Number.isSafeInteger(dto.score) || dto.score < 0 || dto.score > grade.totalMarks)) throw new BadRequestException('Score exceeds the assessment range');
+
+    const examination = await this.findOneExamination(grade.examinationId);
+    if (examination.isPublished) throw new BadRequestException('Published assessments are locked');
+
     let percentage = grade.percentage;
     let letterGrade = grade.letterGrade;
 
@@ -483,7 +491,7 @@ export class ExaminationsService {
     return updated;
   }
 
-  async queryGrades(query: QueryGradesDto) {
+  async queryGrades(query: QueryGradesDto, publishedOnly = false) {
     const tenantId = this.tenantService.requireTenantContext();
     const { examinationId, studentId, subjectId, classId, termId } = query;
 
@@ -510,6 +518,8 @@ export class ExaminationsService {
         where.examination.termId = termId;
       }
     }
+
+    if (publishedOnly) where.examination = { ...where.examination, isPublished: true };
 
     const grades = await this.prisma.grade.findMany({
       where,
@@ -714,7 +724,7 @@ export class ExaminationsService {
     return results;
   }
 
-  async findAllReportCards(query: QueryReportCardsDto) {
+  async findAllReportCards(query: QueryReportCardsDto, publishedOnly = false) {
     const tenantId = this.tenantService.requireTenantContext();
     const { termId, studentId, classId, status } = query;
 
@@ -735,6 +745,8 @@ export class ExaminationsService {
     if (status) {
       where.status = status;
     }
+
+    if (publishedOnly) where.status = 'PUBLISHED';
 
     const reportCards = await this.prisma.reportCard.findMany({
       where,
@@ -765,11 +777,11 @@ export class ExaminationsService {
     return reportCards;
   }
 
-  async findOneReportCard(id: string) {
+  async findOneReportCard(id: string, publishedOnly = false) {
     const tenantId = this.tenantService.requireTenantContext();
 
     const reportCard = await this.prisma.reportCard.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId, ...(publishedOnly ? { status: 'PUBLISHED' } : {}) },
       include: {
         student: {
           include: {
@@ -787,6 +799,8 @@ export class ExaminationsService {
       throw new NotFoundException('Report card not found');
     }
 
+    if (reportCard.status === 'PUBLISHED' && Array.isArray(reportCard.gradeSnapshot)) return { ...reportCard, grades: reportCard.gradeSnapshot };
+
     // Get all grades for this report card
     const grades = await this.prisma.grade.findMany({
       where: {
@@ -794,6 +808,7 @@ export class ExaminationsService {
         studentId: reportCard.studentId,
         examination: {
           termId: reportCard.termId,
+            ...(publishedOnly ? { isPublished: true } : {}),
         },
       },
       include: {
@@ -817,7 +832,11 @@ export class ExaminationsService {
   async updateReportCard(id: string, dto: UpdateReportCardDto, userId?: string) {
     const tenantId = this.tenantService.requireTenantContext();
 
-    await this.findOneReportCard(id);
+    const existing = await this.findOneReportCard(id);
+    if (existing.status === 'PUBLISHED') throw new BadRequestException('Published report cards are locked');
+    if (dto.status === ReportCardStatus.PUBLISHED) {
+      return this.publishReportCard(id, userId, dto);
+    }
 
     const updated = await this.prisma.reportCard.update({
       where: { id },
@@ -833,6 +852,22 @@ export class ExaminationsService {
     });
 
     return this.findOneReportCard(updated.id);
+  }
+
+  async publishReportCard(id: string, userId?: string, comments: UpdateReportCardDto = {}) {
+    const tenantId = this.tenantService.requireTenantContext();
+    await this.prisma.$transaction(async tx => {
+      const changed = await tx.reportCard.updateMany({ where: { id, tenantId }, data: { updatedAt: new Date() } });
+      if (!changed.count) throw new NotFoundException('Report not found');
+      const card = await tx.reportCard.findFirstOrThrow({ where: { id, tenantId } });
+      if (card.status === 'PUBLISHED') return;
+      const grades = await tx.grade.findMany({ where: { tenantId, studentId: card.studentId, examination: { termId: card.termId, isPublished: true } }, include: { subject: { select: { id: true, name: true, code: true } }, examination: { select: { id: true, name: true, examinationType: true } } }, orderBy: { subject: { name: 'asc' } } });
+      if (!grades.length) throw new BadRequestException('Publish the assessment results before publishing this report');
+      const score = grades.reduce((sum, grade) => sum + grade.score, 0), possible = grades.reduce((sum, grade) => sum + grade.totalMarks, 0);
+      const percentage = Math.round(score / possible * 10000) / 100;
+      await tx.reportCard.update({ where: { id, tenantId }, data: { status: 'PUBLISHED', publishedAt: new Date(), approvedAt: new Date(), approvedBy: userId, totalScore: score, averagePercentage: percentage, overallPercentage: percentage, overallGrade: this.calculateLetterGrade(percentage), gradeSnapshot: JSON.parse(JSON.stringify(grades)), ...(comments.classTeacherComments !== undefined ? { classTeacherComments: comments.classTeacherComments } : {}), ...(comments.principalComments !== undefined ? { principalComments: comments.principalComments } : {}) } });
+    });
+    return this.findOneReportCard(id);
   }
 
   async approveReportCard(dto: ApproveReportCardDto, userId?: string) {

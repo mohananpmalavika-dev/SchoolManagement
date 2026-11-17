@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { IsEnum, IsNotEmpty, IsOptional, IsString, IsBoolean } from 'class-validator';
 
 export enum InterventionChannel {
@@ -19,6 +20,7 @@ export class DispatchInterventionDto {
   @IsOptional()
   customMessage?: string;
 
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   @IsOptional()
   meetingRequested?: boolean;

@@ -9,6 +9,8 @@ import {
   IsArray,
   ValidateNested,
   IsEnum,
+  ArrayMinSize,
+  ArrayMaxSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -56,6 +58,13 @@ export class EnterGradeDto {
   remarks?: string;
 }
 
+export class BulkGradeItemDto {
+  @IsUUID() studentId: string;
+  @IsInt() @Min(0) @Max(10000) score: number;
+  @IsOptional() @IsEnum(CompetencyLevel) competencyLevel?: CompetencyLevel;
+  @IsOptional() @IsString() remarks?: string;
+}
+
 export class BulkEnterGradesDto {
   @ApiProperty({ description: 'Examination ID' })
   @IsUUID()
@@ -70,12 +79,11 @@ export class BulkEnterGradesDto {
     type: [Object],
   })
   @IsArray()
-  grades: Array<{
-    studentId: string;
-    score: number;
-    competencyLevel?: CompetencyLevel;
-    remarks?: string;
-  }>;
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => BulkGradeItemDto)
+  grades: BulkGradeItemDto[];
 }
 
 export class UpdateGradeDto {

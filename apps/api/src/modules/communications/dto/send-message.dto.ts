@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
@@ -115,11 +116,13 @@ export class SendBulkMessageDto {
 
   @ApiPropertyOptional({ description: 'Include parents', default: true })
   @IsOptional()
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   includeParents?: boolean;
 
   @ApiPropertyOptional({ description: 'Include students', default: false })
   @IsOptional()
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   includeStudents?: boolean;
 

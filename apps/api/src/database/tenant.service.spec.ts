@@ -17,7 +17,7 @@ describe('tenant isolation',()=>{
  });
  it('scopes relation-only records through their parent',async()=>{
   const next=jest.fn(async params=>params);await createTenantFilterMiddleware(()=> 'school-a')({model:'GuardianStudentLink',action:'findMany',args:{},dataPath:[],runInTransaction:false},next);
-  expect(next.mock.calls[0][0].args.where).toEqual({guardian:{tenantId:'school-a'}});
+  expect(next.mock.calls[0][0].args.where).toEqual({AND:[{guardian:{tenantId:'school-a'}}]});
  });
  it('rejects attempts to reassign records to another tenant',async()=>{
   const next=jest.fn();await expect(createTenantFilterMiddleware(()=> 'school-a')({model:'Student',action:'create',args:{data:{tenantId:'school-b'}},dataPath:[],runInTransaction:false},next)).rejects.toThrow('Cross-tenant');expect(next).not.toHaveBeenCalled();

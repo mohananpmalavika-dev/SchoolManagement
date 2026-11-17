@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
@@ -58,6 +59,7 @@ export class SendReportCardsDto {
     example: true,
     required: false,
   })
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   @IsOptional()
   includeRemarks?: boolean;

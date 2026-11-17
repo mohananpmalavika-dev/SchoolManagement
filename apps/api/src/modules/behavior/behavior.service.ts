@@ -1,3 +1,4 @@
+import { ParentEngagementNotificationsService } from '../parent-engagement-notifications/parent-engagement-notifications.service';
 import {
   Injectable,
   NotFoundException,
@@ -14,6 +15,7 @@ export class BehaviorService {
   constructor(
     private prisma: PrismaService,
     private tenantService: TenantService,
+    private notifications: ParentEngagementNotificationsService,
   ) {}
 
   async create(dto: CreateBehaviorDto, userId: string) {
@@ -42,13 +44,14 @@ export class BehaviorService {
         actionTaken: dto.actionTaken,
         followUpRequired: dto.followUpRequired || false,
         followUpDate: dto.followUpDate ? new Date(dto.followUpDate) : null,
-        parentNotified: dto.parentNotified || false,
-        parentNotifiedAt: dto.parentNotified ? new Date() : null,
+        parentNotified: false,
+        parentNotifiedAt: null,
         recordedBy: userId,
       },
     });
 
-    return behaviorRecord;
+    if (dto.parentNotified) await this.notifications.sendBehaviorAlert(behaviorRecord.id);
+    return this.findOne(behaviorRecord.id);
   }
 
   async findAll(query: QueryBehaviorDto) {
@@ -137,19 +140,15 @@ export class BehaviorService {
     if (dto.actionTaken !== undefined) updateData.actionTaken = dto.actionTaken;
     if (dto.followUpRequired !== undefined) updateData.followUpRequired = dto.followUpRequired;
     if (dto.followUpDate !== undefined) updateData.followUpDate = dto.followUpDate ? new Date(dto.followUpDate) : null;
-    if (dto.parentNotified !== undefined) {
-      updateData.parentNotified = dto.parentNotified;
-      if (dto.parentNotified) {
-        updateData.parentNotifiedAt = new Date();
-      }
-    }
+
 
     const record = await this.prisma.behaviorRecord.update({
       where: { id },
       data: updateData,
     });
 
-    return record;
+    if (dto.parentNotified) await this.notifications.sendBehaviorAlert(record.id);
+    return this.findOne(record.id);
   }
 
   async remove(id: string) {

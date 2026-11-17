@@ -860,6 +860,7 @@ model Grade {
 }
 
 model ReportCard {
+  gradeSnapshot        Json?
   classId              String?
   streamId             String?
   totalScore           Float            @default(0)
@@ -1248,6 +1249,7 @@ model SchoolEvent {
 model Communication {
   id       String @id @default(uuid())
   tenantId String
+  deliveryKey String?
 
   // Channel and Type
   channel     String // SMS, EMAIL, PUSH, IN_APP
@@ -1279,6 +1281,7 @@ model Communication {
   tenant Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   logs   CommunicationLog[]
 
+  @@unique([tenantId, deliveryKey])
   @@index([tenantId])
   @@index([status])
   @@index([scheduledAt])

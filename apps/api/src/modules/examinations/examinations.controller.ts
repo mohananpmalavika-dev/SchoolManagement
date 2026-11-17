@@ -1,3 +1,5 @@
+import { SchoolRecordAccessGuard } from '../../common/guards/school-record-access.guard';
+import { UseGuards as ScopedGuard } from '@nestjs/common';
 import {
   Controller,
   Get,
@@ -47,6 +49,7 @@ import { UserRole } from '@krypton/types';
 @ApiBearerAuth()
 @Controller('examinations')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@ScopedGuard(SchoolRecordAccessGuard)
 export class ExaminationsController {
   constructor(private readonly examinationsService: ExaminationsService) {}
 
@@ -92,25 +95,6 @@ export class ExaminationsController {
     @Query('streamId') streamId?: string,
   ) {
     return this.examinationsService.findAllExaminations(termId, classId, streamId);
-  }
-
-  @Get(':id')
-  @Roles(
-    UserRole.SUPER_ADMIN,
-    UserRole.SCHOOL_OWNER,
-    UserRole.PRINCIPAL,
-    UserRole.DEPUTY_PRINCIPAL,
-    UserRole.SCHOOL_ADMIN,
-    UserRole.TEACHER,
-    UserRole.CLASS_TEACHER,
-    UserRole.EXAM_OFFICER,
-  )
-  @ApiOperation({ summary: 'Get examination by ID with full details' })
-  @ApiParam({ name: 'id', description: 'Examination ID' })
-  @ApiResponse({ status: 200, description: 'Examination retrieved' })
-  @ApiResponse({ status: 404, description: 'Examination not found' })
-  findOneExamination(@Param('id') id: string) {
-    return this.examinationsService.findOneExamination(id);
   }
 
   @Patch(':id')
@@ -248,8 +232,8 @@ export class ExaminationsController {
   )
   @ApiOperation({ summary: 'Query grades with filters' })
   @ApiResponse({ status: 200, description: 'Grades retrieved' })
-  queryGrades(@Query() query: QueryGradesDto) {
-    return this.examinationsService.queryGrades(query);
+  queryGrades(@Query() query: QueryGradesDto, @CurrentUser() user: any) {
+    return this.examinationsService.queryGrades(query, ['PARENT', 'STUDENT'].includes(user.role));
   }
 
   // ==================== REPORT CARDS ====================
@@ -311,8 +295,8 @@ export class ExaminationsController {
   )
   @ApiOperation({ summary: 'Get all report cards with filters' })
   @ApiResponse({ status: 200, description: 'Report cards retrieved' })
-  findAllReportCards(@Query() query: QueryReportCardsDto) {
-    return this.examinationsService.findAllReportCards(query);
+  findAllReportCards(@Query() query: QueryReportCardsDto, @CurrentUser() user: any) {
+    return this.examinationsService.findAllReportCards(query, ['PARENT', 'STUDENT'].includes(user.role));
   }
 
   @Get('report-cards/:id')
@@ -331,8 +315,8 @@ export class ExaminationsController {
   @ApiParam({ name: 'id', description: 'Report card ID' })
   @ApiResponse({ status: 200, description: 'Report card retrieved' })
   @ApiResponse({ status: 404, description: 'Report card not found' })
-  findOneReportCard(@Param('id') id: string) {
-    return this.examinationsService.findOneReportCard(id);
+  findOneReportCard(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.examinationsService.findOneReportCard(id, ['PARENT', 'STUDENT'].includes(user.role));
   }
 
   @Patch('report-cards/:id')
@@ -374,4 +358,25 @@ export class ExaminationsController {
   ) {
     return this.examinationsService.approveReportCard(dto, user?.id);
   }
+
+  @Get(':id')
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.SCHOOL_OWNER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY_PRINCIPAL,
+    UserRole.SCHOOL_ADMIN,
+    UserRole.TEACHER,
+    UserRole.CLASS_TEACHER,
+    UserRole.EXAM_OFFICER,
+  )
+  @ApiOperation({ summary: 'Get examination by ID with full details' })
+  @ApiParam({ name: 'id', description: 'Examination ID' })
+  @ApiResponse({ status: 200, description: 'Examination retrieved' })
+  @ApiResponse({ status: 404, description: 'Examination not found' })
+  findOneExamination(@Param('id') id: string) {
+    return this.examinationsService.findOneExamination(id);
+  }
+
+
 }

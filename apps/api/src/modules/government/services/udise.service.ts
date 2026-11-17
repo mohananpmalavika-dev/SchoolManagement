@@ -23,6 +23,10 @@ export class UdiseService {
     private readonly encryptionUtil: EncryptionUtil,
   ) {}
 
+  private requireOfficialIntegration(): void {
+    throw new HttpException('Official government API integration is not available. Export the reviewed school report and submit it through the official portal.', HttpStatus.NOT_IMPLEMENTED);
+  }
+
   async initializeIntegration(
     tenantId: string,
     udiseSchoolCode: string,
@@ -35,22 +39,23 @@ export class UdiseService {
         update: {
           apiKey: apiKey ? await this.encryptionUtil.encrypt(apiKey) : undefined,
           apiSecret: apiSecret ? await this.encryptionUtil.encrypt(apiSecret) : undefined,
-          isEnabled: true,
+          isEnabled: false,
         },
         create: {
           tenantId,
           udiseSchoolCode,
           apiKey: apiKey ? await this.encryptionUtil.encrypt(apiKey) : null,
           apiSecret: apiSecret ? await this.encryptionUtil.encrypt(apiSecret) : null,
-          isEnabled: true,
-          autoSync: true,
+          isEnabled: false,
+          autoSync: false,
           syncFrequency: 'DAILY',
           syncTime: '02:00',
         },
       });
 
       this.logger.log(`UDISE+ integration initialized for tenant: ${tenantId}`);
-      return integration;
+      const { apiKey: _apiKey, apiSecret: _apiSecret, ...safe } = integration;
+      return { ...safe, externalApiAvailable: false };
     } catch (error: any) {
       this.logger.error(`Failed to initialize UDISE+ integration: ${error.message}`);
       throw new HttpException(
@@ -61,12 +66,16 @@ export class UdiseService {
   }
 
   async getIntegration(tenantId: string) {
-    return this.prisma.udiseIntegration.findFirst({
+    const integration = await this.prisma.udiseIntegration.findFirst({
       where: { tenantId },
     });
+    if (!integration) return null;
+    const { apiKey: _apiKey, apiSecret: _apiSecret, ...safe } = integration;
+    return { ...safe, externalApiAvailable: false };
   }
 
   async syncStudentEnrollment(tenantId: string) {
+    this.requireOfficialIntegration();
     const integration = await this.getIntegration(tenantId);
     if (!integration || !integration.isEnabled) {
       throw new HttpException('UDISE+ integration not configured', HttpStatus.BAD_REQUEST);
@@ -205,6 +214,7 @@ export class UdiseService {
   }
 
   async syncTeacherData(tenantId: string) {
+    this.requireOfficialIntegration();
     const integration = await this.getIntegration(tenantId);
     if (!integration || !integration.isEnabled) {
       throw new HttpException('UDISE+ integration not configured', HttpStatus.BAD_REQUEST);
@@ -318,6 +328,7 @@ export class UdiseService {
   }
 
   async syncSchoolProfile(tenantId: string) {
+    this.requireOfficialIntegration();
     const integration = await this.getIntegration(tenantId);
     if (!integration || !integration.isEnabled) {
       throw new HttpException('UDISE+ integration not configured', HttpStatus.BAD_REQUEST);
@@ -382,6 +393,7 @@ export class UdiseService {
   }
 
   async syncAttendanceData(tenantId: string, startDate: Date, endDate: Date) {
+    this.requireOfficialIntegration();
     const integration = await this.getIntegration(tenantId);
     if (!integration || !integration.isEnabled) {
       throw new HttpException('UDISE+ integration not configured', HttpStatus.BAD_REQUEST);
@@ -516,6 +528,7 @@ export class UdiseService {
   }
 
   async performFullSync(tenantId: string) {
+    this.requireOfficialIntegration();
     const studentSync = await this.syncStudentEnrollment(tenantId);
     const teacherSync = await this.syncTeacherData(tenantId);
     await this.syncSchoolProfile(tenantId);
@@ -561,37 +574,8 @@ export class UdiseService {
     });
   }
 
-  private async callUdiseApi(integration: any, endpoint: string, method: string, data?: any) {
-    if (integration.apiKey) await this.encryptionUtil.decrypt(integration.apiKey);
-    if (integration.apiSecret) await this.encryptionUtil.decrypt(integration.apiSecret);
-
-    this.logger.debug(`UDISE+ Export/Sync Call: ${method} ${endpoint}`);
-    await this.logApiCall(integration.tenantId, 'UDISE_PLUS', endpoint, method, data);
-
-    return {
-      success: true,
-      apaar_id: `91${String(Date.now()).slice(-10)}`,
-      pen_number: `PEN${String(Date.now()).slice(-8)}`,
-      udise_student_id: `UDISE-STU-${Date.now()}`,
-      udise_staff_id: `UDISE-STF-${Date.now()}`,
-      teacher_code: `TCH-${String(Date.now()).slice(-6)}`,
-    };
-  }
-
-  private async logApiCall(tenantId: string, service: string, endpoint: string, method: string, requestBody?: any) {
-    await this.prisma.governmentApiLog.create({
-      data: {
-        tenantId,
-        service,
-        endpoint,
-        method,
-        requestBody,
-        responseStatus: 200,
-        status: 'SUCCESS',
-        respondedAt: new Date(),
-        duration: 150,
-      },
-    });
+  private async callUdiseApi(integration: any, endpoint: string, method: string, data?: any): Promise<any> {
+    this.requireOfficialIntegration();
+    throw new HttpException('Official API unavailable', HttpStatus.NOT_IMPLEMENTED);
   }
 }
-

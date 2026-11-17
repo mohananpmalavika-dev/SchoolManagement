@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
 
@@ -49,6 +50,7 @@ export class AutoGenerateTimetableDto {
     default: true,
   })
   @IsOptional()
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   prioritizeMorningStem?: boolean = true;
 

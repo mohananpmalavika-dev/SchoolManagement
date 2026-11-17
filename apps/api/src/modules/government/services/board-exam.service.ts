@@ -23,6 +23,10 @@ export class BoardExamService {
     private readonly encryptionUtil: EncryptionUtil,
   ) {}
 
+  private requireOfficialIntegration(): void {
+    throw new HttpException('Official government API integration is not available. Export the reviewed school report and submit it through the official portal.', HttpStatus.NOT_IMPLEMENTED);
+  }
+
   async initializeIntegration(
     tenantId: string,
     affiliationNumber: string,
@@ -39,7 +43,7 @@ export class BoardExamService {
           schoolCode,
           apiKey: apiKey ? await this.encryptionUtil.encrypt(apiKey) : undefined,
           apiSecret: apiSecret ? await this.encryptionUtil.encrypt(apiSecret) : undefined,
-          isEnabled: true,
+          isEnabled: false,
         },
         create: {
           tenantId,
@@ -48,12 +52,13 @@ export class BoardExamService {
           schoolCode,
           apiKey: apiKey ? await this.encryptionUtil.encrypt(apiKey) : null,
           apiSecret: apiSecret ? await this.encryptionUtil.encrypt(apiSecret) : null,
-          isEnabled: true,
+          isEnabled: false,
         },
       });
 
       this.logger.log(`Board Exam (${boardName}) integration initialized for tenant: ${tenantId}`);
-      return integration;
+      const { apiKey: _apiKey, apiSecret: _apiSecret, ...safe } = integration;
+      return { ...safe, externalApiAvailable: false };
     } catch (error: any) {
       this.logger.error(`Failed to initialize Board integration: ${error.message}`);
       throw new HttpException(
@@ -64,9 +69,12 @@ export class BoardExamService {
   }
 
   async getIntegration(tenantId: string) {
-    return this.prisma.boardIntegration.findFirst({
+    const integration = await this.prisma.boardIntegration.findFirst({
       where: { tenantId },
     });
+    if (!integration) return null;
+    const { apiKey: _apiKey, apiSecret: _apiSecret, ...safe } = integration;
+    return { ...safe, externalApiAvailable: false };
   }
 
   async registerCandidates(
@@ -76,6 +84,7 @@ export class BoardExamService {
     examLevel: BoardExamLevel,
     studentIds: string[],
   ) {
+    this.requireOfficialIntegration();
     const integration = await this.getIntegration(tenantId);
     if (!integration || !integration.isEnabled) {
       throw new HttpException('Board exam integration not configured', HttpStatus.BAD_REQUEST);
@@ -203,6 +212,7 @@ export class BoardExamService {
   }
 
   async downloadResults(tenantId: string, examYear: number, examLevel: BoardExamLevel) {
+    this.requireOfficialIntegration();
     const integration = await this.getIntegration(tenantId);
     if (!integration || !integration.isEnabled) {
       throw new HttpException('Board exam integration not configured', HttpStatus.BAD_REQUEST);
@@ -276,6 +286,7 @@ export class BoardExamService {
   }
 
   async getExamTimetable(tenantId: string, examYear: number, examLevel: BoardExamLevel) {
+    this.requireOfficialIntegration();
     const integration = await this.getIntegration(tenantId);
     if (!integration || !integration.isEnabled) {
       throw new HttpException('Board exam integration not configured', HttpStatus.BAD_REQUEST);
@@ -328,6 +339,7 @@ export class BoardExamService {
     description: string,
     evidenceUrls?: string[],
   ) {
+    this.requireOfficialIntegration();
     const integration = await this.getIntegration(tenantId);
     if (!integration || !integration.isEnabled) {
       throw new HttpException('Board exam integration not configured', HttpStatus.BAD_REQUEST);
@@ -435,52 +447,8 @@ export class BoardExamService {
     });
   }
 
-  private async callBoardApi(integration: any, endpoint: string, method: string, data?: any) {
-    if (integration.apiKey) await this.encryptionUtil.decrypt(integration.apiKey);
-    if (integration.apiSecret) await this.encryptionUtil.decrypt(integration.apiSecret);
-
-    this.logger.debug(`Board Exam API Call (${integration.boardName}): ${method} ${endpoint}`);
-    await this.logApiCall(integration.tenantId, integration.boardName, endpoint, method, data);
-
-    return {
-      success: true,
-      candidate_number: `91${String(Date.now()).slice(-6)}`,
-      loc_reference: `LOC-${integration.boardName}-${Date.now()}`,
-      results: {
-        overall_grade: 'A1',
-        total_marks: 472,
-        percentage: 94.4,
-        subjects: [
-          { code: 'ENG', name: 'English Core', marks: 94, grade: 'A1' },
-          { code: 'MAT', name: 'Mathematics', marks: 96, grade: 'A1' },
-          { code: 'SCI', name: 'Science', marks: 95, grade: 'A1' },
-          { code: 'SST', name: 'Social Science', marks: 93, grade: 'A1' },
-          { code: 'HIN', name: 'Hindi / Malayalam', marks: 94, grade: 'A1' },
-        ],
-      },
-      timetable: [
-        { subject: 'English Core / Language & Literature', date: '2027-02-17', time: '10:30-13:30 IST' },
-        { subject: 'Mathematics (Standard / Basic)', date: '2027-02-24', time: '10:30-13:30 IST' },
-        { subject: 'Science', date: '2027-03-02', time: '10:30-13:30 IST' },
-      ],
-      report_id: `RPT-${Date.now()}`,
-    };
-  }
-
-  private async logApiCall(tenantId: string, service: string, endpoint: string, method: string, requestBody?: any) {
-    await this.prisma.governmentApiLog.create({
-      data: {
-        tenantId,
-        service,
-        endpoint,
-        method,
-        requestBody,
-        responseStatus: 200,
-        status: 'SUCCESS',
-        respondedAt: new Date(),
-        duration: 150,
-      },
-    });
+  private async callBoardApi(integration: any, endpoint: string, method: string, data?: any): Promise<any> {
+    this.requireOfficialIntegration();
+    throw new HttpException('Official API unavailable', HttpStatus.NOT_IMPLEMENTED);
   }
 }
-

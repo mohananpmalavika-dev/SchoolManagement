@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { IsString, IsEnum, IsOptional, IsBoolean, IsObject, IsUUID } from 'class-validator';
 
 export enum ActivityType {
@@ -31,6 +32,7 @@ export class CreateActivityDto {
   @IsOptional()
   metadata?: any;
 
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   @IsOptional()
   isVisibleToParents?: boolean = true;

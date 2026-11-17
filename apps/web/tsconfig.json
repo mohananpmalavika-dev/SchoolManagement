@@ -35,7 +35,11 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-release/types/**/*.ts",
-    ".next-release/dev/types/**/*.ts"
+    ".next-release/dev/types/**/*.ts",
+    ".next-preschool-school/types/**/*.ts",
+    ".next-preschool-school/dev/types/**/*.ts",
+    ".next-preschool-release/types/**/*.ts",
+    ".next-preschool-release/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

@@ -1,3 +1,5 @@
+> Historical report. For the current school/preschool release scope, verified checks and go-live requirements, use [School production readiness](SCHOOL_PRODUCTION_READINESS.md). Statements below are not current release certification.
+
 # UI redesign and release status
 
 Visual redesign updated on 12 October 2026. The backend and release evidence below retains the 11 October 2026 snapshot; it is not a new deployment certification.

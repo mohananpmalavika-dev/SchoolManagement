@@ -1,3 +1,4 @@
+import { SchoolRecordAccessGuard } from '../../common/guards/school-record-access.guard';
 import {
   Controller,
   Get,
@@ -32,9 +33,13 @@ import { UserRole } from '@krypton/types';
 export class PaymentsGatewayController {
   constructor(private readonly gatewayService: PaymentsGatewayService) {}
 
+  @Get('options')
+  @Roles(UserRole.PARENT, UserRole.SUPER_ADMIN, UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT)
+  options() { return this.gatewayService.options(); }
+
   @Post('initiate')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, SchoolRecordAccessGuard)
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.SCHOOL_OWNER,
@@ -53,7 +58,7 @@ export class PaymentsGatewayController {
 
   @Post('verify')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, SchoolRecordAccessGuard)
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.SCHOOL_OWNER,
@@ -80,7 +85,7 @@ export class PaymentsGatewayController {
 
   @Post('status')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, SchoolRecordAccessGuard)
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.SCHOOL_OWNER,
@@ -97,7 +102,7 @@ export class PaymentsGatewayController {
 
   @Get('transactions')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, SchoolRecordAccessGuard)
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.SCHOOL_OWNER,
@@ -113,7 +118,7 @@ export class PaymentsGatewayController {
 
   @Post('reconcile/manual')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, SchoolRecordAccessGuard)
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.SCHOOL_OWNER,

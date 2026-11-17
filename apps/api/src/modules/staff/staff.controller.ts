@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Request,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -63,8 +64,8 @@ export class StaffController {
   )
   @ApiOperation({ summary: 'Query staff directory with filters and pagination' })
   @ApiResponse({ status: 200, description: 'Staff directory retrieved successfully' })
-  findAll(@Query() query: QueryStaffDto) {
-    return this.staffService.findAll(query);
+  findAll(@Query() query: QueryStaffDto, @Request() req: any) {
+    return this.staffService.findAll(query, ['TEACHER', 'CLASS_TEACHER', 'RECEPTIONIST'].includes(req.user.role));
   }
 
   @Get('stats')

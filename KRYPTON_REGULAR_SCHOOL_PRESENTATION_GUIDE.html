@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Krypton Regular School ERP - Field Pitch & Presentation Playbook</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Malayalam:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap');
+
+    @page {
+      size: A4 portrait;
+      margin: 12mm 14mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', 'Noto Sans Malayalam', sans-serif;
+      background: #ffffff;
+      color: #0f172a;
+      line-height: 1.55;
+      font-size: 10pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .page {
+      page-break-after: always;
+      position: relative;
+      min-height: 270mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .page:last-child {
+      page-break-after: auto;
+    }
+
+    /* Header Bar */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 18px;
+    }
+
+    .brand-logos {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 13pt;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-title span {
+      color: #2563eb;
+    }
+
+    .badge-pill {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      font-size: 7.5pt;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .doc-meta {
+      text-align: right;
+      font-size: 8pt;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    /* Headings */
+    h1.playbook-title {
+      font-size: 19pt;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.25;
+      margin-bottom: 6px;
+      letter-spacing: -0.5px;
+    }
+
+    .playbook-subtitle {
+      font-size: 10pt;
+      color: #475569;
+      margin-bottom: 18px;
+    }
+
+    h2.section-header {
+      font-size: 12pt;
+      font-weight: 700;
+      color: #1e293b;
+      background: #f8fafc;
+      border-left: 4px solid #2563eb;
+      padding: 6px 12px;
+      border-radius: 0 6px 6px 0;
+      margin: 14px 0 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h3.sub-header {
+      font-size: 10.5pt;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 10px 0 6px 0;
+    }
+
+    /* Speech & Action Boxes */
+    .dialogue-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-left: 4px solid #16a34a;
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin: 8px 0;
+    }
+
+    .dialogue-box.english {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .dialogue-box.alert {
+      background: #fffbeb;
+      border: 1px solid #fef3c7;
+      border-left: 4px solid #f59e0b;
+    }
+
+    .box-label {
+      font-size: 8pt;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .box-label.ml { color: #15803d; }
+    .box-label.en { color: #1d4ed8; }
+    .box-label.action { color: #b45309; }
+
+    .speech-text-ml {
+      font-family: 'Noto Sans Malayalam', sans-serif;
+      font-size: 9.5pt;
+      color: #14532d;
+      line-height: 1.6;
+    }
+
+    .speech-text-en {
+      font-size: 9pt;
+      color: #1e3a8a;
+      line-height: 1.5;
+    }
+
+    .action-text {
+      font-size: 9pt;
+      color: #78350f;
+      line-height: 1.5;
+    }
+
+    /* Tables */
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 8.8pt;
+    }
+
+    table.data-table th {
+      background: #f1f5f9;
+      color: #334155;
+      text-align: left;
+      padding: 6px 10px;
+      font-weight: 700;
+      border-bottom: 2px solid #cbd5e1;
+    }
+
+    table.data-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+
+    /* Two column grid */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 8px 0;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .card-title {
+      font-weight: 700;
+      font-size: 9.5pt;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .card-desc {
+      font-size: 8.5pt;
+      color: #64748b;
+      line-height: 1.45;
+    }
+
+    ul.bullet-list {
+      padding-left: 18px;
+      margin: 6px 0;
+      font-size: 9pt;
+      color: #334155;
+    }
+
+    ul.bullet-list li {
+      margin-bottom: 4px;
+    }
+
+    .highlight-pill {
+      display: inline-block;
+      background: #fef08a;
+      color: #854d0e;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 8pt;
+    }
+
+    /* Footer */
+    .footer-bar {
+      margin-top: 14px;
+      padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 7.5pt;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= PAGE 1 ================= -->
+  <div class="page">
+    <div>
+      <div class="header-bar">
+        <div class="brand-logos">
+          <div class="brand-title">KRYPTON<span>LOGIC</span> &times; <strong>OM SYSTEM</strong></div>
+          <span class="badge-pill">Regular School Playbook</span>
+        </div>
+        <div class="doc-meta">
+          Confidential Field Guide<br>
+          CBSE / ICSE / State Schools
+        </div>
+      </div>
+
+      <h1 class="playbook-title">Field Sales & In-Person Presentation Guide</h1>
+      <p class="playbook-subtitle">Complete meeting walkthrough, speaking scripts in Malayalam & English, live demo sequences, and deal closing techniques for K-12 School Principals and Management Trustees.</p>
+
+      <h2 class="section-header">1. Pre-Meeting Intelligence & Key Decision Makers</h2>
+      <p style="font-size: 9pt; color: #475569; margin-bottom: 8px;">സ്കൂളിൽ പോകുന്നതിന് മുൻപായി ആരുമായാണ് കൂടിക്കാഴ്ച നടത്തേണ്ടതെന്നും അവരുടെ മുൻഗണനകൾ എന്താണെന്നും മനസ്സിലാക്കുക:</p>
+      
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 28%;">Decision Maker</th>
+            <th style="width: 36%;">അവരുടെ ഏറ്റവും വലിയ തലവേദനകൾ (Pain Points)</th>
+            <th style="width: 36%;">നമ്മൾ ഊന്നിപ്പറയേണ്ട പരിഹാരം (Pitch Focus)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Principal / Academic Director</strong><br><span style="font-size: 8pt; color: #64748b;">(Academic Quality & Staff)</span></td>
+            <td>ടീച്ചർമാർ ലീവ് എടുക്കുമ്പോൾ ടൈംടേബിൾ മാറ്റിവെക്കൽ, CBSE കംപ്ലയൻസ് റിപ്പോർട്ടുകൾ, അക്കാദമിക് പ്ലാനിംഗ് സമയം നഷ്ടപ്പെടൽ.</td>
+            <td><strong>AI Proxy Substitution</strong> (1-ക്ലിക്കിൽ സബ്സ്റ്റിറ്റ്യൂഷൻ), <strong>Teacher AI Studio</strong> (ലെസ്സൺ പ്ലാനർ), ഒഫീഷ്യൽ സിബിഎസ്ഇ റിപ്പോർട്ട് കാർഡുകൾ.</td>
+          </tr>
+          <tr>
+            <td><strong>Manager / School Chairman</strong><br><span style="font-size: 8pt; color: #64748b;">(Finance, Trust & Reputation)</span></td>
+            <td>ഫീസ് കുടിശ്ശിക പിരിച്ചെടുക്കാൻ താമസം, ബസ് സുരക്ഷയെക്കുറിച്ചുള്ള മാതാപിതാക്കളുടെ ആശങ്ക, ഹാർഡ്‌വെയർ സപ്പോർട്ട് ലഭിക്കായ്ക.</td>
+            <td><strong>Zero Fee Leakage</strong> (വാട്ട്സ്ആപ്പ് ഓട്ടോമേറ്റഡ് ഫീസ് റിമൈൻഡറുകൾ + റേസർപേ), <strong>OM System & Service</strong> നൽകുന്ന ലോക്കൽ സർവീസ് & ഗ്യാരണ്ടി.</td>
+          </tr>
+          <tr>
+            <td><strong>Office Admin / IT Coordinator</strong><br><span style="font-size: 8pt; color: #64748b;">(Daily Operations)</span></td>
+            <td>വ്യാജ TC സർട്ടിഫിക്കറ്റ് തട്ടിപ്പുകൾ, അഡ്മിഷൻ ഡാറ്റ എൻട്രി ബുദ്ധിമുട്ട്, വാട്ട്സ്ആപ്പ് വഴി വിവരങ്ങൾ അയക്കാനുള്ള ഭാരം.</td>
+            <td><strong>SHA-256 Tamper-Proof TC</strong> (പബ്ലിക് വെരിഫിക്കേഷൻ ലിങ്ക്), ഫുൾ അഡ്മിഷൻ ഫണൽ, ഓട്ടോമേറ്റഡ് വാട്ട്സ്ആപ്പ് ബ്രോഡ്കാസ്റ്റ്.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="section-header">2. The Opening Hook (ആദ്യത്തെ 2 മിനിറ്റ് - എങ്ങനെ തുടങ്ങണം)</h2>
+      <p style="font-size: 9pt; color: #334155; margin-bottom: 6px;">പ്രിൻസിപ്പലിന്റെയോ മാനേജരുടെയോ മുറിയിൽ കയറുമ്പോൾ ലാപ്ടോപ്പ് പെട്ടെന്ന് തുറക്കരുത്. ആദ്യം ഒരു സൗഹൃദ സംഭാഷണത്തിലൂടെ സ്കൂളിന്റെ യഥാർത്ഥ പ്രശ്നങ്ങളിലേക്ക് വിരൽ ചൂണ്ടുക:</p>
+
+      <div class="dialogue-box">
+        <div class="box-label ml">🗣️ മലയാളത്തിൽ ഇങ്ങനെ സംസാരിച്ചു തുടങ്ങുക (Speaking Script):</div>
+        <div class="speech-text-ml">
+          "നമസ്കാരം സർ / മാഡം. ഞാൻ ക്രിപ്റ്റൺലോജിക്കിൽ നിന്നാണ് വരുന്നത്. ഞങ്ങളുടെ ടെക്നിക്കൽ & ഹാർഡ്‌വെയർ പാർട്ണറായ <strong>OM System and Service</strong> മായി ചേർന്നാണ് ഞങ്ങൾ കേരളത്തിലെ മുൻനിര സ്കൂളുകൾക്കായി ഈ സൊല്യൂഷൻ തയ്യാറാക്കിയിട്ടുള്ളത്.<br>
+          ഞങ്ങൾ സോഫ്റ്റ്‌വെയർ വിൽക്കാൻ മാത്രമല്ല വന്നിരിക്കുന്നത്; ഇന്ന് കേരളത്തിലെ ഒരു സ്കൂൾ പ്രിൻസിപ്പലും മാനേജ്‌മെന്റും നേരിടുന്ന പ്രധാനപ്പെട്ട 3 തലവേദനകൾക്ക് ശാശ്വത പരിഹാരം കാണാനാണ്: <br>
+          1. രാവിലെ ടീച്ചർമാർ ലീവ് എടുക്കുമ്പോൾ ടൈംടേബിൾ സബ്സ്റ്റിറ്റ്യൂഷൻ സെറ്റ് ചെയ്യാനുള്ള നെട്ടോട്ടം.<br>
+          2. സ്കൂൾ ബസ് എവിടെയെത്തി എന്നറിയാൻ മാതാപിതാക്കൾ തുടരെത്തുടരെ ഓഫീസിലേക്ക് വിളിക്കുന്നത്.<br>
+          3. സർട്ടിഫിക്കറ്റ് വ്യാജമായി ഉണ്ടാക്കുന്നത് തടയലും ഫീസ് പിരിവിലെ കാലതാമസവും.<br>
+          ഈ മൂന്ന് കാര്യങ്ങളും ഞങ്ങളുടെ ഒരൊറ്റ പ്ലാറ്റ്‌ഫോമിൽ വെറും മിനിറ്റുകൾക്കുള്ളിൽ ഓട്ടോമേറ്റ് ചെയ്യുന്നതെങ്ങനെയെന്ന് 5 മിനിറ്റ് കൊണ്ട് കാണിച്ചുതരാം."
+        </div>
+      </div>
+
+      <div class="dialogue-box english">
+        <div class="box-label en">🌐 Professional English Pitch (If Management prefers English):</div>
+        <div class="speech-text-en">
+          "Good morning Sir / Ma'am. I represent KryptonLogic Intelligent Solutions, partnered with OM System & Service. Most school management systems today are fragmented—you have one software for fees, an external app for GPS, manual registers for attendance, and zero intelligence for daily teacher substitutions. We provide an end-to-end Neural-Linked School Operating System backed by local on-ground hardware support for CCTV, RFID smart gates, and Live GPS tracking. May I have 5 minutes to show you our live dashboard?"
+        </div>
+      </div>
+
+    </div>
+
+    <div class="footer-bar">
+      <span>KryptonLogic &bull; OM System and Service</span>
+      <span>Page 1 of 3 &bull; Regular School Field Sales Playbook</span>
+      <span>Strictly for Internal Field Representatives</span>
+    </div>
+  </div>
+
+  <!-- ================= PAGE 2 ================= -->
+  <div class="page">
+    <div>
+      <div class="header-bar">
+        <div class="brand-logos">
+          <div class="brand-title">KRYPTON<span>LOGIC</span> &times; <strong>OM SYSTEM</strong></div>
+          <span class="badge-pill">Live Demo Sequence</span>
+        </div>
+        <div class="doc-meta">
+          Hands-On Demonstration Steps
+        </div>
+      </div>
+
+      <h2 class="section-header">3. Step-by-Step Live Demo on Laptop (എന്തൊക്കെ തുറന്നു കാണിക്കണം)</h2>
+      <p style="font-size: 8.8pt; color: #475569; margin-bottom: 6px;">ലാപ്‌ടോപ്പിൽ ഡെമോ കാണിക്കുമ്പോൾ ഇനിപ്പറയുന്ന 5 പ്രധാന സ്ക്രീനുകൾ ഇതേ ക്രമത്തിൽ ഓപ്പൺ ചെയ്യുക:</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">1️⃣ AI Timetable Proxy Substitution</div>
+          <div class="card-desc">
+            <strong>സ്ക്രീൻ:</strong> <code>/school/substitution</code><br>
+            <strong>പറയേണ്ട കാര്യം:</strong> "രാവിലെ 8:30-ന് 3 ടീച്ചർമാർ ലീവായാൽ, ഏത് ഫ്രീ ടീച്ചറെ ഏത് ക്ലാസ്സിലേക്ക് വിടണമെന്ന് തലപുകയ്ക്കേണ്ടതില്ല. ഒരൊറ്റ ക്ലിക്കിൽ ഞങ്ങളുടെ AI അൽഗോരിതം സബ്ജക്റ്റും വർക്ക്-ലോഡും നോക്കി നിമിഷങ്ങൾക്കുള്ളിൽ സബ്സ്റ്റിറ്റ്യൂഷൻ ഷെഡ്യൂൾ ചെയ്യും!"
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">2️⃣ Tamper-Proof Cryptographic TC</div>
+          <div class="card-desc">
+            <strong>സ്ക്രീൻ:</strong> <code>/school/certificates</code><br>
+            <strong>പറയേണ്ട കാര്യം:</strong> "ഇന്ന് സ്കൂളുകളിൽ ഏറ്റവും വലിയ തലവേദനയാണ് വ്യാജ ട്രാൻസ്ഫർ സർട്ടിഫിക്കറ്റുകൾ. ഞങ്ങളുടെ സിസ്റ്റം നൽകുന്ന ഓരോ TC-യിലും SHA-256 ഡിജിറ്റൽ സിഗ്നേച്ചറും സ്കാൻ ചെയ്യാവുന്ന ക്യുആർ കോഡും ഉണ്ട്. ആർക്കും ഓൺലൈനായി സർട്ടിഫിക്കറ്റ് ഒറിജിനൽ ആണോ എന്ന് നിമിഷങ്ങൾക്കകം ഉറപ്പുവരുത്താം!"
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">3️⃣ Live Smart Bus GPS Tracking</div>
+          <div class="card-desc">
+            <strong>സ്ക്രീൻ:</strong> <code>/school/transport</code><br>
+            <strong>പറയേണ്ട കാര്യം:</strong> "മാതാപിതാക്കൾക്ക് അവരുടെ ഫോണിൽ ബസ് എവിടെയെത്തി എന്നും അവരുടെ സ്റ്റോപ്പിൽ എത്ര മിനിറ്റിനുള്ളിൽ (ETA) എത്തും എന്നും കൃത്യമായി കാണാം. ബസ് കുട്ടിയെ പിക്കപ്പ് ചെയ്യുമ്പോഴും ഡ്രോപ്പ് ചെയ്യുമ്പോഴും ഇൻസ്റ്റന്റ് അലേർട്ട് ലഭിക്കും. സ്കൂൾ ഓഫീസിലേക്ക് പാരന്റ്സിന്റെ ഫോൺവിളി 90% കുറയും."
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">4️⃣ Teacher AI Studio & Lesson Planner</div>
+          <div class="card-desc">
+            <strong>സ്ക്രീൻ:</strong> <code>/teacher/ai-studio</code><br>
+            <strong>പറയേണ്ട കാര്യം:</strong> "CBSE / State സിലബസ് പ്രകാരമുള്ള ലെസ്സൺ പ്ലാനുകൾ, ക്വസ്റ്റ്യൻ പേപ്പറുകൾ, റൂബ്രിക്സ് എന്നിവ ഉണ്ടാക്കാൻ ടീച്ചർമാർ മണിക്കൂറുകൾ ബുദ്ധിമുട്ടേണ്ടതില്ല. ഞങ്ങളുടെ AI സ്റ്റുഡിയോ വഴി മിനിറ്റുകൾക്കുള്ളിൽ ക്രിയേറ്റീവായ പഠനസാമഗ്രികൾ തയ്യാറാക്കാം."
+          </div>
+        </div>
+      </div>
+
+      <div class="dialogue-box alert" style="margin-top: 10px;">
+        <div class="box-label action">💡 OM System & Service ഹാർഡ്‌വെയർ സപ്പോർട്ട് എടുത്തുപറയുക:</div>
+        <div class="action-text">
+          "കേവലം ഒരു സോഫ്റ്റ്‌വെയർ വെണ്ടർ മാത്രമല്ല ഞങ്ങൾ. ക്യാമ്പസ് CCTV കാമറകൾ, ബയോമെട്രിക് / RFID സ്മാർട്ട് ഗേറ്റുകൾ, സ്കൂൾ ബസുകളിലെ GPS, കമ്പ്യൂട്ടർ നെറ്റ്‌വർക്കിംഗ് എന്നിവയെല്ലാം ഞങ്ങളുടെ എഞ്ചിനീയറിംഗ് പാർട്ണറായ <strong>OM System and Service</strong> നേരിട്ട് സ്കൂളിൽ വന്ന് ഇൻസ്റ്റാൾ ചെയ്യുകയും വാറന്റിയും ലോക്കൽ സർവീസും ഉറപ്പുനൽകുകയും ചെയ്യുന്നു!"
+        </div>
+      </div>
+
+      <h2 class="section-header">4. Objection Handling (കഠിനമായ ചോദ്യങ്ങളും കിടിലൻ മറുപടികളും)</h2>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 32%;">മാനേജ്‌മെന്റ് ചോദിക്കുന്ന ചോദ്യം</th>
+            <th style="width: 68%;">നമ്മൾ നൽകേണ്ട ഉറച്ച മറുപടി (Bulletproof Answer)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>"ഞങ്ങൾക്ക് ഇതിനകം വേറെ സോഫ്റ്റ്‌വെയർ ഉണ്ടല്ലോ (Entab / Next Education / Fedena)?"</strong></td>
+            <td>
+              <em>"തീർച്ചയായും സാർ, അതൊരു പരമ്പരാഗത ഡാറ്റാബേസ് മാത്രമാണ്. അതിൽ AI ടൈംടേബിൾ പ്രോക്സി സബ്സ്റ്റിറ്റ്യൂഷൻ ഉണ്ടോ? SHA-256 ക്രിപ്റ്റോഗ്രാഫിക് വ്യാജ-രഹിത ടി.സി ഉണ്ടോ? അവർക്ക് എന്തെങ്കിലും തകരാറുണ്ടായാൽ നേരിട്ടെത്തി പരിഹരിക്കാൻ ഇവിടെ ലോക്കൽ എഞ്ചിനീയറിംഗ് ടീം ഉണ്ടോ? ഞങ്ങളുടെ <strong>OM System & Service</strong> ടീം താങ്കളുടെ അടുത്തുണ്ട്. മാത്രമല്ല, നിങ്ങളുടെ പഴയ ഡാറ്റ മുഴുവൻ ഒരു ദിവസത്തിനുള്ളിൽ സൗജന്യമായി ഞങ്ങൾ പുതിയതിലേക്ക് മൈഗ്രേറ്റ് ചെയ്തു തരും."</em>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>"ടീച്ചർമാർക്ക് കമ്പ്യൂട്ടർ വലിയ പരിചയമില്ല. ഉപയോഗിക്കാൻ ബുദ്ധിമുട്ടാവുമോ?"</strong></td>
+            <td>
+              <em>"സാധാരണ മൊബൈൽ വാട്ട്സ്ആപ്പ് ഉപയോഗിക്കാൻ അറിയാവുന്ന ഏതൊരു ടീച്ചർക്കും വെറും 10 മിനിറ്റ് കൊണ്ട് ഉപയോഗിക്കാൻ കഴിയുന്നത്ര സിംപിളാണ് ഇതിന്റെ ഇന്റർഫേസ്. മലയാളത്തിലും ഇംഗ്ലീഷിലും ലഭ്യമാണ്. മാത്രമല്ല, ഞങ്ങളുടെ ടീം സ്കൂളിൽ നേരിട്ടെത്തി മുഴുവൻ അധ്യാപകർക്കും സൗജന്യ ട്രെയിനിംഗ് നൽകും."</em>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>"സ്കൂളിന്റെ ഡാറ്റ സുരക്ഷിതമായിരിക്കുമോ?"</strong></td>
+            <td>
+              <em>"100% സുരക്ഷിതമാണ്. മറ്റുള്ളവരെപ്പോലെ നിങ്ങളുടെ സ്കൂളിന്റെ ഡാറ്റ മറ്റൊരു സ്കൂളുമായി ഷെയർ ചെയ്യുന്നില്ല. ഓരോ സ്കൂളിനും പ്രത്യേകമായ Dedicated Tenant Database ഉം Oracle Enterprise Cloud സെക്യൂരിറ്റിയും ആണ് ഞങ്ങൾ നൽകുന്നത്. സ്കൂളിന്റെ ഡാറ്റയ്ക്ക് പൂർണ്ണ പ്രൈവസി ഉറപ്പാണ്."</em>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+
+    <div class="footer-bar">
+      <span>KryptonLogic &bull; OM System and Service</span>
+      <span>Page 2 of 3 &bull; Regular School Field Sales Playbook</span>
+      <span>Strictly for Internal Field Representatives</span>
+    </div>
+  </div>
+
+  <!-- ================= PAGE 3 ================= -->
+  <div class="page">
+    <div>
+      <div class="header-bar">
+        <div class="brand-logos">
+          <div class="brand-title">KRYPTON<span>LOGIC</span> &times; <strong>OM SYSTEM</strong></div>
+          <span class="badge-pill">Pricing & Deal Closing</span>
+        </div>
+        <div class="doc-meta">
+          Commercials, Pilot Trial & Handshake
+        </div>
+      </div>
+
+      <h2 class="section-header">5. Commercial Models & Pricing Presentation</h2>
+      <p style="font-size: 8.8pt; color: #475569; margin-bottom: 8px;">വില പറയുമ്പോൾ ഒരിക്കലും വലിയൊരു ലംപ്‌സം (Lump-sum) തുക പെട്ടെന്ന് പറയരുത്. പ്രതിമാസം ഒരു വിദ്യാർത്ഥിക്ക് വരുന്ന തുച്ഛമായ ചിലവായി വേണം അവതരിപ്പിക്കാൻ:</p>
+
+      <div class="grid-2">
+        <div class="card" style="border-top: 3px solid #2563eb;">
+          <div class="card-title">ഓപ്ഷൻ A: SaaS മോഡൽ (Per Student / Month)</div>
+          <div class="card-desc">
+            <span class="highlight-pill">₹25 – ₹35 / Student / Month</span><br><br>
+            &bull; സമ്പൂർണ്ണ സോഫ്റ്റ്‌വെയർ ആക്സസ് (Web + Mobile Web).<br>
+            &bull; അൺലിമിറ്റഡ് സ്റ്റാഫ്, ടീച്ചർ, പാരന്റ് അക്കൗണ്ടുകൾ.<br>
+            &bull; ക്ലൗഡ് ഹോസ്റ്റിംഗ് & ഡെയ്ലി ഓട്ടോമാറ്റിക് ബാക്കപ്പ്.<br>
+            &bull; ഫ്രീ സോഫ്റ്റ്‌വെയർ അപ്‌ഡേറ്റുകൾ.
+          </div>
+        </div>
+
+        <div class="card" style="border-top: 3px solid #16a34a;">
+          <div class="card-title">ഓപ്ഷൻ B: കോംപ്രിഹെൻസീവ് ക്യാമ്പസ് പാക്കേജ് (With Hardware)</div>
+          <div class="card-desc">
+            <span class="highlight-pill">ERP + CCTV + RFID Smart Gates Combo</span><br><br>
+            &bull; സോഫ്റ്റ്‌വെയർ ലൈസൻസ് + കസ്റ്റമൈസേഷൻ.<br>
+            &bull; OM System & Service നേരിട്ട് നടത്തുന്ന ക്യാമ്പസ് CCTV & സ്മാർട്ട് ഗേറ്റ് ഇൻസ്റ്റലേഷൻ.<br>
+            &bull; സ്കൂൾ ബസുകളിൽ ലൈവ് GPS ട്രാക്കിംഗ് സെറ്റപ്പ്.<br>
+            &bull; 24x7 ഓൺ-സൈറ്റ് എഞ്ചിനീയറിംഗ് വാറന്റി.
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-header">6. How to Close the Deal (ഡീൽ ഉറപ്പിക്കൽ & ഫോളോ-അപ്പ്)</h2>
+      <p style="font-size: 9pt; color: #334155; margin-bottom: 6px;">മീറ്റിംഗിന്റെ അവസാനം പ്രിൻസിപ്പലിനോട് അല്ലെങ്കിൽ മാനേജറോട് വ്യക്തമായ അടുത്ത നടപടി ആവശ്യപ്പെടുക:</p>
+
+      <div class="dialogue-box">
+        <div class="box-label ml">🤝 ക്ലോസിംഗ് ഡയലോഗ് (Malayalam Closing Script):</div>
+        <div class="speech-text-ml">
+          "സർ, നിങ്ങൾ ഇപ്പോൾ തന്നെ ഒരു രൂപ പോലും പൈസ നൽകേണ്ടതില്ല. അടുത്ത അധ്യയന വർഷത്തേക്ക് സ്കൂളിന്റെ പ്രവർത്തനങ്ങൾ എത്രമാത്രം എളുപ്പമാകുമെന്ന് നേരിട്ടറിയാൻ <strong>14 ദിവസത്തെ സൗജന്യ പൈലറ്റ് ട്രയൽ (Free Pilot Demo)</strong> ഞങ്ങൾ നൽകാം. നിങ്ങളുടെ ഒരു ഡിവിഷനിലോ ഒരു ബസിലോ ഇത് പരീക്ഷിച്ചു നോക്കാം. അധ്യാപകർക്കും രക്ഷിതാക്കൾക്കും ഇത് പൂർണ്ണ സംതൃപ്തി നൽകിയാൽ മാത്രം നമുക്ക് അഗ്രിമെന്റിലേക്ക് കടക്കാം.<br>
+          ഞാൻ ഈ ശനിയാഴ്ച നിങ്ങളുടെ കമ്പ്യൂട്ടർ അധ്യാപകരുമായി ഇരിക്കാൻ അരമണിക്കൂർ സമയം അനുവദിക്കാമോ?"
+        </div>
+      </div>
+
+      <div class="dialogue-box english">
+        <div class="box-label en">🤝 English Closing Script:</div>
+        <div class="speech-text-en">
+          "Sir / Ma'am, we don't ask for any financial commitment upfront. We are confident in our platform's value. Let us configure a 14-day zero-risk pilot on one bus route and one class section. Once your teachers and parents experience the ease of AI substitution and real-time tracking, you can decide. Can we schedule a 30-minute onboarding with your IT staff this coming Saturday?"
+        </div>
+      </div>
+
+      <h3 class="sub-header" style="margin-top: 14px;">📋 മീറ്റിംഗ് ചെക്ക്‌ലിസ്റ്റ് (Field Rep Checklist):</h3>
+      <ul class="bullet-list">
+        <li>&check; സ്കൂളിന്റെ പേര്, ലൊക്കേഷൻ, പ്രിൻസിപ്പൽ & മാനേജരുടെ പേര്, ഫോൺ നമ്പർ എന്നിവ ഡയറിയിൽ കുറിക്കുക.</li>
+        <li>&check; സ്കൂളിലെ ആകെ വിദ്യാർത്ഥികളുടെ എണ്ണം, ഡിവിഷനുകൾ, സ്കൂൾ ബസുകളുടെ എണ്ണം എന്നിവ ചോദിച്ചറിയുക.</li>
+        <li>&check; നമ്മുടെ കളർ പ്രിന്റഡ് <strong>One-Page Brochure</strong> പ്രിൻസിപ്പലിന് കൈമാറുക.</li>
+        <li>&check; അടുത്ത ഫോളോ-അപ്പ് തീയതിയും സമയവും കൃത്യമായി ഫിക്സ് ചെയ്ത് മാത്രം മടങ്ങുക.</li>
+      </ul>
+
+      <div style="background: #f1f5f9; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 8.5pt; text-align: center; color: #475569;">
+        <strong>ഹെഡ് ഓഫീസ് & ടെക്നിക്കൽ സപ്പോർട്ട്:</strong> KryptonLogic Intelligent Solutions &bull; OM System and Service, Kerala, India.<br>
+        24x7 എഞ്ചിനീയറിംഗ് ഹെൽപ്‌ലൈൻ | direct@kryptonlogic.com | omsystemandservice@gmail.com
+      </div>
+    </div>
+
+    <div class="footer-bar">
+      <span>KryptonLogic &bull; OM System and Service</span>
+      <span>Page 3 of 3 &bull; Regular School Field Sales Playbook</span>
+      <span>Strictly for Internal Field Representatives</span>
+    </div>
+  </div>
+
+</body>
+</html>

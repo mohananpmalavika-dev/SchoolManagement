@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
@@ -160,6 +161,7 @@ export class QueryUnmatchedTransactionsDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @RawBoolean(({ obj, key }) => obj[key] === 'true' ? true : obj[key] === 'false' ? false : obj[key])
   @IsBoolean()
   isReconciled?: boolean;
 

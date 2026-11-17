@@ -18,32 +18,8 @@ export class GovernmentSchedulerService {
 
   @Cron(CronExpression.EVERY_HOUR)
   async scheduleUdiseSync() {
-    this.logger.log('Checking for UDISE+ sync schedules...');
-
-    try {
-      const integrations = await this.prisma.udiseIntegration.findMany({
-        where: { isEnabled: true, autoSync: true },
-      });
-
-      for (const integration of integrations) {
-        const shouldSync = this.shouldPerformSync(
-          integration.syncFrequency,
-          integration.syncTime,
-          integration.lastSyncAt,
-        );
-
-        if (shouldSync) {
-          this.logger.log(`Scheduling UDISE+ sync for tenant: ${integration.tenantId}`);
-          await this.syncQueue.add(
-            'udise-full-sync',
-            { tenantId: integration.tenantId },
-            { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true, removeOnFail: false },
-          );
-        }
-      }
-    } catch (error: any) {
-      this.logger.error(`Error scheduling UDISE+ sync: ${error.message}`);
-    }
+    // No authorized UDISE API adapter is configured. Never queue simulated syncs.
+    return;
   }
 
   @Cron('0 8 * * *', { timeZone: 'Asia/Kolkata' })

@@ -1,3 +1,5 @@
+import { SchoolRecordAccessGuard } from '../../common/guards/school-record-access.guard';
+import { UseGuards as ScopedGuard } from '@nestjs/common';
 import {
   Controller,
   Get,
@@ -18,6 +20,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@krypton/types';
 
 @Controller('activity-feed')
+@ScopedGuard(SchoolRecordAccessGuard)
 export class ActivityFeedController {
   constructor(private readonly activityFeedService: ActivityFeedService) {}
 

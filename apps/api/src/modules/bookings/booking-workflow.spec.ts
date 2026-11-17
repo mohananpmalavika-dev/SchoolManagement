@@ -7,7 +7,7 @@ describe('Saved meeting reservation workflow',()=>{
     jest.useFakeTimers().setSystemTime(new Date('2026-10-11T10:00:00Z'));
     tx={staff:{update:jest.fn().mockResolvedValue({id:'teacher-1'})},parentTeacherBooking:{findFirst:jest.fn().mockResolvedValue(null),create:jest.fn().mockResolvedValue({id:'saved-meeting'})}};
     prisma={guardianStudentLink:{findFirst:jest.fn().mockResolvedValue({id:'link'})},staff:{findFirst:jest.fn().mockResolvedValue({id:'teacher-1'})},teacherAvailability:{findMany:jest.fn().mockResolvedValue([{startTime:'15:00',endTime:'16:00',slotDuration:30}])},parentTeacherBooking:{findMany:jest.fn().mockResolvedValue([])},$transaction:jest.fn(async callback=>callback(tx))};
-    service=new BookingsService(prisma,{requireTenantContext:()=> 'school-1'} as any);
+    service=new BookingsService(prisma,{requireTenantContext:()=> 'school-1'} as any,{sendBookingConfirmation:jest.fn()} as any);
   });
   afterEach(()=>jest.useRealTimers());
   it('saves an available appointment after acquiring the teacher reservation lock',async()=>{

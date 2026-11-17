@@ -9,6 +9,10 @@ import {
   IsString,
   IsDateString,
   MinLength,
+  IsEnum,
+  ArrayMinSize,
+  ArrayMaxSize,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { FeeCategory } from '@krypton/types';
@@ -26,12 +30,14 @@ export class InvoiceItemDto {
   })
   @IsInt()
   @Min(1)
+  @Max(2147483647)
   amount: number;
 
   @ApiProperty({
     description: 'Fee category',
     enum: FeeCategory,
   })
+  @IsEnum(FeeCategory)
   feeCategory: FeeCategory;
 }
 
@@ -49,6 +55,8 @@ export class CreateInvoiceDto {
     type: [InvoiceItemDto],
   })
   @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
   @ValidateNested({ each: true })
   @Type(() => InvoiceItemDto)
   items: InvoiceItemDto[];

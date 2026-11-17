@@ -45,6 +45,9 @@
     "test:ui:signin": "node scripts/test-single-sign-in.mjs",
     "test:ui:modern": "node scripts/test-modern-workspace-ui.mjs",
     "test:ui:preschool": "node scripts/test-preschool-ui.mjs",
+    "test:ui:school-payments": "node scripts/test-school-payments-ui.mjs",
+    "test:db:school": "node scripts/test-school-workflows.mjs",
+    "test:db:school-backup": "node scripts/test-school-backup.mjs",
     "test:db:preschool-migrations": "node scripts/test-preschool-migrations.mjs"
   },
   "devDependencies": {
@@ -72,9 +75,11 @@
       "bull>uuid": "11.1.1",
       "lodash": "^4.18.0",
       "js-yaml": "^4.3.2",
-      "qs": "^6.16.0",
+      "qs": "^6.16.1",
       "postcss": "^8.5.23",
-      "multer": "^2.3.0"
+      "multer": "^2.5.0",
+      "body-parser": "^2.4.0",
+      "follow-redirects": "^1.16.2"
     }
   }
 }

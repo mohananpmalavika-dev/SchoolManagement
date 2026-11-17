@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { IsString, IsEnum, IsOptional, IsBoolean, IsUUID, IsDateString } from 'class-validator';
 
 export enum MediaType {
@@ -27,6 +28,7 @@ export class UploadMediaDto {
   @IsOptional()
   takenAt?: string;
 
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   @IsOptional()
   isVisibleToParents?: boolean = true;

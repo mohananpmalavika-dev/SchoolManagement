@@ -1,3 +1,5 @@
+import { SchoolRecordAccessGuard } from '../../common/guards/school-record-access.guard';
+import { UseGuards as ScopedGuard } from '@nestjs/common';
 import {
   Controller,
   Get,
@@ -8,6 +10,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Request,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -33,6 +36,7 @@ import { UserRole } from '@krypton/types';
 @ApiBearerAuth()
 @Controller('guardians')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@ScopedGuard(SchoolRecordAccessGuard)
 export class GuardiansController {
   constructor(private readonly guardiansService: GuardiansService) {}
 
@@ -63,8 +67,8 @@ export class GuardiansController {
   @ApiOperation({ summary: 'Get all guardians' })
   @ApiQuery({ name: 'search', required: false, description: 'Search by name, phone, or email' })
   @ApiResponse({ status: 200, description: 'Guardians retrieved successfully' })
-  findAll(@Query('search') search?: string) {
-    return this.guardiansService.findAll(search);
+  findAll(@Request() req: any, @Query('search') search?: string) {
+    return this.guardiansService.findAll(search, req.accessibleClasses);
   }
 
   @Get(':id')
@@ -80,8 +84,8 @@ export class GuardiansController {
   @ApiParam({ name: 'id', description: 'Guardian ID' })
   @ApiResponse({ status: 200, description: 'Guardian retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Guardian not found' })
-  findOne(@Param('id') id: string) {
-    return this.guardiansService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req: any) {
+    return this.guardiansService.findOne(id, req.accessibleClasses);
   }
 
   @Patch(':id')
@@ -164,7 +168,7 @@ export class GuardiansController {
   @ApiParam({ name: 'id', description: 'Guardian ID' })
   @ApiResponse({ status: 200, description: 'Students retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Guardian not found' })
-  getStudents(@Param('id') id: string) {
-    return this.guardiansService.getStudents(id);
+  getStudents(@Param('id') id: string, @Request() req: any) {
+    return this.guardiansService.getStudents(id, req.accessibleClasses);
   }
 }

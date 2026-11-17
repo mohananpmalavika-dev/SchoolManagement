@@ -1,8 +1,12 @@
 import { Prisma } from '@prisma/client';
+const compoundSelectors = new Map(Prisma.dmmf.datamodel.models.map(model => [model.name, [
+  ...model.uniqueIndexes.map(index => ({ name: index.name || index.fields.join('_'), fields: index.fields })),
+  ...(model.primaryKey ? [{ name: model.primaryKey.name || model.primaryKey.fields.join('_'), fields: model.primaryKey.fields }] : []),
+]]));
 const directModels = new Set([
   'PreschoolStaffAssignment', 'PreschoolDayRecord', 'DevelopmentObservation', 'PreschoolContent',
   'ClassroomCamera', 'ClassroomCameraConsent', 'TransportAlert',
-  'Subscription', 'School', 'User', 'Student', 'Guardian', 'Staff', 'StaffAttendance',
+  'ChatChannel', 'Subscription', 'School', 'User', 'Student', 'Guardian', 'Staff', 'StaffAttendance',
   'AcademicYear', 'Term', 'Class', 'Stream', 'Subject', 'Enrollment', 'AttendanceRecord',
   'Examination', 'Grade', 'ReportCard', 'FeeStructure', 'Invoice', 'Payment', 'PaymentGatewayTransaction',
   'TimetableEntry', 'SchoolEvent', 'Communication', 'MessageTemplate', 'Book', 'BookBorrowing',
@@ -14,7 +18,7 @@ const directModels = new Set([
   'BoardIntegration', 'BoardSyncLog', 'BoardExamRegistration',
   'ComplianceReport', 'ComplianceChecklist', 'DataQualityAudit', 'GovernmentApiLog', 'ComplianceAlert'
 ]);
-const relations: Record<string, string> = { GuardianStudentLink: 'guardian', FeeItem: 'feeStructure', InvoiceItem: 'invoice', CommunicationLog: 'communication', RouteStop: 'route', ExaminationSubject: 'examination' };
+const relations: Record<string, string> = { ChatChannelMember: 'channel', ChatMessage: 'channel', GuardianStudentLink: 'guardian', FeeItem: 'feeStructure', InvoiceItem: 'invoice', CommunicationLog: 'communication', RouteStop: 'route', ExaminationSubject: 'examination' };
 const reads = new Set(['findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow', 'findMany', 'count', 'aggregate', 'groupBy', 'update', 'updateMany', 'delete', 'deleteMany', 'upsert']);
 export function createTenantFilterMiddleware(getTenantId: () => string | null) {
   return async (params: Prisma.MiddlewareParams, next: (params: Prisma.MiddlewareParams) => Promise<any>) => {
@@ -29,8 +33,24 @@ export function createTenantFilterMiddleware(getTenantId: () => string | null) {
       } else if (params.action === 'findUniqueOrThrow') {
         params.action = 'findFirstOrThrow';
       }
+      if (['findFirst', 'findFirstOrThrow'].includes(params.action)) {
+        for (const selector of compoundSelectors.get(model) || []) {
+          const values = params.args.where?.[selector.name];
+          if (!values) continue;
+          const { [selector.name]: _selector, ...rest } = params.args.where;
+          const and = rest.AND ? (Array.isArray(rest.AND) ? rest.AND : [rest.AND]) : [];
+          params.args.where = { ...rest, AND: [...and, Object.fromEntries(selector.fields.map(field => [field, values[field]]))] };
+        }
+      }
       const filter = model === 'Tenant' ? { id: tenantId } : direct ? { tenantId } : { [relation]: { tenantId } };
-      params.args.where = { ...params.args.where, ...filter };
+      // Preserve authorization predicates already present on a parent relation.
+      // Replacing `guardian: { userId }` with `guardian: { tenantId }` would
+      // accidentally authorize every guardian in the school.
+      if (relation) {
+        const previous = params.args.where || {};
+        const and = previous.AND ? (Array.isArray(previous.AND) ? previous.AND : [previous.AND]) : [];
+        params.args.where = { ...previous, AND: [...and, filter] };
+      } else params.args.where = { ...params.args.where, ...filter };
     }
     if (direct && (params.action === 'create' || params.action === 'upsert')) {
       const data = params.action === 'upsert' ? params.args.create : params.args.data;

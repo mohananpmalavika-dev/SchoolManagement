@@ -45,6 +45,7 @@ jobs:
           pnpm --filter @krypton/web exec next start --hostname 127.0.0.1 --port 3102 > preschool-web.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3102/login && break || sleep 2; done
           pnpm test:ui:preschool
+          pnpm test:ui:school-payments
         env:
           UI_BASE_URL: http://127.0.0.1:3102
       - run: pnpm --filter @krypton/api test -- --runInBand
@@ -53,6 +54,10 @@ jobs:
         run: pnpm --filter @krypton/api test -- --runInBand preschool.integration.spec
         env:
           PRESCHOOL_TEST_DATABASE_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_qa
+      - name: Verify school permissions, billing and family inbox workflows
+        run: pnpm test:db:school
+        env:
+          SCHOOL_TEST_DATABASE_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_qa
       - name: Replay migrations and verify historical data preservation
         run: |
           createdb -h 127.0.0.1 -p 15432 -U krypton_qa krypton_migrations_test
@@ -60,6 +65,15 @@ jobs:
         env:
           PGPASSWORD: local-qa-only
           PRESCHOOL_MIGRATION_TEST_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_migrations_test
+      - name: Rehearse encrypted database backup and recovery
+        run: |
+          createdb -h 127.0.0.1 -p 15432 -U krypton_qa krypton_backup_source_test
+          createdb -h 127.0.0.1 -p 15432 -U krypton_qa krypton_backup_restore_test
+          pnpm test:db:school-backup
+        env:
+          PGPASSWORD: local-qa-only
+          SCHOOL_BACKUP_TEST_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_backup_source_test
+          SCHOOL_BACKUP_RESTORE_DATABASE: krypton_backup_restore_test
       - run: |
           node apps/api/dist/main.js > api.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://localhost:3001/api/v1/health && break || sleep 2; done

@@ -1,3 +1,5 @@
+import { SchoolRecordAccessGuard } from '../../common/guards/school-record-access.guard';
+import { UseGuards as ScopedGuard } from '@nestjs/common';
 import {
   Controller,
   Get,
@@ -38,6 +40,7 @@ import { AutoGenerateTimetableDto } from './dto/auto-generate-timetable.dto';
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, TenantGuard)
 @Controller('timetable')
+@ScopedGuard(SchoolRecordAccessGuard)
 export class TimetableController {
   constructor(private readonly timetableService: TimetableService) {}
 

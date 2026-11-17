@@ -1,3 +1,5 @@
+> Historical report. For the current school/preschool release scope, verified checks and go-live requirements, use [School production readiness](SCHOOL_PRODUCTION_READINESS.md). Statements below are not current release certification.
+
 # PRODUCTION CAPABILITY MATRIX
 ## Krypton School ERP — Enterprise Production Audit Report
 

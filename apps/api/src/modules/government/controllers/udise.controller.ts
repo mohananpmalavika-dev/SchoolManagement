@@ -1,3 +1,4 @@
+import { NotImplementedException } from '@nestjs/common';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { UserRole } from '@krypton/types';
 import {
@@ -48,7 +49,7 @@ export class UdiseController {
   @Put('integration')
   @ApiOperation({ summary: 'Update UDISE+ integration settings' })
   async updateIntegration(@Request() req: any, @Body() _dto: UpdateUdiseConfigDto): Promise<any> {
-    return this.udiseService.getIntegration(req.user.tenantId);
+    throw new NotImplementedException('Official integration settings cannot be enabled until an authorized provider adapter is configured');
   }
 
   @Post('sync/students')

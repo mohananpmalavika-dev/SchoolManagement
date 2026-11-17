@@ -1,0 +1,917 @@
+import { randomUUID } from 'node:crypto';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { Reflector } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { PrismaService } from '../database/prisma.service';
+import { TenantService } from '../database/tenant.service';
+import { JwtStrategy } from '../modules/auth/strategies/jwt.strategy';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { SchoolRecordAccessGuard } from '../common/guards/school-record-access.guard';
+import { WorkspaceController } from '../modules/workspace/workspace.controller';
+import { WorkspaceService } from '../modules/workspace/workspace.service';
+import { FeesController } from '../modules/fees/fees.controller';
+import { FeesService } from '../modules/fees/fees.service';
+import { AttendanceController } from '../modules/attendance/attendance.controller';
+import { AttendanceService } from '../modules/attendance/attendance.service';
+import { QRAttendanceService } from '../modules/attendance/services/qr-attendance.service';
+import { RedisService } from '../common/services/redis.service';
+import { ExaminationsController } from '../modules/examinations/examinations.controller';
+import { ExaminationsService } from '../modules/examinations/examinations.service';
+import { TimetableService } from '../modules/timetable/timetable.service';
+import { TimetableController } from '../modules/timetable/timetable.controller';
+import { PaymentsGatewayService } from '../modules/payments-gateway/payments-gateway.service';
+import { PaymentsGatewayController } from '../modules/payments-gateway/payments-gateway.controller';
+import { StaffController } from '../modules/staff/staff.controller';
+import { StaffService } from '../modules/staff/staff.service';
+import { GuardiansController } from '../modules/guardians/guardians.controller';
+import { GuardiansService } from '../modules/guardians/guardians.service';
+import { StudentsController } from '../modules/students/students.controller';
+import { StudentsService } from '../modules/students/students.service';
+import { HomeworkService } from '../modules/homework/homework.service';
+import { HomeworkController } from '../modules/homework/homework.controller';
+import { ActivityFeedService } from '../modules/activity-feed/activity-feed.service';
+import { ActivityFeedController } from '../modules/activity-feed/activity-feed.controller';
+import { BehaviorService } from '../modules/behavior/behavior.service';
+import { BehaviorController } from '../modules/behavior/behavior.controller';
+import { ChatService } from '../modules/chat/chat.service';
+import { ChatController } from '../modules/chat/chat.controller';
+import { ParentEngagementNotificationsService } from '../modules/parent-engagement-notifications/parent-engagement-notifications.service';
+
+const url = process.env.SCHOOL_TEST_DATABASE_URL;
+const integration = url ? describe : describe.skip;
+integration('School PostgreSQL and authenticated HTTP workflows', () => {
+  let db: PrismaService, tenants: TenantService, app: INestApplication, base: string;
+  const id = () => randomUUID();
+  const tenant = id(),
+    foreignTenant = id(),
+    school = id(),
+    cls = id(),
+    otherClass = id(),
+    year = id(),
+    term = id(),
+    subject = id();
+  const principal = id(),
+    teacher = id(),
+    otherTeacher = id(),
+    parent = id(),
+    otherParent = id(),
+    studentUser = id(),
+    outsider = id();
+  const staff = id(),
+    otherStaff = id(),
+    child = id(),
+    otherChild = id(),
+    guardian = id(),
+    otherGuardian = id(),
+    assignment = id();
+  const secret = 'isolated-school-http-regression-secret';
+  const jwt = new JwtService({ secret });
+  const inTenant = <T>(work: () => Promise<T>) =>
+    tenants.run(() => {
+      tenants.setTenantId(tenant);
+      return work();
+    });
+  const request = async (
+    path: string,
+    user: string = principal,
+    method = 'GET',
+    data?: unknown
+  ) => {
+    const response = await fetch(base + path, {
+      method,
+      headers: {
+        ...(user
+          ? {
+              Authorization:
+                'Bearer ' + jwt.sign({ sub: user, ver: 0, type: 'access' }, { expiresIn: '5m' }),
+            }
+          : {}),
+        'Content-Type': 'application/json',
+        Connection: 'close',
+      },
+      ...(data === undefined ? {} : { body: JSON.stringify(data) }),
+    });
+    const text = await response.text();
+    return { status: response.status, body: text ? JSON.parse(text) : null };
+  };
+  const createInvoice = (studentId: string = child, termId: string = term) =>
+    request('/fees/invoices', principal, 'POST', {
+      studentId,
+      termId,
+      items: [{ description: 'Tuition', amount: 10000, feeCategory: 'TUITION' }],
+    });
+  const newTerm = () =>
+    db.term.create({
+      data: {
+        tenantId: tenant,
+        academicYearId: year,
+        name: id(),
+        termNumber: 2,
+        startDate: new Date('2026-01-01'),
+        endDate: new Date('2026-12-31'),
+      },
+    });
+
+  beforeAll(async () => {
+    if (!/(_test|_qa)$/.test(new URL(url!).pathname.slice(1)))
+      throw new Error('Use a disposable _test or _qa database');
+    const original = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = url;
+    tenants = new TenantService();
+    db = new PrismaService(tenants);
+    await db.$connect();
+    if (original === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = original;
+    await db.tenant.createMany({
+      data: [tenant, foreignTenant].map((id) => ({
+        id,
+        name: 'Isolated school workflow test',
+        subdomain: 'test-' + id,
+        contactEmail: 'test@example.test',
+        contactPhone: '0000000000',
+      })),
+    });
+    await db.user.createMany({
+      data: [
+        [principal, 'PRINCIPAL'],
+        [teacher, 'TEACHER'],
+        [otherTeacher, 'TEACHER'],
+        [parent, 'PARENT'],
+        [otherParent, 'PARENT'],
+        [studentUser, 'STUDENT'],
+        [outsider, 'PRINCIPAL'],
+      ].map(([id, role]) => ({
+        id,
+        role: role as any,
+        tenantId: id === outsider ? foreignTenant : tenant,
+        firstName: 'Test',
+        lastName: role,
+        email: id + '@example.test',
+        passwordHash: 'not-a-login-hash',
+      })),
+    });
+    await db.school.create({
+      data: {
+        id: school,
+        tenantId: tenant,
+        name: 'Test school',
+        schoolType: 'PRIVATE',
+        educationLevel: ['PRIMARY'],
+        address: 'Test',
+        city: 'Test',
+        email: 'test@example.test',
+        phone: '0000000000',
+      },
+    });
+    await db.class.createMany({
+      data: [cls, otherClass].map((id) => ({
+        id,
+        tenantId: tenant,
+        schoolId: school,
+        name: id,
+        level: 'Class 1',
+        educationLevel: 'PRIMARY',
+      })),
+    });
+    await db.academicYear.create({
+      data: {
+        id: year,
+        tenantId: tenant,
+        name: 'Test 2026',
+        startDate: new Date('2026-01-01'),
+        endDate: new Date('2026-12-31'),
+      },
+    });
+    await db.term.create({
+      data: {
+        id: term,
+        tenantId: tenant,
+        academicYearId: year,
+        name: 'Term 1',
+        termNumber: 1,
+        startDate: new Date('2026-01-01'),
+        endDate: new Date('2026-12-31'),
+      },
+    });
+    await db.subject.create({
+      data: {
+        id: subject,
+        tenantId: tenant,
+        name: 'Math',
+        code: 'MATH',
+        educationLevel: 'PRIMARY',
+      },
+    });
+    await db.staff.createMany({
+      data: [
+        [staff, teacher],
+        [otherStaff, otherTeacher],
+      ].map(([id, userId]) => ({
+        id,
+        userId,
+        tenantId: tenant,
+        staffNumber: id,
+        firstName: 'Test',
+        lastName: 'Teacher',
+        email: id + '@example.test',
+        phone: '0000000000',
+        gender: 'FEMALE',
+        department: 'TEACHING',
+        position: 'Teacher',
+        employmentType: 'PERMANENT',
+        hireDate: new Date('2026-01-01'),
+        isTeacher: true,
+      })),
+    });
+    await db.timetableEntry.createMany({
+      data: [
+        [staff, cls],
+        [otherStaff, otherClass],
+      ].map(([teacherId, classId]) => ({
+        tenantId: tenant,
+        teacherId,
+        classId,
+        subjectId: subject,
+        dayOfWeek: 1,
+        period: '1',
+        startTime: '09:00',
+        endTime: '10:00',
+      })),
+    });
+    await db.student.createMany({
+      data: [child, otherChild].map((id) => ({
+        id,
+        tenantId: tenant,
+        userId: id === child ? studentUser : null,
+        currentClassId: id === child ? cls : otherClass,
+        admissionNumber: id,
+        firstName: 'Test',
+        lastName: 'Student',
+        dateOfBirth: new Date('2020-01-01'),
+        admissionDate: new Date('2026-01-01'),
+        gender: 'FEMALE',
+      })),
+    });
+    await db.guardian.createMany({
+      data: [
+        [guardian, parent],
+        [otherGuardian, otherParent],
+      ].map(([id, userId]) => ({
+        id,
+        userId,
+        tenantId: tenant,
+        firstName: 'Test',
+        lastName: 'Parent',
+        phone: '0000000000',
+      })),
+    });
+    await db.guardianStudentLink.createMany({
+      data: [
+        [guardian, child],
+        [otherGuardian, otherChild],
+      ].map(([guardianId, studentId]) => ({ guardianId, studentId, relationship: 'MOTHER' })),
+    });
+    await db.assignment.create({
+      data: {
+        id: assignment,
+        tenantId: tenant,
+        classId: cls,
+        subjectId: subject,
+        title: 'Math homework',
+        description: 'Practice',
+        dueDate: new Date('2027-01-01'),
+        maxMarks: 10,
+        createdBy: teacher,
+      },
+    });
+    const redisData = new Map<string, string>(); // Only QR metadata; all school records use PostgreSQL.
+    const module = await Test.createTestingModule({
+      imports: [PassportModule],
+      controllers: [
+        WorkspaceController,
+        FeesController,
+        AttendanceController,
+        ExaminationsController,
+        HomeworkController,
+        ChatController,
+        ActivityFeedController,
+        BehaviorController,
+        TimetableController,
+        PaymentsGatewayController,
+        StaffController,
+        GuardiansController,
+        StudentsController,
+      ],
+      providers: [
+        { provide: PrismaService, useValue: db },
+        { provide: TenantService, useValue: tenants },
+        {
+          provide: ConfigService,
+          useValue: new ConfigService({ JWT_SECRET: secret, SCHOOL_UPI_VPA: 'fixture-school@upi' }),
+        },
+        { provide: JwtService, useValue: jwt },
+        {
+          provide: RedisService,
+          useValue: {
+            set: async (key: string, value: string) => redisData.set(key, value),
+            get: async (key: string) => redisData.get(key),
+            exists: async (key: string) => redisData.has(key),
+            del: async (key: string) => redisData.delete(key),
+            keys: async (pattern: string) =>
+              [...redisData.keys()].filter((key) => key.startsWith(pattern.replace('*', ''))),
+          },
+        },
+        JwtStrategy,
+        SchoolRecordAccessGuard,
+        WorkspaceService,
+        FeesService,
+        AttendanceService,
+        QRAttendanceService,
+        ExaminationsService,
+        TimetableService,
+        HomeworkService,
+        ChatService,
+        ParentEngagementNotificationsService,
+        ActivityFeedService,
+        BehaviorService,
+        PaymentsGatewayService,
+        StaffService,
+        GuardiansService,
+        StudentsService,
+      ],
+    }).compile();
+    app = module.createNestApplication({ logger: false });
+    app.use((_req: any, _res: any, next: () => void) => tenants.run(next));
+    app.useGlobalGuards(
+      new JwtAuthGuard(module.get(Reflector)),
+      new RolesGuard(module.get(Reflector))
+    );
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      })
+    );
+    await app.listen(0, '127.0.0.1');
+    base = await app.getUrl();
+  }, 30000);
+  afterAll(async () => {
+    await app?.close();
+    if (db) {
+      try {
+        for (const model of [
+          'chatChannel',
+          'communication',
+          'activityFeed',
+          'behaviorRecord',
+          'attendanceRecord',
+          'assignmentSubmission',
+          'assignment',
+          'grade',
+          'reportCard',
+          'examination',
+          'paymentGatewayTransaction',
+          'payment',
+          'invoice',
+          'timetableEntry',
+        ])
+          await (db as any)[model].deleteMany({
+            where: { tenantId: { in: [tenant, foreignTenant] } },
+          });
+        await db.tenant.deleteMany({ where: { id: { in: [tenant, foreignTenant] } } });
+      } finally {
+        await db.$disconnect();
+      }
+    }
+  });
+
+  it('requires authentication and denies cross-tenant records', async () => {
+    expect((await request('/workspace/students', '')).status).toBe(401);
+    expect((await request('/workspace/student/' + child, outsider)).status).toBe(404);
+  });
+  it('requires teachers to select an assigned class in original attendance APIs', async () => {
+    expect((await request('/attendance/students', teacher)).status).toBe(403);
+    expect((await request('/attendance/students?classId=' + otherClass, teacher)).status).toBe(403);
+    expect((await request('/attendance/students?classId=' + cls, teacher)).status).toBe(200);
+  });
+  it('denies family attendance access to another child', async () => {
+    expect(
+      (await request('/attendance/students/report?studentId=' + otherChild, parent)).status
+    ).toBe(403);
+    expect((await request('/attendance/students/report?studentId=' + child, parent)).status).toBe(
+      200
+    );
+  });
+  it('saves attendance, counts absence once, and delivers one retry-safe family update', async () => {
+    const data = {
+      classId: cls,
+      date: '2026-11-17',
+      records: [{ studentId: child, status: 'ABSENT' }],
+    };
+    expect((await request('/workspace/register', teacher, 'POST', data)).status).toBe(201);
+    expect((await request('/workspace/register', teacher, 'POST', data)).status).toBe(201);
+    const report = await request('/attendance/students/report?studentId=' + child, parent);
+    expect(report.body.summary.absent).toBe(1);
+    expect(
+      (await request('/workspace/notifications', parent)).body.filter(
+        (m: any) => m.title === 'Attendance update'
+      )
+    ).toHaveLength(1);
+    expect((await request('/workspace/notifications', otherParent)).body).toHaveLength(0);
+  });
+  it('binds homework guardian IDs to the signed-in parent and assignment to the child class', async () => {
+    expect(
+      (await request(`/homework/student/${otherChild}/guardian/${otherGuardian}`, parent)).status
+    ).toBe(403);
+    expect(
+      (await request(`/homework/student/${child}/guardian/${otherGuardian}`, parent)).status
+    ).toBe(403);
+    expect(
+      (await request(`/homework/student/${child}/guardian/${guardian}`, parent)).body.data
+    ).toHaveLength(1);
+    expect(
+      (
+        await request(
+          `/homework/assignment/${assignment}/student/${otherChild}/guardian/${otherGuardian}`,
+          otherParent
+        )
+      ).status
+    ).toBe(404);
+  });
+  let exam: string, grade: string, card: string;
+  it('persists zero marks and rejects invalid nested bulk grades', async () => {
+    const created = await request('/workspace/examinations', principal, 'POST', {
+      data: {
+        name: 'Term assessment',
+        classId: cls,
+        termId: term,
+        startDate: '2026-11-01',
+        endDate: '2026-11-20',
+        subjectId: subject,
+        totalMarks: 100,
+      },
+    });
+    expect(created.status).toBe(201);
+    exam = created.body.id;
+    expect(
+      (
+        await request('/examinations/grades/bulk', teacher, 'POST', {
+          examinationId: exam,
+          subjectId: subject,
+          grades: [{ studentId: child, score: -1 }],
+        })
+      ).status
+    ).toBe(400);
+    const result = await request('/examinations/grades', teacher, 'POST', {
+      examinationId: exam,
+      subjectId: subject,
+      studentId: child,
+      score: 0,
+    });
+    expect(result.status).toBe(201);
+    grade = result.body.id;
+    expect(
+      (await request('/examinations/grades/' + grade, teacher, 'PATCH', { score: 101 })).status
+    ).toBe(400);
+    expect(
+      (await request('/examinations/grades/query?studentId=' + child, parent)).body
+    ).toHaveLength(0);
+    expect(
+      (await request('/examinations/grades/query?studentId=' + otherChild, parent)).status
+    ).toBe(403);
+  });
+  it('releases only published grades and cards, and teachers cannot self-approve', async () => {
+    const generated = await request('/examinations/report-cards', principal, 'POST', {
+      studentId: child,
+      termId: term,
+    });
+    expect(generated.status).toBe(201);
+    card = generated.body.id;
+    expect((await request('/examinations/report-cards/' + card, parent)).status).toBe(404);
+    expect(
+      (await request('/examinations/report-cards?studentId=' + child + '&status=DRAFT', parent))
+        .body
+    ).toHaveLength(0);
+    expect(
+      (
+        await request('/examinations/report-cards/' + card, teacher, 'PATCH', {
+          status: 'PUBLISHED',
+        })
+      ).status
+    ).toBe(403);
+    expect(
+      (await request('/workspace/examinations/' + exam + '/publish', principal, 'POST')).status
+    ).toBe(201);
+    expect(
+      (await request('/examinations/grades/query?studentId=' + child, parent)).body[0].score
+    ).toBe(0);
+    expect(
+      (await request('/examinations/grades/' + grade, teacher, 'PATCH', { score: 50 })).status
+    ).toBe(400);
+    expect(
+      (await request('/workspace/report-cards/' + card + '/publish', principal, 'POST')).status
+    ).toBe(201);
+    expect((await request('/examinations/report-cards/' + card, parent)).status).toBe(200);
+    expect((await request('/examinations/report-cards/' + card, otherParent)).status).toBe(403);
+    const snapshot = (await request('/examinations/report-cards/' + card, parent)).body;
+    expect(snapshot.gradeSnapshot).toHaveLength(1);
+    expect(snapshot.grades[0].score).toBe(0);
+    const laterExam = await db.examination.create({ data: { tenantId: tenant, name: 'Later published assessment', classId: cls, termId: term, isPublished: true } });
+    await db.grade.create({ data: { tenantId: tenant, studentId: child, examinationId: laterExam.id, subjectId: subject, score: 100, totalMarks: 100, percentage: 100 } });
+    const frozen = (await request('/examinations/report-cards/' + card, parent)).body;
+    expect(frozen.grades).toHaveLength(1); expect(frozen.averagePercentage).toBe(0);
+  });
+  let invoice: string;
+  it('accepts real invoice item DTOs and serializes concurrent term invoicing', async () => {
+    const results = await Promise.all([createInvoice(), createInvoice()]);
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    invoice = results.find((r) => r.status === 201)!.body.id;
+    expect((await request('/fees/invoices/' + invoice, parent)).status).toBe(200);
+    expect((await request('/fees/invoices/' + invoice, otherParent)).status).toBe(403);
+    expect((await request('/fees/invoices', teacher)).status).toBe(403);
+  });
+  it('makes simultaneous full-payment retries idempotent without double collection', async () => {
+    const payment = { invoiceId: invoice, amount: 10000, reference: id(), paymentMethod: 'CASH' };
+    const results = await Promise.all([
+      request('/fees/payments', principal, 'POST', payment),
+      request('/fees/payments', principal, 'POST', payment),
+    ]);
+    expect(results.map((r) => r.status)).toEqual([201, 201]);
+    expect(results[0].body.id).toBe(results[1].body.id);
+    expect((await request('/fees/invoices/' + invoice)).body.balanceAmount).toBe(0);
+    expect(
+      (await request('/fees/invoices/' + invoice + '/cancel', principal, 'PATCH')).status
+    ).toBe(400);
+  });
+  it('serializes cancellation against collection without cancelled paid invoices', async () => {
+    const term = await newTerm();
+    const created = await createInvoice(child, term.id);
+    const invoiceId = created.body.id;
+    const results = await Promise.all([
+      request('/fees/invoices/' + invoiceId + '/cancel', principal, 'PATCH'),
+      request('/fees/payments', principal, 'POST', {
+        invoiceId,
+        amount: 10000,
+        reference: id(),
+        paymentMethod: 'CASH',
+      }),
+    ]);
+    expect(results.filter((r) => r.status >= 200 && r.status < 300)).toHaveLength(1);
+    const saved = (await request('/fees/invoices/' + invoiceId)).body;
+    expect(saved.status === 'CANCELLED' ? saved.paidAmount : saved.balanceAmount).toBe(0);
+  });
+  it('keeps private activity hidden and behavior notification flags reflect actual inbox delivery', async () => {
+    expect(
+      (
+        await request('/activity-feed', teacher, 'POST', {
+          studentId: child,
+          activityType: 'OTHER',
+          title: 'Invalid visibility',
+          isVisibleToParents: 'false',
+        })
+      ).status
+    ).toBe(400);
+    const activity = await request('/activity-feed', teacher, 'POST', {
+      studentId: child,
+      activityType: 'OTHER',
+      title: 'Private observation',
+      isVisibleToParents: false,
+    });
+    expect(activity.status).toBe(201);
+    expect(
+      (await request('/workspace/notifications', parent)).body.some(
+        (m: any) => m.title === 'Classroom activity'
+      )
+    ).toBe(false);
+    expect((await request('/activity-feed/' + activity.body.id, otherTeacher)).status).toBe(403);
+    expect(
+      (
+        await request('/activity-feed/' + activity.body.id, teacher, 'PATCH', {
+          isVisibleToParents: true,
+        })
+      ).status
+    ).toBe(200);
+    expect(
+      (await request('/workspace/notifications', parent)).body.some(
+        (m: any) => m.title === 'Classroom activity'
+      )
+    ).toBe(true);
+    const behavior = await request('/behavior', teacher, 'POST', {
+      studentId: child,
+      behaviorType: 'POSITIVE',
+      category: 'OTHER',
+      title: 'Helpful student',
+      incidentDate: '2026-11-17',
+      parentNotified: true,
+    });
+    expect(behavior.status).toBe(201);
+    expect(behavior.body.parentNotified).toBe(true);
+    expect(
+      (await request('/workspace/notifications', parent)).body.some(
+        (m: any) => m.title === 'Student wellbeing update'
+      )
+    ).toBe(true);
+  });
+  let privateChannel: string, otherChannel: string, privateMessage: string;
+  it('initializes default chat channels once without giving parents access to the staff room', async () => {
+    const results = await Promise.all([
+      request('/chat/channels', parent),
+      request('/chat/channels', teacher),
+    ]);
+    expect(results.every((r) => r.status === 200)).toBe(true);
+    expect(results[0].body.some((c: any) => c.name === 'Staff Room')).toBe(false);
+    const room = results[1].body.find((c: any) => c.name === 'Staff Room');
+    expect(room).toBeDefined();
+    expect((await request('/chat/channels/' + room.id + '/messages', parent)).status).toBe(403);
+    expect(await db.chatChannel.count({ where: { tenantId: tenant } })).toBe(4);
+  });
+  it('validates channel members against tenant and restricts private reads, writes and reactions', async () => {
+    expect(
+      (
+        await request('/chat/channels', teacher, 'POST', {
+          name: 'Invalid members',
+          memberUserIds: [outsider],
+        })
+      ).status
+    ).toBe(400);
+    const result = await request('/chat/channels', teacher, 'POST', {
+      name: 'Private teaching group',
+      memberUserIds: [otherTeacher],
+    });
+    expect(result.status).toBe(201);
+    privateChannel = result.body.id;
+    const sent = await request('/chat/channels/' + privateChannel + '/messages', teacher, 'POST', {
+      content: 'Private class note',
+    });
+    expect(sent.status).toBe(201);
+    privateMessage = sent.body.id;
+    expect((await request('/chat/channels/' + privateChannel + '/messages', parent)).status).toBe(
+      403
+    );
+    expect(
+      (
+        await request('/chat/channels/' + privateChannel + '/messages', parent, 'POST', {
+          content: 'Forged',
+        })
+      ).status
+    ).toBe(403);
+    expect(
+      (
+        await request(
+          '/chat/channels/' + privateChannel + '/messages/' + privateMessage + '/reactions',
+          parent,
+          'POST',
+          { emoji: '👍' }
+        )
+      ).status
+    ).toBe(403);
+    const second = await request('/chat/channels', teacher, 'POST', { name: 'Other group' });
+    otherChannel = second.body.id;
+    expect(
+      (
+        await request('/chat/channels/' + otherChannel + '/messages', teacher, 'POST', {
+          content: 'Forged reply',
+          replyToId: privateMessage,
+        })
+      ).status
+    ).toBe(400);
+  });
+  it('returns the latest bounded chat history and preserves simultaneous reactions', async () => {
+    for (const content of ['second', 'third'])
+      expect(
+        (
+          await request('/chat/channels/' + privateChannel + '/messages', teacher, 'POST', {
+            content,
+          })
+        ).status
+      ).toBe(201);
+    const history = await request(
+      '/chat/channels/' + privateChannel + '/messages?limit=2',
+      teacher
+    );
+    expect(history.body.map((m: any) => m.content)).toEqual(['second', 'third']);
+    expect(
+      (await request('/chat/channels/' + privateChannel + '/messages?limit=-1', teacher)).status
+    ).toBe(400);
+    await Promise.all(
+      [teacher, otherTeacher].map((u) =>
+        request(
+          '/chat/channels/' + privateChannel + '/messages/' + privateMessage + '/reactions',
+          u,
+          'POST',
+          { emoji: '👍' }
+        )
+      )
+    );
+    expect(
+      (await db.chatMessage.findUniqueOrThrow({ where: { id: privateMessage } })).reactions
+    ).toEqual({ '👍': expect.arrayContaining([teacher, otherTeacher]) });
+  });
+  it('keeps family contacts limited to staff and direct conversations single-instance under retry', async () => {
+    const contacts = await request('/chat/contacts', parent);
+    expect(contacts.body.some((u: any) => ['PARENT', 'STUDENT'].includes(u.role))).toBe(false);
+    expect(
+      (await request('/chat/direct', parent, 'POST', { targetUserId: otherParent })).status
+    ).toBe(403);
+    const results = await Promise.all(
+      [1, 2].map(() => request('/chat/direct', parent, 'POST', { targetUserId: teacher }))
+    );
+    expect(results.every((r) => r.status === 201)).toBe(true);
+    expect(results[0].body.channelId).toBe(results[1].body.channelId);
+  });
+  it('signs real QR JWTs and binds scans and session metadata to the actor', async () => {
+    const created = await request('/attendance/qr/generate-token', teacher, 'POST', {
+      classId: cls,
+      type: 'class_attendance',
+    });
+    expect(created.status).toBe(201);
+    expect(jwt.verify(created.body.token).classId).toBe(cls);
+    expect(
+      (await request('/attendance/qr/session/' + created.body.sessionId, otherTeacher)).status
+    ).toBe(401);
+    expect(
+      (
+        await request('/attendance/qr/scan', studentUser, 'POST', {
+          token: created.body.token,
+          studentId: otherChild,
+        })
+      ).status
+    ).toBe(403);
+  });
+  it('rejects nonexistent calendar dates and cross-class student timetables', async () => {
+    expect(
+      (
+        await request('/workspace/events', principal, 'POST', {
+          data: {
+            title: 'Invalid date',
+            eventType: 'HOLIDAY',
+            category: 'HOLIDAY',
+            startDate: '2027-02-30',
+            endDate: '2027-03-02',
+          },
+        })
+      ).status
+    ).toBe(400);
+    expect((await request('/timetable/class/' + otherClass, studentUser)).status).toBe(403);
+    expect((await request('/timetable/class/' + cls, studentUser)).status).toBe(200);
+  });
+  it('restricts guardian directories to assigned classes and omits sensitive staff identity fields', async () => {
+    const directory = await request('/guardians', teacher);
+    expect(directory.status).toBe(200);
+    expect(directory.body.map((g: any) => g.id)).toEqual([guardian]);
+    expect((await request('/guardians/' + otherGuardian, teacher)).status).toBe(404);
+    const people = await request('/staff', teacher);
+    expect(people.status).toBe(200);
+    expect(
+      people.body.data.every(
+        (s: any) => !('panNumber' in s) && !('aadhaarLast4' in s) && !('address' in s)
+      )
+    ).toBe(true);
+  });
+  it('binds payment initiation and status to the linked family and keeps UPI intents pending', async () => {
+    const t = await newTerm();
+    const inv = await createInvoice(child, t.id);
+    const payload = { invoiceId: inv.body.id, amount: 10000, gateway: 'UPI' };
+    expect((await request('/payments-gateway/initiate', otherParent, 'POST', payload)).status).toBe(
+      403
+    );
+    const order = await request('/payments-gateway/initiate', parent, 'POST', payload);
+    expect(order.status).toBe(201);
+    expect(order.body.upiIntentUri).toContain('pa=fixture-school%40upi');
+    expect(
+      (
+        await request('/payments-gateway/status', otherParent, 'POST', {
+          gatewayOrderId: order.body.gatewayOrderId,
+        })
+      ).status
+    ).toBe(403);
+    const status = await request('/payments-gateway/status', parent, 'POST', {
+      gatewayOrderId: order.body.gatewayOrderId,
+    });
+    expect(status.status).toBe(201);
+    expect(status.body.status).toBe('PENDING');
+    expect((await request('/fees/invoices/' + inv.body.id)).body.paidAmount).toBe(0);
+  });
+  it('commits captured gateway settlement and fee allocation atomically, including webhook retries', async () => {
+    const t = await newTerm();
+    const inv = await createInvoice(child, t.id);
+    const order = await db.paymentGatewayTransaction.create({
+      data: {
+        tenantId: tenant,
+        gateway: 'RAZORPAY',
+        transactionType: 'RAZORPAY_ORDER',
+        gatewayOrderId: 'order_' + id(),
+        amount: 10000,
+        currency: 'INR',
+        accountReference: inv.body.id,
+        invoiceId: inv.body.id,
+        initiatedBy: parent,
+      },
+    });
+    const service = app.get(PaymentsGatewayService);
+    const payload = {
+      event: 'payment.captured',
+      payload: {
+        payment: {
+          entity: {
+            id: 'pay_' + id(),
+            order_id: order.gatewayOrderId!,
+            amount: 10000,
+            currency: 'INR',
+            status: 'captured',
+          },
+        },
+      },
+    };
+    await Promise.all([1, 2].map(() => inTenant(() => service.handleWebhook(payload))));
+    const saved = await db.paymentGatewayTransaction.findUniqueOrThrow({ where: { id: order.id } });
+    expect(saved.isReconciled).toBe(true);
+    expect(saved.paymentId).toBeTruthy();
+    expect(await db.payment.count({ where: { invoiceId: inv.body.id } })).toBe(1);
+    expect((await request('/fees/invoices/' + inv.body.id)).body.balanceAmount).toBe(0);
+  });
+  it('rolls back gateway completion when the ledger write fails, so delivery can be retried', async () => {
+    const t = await newTerm();
+    const inv = await createInvoice(child, t.id);
+    const order = await db.paymentGatewayTransaction.create({
+      data: {
+        tenantId: tenant,
+        gateway: 'RAZORPAY',
+        transactionType: 'RAZORPAY_ORDER',
+        gatewayOrderId: 'order_' + id(),
+        amount: 10000,
+        currency: 'INR',
+        accountReference: inv.body.id,
+        invoiceId: inv.body.id,
+        initiatedBy: parent,
+      },
+    });
+    const payload = {
+      event: 'payment.captured',
+      payload: {
+        payment: {
+          entity: {
+            id: 'pay_' + id(),
+            order_id: order.gatewayOrderId!,
+            amount: 10000,
+            currency: 'INR',
+            status: 'captured',
+          },
+        },
+      },
+    };
+    const fees = app.get(FeesService),
+      service = app.get(PaymentsGatewayService);
+    const fault = jest
+      .spyOn(fees, 'recordPayment')
+      .mockRejectedValueOnce(new Error('Simulated ledger connection failure'));
+    try {
+      await expect(inTenant(() => service.handleWebhook(payload))).rejects.toThrow(
+        'Simulated ledger connection failure'
+      );
+    } finally {
+      fault.mockRestore();
+    }
+    expect(
+      (await db.paymentGatewayTransaction.findUniqueOrThrow({ where: { id: order.id } }))
+        .callbackReceived
+    ).toBe(false);
+    expect((await request('/fees/invoices/' + inv.body.id)).body.paidAmount).toBe(0);
+    await inTenant(() => service.handleWebhook(payload));
+    expect((await request('/fees/invoices/' + inv.body.id)).body.paidAmount).toBe(10000);
+  });
+  it('creates student records with real date-only form values and handles duplicate admission numbers', async () => {
+    const admissionNumber = 'QA' + id().replace(/-/g, '').slice(0, 12).toUpperCase();
+    const payload = { admissionNumber, firstName: 'New', lastName: 'Student', dateOfBirth: '2020-02-01', gender: 'FEMALE', admissionDate: '2026-04-01', currentClassId: cls, guardians: [{ guardianId: guardian, firstName: 'Test', lastName: 'Parent', phone: '9847012345', relationship: 'MOTHER' }] };
+    const created = await request('/students', principal, 'POST', payload);
+    expect(created.status).toBe(201); expect(created.body.dateOfBirth.slice(0,10)).toBe('2020-02-01');
+    expect((await request('/students', principal, 'POST', payload)).status).toBe(409);
+    expect((await request('/students', principal, 'POST', { ...payload, admissionNumber: admissionNumber + 'X', dateOfBirth: '2020-02-30' })).status).toBe(400);
+    expect((await request('/students/' + created.body.id, principal, 'PATCH', { dateOfBirth: '2020-02-02' })).status).toBe(200);
+    await request('/students/' + created.body.id + '/assign-class', principal, 'POST', { classId: cls });
+    await request('/students/' + created.body.id + '/assign-class', principal, 'POST', { classId: cls });
+    expect(await db.enrollment.count({ where: { tenantId: tenant, studentId: created.body.id } })).toBe(1);
+  });
+  it('shares class chats with current families and revokes access after a class change', async () => {
+    const result = await request('/chat/channels', teacher, 'POST', { name: 'Class learning', type: 'CLASS', classId: cls });
+    expect(result.status).toBe(201); const channelId = result.body.id;
+    expect((await request('/chat/channels', parent)).body.some((c: any) => c.id === channelId)).toBe(true);
+    expect((await request('/chat/channels/' + channelId + '/messages', parent)).status).toBe(200);
+    expect((await request('/chat/channels/' + channelId + '/messages', otherParent)).status).toBe(403);
+    expect((await request('/chat/channels', teacher, 'POST', { name: 'Wrong class', type: 'CLASS', classId: otherClass })).status).toBe(403);
+    await db.student.update({ where: { id: child }, data: { currentClassId: otherClass } });
+    // The new enrollment from the previous test still belongs to this family;
+    // revoke its link too before checking that stored channel membership grants nothing.
+    const links = await db.guardianStudentLink.findMany({ where: { guardianId: guardian }, select: { studentId: true } });
+    for (const link of links) await db.student.update({ where: { id: link.studentId }, data: { currentClassId: otherClass } });
+    expect((await request('/chat/channels/' + channelId + '/messages', parent)).status).toBe(403);
+    expect((await request('/chat/channels', parent)).body.some((c: any) => c.id === channelId)).toBe(false);
+  });
+
+});

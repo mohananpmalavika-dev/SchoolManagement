@@ -1,5 +1,6 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEnum, IsBoolean, IsInt, Min } from 'class-validator';
+import { IsOptional, IsString, IsEnum, IsBoolean, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { StaffDepartment, EmploymentType, StaffStatus } from '@krypton/types';
 
@@ -16,6 +17,7 @@ export class QueryStaffDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(100)
   pageSize?: number = 20;
 
   @ApiPropertyOptional()
@@ -40,6 +42,7 @@ export class QueryStaffDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @RawBoolean(({ obj, key }) => obj[key] === 'true' ? true : obj[key] === 'false' ? false : obj[key])
   @IsBoolean()
   @Type(() => Boolean)
   isTeacher?: boolean;

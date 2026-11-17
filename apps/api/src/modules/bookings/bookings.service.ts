@@ -1,3 +1,4 @@
+import { ParentEngagementNotificationsService } from '../parent-engagement-notifications/parent-engagement-notifications.service';
 import {
   Injectable,
   NotFoundException,
@@ -16,6 +17,7 @@ export class BookingsService {
   constructor(
     private prisma: PrismaService,
     private tenantService: TenantService,
+    private notifications: ParentEngagementNotificationsService,
   ) {}
 
   async accountScope(user: any): Promise<{guardianId?: string; teacherId?: string}> {
@@ -352,10 +354,12 @@ export class BookingsService {
       throw new BadRequestException('Only pending bookings can be confirmed');
     }
 
-    return this.prisma.parentTeacherBooking.update({
+    const result = await this.prisma.parentTeacherBooking.update({
       where: { id },
       data: { status: BookingStatus.CONFIRMED },
     });
+    await this.notifications.sendBookingConfirmation(id);
+    return result;
   }
 
   async cancelBooking(id: string, userId: string, dto: CancelBookingDto) {

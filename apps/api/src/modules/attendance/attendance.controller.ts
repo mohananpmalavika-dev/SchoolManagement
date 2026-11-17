@@ -1,3 +1,5 @@
+import { SchoolRecordAccessGuard } from '../../common/guards/school-record-access.guard';
+import { UseGuards as ScopedGuard } from '@nestjs/common';
 import {
   Controller,
   Get,
@@ -46,6 +48,7 @@ import { UserRole } from '@krypton/types';
 @ApiBearerAuth()
 @Controller('attendance')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@ScopedGuard(SchoolRecordAccessGuard)
 export class AttendanceController {
   constructor(
     private readonly attendanceService: AttendanceService,
@@ -326,8 +329,8 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Get QR session information' })
   @ApiParam({ name: 'sessionId', description: 'QR session ID' })
   @ApiResponse({ status: 200, description: 'Session information retrieved' })
-  getQRSession(@Param('sessionId') sessionId: string) {
-    return this.qrAttendanceService.getSessionInfo(sessionId);
+  getQRSession(@Param('sessionId') sessionId: string, @CurrentUser() user: any) {
+    return this.qrAttendanceService.getSessionInfo(sessionId, user.tenantId, user.userId);
   }
 
   @Get('qr/session/:sessionId/stats')
@@ -347,7 +350,7 @@ export class AttendanceController {
     @Param('sessionId') sessionId: string,
     @CurrentUser() user: any,
   ) {
-    return this.qrAttendanceService.getSessionStats(sessionId, user.tenantId);
+    return this.qrAttendanceService.getSessionStats(sessionId, user.tenantId, user.userId);
   }
 
   @Delete('qr/session/:sessionId')
@@ -371,7 +374,7 @@ export class AttendanceController {
     @Param('sessionId') sessionId: string,
     @CurrentUser() user: any,
   ) {
-    await this.qrAttendanceService.invalidateSession(sessionId, user.tenantId);
+    await this.qrAttendanceService.invalidateSession(sessionId, user.tenantId, user.userId);
     return;
   }
 }

@@ -60,6 +60,14 @@ export class HomeworkService {
       }
     }
 
+    const now = new Date();
+    if (query.status === HomeworkStatus.GRADED) where.submissions = { some: { studentId, score: { not: null } } };
+    else if (query.status === HomeworkStatus.SUBMITTED) where.submissions = { some: { studentId, score: null } };
+    else if (query.status) {
+      where.submissions = { none: { studentId } };
+      where.dueDate = { ...where.dueDate, ...(query.status === HomeworkStatus.LATE ? { lt: now } : { gte: now }) };
+    }
+
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
@@ -100,7 +108,6 @@ export class HomeworkService {
     ]);
 
     // Enhance with status
-    const now = new Date();
     const homeworkList = assignments.map((assignment) => {
       const submission = assignment.submissions[0];
       let status: HomeworkStatus;
@@ -137,10 +144,10 @@ export class HomeworkService {
     return {
       data: filteredHomework,
       pagination: {
-        total: query.status ? filteredHomework.length : total,
+        total,
         page,
         limit,
-        totalPages: Math.ceil((query.status ? filteredHomework.length : total) / limit),
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
@@ -344,9 +351,12 @@ export class HomeworkService {
       throw new ForbiddenException('You do not have access to this student');
     }
 
+    const student = await this.prisma.student.findFirst({ where: { id: studentId, tenantId, deletedAt: null }, select: { currentClassId: true } });
+    if (!student?.currentClassId) throw new NotFoundException('Enrolled student not found');
     const assignment = await this.prisma.assignment.findFirst({
       where: {
         id: assignmentId,
+        classId: student.currentClassId,
         tenantId,
       },
       include: {

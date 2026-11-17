@@ -1,3 +1,4 @@
+import { ParentEngagementNotificationsService } from '../parent-engagement-notifications/parent-engagement-notifications.service';
 import {
   Injectable,
   NotFoundException,
@@ -14,6 +15,7 @@ export class ActivityFeedService {
   constructor(
     private prisma: PrismaService,
     private tenantService: TenantService,
+    private notifications: ParentEngagementNotificationsService,
   ) {}
 
   async create(dto: CreateActivityDto, userId: string) {
@@ -46,6 +48,7 @@ export class ActivityFeedService {
       },
     });
 
+    if (activity.isVisibleToParents) await this.notifications.sendActivityNotification(activity.id);
     return activity;
   }
 
@@ -168,6 +171,7 @@ export class ActivityFeedService {
       },
     });
 
+    if (activity.isVisibleToParents) await this.notifications.sendActivityNotification(activity.id);
     return activity;
   }
 

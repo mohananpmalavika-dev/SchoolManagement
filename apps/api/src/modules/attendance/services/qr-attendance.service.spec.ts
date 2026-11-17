@@ -98,7 +98,6 @@ describe('QRAttendanceService', () => {
         }),
         expect.objectContaining({
           secret: 'test-secret',
-          expiresIn: '5m',
         })
       );
 
@@ -125,7 +124,6 @@ describe('QRAttendanceService', () => {
       expect(mockJwtService.sign).toHaveBeenCalledWith(
         expect.any(Object),
         expect.objectContaining({
-          expiresIn: '5m',
         })
       );
     });

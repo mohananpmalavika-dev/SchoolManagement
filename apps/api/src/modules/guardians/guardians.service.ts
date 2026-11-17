@@ -29,10 +29,10 @@ export class GuardiansService {
     return guardian;
   }
 
-  async findAll(search?: string) {
+  async findAll(search?: string, classIds?: string[]) {
     const tenantId = this.tenantService.requireTenantContext();
 
-    const where: any = { tenantId };
+    const where: any = { tenantId, ...(classIds ? { studentLinks: { some: { student: { tenantId, currentClassId: { in: classIds } } } } } : {}) };
 
     if (search) {
       where.OR = [
@@ -47,6 +47,7 @@ export class GuardiansService {
       where,
       include: {
         studentLinks: {
+          ...(classIds ? { where: { student: { tenantId, currentClassId: { in: classIds } } } } : {}),
           include: {
             student: {
               select: {
@@ -68,13 +69,14 @@ export class GuardiansService {
     return guardians;
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, classIds?: string[]) {
     const tenantId = this.tenantService.requireTenantContext();
 
     const guardian = await this.prisma.guardian.findFirst({
       where: { id, tenantId },
       include: {
         studentLinks: {
+          ...(classIds ? { where: { student: { tenantId, currentClassId: { in: classIds } } } } : {}),
           include: {
             student: {
               select: {
@@ -240,13 +242,14 @@ export class GuardiansService {
     return { message: 'Student unlinked successfully' };
   }
 
-  async getStudents(id: string) {
+  async getStudents(id: string, classIds?: string[]) {
     const tenantId = this.tenantService.requireTenantContext();
 
     const guardian = await this.prisma.guardian.findFirst({
       where: { id, tenantId },
       include: {
         studentLinks: {
+          ...(classIds ? { where: { student: { tenantId, currentClassId: { in: classIds } } } } : {}),
           include: {
             student: {
               include: {

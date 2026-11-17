@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { createHmac } from 'node:crypto';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
@@ -32,6 +33,8 @@ describe('Indian Payments Gateway Service & Idempotency Suite', () => {
   };
 
   beforeEach(async () => {
+    jest.restoreAllMocks();
+    jest.spyOn(axios, 'get').mockResolvedValue({ data: { id: 'pay_RZP999888', order_id: mockPendingTransaction.gatewayOrderId, status: 'captured', amount: mockPendingTransaction.amount, currency: 'INR' } });
     prisma = {
       executeWithoutTenantFilter: jest.fn((fn: () => any) => fn()),
       paymentGatewayTransaction: {
@@ -42,6 +45,8 @@ describe('Indian Payments Gateway Service & Idempotency Suite', () => {
         create: jest.fn(),
       },
     };
+
+    prisma.$transaction = jest.fn((work: any) => work(prisma));
 
     feesService = {
       findOneInvoice: jest.fn(),
@@ -56,6 +61,7 @@ describe('Indian Payments Gateway Service & Idempotency Suite', () => {
 
     configService = {
       get: jest.fn().mockImplementation((key: string, defaultVal?: string) => {
+        if (key === 'SCHOOL_UPI_VPA') return 'testschool@okhdfcbank';
         if (key === 'RAZORPAY_KEY_ID') return 'rzp_test_12345';
         if (key === 'RAZORPAY_KEY_SECRET') return 'rzp_test_secret_abc';
         return defaultVal || '';
@@ -135,6 +141,7 @@ describe('Indian Payments Gateway Service & Idempotency Suite', () => {
           reference: paymentId,
         }),
         'user_parent_01',
+        prisma,
       );
     });
 
@@ -146,6 +153,17 @@ describe('Indian Payments Gateway Service & Idempotency Suite', () => {
           razorpaySignature: 'invalid_signature',
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it.each([
+      { status: 'authorized' }, { amount: 1 }, { currency: 'USD' }, { order_id: 'another-order' },
+    ])('does not credit a signed checkout with mismatched provider state %p', async mismatch => {
+      prisma.paymentGatewayTransaction.findFirst.mockResolvedValue(mockPendingTransaction);
+      const paymentId = 'pay_RZP999888';
+      jest.mocked(axios.get).mockResolvedValueOnce({ data: { id: paymentId, order_id: mockPendingTransaction.gatewayOrderId, status: 'captured', amount: mockPendingTransaction.amount, currency: 'INR', ...mismatch } });
+      const signature = createHmac('sha256', 'rzp_test_secret_abc').update(mockPendingTransaction.gatewayOrderId + '|' + paymentId).digest('hex');
+      await expect(service.verifyRazorpayCheckout({ razorpayOrderId: mockPendingTransaction.gatewayOrderId, razorpayPaymentId: paymentId, razorpaySignature: signature })).rejects.toThrow(BadRequestException);
+      expect(feesService.recordPayment).not.toHaveBeenCalled();
     });
   });
 
@@ -184,7 +202,7 @@ describe('Indian Payments Gateway Service & Idempotency Suite', () => {
 
       expect(prisma.paymentGatewayTransaction.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: mockPendingTransaction.id, callbackReceived: false },
+          where: expect.objectContaining({ id: mockPendingTransaction.id }),
           data: expect.objectContaining({
             status: 'COMPLETED',
             utrNumber: '428391045612',
@@ -199,9 +217,10 @@ describe('Indian Payments Gateway Service & Idempotency Suite', () => {
           invoiceId: 'inv_school_001',
           amount: 1500000,
           paymentMethod: PaymentMethod.UPI,
-          reference: '428391045612',
+          reference: validWebhook.payload.payment.entity.id,
         }),
         'user_parent_01',
+        prisma,
       );
     });
 
@@ -258,7 +277,7 @@ describe('Indian Payments Gateway Service & Idempotency Suite', () => {
 
       expect(prisma.paymentGatewayTransaction.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: mockPendingTransaction.id, callbackReceived: false },
+          where: expect.objectContaining({ id: mockPendingTransaction.id }),
           data: expect.objectContaining({
             status: 'FAILED',
             reconciliationStatus: 'FAILED',

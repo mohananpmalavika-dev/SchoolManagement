@@ -1,5 +1,6 @@
 import {
   Injectable,
+  BadRequestException,
   NotFoundException,
   ConflictException,
   Logger,
@@ -20,8 +21,16 @@ export class StaffService {
     private tenantService: TenantService,
   ) {}
 
+  private async validateAccount(userId?: string) {
+    if (!userId) return;
+    const account = await this.prisma.user.findFirst({ where: { id: userId, tenantId: this.tenantService.requireTenantContext(), isActive: true } });
+    if (!account || ['PARENT', 'STUDENT'].includes(account.role)) throw new BadRequestException('Select a staff account in this school');
+  }
+
   async create(dto: CreateStaffDto) {
     const tenantId = this.tenantService.requireTenantContext();
+
+    await this.validateAccount(dto.userId);
 
     // Check staff number uniqueness within tenant
     const existing = await this.prisma.staff.findFirst({
@@ -67,7 +76,7 @@ export class StaffService {
     return staff;
   }
 
-  async findAll(query: QueryStaffDto) {
+  async findAll(query: QueryStaffDto, directoryOnly = false) {
     const tenantId = this.tenantService.requireTenantContext();
     const {
       page = 1,
@@ -99,11 +108,13 @@ export class StaffService {
       ];
     }
 
+    if (!['createdAt','firstName','lastName','staffNumber','department','position','status','hireDate','email'].includes(sortBy)) throw new BadRequestException('Unsupported staff sort field');
     const skip = (page - 1) * pageSize;
 
     const [data, total] = await Promise.all([
       this.prisma.staff.findMany({
         where,
+        ...(directoryOnly ? { select: { id: true, staffNumber: true, firstName: true, lastName: true, email: true, department: true, position: true, isTeacher: true, status: true } } : {}),
         skip,
         take: pageSize,
         orderBy: { [sortBy]: sortOrder },
@@ -148,6 +159,7 @@ export class StaffService {
     const tenantId = this.tenantService.requireTenantContext();
 
     await this.findOne(id);
+    await this.validateAccount(dto.userId);
 
     if (dto.staffNumber) {
       const duplicate = await this.prisma.staff.findFirst({

@@ -6,6 +6,24 @@ import { TenantService } from '../database/tenant.service';
 
 describe('Tenant Isolation Verification Suite', () => {
   describe('Prisma Tenant Filter Middleware', () => {
+    it('converts compound unique lookups to valid scoped findFirst filters', async () => {
+      const params: any = { model: 'Student', action: 'findUnique', args: { where: { tenantId_admissionNumber: { tenantId: 'school-a', admissionNumber: 'ADM-1' } } }, dataPath: [], runInTransaction: false };
+      await createTenantFilterMiddleware(() => 'school-a')(params, jest.fn());
+      expect(params.action).toBe('findFirst');
+      expect(params.args.where.tenantId_admissionNumber).toBeUndefined();
+      expect(params.args.where.AND).toContainEqual({ tenantId: 'school-a', admissionNumber: 'ADM-1' });
+      expect(params.args.where.tenantId).toBe('school-a');
+    });
+    it('preserves guardian identity and chat membership predicates when adding tenant filters', async () => {
+      const middleware = createTenantFilterMiddleware(() => 'school-a');
+      for (const [model, relation] of [['GuardianStudentLink', 'guardian'], ['ChatMessage', 'channel']]) {
+        const where = { [relation]: { userId: 'actual-account' } };
+        const params: any = { model, action: 'findFirst', args: { where }, dataPath: [], runInTransaction: false };
+        await middleware(params, jest.fn());
+        expect(params.args.where[relation]).toEqual({ userId: 'actual-account' });
+        expect(params.args.where.AND).toContainEqual({ [relation]: { tenantId: 'school-a' } });
+      }
+    });
     let currentTenantId: string | null = null;
     const getTenantId = () => currentTenantId;
     const middleware = createTenantFilterMiddleware(getTenantId);

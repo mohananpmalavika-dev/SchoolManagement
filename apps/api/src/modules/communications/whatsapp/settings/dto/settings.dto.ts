@@ -1,3 +1,4 @@
+import { Transform as RawBoolean } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
@@ -16,6 +17,7 @@ export class UpdateSettingsDto {
     example: true,
     required: false,
   })
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   @IsOptional()
   enabled?: boolean;
@@ -62,6 +64,7 @@ export class UpdateSettingsDto {
     example: true,
     required: false,
   })
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   @IsOptional()
   autoSendFeeReminders?: boolean;
@@ -71,6 +74,7 @@ export class UpdateSettingsDto {
     example: true,
     required: false,
   })
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   @IsOptional()
   autoSendAttendanceAlerts?: boolean;
@@ -80,6 +84,7 @@ export class UpdateSettingsDto {
     example: false,
     required: false,
   })
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   @IsOptional()
   autoSendReportCards?: boolean;
@@ -169,6 +174,7 @@ export class UpdateTemplateDto {
     example: true,
     required: false,
   })
+  @RawBoolean(({ obj, key }) => obj[key])
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;

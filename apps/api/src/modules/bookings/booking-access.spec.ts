@@ -5,7 +5,7 @@ describe('Meeting ownership and teaching account links',()=>{
   let service:BookingsService,prisma:any;
   beforeEach(()=>{
     prisma={guardian:{findFirst:jest.fn().mockResolvedValue({id:'guardian-1'})},staff:{findFirst:jest.fn().mockResolvedValue({id:'staff-1'})},parentTeacherBooking:{findFirst:jest.fn().mockResolvedValue({id:'meeting-1',guardianId:'guardian-1',teacherId:'staff-1'})},teacherAvailability:{findFirst:jest.fn().mockResolvedValue(null)}};
-    service=new BookingsService(prisma,{requireTenantContext:()=> 'school-1'} as any);
+    service=new BookingsService(prisma,{requireTenantContext:()=> 'school-1'} as any,{sendBookingConfirmation:jest.fn()} as any);
   });
   it('maps parents to their linked guardian and teachers to their staff record',async()=>{
     expect(await service.accountScope({userId:'parent-account',role:'PARENT'})).toEqual({guardianId:'guardian-1'});
