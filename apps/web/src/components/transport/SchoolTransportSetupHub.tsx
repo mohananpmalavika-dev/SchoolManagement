@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Bus,
   MapPin,
@@ -204,7 +204,7 @@ export function SchoolTransportSetupHub() {
   const [isSearchingCampus, setIsSearchingCampus] = useState(false);
 
   // Load initial data
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [fetchedLoc, fetchedRoutes, fetchedSuggestions] = await Promise.all([
@@ -224,11 +224,11 @@ export function SchoolTransportSetupHub() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedRouteId]);
 
   useEffect(() => {
     void loadData();
-  }, []);
+  }, [loadData]);
 
   const showNotification = (msg: string) => {
     setStatusMessage(msg);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Bus, MapPin, Navigation, Compass, School, CheckCircle2, Clock } from 'lucide-react';
 import { TransportTrip, TransportStop } from '@krypton/types';
 
@@ -47,7 +47,7 @@ export function LiveBusMap({
   }, [stops, trip.currentLocation.latitude, trip.currentLocation.longitude]);
 
   // Project lat/lng to 0-1000 SVG coordinate system
-  const project = (lat: number, lng: number) => {
+  const project = useCallback((lat: number, lng: number) => {
     const latSpan = bounds.maxLat - bounds.minLat || 0.01;
     const lngSpan = bounds.maxLng - bounds.minLng || 0.01;
 
@@ -56,7 +56,7 @@ export function LiveBusMap({
     const x = 90 + ((lng - bounds.minLng) / lngSpan) * 780;
 
     return { x, y };
-  };
+  }, [bounds]);
 
   const busPos = project(trip.currentLocation.latitude, trip.currentLocation.longitude);
 
@@ -66,7 +66,7 @@ export function LiveBusMap({
       pos: project(stop.latitude, stop.longitude),
       isChildStop: stop.id === childStopId,
     }));
-  }, [stops, childStopId, bounds]);
+  }, [stops, childStopId, project]);
 
   // Build SVG path data for route connecting stops
   const routePathD = useMemo(() => {

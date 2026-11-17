@@ -39,6 +39,10 @@ import { BookingsModule } from './modules/bookings/bookings.module';
 import { ParentPortalModule } from './modules/parent-portal/parent-portal.module';
 import { GovernmentModule } from './modules/government/government.module';
 import { BackupModule } from './modules/backup/backup.module';
+import { TransportModule } from './modules/transport/transport.module';
+import { AdmissionsModule } from './modules/admissions/admissions.module';
+import { CertificatesModule } from './modules/certificates/certificates.module';
+import { ParentEngagementNotificationsModule } from './modules/parent-engagement-notifications/parent-engagement-notifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { RedisService } from './common/services/redis.service';
 import { OperationsModule } from './modules/operations/operations.module';
@@ -106,6 +110,10 @@ import { OperationsModule } from './modules/operations/operations.module';
     ParentPortalModule,
     GovernmentModule,
     BackupModule,
+    TransportModule,
+    AdmissionsModule,
+    CertificatesModule,
+    ParentEngagementNotificationsModule,
   ],
   controllers: [AppController],
   providers: [

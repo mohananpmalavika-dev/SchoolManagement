@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: krypton_oci_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: krypton
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: krypton
+    volumes:
+      - oci_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U krypton -d krypton"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks:
+      - krypton_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: krypton_oci_redis
+    restart: always
+    command: ["sh", "-c", 'exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"']
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - oci_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks:
+      - krypton_net
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: migrations
+    container_name: krypton_oci_migrate
+    environment:
+      DATABASE_URL: postgresql://krypton:${DB_PASSWORD}@postgres:5432/krypton
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - krypton_net
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    container_name: krypton_oci_api
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://krypton:${DB_PASSWORD}@postgres:5432/krypton
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      CORS_ORIGIN: ${PUBLIC_DOMAIN:-http://localhost}
+      WEB_URL: ${PUBLIC_DOMAIN:-http://localhost}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      # Indian Gateway & WhatsApp Integrations
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    expose:
+      - "3001"
+    networks:
+      - krypton_net
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: krypton_oci_web
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      API_URL: http://api:3001
+      NEXT_PUBLIC_API_URL: ${PUBLIC_DOMAIN:-http://localhost}/api
+    depends_on:
+      - api
+    expose:
+      - "3000"
+    networks:
+      - krypton_net
+
+  nginx:
+    image: nginx:alpine
+    container_name: krypton_oci_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/oci-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - oci_certbot_www:/var/www/certbot:ro
+      - oci_certbot_conf:/etc/letsencrypt:ro
+    depends_on:
+      - web
+      - api
+    networks:
+      - krypton_net
+
+volumes:
+  oci_postgres_data:
+  oci_redis_data:
+  oci_certbot_www:
+  oci_certbot_conf:
+
+networks:
+  krypton_net:
+    driver: bridge
+

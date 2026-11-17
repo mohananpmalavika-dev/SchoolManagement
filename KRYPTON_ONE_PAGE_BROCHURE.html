@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Krypton School ERP - Executive 1-Page Brochure</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --primary: #0a1128;
+      --primary-light: #162456;
+      --accent-blue: #2563eb;
+      --accent-cyan: #06b6d4;
+      --accent-orange: #f97316;
+      --accent-gold: #f59e0b;
+      --text-dark: #0f172a;
+      --text-muted: #475569;
+      --bg-slate: #f8fafc;
+      --border: #e2e8f0;
+      --card-border: #cbd5e1;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    @page {
+      size: A4 portrait;
+      margin: 6mm 8mm;
+    }
+
+    html, body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--text-dark);
+      background-color: #ffffff;
+      line-height: 1.35;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* Outer Wrapper strictly sized for single A4 */
+    .flyer {
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 98vh;
+      max-height: 1080px;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #070d1e 0%, #0f1e4a 55%, #1a2f75 100%);
+      color: white;
+      padding: 16px 20px;
+      border-radius: 12px;
+      position: relative;
+      border-bottom: 3.5px solid var(--accent-orange);
+      box-shadow: 0 4px 15px rgba(10, 17, 40, 0.15);
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .logo-img {
+      height: 40px;
+      background: white;
+      padding: 4px 8px;
+      border-radius: 6px;
+      object-fit: contain;
+    }
+    .badge-pill {
+      background: linear-gradient(90deg, #ea580c 0%, #f97316 100%);
+      color: #ffffff;
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      box-shadow: 0 2px 6px rgba(249, 115, 22, 0.35);
+    }
+    .title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 14px;
+    }
+    .title-text h1 {
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .title-text p {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      font-weight: 500;
+      margin-top: 3px;
+    }
+    .arch-tag {
+      background: rgba(37, 99, 235, 0.25);
+      border: 1px solid rgba(59, 130, 246, 0.5);
+      color: #93c5fd;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    /* Main Grid */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 12px;
+      margin: 10px 0;
+      flex: 1;
+    }
+
+    /* Features Grid */
+    .features-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .feature-card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      border-left: 3.5px solid var(--accent-blue);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+    .feature-card.highlight {
+      border-left-color: var(--accent-orange);
+      background: #fffaf5;
+    }
+    .feature-card.green {
+      border-left-color: #10b981;
+    }
+    .feature-card.purple {
+      border-left-color: #8b5cf6;
+    }
+    .feature-card.cyan {
+      border-left-color: #06b6d4;
+    }
+    .feature-card.gold {
+      border-left-color: #d97706;
+    }
+    .f-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+    .f-icon {
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .f-title {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: -0.01em;
+    }
+    .f-desc {
+      font-size: 0.69rem;
+      color: #475569;
+      line-height: 1.3;
+    }
+
+    /* Right Showcase Column */
+    .showcase-column {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .hero-image-card {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      position: relative;
+    }
+    .hero-image-card img {
+      width: 100%;
+      height: 175px;
+      object-fit: cover;
+      object-position: top;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      display: block;
+    }
+    .image-tag-overlay {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: rgba(10, 17, 40, 0.85);
+      color: #38bdf8;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      backdrop-filter: blur(4px);
+    }
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .kpi-box {
+      background: #f1f5f9;
+      border-radius: 5px;
+      padding: 5px 6px;
+      text-align: center;
+    }
+    .kpi-val {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .kpi-lbl {
+      font-size: 0.58rem;
+      color: #64748b;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* Differentiator Callout Box */
+    .diff-box {
+      background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+      border: 1.5px dashed #3b82f6;
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .diff-title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: #1e3a8a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .diff-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .diff-list li {
+      font-size: 0.68rem;
+      color: #1e293b;
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+      line-height: 1.25;
+    }
+    .diff-list li span.check {
+      color: #16a34a;
+      font-weight: 900;
+      font-size: 0.75rem;
+      line-height: 1;
+    }
+
+    /* Bottom Trust & Security Banner */
+    .trust-strip {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .trust-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #334155;
+    }
+    .trust-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-orange);
+    }
+
+    /* Footer & Contact Bar */
+    footer {
+      background: linear-gradient(135deg, #070d1e 0%, #0f172a 100%);
+      color: white;
+      border-radius: 10px;
+      padding: 12px 18px;
+      display: grid;
+      grid-template-columns: 1.2fr 1.8fr;
+      align-items: center;
+      gap: 16px;
+      border-top: 3px solid var(--accent-orange);
+    }
+    .pricing-callout {
+      border-right: 1px solid rgba(255,255,255,0.12);
+      padding-right: 14px;
+    }
+    .pricing-label {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      font-weight: 800;
+      color: var(--accent-gold);
+      letter-spacing: 0.06em;
+    }
+    .pricing-headline {
+      font-size: 0.98rem;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.2;
+      margin: 2px 0;
+    }
+    .pricing-sub {
+      font-size: 0.65rem;
+      color: #94a3b8;
+    }
+    .contact-details {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px 14px;
+    }
+    .c-cell {
+      display: flex;
+      flex-direction: column;
+    }
+    .c-lbl {
+      font-size: 0.55rem;
+      text-transform: uppercase;
+      color: #64748b;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .c-val {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      white-space: nowrap;
+    }
+    .c-val a {
+      color: #f1f5f9;
+      text-decoration: none;
+    }
+    .c-val a:hover {
+      color: var(--accent-orange);
+    }
+
+    @media print {
+      body { padding: 0; background: white; }
+      .flyer { height: 100%; max-height: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="flyer">
+
+    <!-- Header Section -->
+    <header>
+      <div class="header-top">
+        <div class="logo-container">
+          <img src="assets/sales_pitch/krypton_light.jpg" alt="KryptonLogic" class="logo-img">
+          <img src="assets/sales_pitch/omsystem_logo.jpg" alt="OM System and Service" class="logo-img">
+        </div>
+        <div class="badge-pill">Private Institutional Enterprise • Non-SaaS</div>
+      </div>
+      <div class="title-row">
+        <div class="title-text">
+          <h1>Krypton School ERP</h1>
+          <p>Next-Generation AI Campus Operating System | Single School & Multi-Branch Architecture</p>
+        </div>
+        <div class="arch-tag">
+          🏛️ 100% Dedicated Server & Custom Domain
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <div class="main-grid">
+
+      <!-- Left Column: 8 Core Feature Blocks -->
+      <div class="features-container">
+
+        <!-- 1. Multi-Branch & HQ -->
+        <div class="feature-card highlight">
+          <div class="f-header">
+            <span class="f-icon">🏛️</span>
+            <span class="f-title">Central HQ & Multi-Branch</span>
+          </div>
+          <div class="f-desc">
+            Trust Board HQ dashboard. Autonomous branches, 1-click inter-branch student transfer, and unified parent login for siblings in different campuses.
+          </div>
+        </div>
+
+        <!-- 2. Inbuilt Chat & Live Classes -->
+        <div class="feature-card cyan">
+          <div class="f-header">
+            <span class="f-icon">💬</span>
+            <span class="f-title">Inbuilt Chat & Live Virtual Classes</span>
+          </div>
+          <div class="f-desc">
+            Secure 1-on-1 parent-teacher chat, doubt-clearing channels, browser voice/video calls, and interactive collaborative whiteboard (no personal phone numbers needed).
+          </div>
+        </div>
+
+        <!-- 3. Teacher AI Copilot -->
+        <div class="feature-card green">
+          <div class="f-header">
+            <span class="f-icon">🤖</span>
+            <span class="f-title">Teacher AI Studio & Lesson Copilot</span>
+          </div>
+          <div class="f-desc">
+            Auto-generates CBSE/ICSE/State lesson plans, balanced question papers, rubrics, and personalized bilingual (Malayalam & English) student progress remarks.
+          </div>
+        </div>
+
+        <!-- 4. Dynamic Transit -->
+        <div class="feature-card">
+          <div class="f-header">
+            <span class="f-icon">🚍</span>
+            <span class="f-title">Dynamic Transit & GPS Fleet</span>
+          </div>
+          <div class="f-desc">
+            Search any school location in India. Auto-discovers nearby stops, computes road km, schedules morning pickup backwards, and alerts parents live.
+          </div>
+        </div>
+
+        <!-- 5. Meta WhatsApp Automation -->
+        <div class="feature-card green">
+          <div class="f-header">
+            <span class="f-icon">📲</span>
+            <span class="f-title">Official Meta WhatsApp Hub</span>
+          </div>
+          <div class="f-desc">
+            1-click UPI fee payment links, instant digital PDF receipts, 9:15 AM automated absentee alerts with interactive buttons, and report cards on WhatsApp.
+          </div>
+        </div>
+
+        <!-- 6. Cryptographic Certificates -->
+        <div class="feature-card purple">
+          <div class="f-header">
+            <span class="f-icon">🔐</span>
+            <span class="f-title">Tamper-Proof Digital Certificates</span>
+          </div>
+          <div class="f-desc">
+            Transfer Certificates (TC), Bonafide & Conduct with Principal's digital signature, SHA-256 cryptographic hash, and instant public QR verification.
+          </div>
+        </div>
+
+        <!-- 7. Multi-Gateway Smart Fees -->
+        <div class="feature-card gold">
+          <div class="f-header">
+            <span class="f-icon">💳</span>
+            <span class="f-title">Multi-Gateway Fees & Payroll</span>
+          </div>
+          <div class="f-desc">
+            Multi-child single cart checkout (Razorpay, Cashfree, UPI). Automated concessions, aging defaulter recovery, and staff payroll with payslips.
+          </div>
+        </div>
+
+        <!-- 8. Physical Security by OM System -->
+        <div class="feature-card highlight">
+          <div class="f-header">
+            <span class="f-icon">🛡️</span>
+            <span class="f-title">Hardware Security (OM System)</span>
+          </div>
+          <div class="f-desc">
+            Seamless integration with RFID smart turnstiles, biometric entry gates, campus CCTV video surveillance, and campus optical fiber networking.
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column: Visual Showcase & Why Choose Krypton -->
+      <div class="showcase-column">
+
+        <!-- Hero Screenshot Card with Live KPIs -->
+        <div class="hero-image-card">
+          <span class="image-tag-overlay">Live Command Center</span>
+          <img src="assets/sales_pitch/school_dashboard.png" alt="Command Dashboard">
+          <div class="kpi-row">
+            <div class="kpi-box">
+              <div class="kpi-val">99.4%</div>
+              <div class="kpi-lbl">Fee Collection</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val">Instant</div>
+              <div class="kpi-lbl">WhatsApp Delivery</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val">100%</div>
+              <div class="kpi-lbl">Private Cloud</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Differentiator Box -->
+        <div class="diff-box">
+          <div class="diff-title">
+            <span>⚡</span> Why Choose Krypton Over Traditional ERPs?
+          </div>
+          <ul class="diff-list">
+            <li>
+              <span class="check">✔</span>
+              <span><strong>Private Dedicated Instance:</strong> Zero shared multi-tenant SaaS. Your data stays 100% private.</span>
+            </li>
+            <li>
+              <span class="check">✔</span>
+              <span><strong>All-in-One Communication:</strong> Inbuilt chat, live online classes & WhatsApp eliminate separate software fees.</span>
+            </li>
+            <li>
+              <span class="check">✔</span>
+              <span><strong>Neural Predictive AI:</strong> Alerts teachers 3–6 weeks before a student drops out or fails.</span>
+            </li>
+            <li>
+              <span class="check">✔</span>
+              <span><strong>End-to-End Hardware:</strong> Backed by OM System & Service's trusted physical security engineers.</span>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Trust & Standard Badges Strip -->
+    <div class="trust-strip">
+      <div class="trust-item"><span class="trust-dot"></span> CBSE, ICSE & Kerala State Compliant</div>
+      <div class="trust-item"><span class="trust-dot"></span> NEP 2020 Pedagogical Framework</div>
+      <div class="trust-item"><span class="trust-dot"></span> UDISE+ Standard Code Export</div>
+      <div class="trust-item"><span class="trust-dot"></span> 256-Bit Banking-Grade Data Encryption</div>
+    </div>
+
+    <!-- Footer Bar & Official Contact Info -->
+    <footer>
+      <div class="pricing-callout">
+        <div class="pricing-label">Custom Institutional Quote</div>
+        <div class="pricing-headline">Commercial Proposal Upon Request</div>
+        <div class="pricing-sub">Tailored to campus student strength & branch count. Includes onboarding, training & 24/7 support.</div>
+      </div>
+
+      <div class="contact-details">
+        <div class="c-cell">
+          <span class="c-lbl">Official Website</span>
+          <span class="c-val"><a href="https://www.omsystemandservice.in/" target="_blank">www.omsystemandservice.in</a></span>
+        </div>
+        <div class="c-cell">
+          <span class="c-lbl">Direct Email</span>
+          <span class="c-val"><a href="mailto:service@omsystemandservice.in">service@omsystemandservice.in</a></span>
+        </div>
+        <div class="c-cell">
+          <span class="c-lbl">Phone / IVR Support</span>
+          <span class="c-val"><a href="tel:01169266519">+91 11 6926 6519</a> / <a href="tel:08069409880">80 6940 9880</a></span>
+        </div>
+        <div class="c-cell">
+          <span class="c-lbl">Corporate Office</span>
+          <span class="c-val">NH-47, Thirumullavaram, Kollam, Kerala - 691012</span>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+</body>
+</html>
+
