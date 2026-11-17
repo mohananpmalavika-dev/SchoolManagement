@@ -171,6 +171,7 @@ model School {
 
   // Indian Board & Academic Configuration
   schoolType        SchoolType
+  programme         SchoolProgramme @default(STANDARD)
   boardAffiliation  String           @default("CBSE") // CBSE, ICSE, STATE_BOARD, IB, IGCSE
   udiseCode         String?
   affiliationNumber String?
@@ -206,7 +207,21 @@ enum SchoolType {
   INTERNATIONAL
 }
 
+enum SchoolProgramme {
+  STANDARD
+  PRESCHOOL
+  COMBINED
+}
+
+enum PreschoolStage {
+  PLAYGROUP
+  NURSERY
+  LKG
+  UKG
+}
+
 enum EducationLevel {
+  JUNIOR_SECONDARY // Legacy records remain readable; new Indian classes use MIDDLE/SECONDARY.
   PRE_PRIMARY
   PRIMARY
   MIDDLE
@@ -291,6 +306,11 @@ enum UserRole {
 // ===================================
 
 model Student {
+  @@unique([id, tenantId])
+  preschoolDays         PreschoolDayRecord[]
+  developmentNotes      DevelopmentObservation[]
+  cameraConsents        ClassroomCameraConsent[]
+  transportAlerts       TransportAlert[]
   absenceRequests       AbsenceRequest[]
   portfolioEntries      PortfolioEntry[]
   quizAttempts          QuizAttempt[]
@@ -386,6 +406,9 @@ enum StudentStatus {
 }
 
 model Guardian {
+  @@unique([id, tenantId])
+  cameraConsents ClassroomCameraConsent[]
+  preschoolPickups PreschoolDayRecord[]
   id       String @id @default(uuid())
   tenantId String
 
@@ -460,6 +483,8 @@ enum GuardianRelationship {
 // ===================================
 
 model Staff {
+  @@unique([id, tenantId])
+  preschoolAssignments PreschoolStaffAssignment[]
   id          String  @id @default(uuid())
   tenantId    String
   staffNumber String
@@ -613,6 +638,10 @@ model Term {
 }
 
 model Class {
+  @@unique([id, tenantId])
+  preschoolAssignments PreschoolStaffAssignment[]
+  preschoolContent PreschoolContent[]
+  classroomCameras ClassroomCamera[]
   assignments       Assignment[]
   examinations      Examination[]
   reportCards       ReportCard[]
@@ -623,6 +652,7 @@ model Class {
   name              String
   level             String // e.g., "Class 1", "Class 10"
   educationLevel    EducationLevel
+  preschoolStage    PreschoolStage?
   sortOrder         Int                @default(0)
 
   createdAt DateTime @default(now())
@@ -1035,6 +1065,7 @@ model Payment {
 }
 
 enum PaymentMethod {
+  MPESA // Preserve historical payment ledgers from earlier deployments.
   RAZORPAY
   UPI
   NET_BANKING
@@ -2222,6 +2253,8 @@ model ComplianceReport {
 }
 
 enum ComplianceReportType {
+  TSC_COMPLIANCE // Legacy compliance history.
+  TERMLY_RETURNS
   ENROLLMENT_STATISTICS
   ATTENDANCE_SUMMARY
   TEACHER_DATA_REPORT
@@ -2285,6 +2318,8 @@ model ComplianceChecklist {
 }
 
 enum ComplianceArea {
+  NEMIS_REPORTING // Legacy compliance history.
+  TSC_COMPLIANCE
   REGISTRATION
   LICENSING
   SAFETY_STANDARDS
@@ -2623,6 +2658,8 @@ model TravelAssignment {
 }
 
 model TransportJourney {
+  @@unique([id, tenantId])
+  alerts TransportAlert[]
   id           String          @id @default(uuid())
   tenantId     String
   routeId      String
@@ -2743,4 +2780,164 @@ model ChatMessage {
   @@index([senderId])
   @@index([createdAt])
   @@map("chat_messages")
+}
+
+// Preschool records are tenant scoped. Foreign references are validated by the
+// preschool service; compound foreign keys in the migration enforce this in SQL.
+model PreschoolStaffAssignment {
+  id        String @id @default(uuid())
+  tenantId  String
+  classId   String
+  staffId   String
+  createdAt DateTime @default(now())
+  class Class @relation(fields: [classId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  staff Staff @relation(fields: [staffId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  @@unique([tenantId, classId, staffId])
+  @@index([tenantId, staffId])
+  @@map("preschool_staff_assignments")
+}
+
+model PreschoolDayRecord {
+  id               String @id @default(uuid())
+  tenantId         String
+  studentId        String
+  date             DateTime @db.Date
+  checkInAt        DateTime?
+  checkOutAt       DateTime?
+  checkedInBy      String?
+  checkedOutBy     String?
+  pickupGuardianId String?
+  meals            String? @db.Text
+  sleepMinutes     Int?
+  toileting        String?
+  mood             String?
+  notes            String? @db.Text
+  sharedAt         DateTime?
+  version          Int @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  student Student @relation(fields: [studentId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  pickupGuardian Guardian? @relation(fields: [pickupGuardianId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  @@unique([tenantId, studentId, date])
+  @@index([tenantId, date])
+  @@map("preschool_day_records")
+}
+
+enum DevelopmentDomain {
+  LANGUAGE
+  COGNITIVE
+  FINE_MOTOR
+  GROSS_MOTOR
+  SOCIAL_EMOTIONAL
+  SELF_CARE
+  CREATIVE
+}
+
+enum DevelopmentLevel {
+  EMERGING
+  DEVELOPING
+  CONSISTENT
+}
+
+model DevelopmentObservation {
+  id          String @id @default(uuid())
+  tenantId    String
+  studentId   String
+  domain      DevelopmentDomain
+  level       DevelopmentLevel
+  skill       String
+  observation String @db.Text
+  observedOn  DateTime @db.Date
+  shared      Boolean @default(false)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  student Student @relation(fields: [studentId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  @@index([tenantId, studentId, observedOn])
+  @@map("development_observations")
+}
+
+enum PreschoolContentKind {
+  LESSON_PLAN
+  ACTIVITY
+  STORY
+  RHYME
+  FLASHCARDS
+  COLOURING
+  WORKSHEET
+  GAME
+  OBSERVATION_SHEET
+}
+
+model PreschoolContent {
+  id              String @id @default(uuid())
+  tenantId        String
+  classId         String
+  kind            PreschoolContentKind
+  title           String
+  theme           String
+  language        String
+  ageMinMonths    Int
+  ageMaxMonths    Int
+  durationMinutes Int
+  body            String @db.Text
+  materials       String @db.Text
+  learningGoals   String @db.Text
+  scheduledOn     DateTime? @db.Date
+  status          String @default("DRAFT")
+  source          String @default("Teacher")
+  createdBy       String
+  publishedBy     String?
+  publishedAt     DateTime?
+  version         Int @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  class Class @relation(fields: [classId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  @@index([tenantId, classId, status, scheduledOn])
+  @@map("preschool_content")
+}
+
+model ClassroomCamera {
+  id                String @id @default(uuid())
+  tenantId          String
+  classId           String
+  label             String
+  externalCameraRef String
+  enabled           Boolean @default(false)
+  parentAccess      Boolean @default(false)
+  weekdays          Int[]
+  startMinute       Int
+  endMinute         Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  class Class @relation(fields: [classId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  @@unique([tenantId, externalCameraRef])
+  @@index([tenantId, classId])
+  @@map("classroom_cameras")
+}
+
+model ClassroomCameraConsent {
+  id         String @id @default(uuid())
+  tenantId   String
+  studentId  String
+  guardianId String
+  grantedAt  DateTime?
+  revokedAt  DateTime?
+  student Student @relation(fields: [studentId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  guardian Guardian @relation(fields: [guardianId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  @@unique([tenantId, studentId, guardianId])
+  @@map("classroom_camera_consents")
+}
+
+model TransportAlert {
+  id        String @id @default(uuid())
+  tenantId  String
+  tripId    String
+  studentId String
+  kind      String
+  createdAt DateTime @default(now())
+  trip TransportJourney @relation(fields: [tripId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  student Student @relation(fields: [studentId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  @@unique([tenantId, tripId, studentId, kind])
+  @@index([tenantId, studentId, createdAt])
+  @@map("transport_alerts")
 }

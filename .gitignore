@@ -72,3 +72,5 @@ dependency-audit*.json
 
 # Isolated modern workspace previews and checks
 .next-modern*/
+.next-preschool*/
+scratch/preschool/

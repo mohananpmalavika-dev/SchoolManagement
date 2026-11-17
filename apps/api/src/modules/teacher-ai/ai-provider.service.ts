@@ -2,6 +2,7 @@ import { BadGatewayException, HttpException, Injectable, Logger, ServiceUnavaila
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { AIQuestion, TeacherAIProvider, TeacherAIStatus } from '@krypton/types';
+import { preschoolTemplate, preschoolGuidance } from '../preschool/preschool-templates';
 
 @Injectable()
 export class AIProviderService {
@@ -196,6 +197,8 @@ export class AIProviderService {
   }
 
   private generateBuiltinArtifact(name: string, input: any): unknown {
+    if (name === 'preschool_content') return preschoolTemplate(input);
+    if (name === 'preschool_guidance') return preschoolGuidance(input);
     if (name === 'student_remarks') {
       return this.generateBuiltinRemarks(input);
     }

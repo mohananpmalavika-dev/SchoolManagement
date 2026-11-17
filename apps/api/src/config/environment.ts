@@ -1,4 +1,12 @@
 export function validateEnvironment(env:Record<string,unknown>){
+ const cameraKeys=['CCTV_GATEWAY_URL','CCTV_GATEWAY_KEY','CCTV_PLAYBACK_ORIGINS'];
+ if(cameraKeys.some(key=>!!env[key])){
+  if(!cameraKeys.every(key=>typeof env[key]==='string'&&String(env[key]).trim()))throw new Error('Configure all CCTV gateway settings together');
+  const gateway=new URL(String(env.CCTV_GATEWAY_URL));
+  if(gateway.protocol!=='https:'||gateway.username||gateway.password||gateway.search||gateway.hash)throw new Error('CCTV_GATEWAY_URL must be an HTTPS gateway URL without credentials or query parameters');
+  if(String(env.CCTV_GATEWAY_KEY).length<32)throw new Error('CCTV_GATEWAY_KEY must contain at least 32 characters');
+  for(const value of String(env.CCTV_PLAYBACK_ORIGINS).split(',')){const url=new URL(value.trim());if(url.protocol!=='https:'||url.origin!==value.trim())throw new Error('CCTV_PLAYBACK_ORIGINS must list exact HTTPS origins');}
+ }
  const required=['DATABASE_URL','JWT_SECRET','JWT_REFRESH_SECRET'];
  for(const key of required)if(typeof env[key]!=='string'||!env[key])throw new Error(key+' must be configured');
  if(env.NODE_ENV==='production'){

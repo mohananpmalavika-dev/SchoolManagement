@@ -77,14 +77,16 @@ describe('Comprehensive End-to-End Enterprise Flow Verification', () => {
 
       const updated = await transportService.updateSchoolLocation({
         schoolName: 'Krypton International School',
+        campusGate: 'Main Gate 1',
+        pincode: '691001',
+        morningReportingTime: '08:30',
+        eveningDepartureTime: '15:30',
         address: 'Green Valley, Chinnakada, Kollam, Kerala - 691001',
         city: 'Kollam',
         district: 'Kollam',
         state: 'Kerala',
         latitude: 8.8875567,
         longitude: 76.5895648,
-        schoolArrivalMorning: '08:30',
-        schoolDepartureEvening: '15:30',
       });
 
       expect(updated.city).toBe('Kollam');
@@ -93,25 +95,28 @@ describe('Comprehensive End-to-End Enterprise Flow Verification', () => {
 
     it('should calculate accurate road distances and schedule morning pickup times', async () => {
       const route = await transportService.createRoute({
-        routeNumber: 'R-KOL-01',
-        routeName: 'Chinnakada to Campus Express',
+        code: 'R-KOL-01',
+        name: 'Chinnakada to Campus Express',
+        vehicleRegistration: 'KL-01-CB-5544',
+        vehicleModel: 'Tata Starbus 40-Seater',
         driverName: 'Suresh Kumar',
         driverPhone: '+91 98470 11223',
-        capacity: 40,
+        totalCapacity: 40,
+        direction: 'MORNING_PICKUP',
         stops: [
           {
-            stopName: 'Kavanad Junction',
-            stopNameMl: 'കാവനാട് ജംഗ്ഷൻ',
+            name: 'Kavanad Junction',
+            nameMl: 'കാവനാട് ജംഗ്ഷൻ',
             latitude: 8.9284,
             longitude: 76.5528,
-            sequenceOrder: 1,
+            sequence: 1,
           },
           {
-            stopName: 'Chinnakada Clock Tower',
-            stopNameMl: 'ചിന്നക്കട ക്ലോക്ക് ടവർ',
+            name: 'Chinnakada Clock Tower',
+            nameMl: 'ചിന്നക്കട ക്ലോക്ക് ടവർ',
             latitude: 8.8875,
             longitude: 76.5895,
-            sequenceOrder: 2,
+            sequence: 2,
           },
         ],
       });
@@ -186,8 +191,9 @@ describe('Comprehensive End-to-End Enterprise Flow Verification', () => {
         assignedClass: 'KG-A',
         assignedSection: 'A',
         officialAdmissionNumber: 'ADM-2026-104',
-        enrolledAt: new Date().toISOString(),
-        firstTermFeeReceipt: 'RCP-ADM-9912',
+        rollNumber: '01',
+        admittedAt: new Date().toISOString(),
+        welcomeKitDispatched: true,
       });
 
       expect(enrolled.stage).toBe('ADMITTED');
@@ -375,7 +381,7 @@ describe('Comprehensive End-to-End Enterprise Flow Verification', () => {
 
       const tc = certificatesService.generateTransferCertificate(student.id, {
         reasonForLeaving: 'Higher Studies',
-        conduct: 'Exemplary',
+        generalConduct: 'Exemplary',
       });
 
       expect(tc).toBeDefined();

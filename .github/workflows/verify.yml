@@ -39,8 +39,27 @@ jobs:
       - run: pnpm build
       - run: pnpm type-check
       - run: pnpm --filter @krypton/web lint
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify preschool staff and family browser workflows
+        run: |
+          pnpm --filter @krypton/web exec next start --hostname 127.0.0.1 --port 3102 > preschool-web.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3102/login && break || sleep 2; done
+          pnpm test:ui:preschool
+        env:
+          UI_BASE_URL: http://127.0.0.1:3102
       - run: pnpm --filter @krypton/api test -- --runInBand
       - run: pnpm db:deploy && pnpm db:seed:demo
+      - name: Verify preschool database transactions and tenant constraints
+        run: pnpm --filter @krypton/api test -- --runInBand preschool.integration.spec
+        env:
+          PRESCHOOL_TEST_DATABASE_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_qa
+      - name: Replay migrations and verify historical data preservation
+        run: |
+          createdb -h 127.0.0.1 -p 15432 -U krypton_qa krypton_migrations_test
+          pnpm test:db:preschool-migrations
+        env:
+          PGPASSWORD: local-qa-only
+          PRESCHOOL_MIGRATION_TEST_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_migrations_test
       - run: |
           node apps/api/dist/main.js > api.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://localhost:3001/api/v1/health && break || sleep 2; done

@@ -4,6 +4,10 @@
 
 The shared UI and core workflows have been redesigned and hardened. Advanced services still include previews, and live integrations require release validation. See the current [UI redesign and release status](docs/UI_REDESIGN_AND_RELEASE_STATUS.md) before deploying. Historical progress reports below are not release certification.
 
+## Preschool support
+
+Regular schools, preschools and combined schools share this codebase. The preschool workspace includes daily care and authorized pickup, play-based teaching resources, INKY, development observations, private family photos, driver-phone tracking and configurable classroom camera access. See [preschool setup, verification and deployment](docs/PRESCHOOL_IMPLEMENTATION.md).
+
 ## Quick Links
 
 - ðŸ“– **[API Documentation](API_REFERENCE.md)** - Complete API reference with examples

@@ -902,6 +902,8 @@ export class ComplianceService {
 
   private getSubmissionDestination(reportType: ComplianceReportType): string {
     const destinations: Record<ComplianceReportType, string> = {
+      [ComplianceReportType.TSC_COMPLIANCE]: 'TSC_LEGACY',
+      [ComplianceReportType.TERMLY_RETURNS]: 'MOE_KENYA_LEGACY',
       [ComplianceReportType.ENROLLMENT_STATISTICS]: 'UDISE_PLUS',
       [ComplianceReportType.ATTENDANCE_SUMMARY]: 'UDISE_PLUS',
       [ComplianceReportType.TEACHER_DATA_REPORT]: 'UDISE_PLUS',

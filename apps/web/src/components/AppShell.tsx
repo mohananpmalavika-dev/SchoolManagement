@@ -1,17 +1,20 @@
 ﻿'use client';
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { ArrowUpRight, ChevronDown, ChevronRight, LogOut, LayoutGrid, Search, Settings, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { navigationFor, portalLabels, type Portal } from '@/lib/navigation';
 import { teacherRoles, schoolRoles } from '@/lib/session';
 import { ProtectedRoute } from './ProtectedRoute';
 import { FeatureBoundary } from './FeatureBoundary';
+import { apiClient } from '@/lib/api-client';
 import { portalDesign } from '@/lib/portal-design';
 
 export function AppShell({ portal, children }: { portal: Portal; children: ReactNode }) {
+  const [programme, setProgramme] = useState('COMBINED');
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -25,7 +28,19 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
   const main = useRef<HTMLElement>(null);
   const base = portal === 'parent' ? '/dashboard' : '/' + portal;
   const PortalIcon = portalDesign[portal].icon;
-  const groups = navigationFor(portal, user?.role || '');
+  const groups = navigationFor(portal, user?.role || '', programme);
+  useEffect(() => {
+    if (!user || portal === 'admin' || portal === 'student') return;
+    let active = true;
+    const loadProgramme = () => { void apiClient.get('/preschool/navigation').then(({ data }) => { if (active && ['STANDARD','PRESCHOOL','COMBINED'].includes(data.programme)) setProgramme(data.programme); }).catch(() => undefined); };
+    loadProgramme(); window.addEventListener('preschool-configuration-changed', loadProgramme);
+    return () => { active = false; window.removeEventListener('preschool-configuration-changed', loadProgramme); };
+  }, [user, portal]);
+  useEffect(() => {
+    if (programme !== 'PRESCHOOL' || !['school','teacher','parent'].includes(portal)) return;
+    const overview = portal === 'parent' ? '/dashboard' : '/' + portal + '/dashboard';
+    if (pathname === overview) router.replace(portal === 'parent' ? '/dashboard/preschool' : '/' + portal + '/preschool');
+  }, [programme, portal, pathname, router]);
   const links = groups.flatMap(group => group.items);
   const matches = (href: string) => pathname === href || (href !== base && pathname.startsWith(href + '/'));
   const active = links.filter(link => matches(link.href)).sort((left, right) => right.href.length - left.href.length)[0];

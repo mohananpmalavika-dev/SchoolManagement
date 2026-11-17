@@ -20,6 +20,7 @@ export interface PresignedUrlResult {
 
 @Injectable()
 export class StorageService {
+  isConfigured() { return this.s3Enabled; }
   private readonly logger = new Logger(StorageService.name);
   private readonly s3Client: S3Client;
   private readonly s3Bucket: string;

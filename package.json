@@ -43,7 +43,9 @@
     "test:ui": "node scripts/test-ui-redesign.mjs",
     "test:ui:meetings": "node scripts/test-meetings-ui.mjs",
     "test:ui:signin": "node scripts/test-single-sign-in.mjs",
-    "test:ui:modern": "node scripts/test-modern-workspace-ui.mjs"
+    "test:ui:modern": "node scripts/test-modern-workspace-ui.mjs",
+    "test:ui:preschool": "node scripts/test-preschool-ui.mjs",
+    "test:db:preschool-migrations": "node scripts/test-preschool-migrations.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",

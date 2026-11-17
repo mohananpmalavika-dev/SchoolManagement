@@ -12,9 +12,30 @@ import { QueryMediaDto } from './dto/query-media.dto';
 import { randomBytes } from 'crypto';
 import * as path from 'path';
 import 'multer';
+import { Actor } from '../operations/operations.service';
 
 @Injectable()
 export class MediaService {
+  async authorize(user: Actor, media: { studentId?: string | null; classId?: string | null; isVisibleToParents?: boolean | null }) {
+    const tenantId = this.tenantService.requireTenantContext();
+    if (['SCHOOL_OWNER', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'SCHOOL_ADMIN'].includes(user.role)) return;
+    if (user.role === 'PARENT') {
+      if (!media.isVisibleToParents || !media.studentId && !media.classId) throw new ForbiddenException('Photo access denied');
+      const link = await this.prisma.guardianStudentLink.findFirst({ where: { guardian: { tenantId, userId: user.userId }, student: { tenantId, deletedAt: null, ...(media.studentId ? { id: media.studentId } : { currentClassId: media.classId! }) } } });
+      if (!link) throw new ForbiddenException('This photo is not shared with your family');
+      return;
+    }
+    if (!['TEACHER', 'CLASS_TEACHER'].includes(user.role)) throw new ForbiddenException('Media access denied');
+    const staff = await this.prisma.staff.findFirst({ where: { tenantId, userId: user.userId, status: 'ACTIVE', isTeacher: true } });
+    const child = media.studentId ? await this.prisma.student.findFirst({ where: { id: media.studentId, tenantId, deletedAt: null }, select: { currentClassId: true } }) : null;
+    const classId = child?.currentClassId || media.classId;
+    if (!staff || !classId || media.classId && child?.currentClassId && media.classId !== child.currentClassId) throw new ForbiddenException('Choose a child in an assigned class');
+    const [lesson, assignment] = await Promise.all([
+      this.prisma.timetableEntry.findFirst({ where: { tenantId, teacherId: staff.id, classId } }),
+      this.prisma.preschoolStaffAssignment.findFirst({ where: { tenantId, staffId: staff.id, classId } }),
+    ]);
+    if (!lesson && !assignment) throw new ForbiddenException('This class is not assigned to you');
+  }
   private readonly maxFileSize = 50 * 1024 * 1024; // 50MB
   private readonly allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
   private readonly allowedVideoTypes = ['video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo'];

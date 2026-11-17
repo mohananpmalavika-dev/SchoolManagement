@@ -34,28 +34,34 @@ export class MediaController {
       throw new BadRequestException('No file uploaded');
     }
 
-    return this.mediaService.upload(file, uploadMediaDto, req.user.id);
+    await this.mediaService.authorize(req.user, uploadMediaDto);
+    return this.mediaService.upload(file, uploadMediaDto, req.user.userId);
   }
 
   @Get()
   @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  findAll(@Query() query: QueryMediaDto) {
+  async findAll(@Query() query: QueryMediaDto, @Request() req: any) {
+    await this.mediaService.authorize(req.user, query);
     return this.mediaService.findAll(query);
   }
 
   @Get('class/:classId/gallery')
   @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  getClassGallery(
+  async getClassGallery(
     @Param('classId') classId: string,
     @Query() query: QueryMediaDto,
+    @Request() req: any,
   ) {
+    await this.mediaService.authorize(req.user, { classId });
     return this.mediaService.getClassGallery(classId, query);
   }
 
   @Get(':id')
   @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  findOne(@Param('id') id: string) {
-    return this.mediaService.findOne(id);
+  async findOne(@Param('id') id: string, @Request() req: any) {
+    const media = await this.mediaService.findOne(id);
+    await this.mediaService.authorize(req.user, media);
+    return media;
   }
 
   @Get(':id/presigned-url')
@@ -63,14 +69,19 @@ export class MediaController {
   async getPresignedUrl(
     @Param('id') id: string,
     @Query('expiresIn') expiresIn?: string,
+    @Request() req?: any,
   ) {
-    const expires = expiresIn ? parseInt(expiresIn) : 3600;
+    const media = await this.mediaService.findOne(id);
+    await this.mediaService.authorize(req.user, media);
+    const expires = expiresIn ? Number(expiresIn) : 120;
+    if (!Number.isInteger(expires) || expires < 1 || expires > 300) throw new BadRequestException('Photo links can last between 1 and 300 seconds');
     return this.mediaService.getPresignedUrl(id, expires);
   }
 
   @Delete(':id')
   @Roles(UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Request() req: any) {
+    await this.mediaService.authorize(req.user, await this.mediaService.findOne(id));
     return this.mediaService.remove(id);
   }
 }

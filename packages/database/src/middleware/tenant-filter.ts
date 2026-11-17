@@ -1,5 +1,7 @@
 import { Prisma } from '@prisma/client';
 const directModels = new Set([
+  'PreschoolStaffAssignment', 'PreschoolDayRecord', 'DevelopmentObservation', 'PreschoolContent',
+  'ClassroomCamera', 'ClassroomCameraConsent', 'TransportAlert',
   'Subscription', 'School', 'User', 'Student', 'Guardian', 'Staff', 'StaffAttendance',
   'AcademicYear', 'Term', 'Class', 'Stream', 'Subject', 'Enrollment', 'AttendanceRecord',
   'Examination', 'Grade', 'ReportCard', 'FeeStructure', 'Invoice', 'Payment', 'PaymentGatewayTransaction',
