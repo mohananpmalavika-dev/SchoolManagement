@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsIn, IsISO8601, IsOptional, IsString, IsUUID, MaxLength, MinLength, ValidateNested } from 'class-validator';
-import { TeachingLanguage } from '@krypton/types';
+import { TeachingLanguage, RemarksTone } from '@krypton/types';
 
 export class ClassTermDto {
   @IsUUID() classId: string;
@@ -11,6 +11,7 @@ export class StudentObservationDto {
   @IsOptional() @IsString() @MaxLength(800) behaviourObservation?: string;
 }
 export class GenerateRemarksDto extends ClassTermDto {
+  @IsOptional() @IsIn(['NEP_HOLISTIC','HOLISTIC','ACADEMIC_RIGOR','GROWTH_MINDSET']) tone?: RemarksTone;
   @IsIn(['English', 'Hindi', 'Malayalam']) language: TeachingLanguage;
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(10) @ArrayUnique((s: StudentObservationDto) => s.studentId)
   @ValidateNested({ each: true }) @Type(() => StudentObservationDto) students: StudentObservationDto[];

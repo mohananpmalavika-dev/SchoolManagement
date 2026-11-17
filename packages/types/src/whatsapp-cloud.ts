@@ -1,4 +1,27 @@
-export type WhatsAppDeliveryStatus = 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'REPLIED';
+export type WhatsAppDeliveryStatus = 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'REPLIED' | 'READY_TO_OPEN';
+
+export type WhatsAppGatewayProvider =
+  | 'META_CLOUD_API'
+  | 'TWILIO'
+  | 'GUPSHUP'
+  | 'WHATSAPP_WEB';
+
+export interface WhatsAppWebLink {
+  waMeUrl: string;
+  webWhatsAppUrl: string;
+  phone: string;
+  encodedMessage: string;
+  previewText: string;
+}
+
+export interface WhatsAppLiveDispatchResult {
+  success: boolean;
+  provider: WhatsAppGatewayProvider;
+  messageId?: string;
+  status: string;
+  waLink?: WhatsAppWebLink;
+  error?: string;
+}
 
 export type WhatsAppMessageType =
   | 'ABSENCE_ALERT'
@@ -84,7 +107,30 @@ export interface WhatsAppCloudMessage {
   wabaMessageId: string;
 }
 
+export interface MetaCloudGatewayConfig {
+  wabaId: string;
+  phoneNumberId: string;
+  accessToken?: string;
+  apiVersion?: string;
+  webhookVerifyToken?: string;
+}
+
+export interface TwilioGatewayConfig {
+  accountSid: string;
+  authToken?: string;
+  whatsappNumber: string;
+}
+
+export interface GupshupGatewayConfig {
+  apiKey?: string;
+  appName: string;
+  sourceNumber: string;
+}
+
 export interface WhatsAppAutomationConfig {
+  activeProvider: WhatsAppGatewayProvider;
+  freePlayschoolMode: boolean;
+  defaultCountryCode?: string;
   wabaId: string;
   phoneNumberId: string;
   displayPhoneNumber: string;
@@ -95,6 +141,9 @@ export interface WhatsAppAutomationConfig {
   autoFeeReminderDaysBeforeDue: number; // e.g. 3
   autoPdfDeliveryEnabled: boolean;
   defaultLanguage: WhatsAppLanguage;
+  metaConfig?: MetaCloudGatewayConfig;
+  twilioConfig?: TwilioGatewayConfig;
+  gupshupConfig?: GupshupGatewayConfig;
 }
 
 export interface WhatsAppAutomationStats {

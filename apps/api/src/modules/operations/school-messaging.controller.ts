@@ -10,7 +10,7 @@ import { parseRecord } from '../workspace/records';
 @Roles(UserRole.PRINCIPAL,UserRole.SCHOOL_OWNER,UserRole.SCHOOL_ADMIN)
 export class SchoolMessagingController {
  constructor(private db:PrismaService,private tenants:TenantService,private provider:WhatsAppService){}
- @Get('status') status(){return {available:this.provider.isAvailable(),provider:'Twilio WhatsApp'};}
+ @Get('status') status(){const gateway=this.provider.getGatewayStatus();return {available:gateway.available,provider:gateway.activeProvider,liveGatewayConfigured:gateway.liveGatewayConfigured,playschoolWebModeAvailable:true};}
  @Get('recipients') recipients(){return this.db.guardian.findMany({where:{tenantId:this.tenants.requireTenantContext(),studentLinks:{some:{student:{deletedAt:null,status:'ACTIVE'}}}},select:{id:true,firstName:true,lastName:true},orderBy:{firstName:'asc'}});}
  @Post('messages') async send(@Request() req:any,@Body() body:OperationPayload){
   const data=parseRecord({model:'message',fields:{guardianId:'ref:guardian!',message:'long!'}},body.data);
@@ -22,7 +22,7 @@ export class SchoolMessagingController {
   await this.db.auditLog.create({data:{tenantId,userId:req.user.userId,action:'WHATSAPP_REQUESTED',entityType:'guardian',entityId:guardian.id}});
   const result=await this.provider.sendMessage({to:recipient,body:data.message});
   if(!result)throw new ServiceUnavailableException('The messaging provider did not accept this message');
-  await this.db.auditLog.create({data:{tenantId,userId:req.user.userId,action:'WHATSAPP_ACCEPTED',entityType:'guardian',entityId:guardian.id,changes:{providerId:result.sid,status:result.status}}});
-  return {accepted:true,status:result.status,providerId:result.sid};
+  await this.db.auditLog.create({data:{tenantId,userId:req.user.userId,action:'WHATSAPP_ACCEPTED',entityType:'guardian',entityId:guardian.id,changes:{provider:result.provider,providerId:result.sid,status:result.status}}});
+  return {accepted:true,provider:result.provider,status:result.status,providerId:result.sid,waLink:result.waLink};
  }
 }

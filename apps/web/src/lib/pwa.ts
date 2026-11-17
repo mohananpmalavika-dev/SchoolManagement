@@ -35,7 +35,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
           // New service worker available
           console.log('New content available, please refresh');
-          
+
           // Notify user about update
           if (window.confirm('New version available! Reload to update?')) {
             newWorker.postMessage({ type: 'SKIP_WAITING' });
@@ -86,16 +86,36 @@ export function isPWA(): boolean {
 }
 
 /**
+ * Check if user is on iOS device
+ */
+export function isIOSDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) &&
+    !(window as any).MSStream
+  );
+}
+
+/**
+ * Check if user is on Android device
+ */
+export function isAndroidDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  return /android/i.test(navigator.userAgent);
+}
+
+/**
  * Check if the app can be installed
  */
 export function canInstallPWA(): boolean {
   if (typeof window === 'undefined') return false;
-  
+
   // Check if already installed
   if (isPWA()) return false;
 
-  // Check if beforeinstallprompt event will fire
-  return 'BeforeInstallPromptEvent' in window || 'onbeforeinstallprompt' in window;
+  // Check if beforeinstallprompt event will fire or iOS
+  return 'BeforeInstallPromptEvent' in window || 'onbeforeinstallprompt' in window || isIOSDevice();
 }
 
 /**
@@ -152,7 +172,7 @@ export function addConnectionListeners(
   onOffline: () => void
 ): () => void {
   if (typeof window === 'undefined') {
-    return () => {};
+    return () => { };
   }
 
   window.addEventListener('online', onOnline);

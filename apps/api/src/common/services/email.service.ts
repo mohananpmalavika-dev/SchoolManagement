@@ -83,9 +83,9 @@ export class EmailService {
   ): Promise<boolean> {
     const resetUrl = `${this.configService.get('WEB_URL')}/reset-password?token=${resetToken}`;
     
-    const subject = 'Password Reset Request - HustlerTech School ERP';
+    const subject = 'Password Reset Request - Krypton School ERP';
     const html = this.getPasswordResetTemplate(userName, resetUrl);
-    const text = `Hi ${userName},\n\nYou requested to reset your password. Click the link below to reset it:\n\n${resetUrl}\n\nThis link will expire in 24 hours.\n\nIf you didn't request this, please ignore this email.\n\nRegards,\nHustlerTech School ERP Team`;
+    const text = `Hi ${userName},\n\nYou requested to reset your password. Click the link below to reset it:\n\n${resetUrl}\n\nThis link will expire in 24 hours.\n\nIf you didn't request this, please ignore this email.\n\nRegards,\nKrypton School ERP Team`;
 
     return await this.sendEmail(to, subject, html, text);
   }
@@ -97,9 +97,9 @@ export class EmailService {
     to: string,
     userName: string
   ): Promise<boolean> {
-    const subject = 'Password Changed - HustlerTech School ERP';
+    const subject = 'Password Changed - Krypton School ERP';
     const html = this.getPasswordChangedTemplate(userName);
-    const text = `Hi ${userName},\n\nYour password was successfully changed.\n\nIf you didn't make this change, please contact your administrator immediately.\n\nRegards,\nHustlerTech School ERP Team`;
+    const text = `Hi ${userName},\n\nYour password was successfully changed.\n\nIf you didn't make this change, please contact your administrator immediately.\n\nRegards,\nKrypton School ERP Team`;
 
     return await this.sendEmail(to, subject, html, text);
   }
@@ -112,9 +112,9 @@ export class EmailService {
     userName: string,
     lockoutMinutes: number
   ): Promise<boolean> {
-    const subject = 'Account Temporarily Locked - HustlerTech School ERP';
+    const subject = 'Account Temporarily Locked - Krypton School ERP';
     const html = this.getAccountLockedTemplate(userName, lockoutMinutes);
-    const text = `Hi ${userName},\n\nYour account has been temporarily locked due to multiple failed login attempts.\n\nYour account will be automatically unlocked in ${lockoutMinutes} minutes.\n\nIf this wasn't you, please contact your administrator.\n\nRegards,\nHustlerTech School ERP Team`;
+    const text = `Hi ${userName},\n\nYou account has been temporarily locked due to multiple failed login attempts.\n\nYour account will be automatically unlocked in ${lockoutMinutes} minutes.\n\nIf this wasn't you, please contact your administrator.\n\nRegards,\nKrypton School ERP Team`;
 
     return await this.sendEmail(to, subject, html, text);
   }
@@ -129,7 +129,7 @@ export class EmailService {
     text: string
   ): Promise<boolean> {
     try {
-      const from = `${this.configService.get('EMAIL_FROM_NAME', 'HustlerTech School ERP')} <${this.configService.get('EMAIL_FROM', 'noreply@kryptonschool.com')}>`;
+      const from = `${this.configService.get('EMAIL_FROM_NAME', 'Krypton School ERP')} <${this.configService.get('EMAIL_FROM', 'noreply@kryptonschool.com')}>`;
 
       if (!this.transporter) {
         this.logger.warn('Email could not be delivered: SMTP is not configured');
@@ -168,7 +168,7 @@ export class EmailService {
   <div style="background-color: #f8f9fa; border-radius: 10px; padding: 30px; margin-bottom: 20px;">
     <h1 style="color: #2c3e50; margin-bottom: 20px;">Password Reset Request</h1>
     <p>Hi ${userName},</p>
-    <p>You requested to reset your password for your HustlerTech School ERP account.</p>
+    <p>You requested to reset your password for your Krypton School ERP account.</p>
     <p>Click the button below to reset your password:</p>
     <div style="text-align: center; margin: 30px 0;">
       <a href="${resetUrl}" style="background-color: #3498db; color: white; padding: 14px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Reset Password</a>
@@ -188,7 +188,7 @@ export class EmailService {
     </p>
   </div>
   <div style="text-align: center; color: #95a5a6; font-size: 12px;">
-    <p>© ${new Date().getFullYear()} HustlerTech School ERP. All rights reserved.</p>
+    <p>© ${new Date().getFullYear()} Krypton School ERP. All rights reserved.</p>
   </div>
 </body>
 </html>
@@ -221,7 +221,7 @@ export class EmailService {
     </div>
   </div>
   <div style="text-align: center; color: #95a5a6; font-size: 12px;">
-    <p>© ${new Date().getFullYear()} HustlerTech School ERP. All rights reserved.</p>
+    <p>© ${new Date().getFullYear()} Krypton School ERP. All rights reserved.</p>
   </div>
 </body>
 </html>
@@ -258,7 +258,7 @@ export class EmailService {
     </div>
   </div>
   <div style="text-align: center; color: #95a5a6; font-size: 12px;">
-    <p>© ${new Date().getFullYear()} HustlerTech School ERP. All rights reserved.</p>
+    <p>© ${new Date().getFullYear()} Krypton School ERP. All rights reserved.</p>
   </div>
 </body>
 </html>

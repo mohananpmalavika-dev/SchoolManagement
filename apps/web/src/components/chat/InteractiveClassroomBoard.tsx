@@ -26,7 +26,7 @@ export interface BoardProps {
   userRole?: string;
   userName?: string;
   onClose: () => void;
-  onShareToChat?: (snapshotDataUrl: string) => void;
+  onShareToChat?: (snapshotDataUrl: string) => Promise<void>;
 }
 
 type ToolType = 'pen' | 'highlighter' | 'eraser' | 'rect' | 'circle' | 'arrow' | 'text';
@@ -56,12 +56,9 @@ export function InteractiveClassroomBoard({
   const [size, setSize] = useState<number>(3);
   const [isDrawing, setIsDrawing] = useState(false);
   const [history, setHistory] = useState<DrawAction[]>([]);
-  const [activeUsers, setActiveUsers] = useState<Array<{ name: string; role: string; color: string }>>([
-    { name: userName, role: userRole, color: '#10b981' },
-    { name: 'Faith M. (Student)', role: 'STUDENT', color: '#6366f1' },
-    { name: 'Kevin O. (Student)', role: 'STUDENT', color: '#f59e0b' },
-  ]);
-  const [simulatedCursor, setSimulatedCursor] = useState<{ x: number; y: number; name: string } | null>(null);
+  const activeUsers=[{name:userName,role:userRole,color:'#10b981'}];
+  const [sharing,setSharing]=useState(false);
+  const [shareError,setShareError]=useState('');
   const [fullScreen, setFullScreen] = useState(false);
   const [currentText, setCurrentText] = useState('');
   const [textInputPos, setTextInputPos] = useState<{ x: number; y: number } | null>(null);
@@ -173,28 +170,7 @@ export function InteractiveClassroomBoard({
     redrawCanvas();
   }, [redrawCanvas]);
 
-  // Simulate remote student co-drawing in real-time
-  useEffect(() => {
-    const timer = setInterval(() => {
-      // Pick random simulated student interaction
-      const studentName = Math.random() > 0.5 ? 'Faith M. (Student)' : 'Kevin O. (Student)';
-      const randomX = Math.floor(100 + Math.random() * 400);
-      const randomY = Math.floor(100 + Math.random() * 250);
-
-      setSimulatedCursor({
-        x: randomX,
-        y: randomY,
-        name: studentName,
-      });
-
-      // Clear cursor bubble after brief time
-      setTimeout(() => setSimulatedCursor(null), 1800);
-    }, 8000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -204,7 +180,8 @@ export function InteractiveClassroomBoard({
     };
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
     const coords = getCanvasCoords(e);
     if (tool === 'text') {
       setTextInputPos(coords);
@@ -225,7 +202,7 @@ export function InteractiveClassroomBoard({
     ]);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
     const coords = getCanvasCoords(e);
 
@@ -270,7 +247,7 @@ export function InteractiveClassroomBoard({
   };
 
   const handleClear = () => {
-    if (confirm('Clear the entire board for all students?')) {
+    if (confirm('Clear your board? Download it first if you need a copy.')) {
       setHistory([]);
     }
   };
@@ -279,27 +256,26 @@ export function InteractiveClassroomBoard({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const link = document.createElement('a');
-    link.download = `HustlerTech_Board_${channelName.replace(/\s+/g, '_')}.png`;
+    link.download = `Krypton_Board_${channelName.replace(/\s+/g, '_')}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const canvas = canvasRef.current;
-    if (!canvas || !onShareToChat) return;
+    if (!canvas || !onShareToChat || sharing) return;
     const dataUrl = canvas.toDataURL('image/png');
-    onShareToChat(dataUrl);
-    alert('Board snapshot shared to channel chat!');
+    setSharing(true);setShareError('');
+    try {await onShareToChat(dataUrl);}catch{setShareError('The snapshot could not be saved. Retry or download your board.');}finally{setSharing(false);}
   };
 
   return (
     <div
-      className={`bg-slate-950 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-all ${
-        fullScreen ? 'fixed inset-4 z-50' : 'h-[640px]'
-      }`}
+      className={`bg-slate-950 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-all ${fullScreen ? 'fixed inset-4 z-50' : 'h-[640px]'
+        }`}
     >
       {/* Top Banner / Classroom Info */}
-      <div className="p-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-3 text-xs">
+      <div className="p-3 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold">
             🎨
@@ -311,11 +287,11 @@ export function InteractiveClassroomBoard({
               </h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live Co-Drawing Active
+                Personal board
               </span>
             </div>
             <p className="text-[10px] text-slate-400">
-              Teacher & Children Collaborative Digital Canvas
+              Draw locally and post a snapshot to this conversation.
             </p>
           </div>
         </div>
@@ -345,11 +321,12 @@ export function InteractiveClassroomBoard({
           </button>
           <button
             onClick={handleShare}
+            disabled={sharing}
             className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1 shadow-sm"
             title="Post Board Snapshot to Chat"
           >
             <Share2 size={13} />
-            <span className="hidden sm:inline">Post to Chat</span>
+            <span className="hidden sm:inline">{sharing?'Saving…':'Post to Chat'}</span>
           </button>
           <button
             onClick={handleDownload}
@@ -381,27 +358,24 @@ export function InteractiveClassroomBoard({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setTool('pen')}
-            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${
-              tool === 'pen' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
-            }`}
+            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${tool === 'pen' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+              }`}
             title="Chalk / Pen"
           >
             <Pen size={14} />
           </button>
           <button
             onClick={() => setTool('highlighter')}
-            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${
-              tool === 'highlighter' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
-            }`}
+            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${tool === 'highlighter' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+              }`}
             title="Highlighter"
           >
             <Highlighter size={14} />
           </button>
           <button
             onClick={() => setTool('eraser')}
-            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${
-              tool === 'eraser' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
-            }`}
+            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${tool === 'eraser' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+              }`}
             title="Eraser"
           >
             <Eraser size={14} />
@@ -409,36 +383,32 @@ export function InteractiveClassroomBoard({
           <span className="w-px h-5 bg-slate-800 mx-1" />
           <button
             onClick={() => setTool('rect')}
-            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${
-              tool === 'rect' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
-            }`}
+            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${tool === 'rect' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+              }`}
             title="Rectangle"
           >
             <Square size={14} />
           </button>
           <button
             onClick={() => setTool('circle')}
-            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${
-              tool === 'circle' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
-            }`}
+            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${tool === 'circle' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+              }`}
             title="Circle"
           >
             <Circle size={14} />
           </button>
           <button
             onClick={() => setTool('arrow')}
-            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${
-              tool === 'arrow' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
-            }`}
+            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${tool === 'arrow' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+              }`}
             title="Arrow"
           >
             <ArrowRight size={14} />
           </button>
           <button
             onClick={() => setTool('text')}
-            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${
-              tool === 'text' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
-            }`}
+            className={`p-2 rounded-lg flex items-center gap-1 transition-all ${tool === 'text' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+              }`}
             title="Text Annotate"
           >
             <Type size={14} />
@@ -454,9 +424,8 @@ export function InteractiveClassroomBoard({
                 key={c}
                 onClick={() => setColor(c)}
                 style={{ backgroundColor: c }}
-                className={`w-5 h-5 rounded-full border-2 transition-transform ${
-                  color === c ? 'scale-125 border-emerald-400 shadow-md' : 'border-transparent'
-                }`}
+                className={`w-5 h-5 rounded-full border-2 transition-transform ${color === c ? 'scale-125 border-emerald-400 shadow-md' : 'border-transparent'
+                  }`}
               />
             ))}
           </div>
@@ -469,9 +438,8 @@ export function InteractiveClassroomBoard({
               <button
                 key={s}
                 onClick={() => setSize(s)}
-                className={`px-2 py-1 rounded text-[10px] font-bold ${
-                  size === s ? 'bg-slate-700 text-emerald-400' : 'text-slate-400 hover:bg-slate-800'
-                }`}
+                className={`px-2 py-1 rounded text-[10px] font-bold ${size === s ? 'bg-slate-700 text-emerald-400' : 'text-slate-400 hover:bg-slate-800'
+                  }`}
               >
                 {s === 2 ? 'Fine' : s === 4 ? 'Med' : 'Bold'}
               </button>
@@ -500,28 +468,16 @@ export function InteractiveClassroomBoard({
       </div>
 
       {/* Canvas Area */}
+      {shareError&&<p role="alert" className="p-3 text-red-300">{shareError}</p>}
       <div className="flex-1 relative overflow-hidden bg-slate-950 select-none">
         <canvas
           ref={canvasRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          className="w-full h-full cursor-crosshair block"
+          onPointerDown={handleMouseDown}
+          onPointerMove={handleMouseMove}
+          onPointerUp={handleMouseUp}
+          onPointerCancel={handleMouseUp}
+          className="w-full h-full cursor-crosshair block touch-none"
         />
-
-        {/* Live Remote Student Co-Drawing Indicator */}
-        {simulatedCursor && (
-          <div
-            style={{ left: simulatedCursor.x, top: simulatedCursor.y }}
-            className="absolute pointer-events-none transition-all duration-300 -translate-x-2 -translate-y-2 z-10 flex items-center gap-1"
-          >
-            <div className="w-3 h-3 rounded-full bg-indigo-500 ring-4 ring-indigo-500/30 animate-pulse" />
-            <span className="px-2 py-0.5 rounded text-[9px] font-semibold bg-indigo-900/90 text-indigo-200 border border-indigo-700 shadow-md">
-              ✏️ {simulatedCursor.name} writing...
-            </span>
-          </div>
-        )}
 
         {/* Text Annotation Input Modal Prompt */}
         {textInputPos && (

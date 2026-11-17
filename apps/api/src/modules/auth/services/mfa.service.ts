@@ -27,7 +27,7 @@ import { RedisService } from '../../../common/services/redis.service';
 @Injectable()
 export class MfaService {
   private readonly logger = new Logger(MfaService.name);
-  private readonly APP_NAME = 'HustlerTech School ERP';
+  private readonly APP_NAME = 'Krypton School ERP';
   private readonly MAX_VERIFICATION_ATTEMPTS = 5;
   private readonly VERIFICATION_WINDOW_SECONDS = 300; // 5 minutes
   private readonly BACKUP_CODE_LENGTH = 8;

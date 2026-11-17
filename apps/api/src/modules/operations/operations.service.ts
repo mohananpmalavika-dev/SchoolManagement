@@ -15,13 +15,23 @@ export class OperationsService {
  private allow(user:Actor,roles:string[]){if(!roles.includes(user.role))throw new ForbiddenException('This action is not available to your role');}
  private parse(fields:Record<string,string>,input:Record<string,unknown>){const data=parseRecord({model:'operation',fields},input);for(const [key,value] of Object.entries(data))if(value instanceof Date&&typeof input[key]==='string'&&String(input[key]).length===10&&value.toISOString().slice(0,10)!==input[key])throw new BadRequestException('Choose a valid '+key);return data;}
  private async audit(user:Actor,action:string,id:string,tx:any=this.db){await tx.auditLog.create({data:{tenantId:this.tenant(),userId:user.userId,action,entityType:'schoolOperation',entityId:id}});}
- async classAccess(user:Actor,classId:string){this.allow(user,[...managers,...teachers]);if(!await this.db.class.findFirst({where:{id:classId,tenantId:this.tenant()}}))throw new NotFoundException('Class not found');if(teachers.includes(user.role)){const staff=await this.db.staff.findFirst({where:{tenantId:this.tenant(),userId:user.userId,status:'ACTIVE'}});if(!staff||!await this.db.timetableEntry.findFirst({where:{tenantId:this.tenant(),classId,teacherId:staff.id}}))throw new ForbiddenException('Class is not assigned to you');}}
+ private async assignedClassIds(user:Actor){
+  const tenantId=this.tenant();
+  const staff=await this.db.staff.findFirst({where:{tenantId,userId:user.userId,status:'ACTIVE'}});
+  if(!staff)return [];
+  const [lessons,assignments]=await Promise.all([
+   this.db.timetableEntry.findMany({where:{tenantId,teacherId:staff.id},select:{classId:true}}),
+   this.db.preschoolStaffAssignment.findMany({where:{tenantId,staffId:staff.id},select:{classId:true}}),
+  ]);
+  return [...new Set([...lessons,...assignments].map(row=>row.classId))];
+ }
+ async classAccess(user:Actor,classId:string){this.allow(user,[...managers,...teachers]);if(!await this.db.class.findFirst({where:{id:classId,tenantId:this.tenant()}}))throw new NotFoundException('Class not found');if(teachers.includes(user.role)&&!(await this.assignedClassIds(user)).includes(classId))throw new ForbiddenException('Class is not assigned to you');}
  async studentAccess(user:Actor,id:string){const student=await this.db.student.findFirst({where:{id,tenantId:this.tenant(),deletedAt:null},include:{currentClass:true,guardianLinks:{include:{guardian:true}}}});if(!student)throw new NotFoundException('Student not found');if(user.role==='STUDENT'){if(student.userId!==user.userId)throw new ForbiddenException('Student access denied');}else if(user.role==='PARENT'){if(!student.guardianLinks.some(link=>link.guardian.userId===user.userId))throw new ForbiddenException('Family access denied');}else if(teachers.includes(user.role))await this.classAccess(user,student.currentClassId||'');else this.allow(user,[...managers,'TRANSPORT_OFFICER','RECEPTIONIST','ACCOUNTANT']);return student;}
  async options(user:Actor){
   const tenantId=this.tenant();let where:any={tenantId,deletedAt:null};let classWhere:any={tenantId};
   if(user.role==='PARENT')where.guardianLinks={some:{guardian:{userId:user.userId,tenantId}}};
   else if(user.role==='STUDENT')where.userId=user.userId;
-  else if(teachers.includes(user.role)){const staff=await this.db.staff.findFirst({where:{tenantId,userId:user.userId,status:'ACTIVE'}});const entries=await this.db.timetableEntry.findMany({where:{tenantId,teacherId:staff?.id||''},select:{classId:true}});classWhere.id={in:[...new Set(entries.map(entry=>entry.classId))]};where.currentClassId=classWhere.id;}
+  else if(teachers.includes(user.role)){classWhere.id={in:await this.assignedClassIds(user)};where.currentClassId=classWhere.id;}
   else this.allow(user,[...managers,'TRANSPORT_OFFICER','RECEPTIONIST','ACCOUNTANT']);
   const staffView=managers.includes(user.role)||teachers.includes(user.role);const transportView=managers.includes(user.role)||user.role==='TRANSPORT_OFFICER';
   const [students,classes,staff,subjects,schools,routes,entries]=await Promise.all([
@@ -86,6 +96,8 @@ export class OperationsService {
    else if(action==='admit'){
     this.allow(user,managers);if(!['ACCEPTED','FEE_PAID'].includes(row.stage))throw new BadRequestException('Accept the application before enrolling');const data=this.parse({classId:'ref:class!',admissionNumber:'text!'},input);const cls=await tx.class.findFirst({where:{id:data.classId,tenantId,schoolId:row.schoolId}});if(!cls)throw new BadRequestException('Choose a class in the application school');
     const student=await tx.student.create({data:{tenantId,firstName:row.firstName,lastName:row.lastName,dateOfBirth:row.dateOfBirth,gender:row.gender,currentClassId:cls.id,admissionNumber:data.admissionNumber,admissionDate:new Date(),address:row.address}});
+    const currentYear=await tx.academicYear.findFirst({where:{tenantId,isCurrent:true}})||await tx.academicYear.findFirst({where:{tenantId},orderBy:{startDate:'desc'}});
+    if(currentYear)await tx.enrollment.create({data:{tenantId,studentId:student.id,classId:cls.id,academicYearId:currentYear.id,enrollmentDate:student.admissionDate}});
     const name=row.guardianName.trim().split(/\s+/);const guardian=await tx.guardian.create({data:{tenantId,firstName:name.shift()!,lastName:name.join(' '),email:row.guardianEmail,phone:row.guardianPhone,address:row.address}});
     await tx.guardianStudentLink.create({data:{guardianId:guardian.id,studentId:student.id,relationship:'GUARDIAN'}});await tx.admissionRecord.update({where:{id,tenantId},data:{stage:'ADMITTED',studentId:student.id}});
    }else throw new NotFoundException('Unknown admission action');await this.audit(user,'ADMISSION_'+action.toUpperCase(),id,tx);return {id};

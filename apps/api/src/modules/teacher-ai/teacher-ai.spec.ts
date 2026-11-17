@@ -52,8 +52,9 @@ describe('AI teaching scope, evidence and reviewed saves', () => {
   });
   it('uses real zero marks, distinct attendance days and explicit behaviour observations, with pseudonymous identifiers', async () => {
     const { service, prisma, ai } = setup();
-    const result = await service.remarks(user, { ...classTerm, language: 'Malayalam', students: [{ studentId: id(5), behaviourObservation: 'Helps classmates with group work.' }] });
+    const result = await service.remarks(user, { ...classTerm, language: 'Malayalam', tone:'GROWTH_MINDSET', students: [{ studentId: id(5), behaviourObservation: 'Helps classmates with group work.' }] });
     const input = ai.generate.mock.calls[0][2] as any;
+    expect(input.tone).toBe('GROWTH_MINDSET');expect(input.feedbackFocus).toContain('incremental progress');
     expect(input.students[0].average).toBe(0); expect(input.students[0].recordedAttendanceDays).toBe(1);
     expect(input.students[0].behaviourObservation).toBe('Helps classmates with group work.');
     expect(JSON.stringify(input)).not.toContain('Amina'); expect(JSON.stringify(input)).not.toContain(id(5)); expect(JSON.stringify(input)).not.toContain('A01');

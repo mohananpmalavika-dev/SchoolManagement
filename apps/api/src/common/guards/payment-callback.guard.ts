@@ -16,25 +16,16 @@ export class PaymentCallbackGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest();
     const signature = req.headers['x-razorpay-signature'];
-    if (typeof signature === 'string') {
-      const body = req.rawBody ? req.rawBody : JSON.stringify(req.body ?? {});
-      const expected = createHmac('sha256', secret).update(body).digest('hex');
-      if (
-        Buffer.byteLength(signature) === Buffer.byteLength(expected) &&
-        timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
-      ) {
-        return true;
-      }
-      throw new UnauthorizedException('Invalid webhook signature');
-    }
-
-    const token = req.query.token;
     if (
-      typeof token !== 'string' ||
-      Buffer.byteLength(token) !== Buffer.byteLength(secret) ||
-      !timingSafeEqual(Buffer.from(token), Buffer.from(secret))
+      typeof signature !== 'string' || !/^[a-fA-F0-9]{64}$/.test(signature) ||
+      !Buffer.isBuffer(req.rawBody)
     ) {
-      throw new UnauthorizedException('Invalid callback credential');
+      throw new UnauthorizedException('A signed payment webhook is required');
+    }
+    // Verify the exact received bytes. Parsing and reserializing JSON changes signatures.
+    const expected = createHmac('sha256', secret).update(req.rawBody).digest();
+    if (!timingSafeEqual(Buffer.from(signature, 'hex'), expected)) {
+      throw new UnauthorizedException('Invalid webhook signature');
     }
     return true;
   }

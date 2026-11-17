@@ -66,6 +66,7 @@ export class SendChatMessageDto {
     url: string;
     type: string;
     size?: number;
+    storageKey?: string;
   }>;
 
   @ApiPropertyOptional({ description: 'Replying to another message ID' })

@@ -4,7 +4,7 @@ import { X, ChevronDown, SlidersHorizontal, Check } from 'lucide-react';
 import { Button } from './ui';
 import { apiClient } from '@/lib/api-client';
 import { getRows, messageFor } from '@/lib/workspace';
-export interface Field {key:string;label:string;type?:string;required?:boolean;options?:string[];source?:string;min?:number;max?:number}
+export interface Field {key:string;label:string;type?:string;required?:boolean;clearable?:boolean;options?:string[];source?:string;min?:number;max?:number}
 function todayValue() {
   const date = new Date();
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-');
@@ -61,7 +61,11 @@ export function RecordModal({title,endpoint,fields,initial,onClose,onSaved}:{tit
     event.preventDefault();if(busy||optionsLoading||optionsError)return;
     setBusy(true);setError('');
     const data:Record<string,unknown>={};
-    fields.forEach(field=>{if(values[field.key]!=='')data[field.key]=field.type==='currency'?Math.round(Number(values[field.key])*100):field.type==='number'?Number(values[field.key]):values[field.key];});
+    fields.forEach(field=>{
+      const value=values[field.key];
+      if(initial&&field.clearable&&value===''&&initial[field.key]!=null)data[field.key]=null;
+      else if(value!=='')data[field.key]=field.type==='currency'?Math.round(Number(value)*100):field.type==='number'?Number(value):value;
+    });
     try {
       if(initial)await apiClient.patch(endpoint+'/'+initial.id,{data});
       else await apiClient.post(endpoint,{data});

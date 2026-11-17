@@ -67,7 +67,8 @@ export const schoolResources:Record<string,ResourceConfig>={
         "key": "currentClassId",
         "label": "Class",
         "required": false,
-        "source": "/workspace/classes"
+        "source": "/workspace/classes",
+        "clearable": true
       },
       {
         "key": "status",
@@ -80,6 +81,12 @@ export const schoolResources:Record<string,ResourceConfig>={
           "WITHDRAWN",
           "SUSPENDED"
         ]
+      },
+      {
+        "key": "userId",
+        "label": "Student portal account",
+        "source": "/workspace/student-accounts",
+        "clearable": true
       }
     ],
     "editable": true
@@ -126,13 +133,15 @@ export const schoolResources:Record<string,ResourceConfig>={
         "key": "email",
         "label": "Email",
         "required": false,
-        "type": "email"
+        "type": "email",
+        "clearable": true
       },
       {
         "key": "userId",
         "label": "Portal account",
         "required": false,
-        "source": "/workspace/users"
+        "source": "/workspace/guardian-accounts",
+        "clearable": true
       }
     ],
     "editable": true
@@ -183,7 +192,8 @@ export const schoolResources:Record<string,ResourceConfig>={
           "OTHER"
         ]
       }
-    ]
+    ],
+    "editable": true
   },
   "staff": {
     "title": "Staff directory",
@@ -292,7 +302,8 @@ export const schoolResources:Record<string,ResourceConfig>={
         "key": "userId",
         "label": "Portal account",
         "required": false,
-        "source": "/workspace/users"
+        "source": "/workspace/staff-accounts",
+        "clearable": true
       }
     ],
     "editable": true
@@ -343,7 +354,8 @@ export const schoolResources:Record<string,ResourceConfig>={
     "action": {
       "label": "Set current",
       "path": "current"
-    }
+    },
+    "editable": true
   },
   "terms": {
     "title": "Terms",
@@ -409,7 +421,8 @@ export const schoolResources:Record<string,ResourceConfig>={
     "action": {
       "label": "Set current",
       "path": "current"
-    }
+    },
+    "editable": true
   },
   "classes": {
     "title": "Classes",
@@ -457,11 +470,13 @@ export const schoolResources:Record<string,ResourceConfig>={
         "options": [
           "PRE_PRIMARY",
           "PRIMARY",
-          "JUNIOR_SECONDARY",
+          "MIDDLE",
+          "SECONDARY",
           "SENIOR_SECONDARY"
         ]
       }
-    ]
+    ],
+    "editable": true
   },
   "streams": {
     "title": "Streams",
@@ -503,7 +518,8 @@ export const schoolResources:Record<string,ResourceConfig>={
         "min": 1,
         "max": 500
       }
-    ]
+    ],
+    "editable": true
   },
   "subjects": {
     "title": "Subjects",
@@ -541,7 +557,8 @@ export const schoolResources:Record<string,ResourceConfig>={
         "options": [
           "PRE_PRIMARY",
           "PRIMARY",
-          "JUNIOR_SECONDARY",
+          "MIDDLE",
+          "SECONDARY",
           "SENIOR_SECONDARY"
         ]
       }
@@ -652,17 +669,20 @@ export const schoolResources:Record<string,ResourceConfig>={
       {
         "key": "author",
         "label": "Author",
-        "required": false
+        "required": false,
+        "clearable": true
       },
       {
         "key": "isbn",
         "label": "Isbn",
-        "required": false
+        "required": false,
+        "clearable": true
       },
       {
         "key": "category",
         "label": "Category",
-        "required": false
+        "required": false,
+        "clearable": true
       },
       {
         "key": "quantity",
@@ -685,7 +705,7 @@ export const schoolResources:Record<string,ResourceConfig>={
         "label": "Book"
       },
       {
-        "key": "borrowerId",
+        "key": "borrowerName",
         "label": "Borrower"
       },
       {
@@ -756,12 +776,14 @@ export const schoolResources:Record<string,ResourceConfig>={
       {
         "key": "make",
         "label": "Make",
-        "required": false
+        "required": false,
+        "clearable": true
       },
       {
         "key": "model",
         "label": "Model",
-        "required": false
+        "required": false,
+        "clearable": true
       },
       {
         "key": "capacity",
@@ -817,23 +839,28 @@ export const schoolResources:Record<string,ResourceConfig>={
         "key": "vehicleId",
         "label": "Vehicle",
         "required": false,
-        "source": "/workspace/vehicles"
+        "source": "/workspace/vehicles",
+        "clearable": true
       },
       {
         "key": "pickupTime",
         "label": "Pickup time",
         "required": false,
-        "type": "time"
+        "type": "time",
+        "clearable": true
       },
       {
         "key": "dropoffTime",
         "label": "Dropoff time",
         "required": false,
-        "type": "time"
+        "type": "time",
+        "clearable": true
       },
       {
         "key": "fee",
-        "label": "Monthly fee (INR)", "required": false, "type": "currency",
+        "label": "Monthly fee (INR)",
+        "required": false,
+        "type": "currency",
         "min": 0,
         "max": 100000000
       }
@@ -875,7 +902,8 @@ export const schoolResources:Record<string,ResourceConfig>={
       {
         "key": "category",
         "label": "Category",
-        "required": false
+        "required": false,
+        "clearable": true
       },
       {
         "key": "quantity",
@@ -888,7 +916,8 @@ export const schoolResources:Record<string,ResourceConfig>={
       {
         "key": "unit",
         "label": "Unit",
-        "required": false
+        "required": false,
+        "clearable": true
       },
       {
         "key": "reorderLevel",
@@ -939,7 +968,8 @@ export const schoolResources:Record<string,ResourceConfig>={
         "key": "description",
         "label": "Description",
         "required": false,
-        "type": "textarea"
+        "type": "textarea",
+        "clearable": true
       },
       {
         "key": "eventType",
@@ -981,7 +1011,8 @@ export const schoolResources:Record<string,ResourceConfig>={
       {
         "key": "location",
         "label": "Location",
-        "required": false
+        "required": false,
+        "clearable": true
       }
     ],
     "editable": true
@@ -1124,7 +1155,9 @@ export const schoolResources:Record<string,ResourceConfig>={
       },
       {
         "key": "amount",
-        "label": "Amount (INR)", "required": true, "type": "currency",
+        "label": "Amount (INR)",
+        "required": true,
+        "type": "currency",
         "min": 1,
         "max": 100000000
       },
@@ -1173,7 +1206,9 @@ export const schoolResources:Record<string,ResourceConfig>={
       },
       {
         "key": "amount",
-        "label": "Amount (INR)", "required": true, "type": "currency",
+        "label": "Amount (INR)",
+        "required": true,
+        "type": "currency",
         "min": 1,
         "max": 100000000
       },

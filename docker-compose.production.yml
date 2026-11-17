@@ -97,6 +97,9 @@ services:
       EMAIL_FROM: ${EMAIL_FROM:-}
       SMS_API_KEY: ${SMS_API_KEY:-}
       SMS_USERNAME: ${SMS_USERNAME:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_WHATSAPP_NUMBER: ${TWILIO_WHATSAPP_NUMBER:-}
     depends_on:
       migrate:
         condition: service_completed_successfully

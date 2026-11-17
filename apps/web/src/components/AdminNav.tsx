@@ -31,8 +31,8 @@ export function AdminNav() {
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
               <img
-                src="/hustlertech-logo.png"
-                alt="HustlerTech"
+                src="/krypton-icon.png"
+                alt="Krypton"
                 className="w-9 h-9 object-contain rounded-lg bg-white p-0.5 shadow-sm border border-gray-100"
               />
               <div className="ml-3">

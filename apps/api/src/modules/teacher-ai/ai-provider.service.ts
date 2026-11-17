@@ -271,6 +271,24 @@ export class AIProviderService {
         }
       }
 
+      const focus = input.tone === 'ACADEMIC_RIGOR' ? {
+        English:'Review errors against the taught concepts and agree a specific practice target before the next assessment.',
+        Hindi:'पढ़ाई गई अवधारणाओं के आधार पर गलतियों की समीक्षा करें और अगले मूल्यांकन से पहले अभ्यास का स्पष्ट लक्ष्य तय करें।',
+        Malayalam:'പഠിപ്പിച്ച ആശയങ്ങളുടെ അടിസ്ഥാനത്തിൽ തെറ്റുകൾ വിലയിരുത്തി അടുത്ത മൂല്യനിർണയത്തിനു മുമ്പ് വ്യക്തമായ പരിശീലനലക്ഷ്യം നിശ്ചയിക്കുക.',
+      } : input.tone === 'GROWTH_MINDSET' ? {
+        English:'Use mistakes as feedback and recognise small improvements through steady practice.',
+        Hindi:'गलतियों से सीखें और नियमित अभ्यास से होने वाली छोटी प्रगति को पहचानें।',
+        Malayalam:'തെറ്റുകളിൽ നിന്ന് പഠിക്കുകയും സ്ഥിരമായ പരിശീലനത്തിലൂടെ ഉണ്ടാകുന്ന ചെറിയ പുരോഗതി തിരിച്ചറിയുകയും ചെയ്യുക.',
+      } : input.tone === 'HOLISTIC' ? {
+        English:'Balance focused study with opportunities for wellbeing and collaborative learning.',
+        Hindi:'केंद्रित अध्ययन के साथ खुशहाली और मिलकर सीखने के अवसरों का संतुलन रखें।',
+        Malayalam:'ശ്രദ്ധയോടെയുള്ള പഠനത്തിനൊപ്പം ക്ഷേമത്തിനും കൂട്ടായ പഠനത്തിനുമുള്ള അവസരങ്ങൾ നൽകുക.',
+      } : {
+        English:'Use the next class activity to observe progress against the competencies taught.',
+        Hindi:'अगली कक्षा गतिविधि में पढ़ाई गई दक्षताओं के आधार पर प्रगति का अवलोकन करें।',
+        Malayalam:'അടുത്ത ക്ലാസ് പ്രവർത്തനത്തിൽ പഠിപ്പിച്ച കഴിവുകളിലെ പുരോഗതി നിരീക്ഷിക്കുക.',
+      };
+      if(input.tone)text+=' '+focus[lang as keyof typeof focus];
       return {
         key: String(s.key),
         text,

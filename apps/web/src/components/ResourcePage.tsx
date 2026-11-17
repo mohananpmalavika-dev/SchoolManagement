@@ -16,6 +16,7 @@ export function ResourcePage({ title, description, endpoint, columns, fields, ed
   const resource = endpoint.split('/').filter(Boolean).at(-1) || '';
   const deputyRestricted = ['guardians','guardian-links','staff','books','borrowings','vehicles','routes','invoices','payments','assignments','materials'].includes(resource);
   const canWrite = !!fields && (
+    resource === 'tickets' && ['ACCOUNTANT','LIBRARIAN','TRANSPORT_OFFICER','RECEPTIONIST','AUDITOR'].includes(role) ||
     ['TEACHER', 'CLASS_TEACHER', 'EXAM_OFFICER'].includes(role) && /assignments|materials|submissions/.test(endpoint) ||
     ['SUPER_ADMIN', 'SCHOOL_OWNER', 'PRINCIPAL', 'SCHOOL_ADMIN'].includes(role) || role === 'DEPUTY_PRINCIPAL' && !deputyRestricted ||
     role === 'ACCOUNTANT' && /invoices|payments/.test(endpoint) ||
@@ -46,7 +47,7 @@ export function ResourcePage({ title, description, endpoint, columns, fields, ed
     return () => { document.body.style.overflow = previousOverflow; };
   }, [preview]);
   useEffect(() => { setPreview(undefined); }, [endpoint]);
-  const viewKey = 'hustlertech:view:' + (user?.tenantId || 'platform') + ':' + user?.id + ':' + resource;
+  const viewKey = 'krypton:view:' + (user?.tenantId || 'platform') + ':' + user?.id + ':' + resource;
   useEffect(() => {
     let next: 'cards' | 'table' = directories.has(resource) ? 'cards' : 'table';
     try { const saved = localStorage.getItem(viewKey); if (saved === 'cards' || saved === 'table') next = saved; } catch { /* Display preferences are optional. */ }

@@ -14,6 +14,9 @@ const risk = (score, evidence) => ({ score, level: score === null ? 'INSUFFICIEN
 const students = Array.from({ length: 14 }, (_, i) => ({ studentId: `student-${i}`, name: i === 0 ? '=SUM(1,2)' : `Amina ${String(i).padStart(2, '0')}`,
   admissionNumber: `A${i}`, classId: 'grade-5', className: 'Grade 5', overall: i === 13 ? 'INSUFFICIENT_DATA' : i % 2 ? 'MODERATE' : 'HIGH', priorityScore: i === 13 ? null : 80 - i,
   academic: risk(i === 13 ? null : 80 - i, 'Exam trend declined across two completed assessments.'),
+  homework: risk(i === 13 ? null : 40, 'Homework submission needs a check-in.'),
+  radarMetrics:{academicScore:35,attendanceScore:70,homeworkScore:60,financialScore:80,compositeRiskScore:i===13?0:70},
+  interventions:{teacherActions:['Review student evidence.'],parentGuidance:['Discuss learning progress.'],malayalamSummary:{riskTitle:'Review',teacherAdvice:[],parentAdvice:[]}},
   feeDefault: risk(i === 13 ? null : 40, 'One overdue invoice.'), dropout: risk(i === 13 ? null : 40, 'Attendance needs a check-in.'),
   metrics: { latestAverage: 35, projectedAverage: 30, attendanceRate: 70, attendanceDays: 20, outstandingBalance: 10000, overdueBalance: 10000 } }));
 const model = { status: 'INSUFFICIENT_HISTORY', samples: 4, validationSamples: 0, balancedAccuracy: null, brierScore: null };
@@ -24,7 +27,7 @@ let mode = 'ok'; const checks = [], errors = [];
 const context = await browser.newContext({ viewport: { width: 1440, height: 1080 }, serviceWorkers: 'block' });
 await context.addInitScript(() => localStorage.setItem('accessToken', 'ui-test-token'));
 await context.route('**/api/**', async route => {
-  const path = new URL(route.request().url()).pathname;
+  const path = new URL(route.request().url()).pathname.replace(/^\/api\/v1/,'/api');
   if (path === '/api/auth/me') return route.fulfill({ json: { success: true, data: user } });
   if (path === '/api/predictive-analytics') {
     if (mode === 'error') return route.fulfill({ status: 500, json: { error: { message: 'Analytics temporarily unavailable' } } });
@@ -34,8 +37,9 @@ await context.route('**/api/**', async route => {
 });
 const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
 try {
-  await page.goto('http://127.0.0.1:3100/school/predictive-analytics', { timeout: 120000 });
-  await page.getByRole('heading', { name: 'AI Predictive Analytics', exact: true }).waitFor();
+  await page.goto((process.env.UI_BASE_URL || 'http://127.0.0.1:3100')+'/school/predictive-analytics', { timeout: 120000 });
+  await page.getByRole('heading', { name: '🎯 AI Student At-Risk & Early Warning Radar', exact: true }).waitFor();
+  await page.getByRole('button',{name:'Review Table',exact:true}).click();
   await page.getByText('1–10 of 13 students').waitFor(); checks.push('Authenticated dashboard renders with at-risk default filter');
   await page.screenshot({ path: new URL('desktop.png', output).pathname.replace(/^\/([A-Za-z]:)/, '$1'), fullPage: true });
   await page.getByRole('button', { name: 'Next', exact: true }).click(); await page.getByText('11–13 of 13 students').waitFor();
@@ -63,4 +67,4 @@ try {
   assert.deepEqual(errors, []); checks.push('No browser runtime errors');
   await writeFile(new URL('results.json', output), JSON.stringify({ passed: checks, errors, fixture: 'Mock API responses; no school data changed' }, null, 2));
   console.log(JSON.stringify({ passed: checks.length, checks }, null, 2));
-} finally { await browser.close(); }
+} catch(error) { console.error(JSON.stringify({errors,body:(await page.locator('body').innerText()).slice(0,2000)}));throw error; } finally { await browser.close(); }

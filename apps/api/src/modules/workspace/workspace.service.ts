@@ -8,6 +8,7 @@ import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.ser
 import { TimetableService } from '../timetable/timetable.service';
 import { FeeCategory } from '@krypton/types';
 import { recordSpecs, managers, parseRecord } from './records';
+import { recordEnrollment } from '../students/student-enrollment';
 const teacherRoles = ['TEACHER', 'CLASS_TEACHER', 'EXAM_OFFICER'];
 @Injectable()
 export class WorkspaceService {
@@ -18,8 +19,11 @@ export class WorkspaceService {
   this.staffRole(user);if(!teacherRoles.includes(user.role))return null;
   const staff=await this.prisma.staff.findFirst({where:{tenantId:this.tenant(),userId:user.userId,status:'ACTIVE'}});
   if(!staff)return [];
-  const entries=await this.prisma.timetableEntry.findMany({where:{tenantId:this.tenant(),teacherId:staff.id},select:{classId:true}});
-  return [...new Set(entries.map(e=>e.classId))];
+  const [entries,assignments]=await Promise.all([
+   this.prisma.timetableEntry.findMany({where:{tenantId:this.tenant(),teacherId:staff.id},select:{classId:true}}),
+   this.prisma.preschoolStaffAssignment.findMany({where:{tenantId:this.tenant(),staffId:staff.id},select:{classId:true}}),
+  ]);
+  return [...new Set([...entries,...assignments].map(e=>e.classId))];
  }
  async authorizeClass(user:any,id:string){const classes=await this.classIds(user);if(classes&&!classes.includes(id))throw new ForbiddenException('This class is not assigned to you');
   if(!await this.prisma.class.findFirst({where:{id,tenantId:this.tenant()}}))throw new NotFoundException('Class not found');}
@@ -49,6 +53,12 @@ export class WorkspaceService {
  async list(user:any,resource:string){
   this.staffRole(user);const tenantId=this.tenant();const classes=await this.classIds(user);
   const scope=classes?{currentClassId:{in:classes}}:{};
+  const accountRoles:Record<string,string[]>={'guardian-accounts':['PARENT'],'student-accounts':['STUDENT'],'staff-accounts':[...managers,...teacherRoles,'ACCOUNTANT','LIBRARIAN','TRANSPORT_OFFICER','RECEPTIONIST','AUDITOR']};
+  if(accountRoles[resource]){
+   const editor=resource==='guardian-accounts'?'guardians':resource==='student-accounts'?'students':'staff';
+   this.writer(user,editor);
+   return this.prisma.user.findMany({where:{tenantId,isActive:true,role:{in:accountRoles[resource] as any}},select:{id:true,firstName:true,lastName:true,role:true},orderBy:{firstName:'asc'}});
+  }
   if(teacherRoles.includes(user.role)&&!['classes','students','examinations','subjects','timetable','messages','recipients','assignments','materials','submissions'].includes(resource))throw new ForbiddenException('Resource is not available to teachers');
   if(resource==='users'){if(!managers.includes(user.role))throw new ForbiddenException('Administrator access required');return this.prisma.user.findMany({where:{tenantId,isActive:true},select:{id:true,firstName:true,lastName:true,role:true}});}
   if(resource==='recipients')return this.prisma.guardian.findMany({where:{tenantId,studentLinks:{some:{student:scope}}},select:{id:true,firstName:true,lastName:true,userId:true}});
@@ -69,8 +79,14 @@ export class WorkspaceService {
   else if(resource==='borrowings')rows=await this.prisma.bookBorrowing.findMany({where:{tenantId},include:{book:true},orderBy:{createdAt:'desc'},take:5000});
   else if(resource==='timetable'){const staff=classes?await this.prisma.staff.findFirst({where:{tenantId,userId:user.userId}}):null;rows=await this.prisma.timetableEntry.findMany({where:{tenantId,...(classes?{teacherId:staff?.id||''}:{})},include:{class:true,subject:true,teacher:true},orderBy:[{dayOfWeek:'asc'},{startTime:'asc'}]});}
   else if(resource==='guardian-links')rows=await this.prisma.guardianStudentLink.findMany({where:{guardian:{tenantId}},include:{guardian:true,student:true}});
+  else if(resource==='tickets')rows=await this.prisma.supportTicket.findMany({where:{tenantId,...(!managers.includes(user.role)?{createdBy:user.userId}:{})},orderBy:{createdAt:'desc'},take:5000});
   else rows=await db[spec.model].findMany({where:{tenantId},orderBy:{createdAt:'desc'},take:5000});
   if(resource==='schools')rows=rows.map(({razorpayKeySecret,razorpayWebhookSecret,...safe})=>safe);
+  if(resource==='borrowings'){
+   const borrowers=await this.prisma.student.findMany({where:{tenantId,id:{in:rows.filter(r=>r.borrowerType==='STUDENT').map(r=>r.borrowerId)}},select:{id:true,firstName:true,lastName:true}});
+   const names=new Map(borrowers.map(student=>[student.id,student.firstName+' '+student.lastName]));
+   rows=rows.map(row=>({...row,borrowerName:names.get(row.borrowerId)||row.borrowerId}));
+  }
   return rows.map(r=>({...r,name:r.name||(r.firstName?r.firstName+' '+r.lastName:undefined),studentName:r.student?r.student.firstName+' '+r.student.lastName:undefined,className:r.currentClass?.name||r.class?.name,termName:r.term?.name,bookTitle:r.book?.title,guardianName:r.guardian?r.guardian.firstName+' '+r.guardian.lastName:undefined,subjectName:r.subject?.name,teacherName:r.teacher?r.teacher.firstName+' '+r.teacher.lastName:undefined,studentCount:r._count?.currentStudents,day:r.dayOfWeek?['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][r.dayOfWeek-1]:undefined}));
  }
  async write(user:any,resource:string,input:Record<string,unknown>,id?:string){
@@ -82,16 +98,32 @@ export class WorkspaceService {
    if(!ref)throw new BadRequestException('Selected '+key+' is unavailable');
    if(key==='userId'&&resource==='students'&&ref.role!=='STUDENT')throw new BadRequestException('Student account must have the student role');
    if(key==='userId'&&resource==='guardians'&&ref.role!=='PARENT')throw new BadRequestException('Guardian account must have the parent role');
-   if(key==='userId'&&resource==='staff'&&![...managers,...teacherRoles,'ACCOUNTANT','LIBRARIAN','TRANSPORT_OFFICER','RECEPTIONIST'].includes(ref.role))throw new BadRequestException('Linked staff account must have a staff role');
+   if(key==='userId'&&resource==='staff'&&![...managers,...teacherRoles,'ACCOUNTANT','LIBRARIAN','TRANSPORT_OFFICER','RECEPTIONIST','AUDITOR'].includes(ref.role))throw new BadRequestException('Linked staff account must have a staff role');
   }
-  if(id){const where=resource==='guardian-links'?{id,guardian:{tenantId}}:{id,tenantId};if(!await db[spec.model].findFirst({where}))throw new NotFoundException('Record not found');
+  if(id){const where=resource==='guardian-links'?{id,guardian:{tenantId}}:{id,tenantId,...(resource==='tickets'&&!managers.includes(user.role)?{createdBy:user.userId}:{})};if(!await db[spec.model].findFirst({where}))throw new NotFoundException('Record not found');
    if(['invoices','payments','examinations','borrowings','timetable'].includes(resource))throw new BadRequestException('This record cannot be edited here');
-   if(['years','terms'].includes(resource)){const existing=await db[spec.model].findFirst({where});if((data.startDate||existing.startDate)>(data.endDate||existing.endDate))throw new BadRequestException('End date must follow start date');}
+   if(['years','terms','events'].includes(resource)){const existing=await db[spec.model].findFirst({where});if((data.startDate||existing.startDate)>(data.endDate||existing.endDate))throw new BadRequestException('End date must follow start date');}
   }
-  if(resource==='streams'&&data.classId){const cls=await this.prisma.class.findFirst({where:{id:data.classId,tenantId}});if(cls?.schoolId!==data.schoolId)throw new BadRequestException('Class belongs to a different campus');}
+  if(resource==='streams'){
+   const existing=id?await this.prisma.stream.findFirstOrThrow({where:{id,tenantId}}):null;
+   const cls=await this.prisma.class.findFirst({where:{id:data.classId||existing?.classId,tenantId}});
+   if(cls?.schoolId!==(data.schoolId||existing?.schoolId))throw new BadRequestException('Class belongs to a different campus');
+  }
+  if(resource==='classes'&&id&&data.schoolId&&await this.prisma.stream.count({where:{tenantId,classId:id,schoolId:{not:data.schoolId}}}))throw new BadRequestException('Move or remove the class streams before changing campus');
   if(['assignments','materials'].includes(resource)){if(id){const old=await db[spec.model].findFirst({where:{id,tenantId}});await this.authorizeClass(user,old.classId);}if(data.classId)await this.authorizeClass(user,data.classId);if(!id)data.createdBy=user.userId;}
   let result:any;
-  if(resource==='report-cards')result=await this.exams.generateReportCard(data as any,user.userId);
+  if(resource==='students'){
+   result=await this.prisma.$transaction(async tx=>{
+    const old=id?await tx.student.update({where:{id,tenantId},data:{updatedAt:new Date()}}):null;
+    if(data.currentClassId!==undefined&&data.currentClassId!==old?.currentClassId)data.currentStreamId=null;
+    const student=id?await tx.student.update({where:{id,tenantId},data}):await tx.student.create({data:{...data,tenantId} as any});
+    if(student.currentClassId&&(data.currentClassId!==undefined||!id)){
+     await recordEnrollment(tx,tenantId,student);
+    }
+    return student;
+   });
+  }
+  else if(resource==='report-cards')result=await this.exams.generateReportCard(data as any,user.userId);
   else if(resource==='invoices'){const {studentId,termId,description,amount,dueDate}=data;result=await this.fees.createInvoice({studentId,termId,items:[{description,amount,feeCategory:FeeCategory.TUITION}],dueDate:dueDate?.toISOString()});}
   else if(resource==='payments')result=await this.fees.recordPayment({...data,paymentDate:data.paymentDate?.toISOString()} as any,user.userId);
   else if(resource==='timetable')result=await this.timetable.createEntry(data as any);
@@ -105,7 +137,7 @@ export class WorkspaceService {
    });
   }else{
    if(resource==='schools'&&!id)data.educationLevel=['PRIMARY'];
-   if(resource==='staff')data.isTeacher=data.department==='TEACHING';
+   if(resource==='staff'&&data.department!==undefined)data.isTeacher=data.department==='TEACHING';
    if(resource==='books'&&!id)data.available=data.quantity;
    if(resource==='tickets'&&!id)data.createdBy=user.userId;
    if(resource==='books'&&id&&data.quantity!==undefined){

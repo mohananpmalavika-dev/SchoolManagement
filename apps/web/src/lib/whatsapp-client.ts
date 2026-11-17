@@ -5,6 +5,9 @@ import {
   WhatsAppDeliveryStatus,
   WhatsAppMessageType,
   WhatsAppLanguage,
+  WhatsAppGatewayProvider,
+  WhatsAppWebLink,
+  WhatsAppLiveDispatchResult,
 } from '@krypton/types';
 
 export interface StudentParentContact {
@@ -411,6 +414,9 @@ class WhatsAppClientStore {
   private invoices: FeeInvoiceItem[] = [...INITIAL_INVOICES];
   private pdfDocuments: SchoolPdfDocument[] = [...INITIAL_PDF_DOCUMENTS];
   private config: WhatsAppAutomationConfig = {
+    activeProvider: 'META_CLOUD_API',
+    freePlayschoolMode: false,
+    defaultCountryCode: '91',
     wabaId: 'WABA_919847000111',
     phoneNumberId: 'PNID_919847000111',
     displayPhoneNumber: '+91 98470 00111',
@@ -421,7 +427,49 @@ class WhatsAppClientStore {
     autoFeeReminderDaysBeforeDue: 3,
     autoPdfDeliveryEnabled: true,
     defaultLanguage: 'en',
+    metaConfig: {
+      wabaId: 'WABA_919847000111',
+      phoneNumberId: 'PNID_919847000111',
+      accessToken: '',
+      apiVersion: 'v19.0',
+      webhookVerifyToken: 'krypton_whatsapp_verify_token',
+    },
+    twilioConfig: {
+      accountSid: '',
+      authToken: '',
+      whatsappNumber: 'whatsapp:+14155238886',
+    },
+    gupshupConfig: {
+      apiKey: '',
+      appName: '',
+      sourceNumber: '919847000111',
+    },
   };
+
+  private readonly STORAGE_KEY = 'krypton_whatsapp_gateway_config_v1';
+
+  constructor() {
+    this.hydrateConfig();
+  }
+
+  private hydrateConfig() {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = window.localStorage.getItem(this.STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        this.config = {
+          ...this.config,
+          ...parsed,
+          metaConfig: { ...this.config.metaConfig, ...(parsed.metaConfig || {}) },
+          twilioConfig: { ...this.config.twilioConfig, ...(parsed.twilioConfig || {}) },
+          gupshupConfig: { ...this.config.gupshupConfig, ...(parsed.gupshupConfig || {}) },
+        };
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }
 
   getMessages(): WhatsAppCloudMessage[] {
     return [...this.messages];
@@ -440,12 +488,320 @@ class WhatsAppClientStore {
   }
 
   getConfig(): WhatsAppAutomationConfig {
-    return { ...this.config };
+    return {
+      ...this.config,
+      metaConfig: this.config.metaConfig ? { ...this.config.metaConfig } : undefined,
+      twilioConfig: this.config.twilioConfig ? { ...this.config.twilioConfig } : undefined,
+      gupshupConfig: this.config.gupshupConfig ? { ...this.config.gupshupConfig } : undefined,
+    };
   }
 
   updateConfig(partial: Partial<WhatsAppAutomationConfig>): WhatsAppAutomationConfig {
-    this.config = { ...this.config, ...partial };
-    return { ...this.config };
+    this.config = {
+      ...this.config,
+      ...partial,
+      metaConfig: partial.metaConfig
+        ? { ...(this.config.metaConfig || { wabaId: '', phoneNumberId: '' }), ...partial.metaConfig }
+        : this.config.metaConfig,
+      twilioConfig: partial.twilioConfig
+        ? { ...(this.config.twilioConfig || { accountSid: '', whatsappNumber: '' }), ...partial.twilioConfig }
+        : this.config.twilioConfig,
+      gupshupConfig: partial.gupshupConfig
+        ? { ...(this.config.gupshupConfig || { appName: '', sourceNumber: '' }), ...partial.gupshupConfig }
+        : this.config.gupshupConfig,
+    };
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.config));
+      } catch {
+        // Ignore storage quota errors
+      }
+    }
+    return this.getConfig();
+  }
+
+  /**
+   * Zero-Cost Play-School Mode: Build direct Click-to-Chat WhatsApp Web / Mobile links (wa.me)
+   */
+  buildWhatsAppWebLink(
+    phone: string,
+    messageText: string,
+    defaultCountryCode?: string,
+  ): WhatsAppWebLink {
+    const cc = (defaultCountryCode || this.config.defaultCountryCode || '91').replace(/[^\d]/g, '');
+    let cleaned = phone.replace(/[^\d+]/g, '');
+    if (cleaned.startsWith('+')) {
+      cleaned = cleaned.substring(1);
+    } else if (cleaned.startsWith('0')) {
+      cleaned = cc + cleaned.substring(1);
+    } else if (cleaned.length === 10) {
+      cleaned = cc + cleaned;
+    }
+
+    const encodedMessage = encodeURIComponent(messageText);
+    return {
+      waMeUrl: `https://wa.me/${cleaned}?text=${encodedMessage}`,
+      webWhatsAppUrl: `https://web.whatsapp.com/send?phone=${cleaned}&text=${encodedMessage}`,
+      phone: `+${cleaned}`,
+      encodedMessage,
+      previewText: messageText,
+    };
+  }
+
+  /**
+   * Generate ready-to-open WhatsApp Web link for a student's absence alert
+   */
+  getAbsenteeWhatsAppWebLink(
+    studentId: string,
+    language: WhatsAppLanguage = 'en',
+  ): { student: StudentParentContact; link: WhatsAppWebLink } {
+    const student = this.students.find((s) => s.id === studentId);
+    if (!student) {
+      throw new Error(`Student ${studentId} not found`);
+    }
+    const currentTime = new Date().toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    let bodyText = `🔴 *School Absence Alert*\n\nDear Parent (${student.parentName}),\n\nYour child *${student.name}* (${student.className}, Roll: ${student.rollNumber}) has been marked *ABSENT* today during morning roll call at ${currentTime}.\n\nPlease ensure your child is safe and reply with the reason for absence.\n\n- ${this.config.businessName}`;
+
+    if (language === 'ml') {
+      bodyText = `🔴 *സ്കൂൾ ഹാജർ അറിയിപ്പ് (Absence Alert)*\n\nപ്രിയ രക്ഷിതാവേ (${student.parentNameMl || student.parentName}),\n\nനിങ്ങളുടെ കുട്ടി *${student.nameMl || student.name}* (${student.className}, റോൾ നമ്പർ: ${student.rollNumber}) ഇന്ന് രാവിലെ ${currentTime}-നുള്ള ഹാജർ നിലയിൽ എത്തിയിട്ടില്ലെന്ന് രേഖപ്പെടുത്തിയിട്ടുണ്ട്.\n\nകുട്ടി സുരക്ഷിതമാണെന്ന് ഉറപ്പുവരുത്തുകയും അവധി കാരണം മറുപടിയായി അറിയിക്കുകയും ചെയ്യുക.\n\n- ${this.config.businessName}`;
+    } else if (language === 'hi') {
+      bodyText = `🔴 *विद्यालय उपस्थिति सूचना (Absence Alert)*\n\nप्रिय अभिभावक (${student.parentNameHi || student.parentName}),\n\nआपका बच्चा *${student.nameHi || student.name}* (${student.className}, रोल नं: ${student.rollNumber}) आज सुबह ${currentTime} बजे की उपस्थिति में अनुपस्थित दर्ज किया गया है।\n\nकृपया बच्चे की सुरक्षा सुनिश्चित करें और अनुपस्थिति का कारण बताएं।\n\n- ${this.config.businessName}`;
+    }
+
+    return {
+      student,
+      link: this.buildWhatsAppWebLink(student.phone, bodyText),
+    };
+  }
+
+  /**
+   * Generate ready-to-open WhatsApp Web link for a student's fee reminder with UPI details
+   */
+  getFeeReminderWhatsAppWebLink(
+    invoiceId: string,
+    language: WhatsAppLanguage = 'en',
+  ): { invoice: FeeInvoiceItem; link: WhatsAppWebLink } {
+    const invoice = this.invoices.find((i) => i.id === invoiceId);
+    if (!invoice) {
+      throw new Error(`Invoice ${invoiceId} not found`);
+    }
+
+    const amountFormatted = `₹${invoice.amountInr.toLocaleString('en-IN')}`;
+    const paymentLink = `https://pay.kryptonschool.edu.in/upi/pay/${invoice.invoiceNumber}`;
+
+    let bodyText = `💳 *School Fee Reminder*\n\nDear ${invoice.parentName},\n\nFee reminder for *${invoice.studentName}* (${invoice.className}).\n\n• Invoice No: ${invoice.invoiceNumber}\n• Details: ${invoice.description}\n• Amount Due: *${amountFormatted}*\n• Due Date: ${invoice.dueDate}\n• UPI ID: ${invoice.upiId}\n\n⚡ Quick Pay Link: ${paymentLink}\n\nThank you,\n${this.config.businessName}`;
+
+    if (language === 'ml') {
+      bodyText = `💳 *സ്കൂൾ ഫീസ് ഓർമ്മപ്പെടുത്തൽ*\n\nപ്രിയ ${invoice.parentName},\n\n*${invoice.studentName}* (${invoice.className}) എന്ന വിദ്യാർത്ഥിയുടെ ഫീസ് വിവരങ്ങൾ:\n\n• ഇൻവോയ്സ് നമ്പർ: ${invoice.invoiceNumber}\n• അടയ്ക്കേണ്ട തുക: *${amountFormatted}*\n• അവസാന തീയതി: ${invoice.dueDate}\n• UPI ID: ${invoice.upiId}\n\n⚡ യു.പി.ഐ പേയ്‌മെന്റ് ലിങ്ക്:\n${paymentLink}\n\nഗൂഗിൾ പേ, ഫോൺപേ വഴി ഉടൻ പണമടയ്ക്കാവുന്നതാണ്.\nനന്ദി,\n${this.config.businessName}`;
+    } else if (language === 'hi') {
+      bodyText = `💳 *विद्यालय शुल्क अनुस्मारक*\n\nप्रिय ${invoice.parentName},\n\n*${invoice.studentName}* (${invoice.className}) के विद्यालय शुल्क का विवरण:\n\n• चालान संख्या: ${invoice.invoiceNumber}\n• बकाया राशि: *${amountFormatted}*\n• अंतिम तिथि: ${invoice.dueDate}\n• UPI ID: ${invoice.upiId}\n\n⚡ तुरंत भुगतान लिंक:\n${paymentLink}\n\nधन्यवाद,\n${this.config.businessName}`;
+    }
+
+    return {
+      invoice,
+      link: this.buildWhatsAppWebLink(invoice.parentPhone, bodyText),
+    };
+  }
+
+  /**
+   * Generate ready-to-open WhatsApp Web link for sharing a school PDF document
+   */
+  getPdfWhatsAppWebLink(
+    documentId: string,
+    language: WhatsAppLanguage = 'en',
+  ): { doc: SchoolPdfDocument; link: WhatsAppWebLink } {
+    const doc = this.pdfDocuments.find((d) => d.id === documentId);
+    if (!doc) {
+      throw new Error(`Document ${documentId} not found`);
+    }
+
+    const docUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}${doc.downloadUrl}`
+        : `https://school.krypton.edu.in${doc.downloadUrl}`;
+
+    let bodyText = `📄 *${doc.title}*\n\nDear Parent,\n\n${doc.summary}\n\n📥 Download Document: ${docUrl}\n\n- ${this.config.businessName}`;
+
+    if (language === 'ml') {
+      bodyText = `📄 *${doc.titleMl || doc.title}*\n\nപ്രിയ രക്ഷിതാവേ,\n\n${doc.summaryMl || doc.summary}\n\n📥 ഡോക്യുമെന്റ് ഡൗൺലോഡ് ലിങ്ക്: ${docUrl}\n\n- ${this.config.businessName}`;
+    } else if (language === 'hi') {
+      bodyText = `📄 *${doc.titleHi || doc.title}*\n\nप्रिय अभिभावक,\n\n${doc.summaryHi || doc.summary}\n\n📥 दस्तावेज़ डाउनलोड लिंक: ${docUrl}\n\n- ${this.config.businessName}`;
+    }
+
+    return {
+      doc,
+      link: this.buildWhatsAppWebLink('+91 98470 34567', bodyText),
+    };
+  }
+
+  /**
+   * Query live backend WhatsApp gateway status
+   */
+  async fetchBackendGatewayStatus(): Promise<{
+    reachable: boolean;
+    available: boolean;
+    liveGatewayConfigured: boolean;
+    activeProvider: WhatsAppGatewayProvider;
+    configuredProviders: WhatsAppGatewayProvider[];
+    message?: string;
+  }> {
+    try {
+      const resp = await fetch('/api/whatsapp/status', { cache: 'no-store' });
+      if (!resp.ok) {
+        return {
+          reachable: false,
+          available: true,
+          liveGatewayConfigured: false,
+          activeProvider: this.config.activeProvider,
+          configuredProviders: ['WHATSAPP_WEB'],
+          message: 'Backend API offline; using local WhatsApp Web & simulator controls.',
+        };
+      }
+      const data = await resp.json();
+      return {
+        reachable: true,
+        available: !!data.available,
+        liveGatewayConfigured: !!data.liveGatewayConfigured,
+        activeProvider: data.activeProvider || this.config.activeProvider,
+        configuredProviders: data.configuredProviders || ['WHATSAPP_WEB'],
+        message: data.message,
+      };
+    } catch {
+      return {
+        reachable: false,
+        available: true,
+        liveGatewayConfigured: false,
+        activeProvider: this.config.activeProvider,
+        configuredProviders: ['WHATSAPP_WEB'],
+        message: 'Backend API unreachable; Zero-Cost WhatsApp Web mode ready directly in browser.',
+      };
+    }
+  }
+
+  /**
+   * Dispatch a live message via Backend API (Meta Cloud API / Gupshup / Twilio) or WhatsApp Web link
+   */
+  async dispatchLiveMessage(
+    to: string,
+    message: string,
+    options?: {
+      mediaUrl?: string;
+      provider?: WhatsAppGatewayProvider;
+    },
+  ): Promise<WhatsAppLiveDispatchResult> {
+    const provider = options?.provider || this.config.activeProvider;
+
+    if (provider === 'WHATSAPP_WEB') {
+      const waLink = this.buildWhatsAppWebLink(to, message);
+      return {
+        success: true,
+        provider: 'WHATSAPP_WEB',
+        messageId: `wa_web_${Date.now()}`,
+        status: 'READY_TO_OPEN',
+        waLink,
+      };
+    }
+
+    try {
+      const resp = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to,
+          message,
+          mediaUrl: options?.mediaUrl,
+          provider,
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        return {
+          success: false,
+          provider,
+          status: 'FAILED',
+          error: data?.message || `Live API returned HTTP ${resp.status}`,
+        };
+      }
+      return {
+        success: true,
+        provider: data.provider || provider,
+        messageId: data.messageId,
+        status: data.status || 'SENT',
+        waLink: data.waLink,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        provider,
+        status: 'FAILED',
+        error: error?.message || 'Unable to connect to live WhatsApp backend.',
+      };
+    }
+  }
+
+  /**
+   * Test live provider credentials through backend endpoint
+   */
+  async testProviderConnection(payload: {
+    provider: WhatsAppGatewayProvider;
+    testPhone?: string;
+    testMessage?: string;
+    metaAccessToken?: string;
+    metaPhoneNumberId?: string;
+    metaWabaId?: string;
+    metaApiVersion?: string;
+    twilioAccountSid?: string;
+    twilioAuthToken?: string;
+    twilioWhatsappNumber?: string;
+    gupshupApiKey?: string;
+    gupshupAppName?: string;
+    gupshupSourceNumber?: string;
+  }): Promise<{
+    success: boolean;
+    provider: WhatsAppGatewayProvider;
+    message: string;
+    waLink?: WhatsAppWebLink;
+  }> {
+    if (payload.provider === 'WHATSAPP_WEB') {
+      const waLink = this.buildWhatsAppWebLink(
+        payload.testPhone || '+919847034567',
+        payload.testMessage ||
+          `✅ Hello! Test message from ${this.config.businessName} using Zero-Cost WhatsApp Web Mode (No API fees).`,
+      );
+      return {
+        success: true,
+        provider: 'WHATSAPP_WEB',
+        message: 'WhatsApp Web link generated! Click to open directly in WhatsApp.',
+        waLink,
+      };
+    }
+
+    try {
+      const resp = await fetch('/api/whatsapp/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await resp.json();
+      return {
+        success: !!data.success,
+        provider: payload.provider,
+        message: data.message || (data.success ? 'Verified successfully' : 'Verification failed'),
+        waLink: data.result?.waLink,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        provider: payload.provider,
+        message:
+          error?.message ||
+          'Backend server is not reachable. Ensure apps/api is running on port 3001 to verify live credentials.',
+      };
+    }
   }
 
   getStats(): WhatsAppAutomationStats {

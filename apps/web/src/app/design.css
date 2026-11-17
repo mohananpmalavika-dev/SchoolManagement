@@ -16,7 +16,7 @@ button:disabled { opacity: .5; }
 .brand-logo-img { width: 39px; height: 39px; object-fit: contain; border-radius: 10px; background: #fff; border: 1px solid #e5eaf2; padding: 3px; flex-shrink: 0; }
 .brand-logo-img-lg { width: 52px; height: 52px; object-fit: contain; border-radius: 12px; background: #fff; padding: 3px; }
 .topbar { position: sticky; top: 0; z-index: 30; height: 79px; margin: 0; padding: 0 34px; display: flex; align-items: center; gap: 28px; background: #ffffffed; backdrop-filter: blur(16px); border-bottom: 1px solid #e4eaf3; }
-.module-navigation { display: flex; align-items: center; gap: 5px; flex: 1; }
+.module-navigation { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
 .module-navigation button { display: flex; align-items: center; gap: 7px; padding: 11px 12px; color: #6c7a91; font-size: 12px; font-weight: 600; border-radius: 9px; text-transform: capitalize; white-space: nowrap; }
 .module-navigation button:hover, .module-navigation button.selected { color: #2859ee; background: #f0f4ff; }
 .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 18px; }

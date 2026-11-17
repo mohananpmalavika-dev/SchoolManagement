@@ -47,6 +47,8 @@ async function contextFor(role, auth = true) {
     if (path === '/api/payments-gateway/options') return ok({razorpay:false,upi:true,merchantName:'Fixture school'});
     if (path === '/api/workspace/pay') return ok({gatewayOrderId:'upi-fixture',amount:body.amount,currency:'INR',upiIntentUri:'upi://pay?pa=fixture%40upi&am=250.00&cu=INR'});
     if (path === '/api/workspace/invoices') return ok([]);
+    if (path === '/api/operations/options') return ok({schools:[{id:'school-1',name:'Fixture school'}],staff:[],routes:[]});
+    if (path === '/api/operations/admissions') return route.request().method()==='POST' ? ok({id:'application-1',applicationNumber:'ADM-FIXTURE'}) : ok([]);
     if (path === '/api/teacher-ai/options') return ok({classes:[],terms:[],status:{configured:false}});
     if (path === '/api/teacher-ai/at-risk' || path === '/api/predictive-analytics') return ok({students:[],summary:{highRisk:0,incompleteData:0}});
     return ok([]);
@@ -259,15 +261,24 @@ try {
   assert.equal(requests.find(request=>request.path==='/api/workspace/invoices'&&request.body)?.body.data.amount,125050);
   await finance.context.close();
   checks.push('Finance staff see their permitted navigation and currency forms convert rupees to integer paise');
-  if (process.env.UI_PRODUCTION === 'true') {
-    const production=await contextFor('SCHOOL_ADMIN');
-    await production.page.goto(base+'/school/admissions');
-    await production.page.getByRole('heading',{name:'This service is not available yet',exact:true}).waitFor();
-    assert.equal(requests.filter(request=>request.path==='/api/admissions').length,0);
-    assert.equal(await production.page.getByRole('link',{name:'Open student directory',exact:false}).getAttribute('href'),'/school/students');
-    await production.context.close();
-    checks.push('Production hides sample admissions and offers the connected directory without calling the preview API');
+  const admissions=await contextFor('SCHOOL_ADMIN');
+  await admissions.page.goto(base+'/school/admissions');
+  await admissions.page.getByRole('heading',{name:'Admissions',exact:true}).waitFor();
+  await admissions.page.getByRole('button',{name:'Add record',exact:true}).click();
+  const application=admissions.page.getByRole('dialog');
+  await application.getByLabel('School *',{exact:true}).selectOption('school-1');
+  for (const [label,value] of [['Student first name','New'],['Student last name','Learner'],['Date of birth','2022-04-12'],['Grade requested','Nursery'],['Guardian name','Fixture Parent'],['Guardian email','parent@example.test'],['Guardian phone','919847000100']]) {
+    await application.getByLabel(label+' *',{exact:true}).fill(value);
   }
+  await application.getByLabel('Gender *',{exact:true}).selectOption('FEMALE');
+  await application.getByRole('button',{name:'Save record',exact:true}).click();
+  await admissions.page.getByRole('status').filter({hasText:'Application ADM-FIXTURE saved.'}).waitFor();
+  const applicationRequest=requests.find(request=>request.path==='/api/operations/admissions'&&request.body);
+  assert.equal(applicationRequest?.body.data.grade,'Nursery');
+  assert.equal(applicationRequest?.body.data.guardianPhone,'919847000100');
+  assert.equal(requests.filter(request=>request.path==='/api/admissions').length,0);
+  await admissions.context.close();
+  checks.push('School admissions use the connected application API and submit guardian and requested-grade details');
   assert.deepEqual(errors,[]);
   await writeFile(new URL('results.json',output),JSON.stringify({checks,errors,fixture:'Mocked API responses. No real school records changed.'},null,2));
   console.log(JSON.stringify({passed:checks.length,checks},null,2));

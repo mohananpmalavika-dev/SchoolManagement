@@ -775,6 +775,7 @@ function TeachingTools() {
             classId,
             termId,
             language,
+            tone,
             students: selected.slice(i, i + 10).map(studentId => ({
               studentId,
               behaviourObservation: observations[studentId] || undefined,
@@ -784,6 +785,8 @@ function TeachingTools() {
         );
         if (controller.signal.aborted) break;
         setDrafts(current => ({ ...current, ...Object.fromEntries(data.remarks.map(r => [r.studentId, r])) }));
+        const completedIds=new Set(data.remarks.map(remark=>remark.studentId));
+        setSelected(current=>current.filter(studentId=>!completedIds.has(studentId)));
         completed += data.remarks.length;
       }
       if (!controller.signal.aborted) {
@@ -1052,7 +1055,7 @@ function TeachingTools() {
           actions={
             <div className="flex items-center gap-2">
               <Link
-                href="/dashboard/copilot"
+                href={base+'/copilot'}
                 className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md shadow-sm transition-all flex items-center gap-1.5"
               >
                 <Sparkles size={14} />
@@ -2183,7 +2186,7 @@ function TeachingTools() {
                   <Link className="panel-link" href={`${base}/grades`}>
                     Open gradebook →
                   </Link>
-                  <Link className="panel-link" href="/dashboard/copilot">
+                  <Link className="panel-link" href={base+'/copilot'}>
                     Ask ERP Copilot →
                   </Link>
                   {base === '/school' && (

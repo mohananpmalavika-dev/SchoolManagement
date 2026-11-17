@@ -27,6 +27,15 @@ export class SendMessageDto {
   @IsString()
   @IsOptional()
   mediaUrl?: string;
+
+  @ApiProperty({
+    description: 'Optional gateway provider override',
+    enum: ['META_CLOUD_API', 'TWILIO', 'GUPSHUP', 'WHATSAPP_WEB'],
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  provider?: 'META_CLOUD_API' | 'TWILIO' | 'GUPSHUP' | 'WHATSAPP_WEB';
 }
 
 export class RecipientDto {
@@ -110,4 +119,90 @@ export class SendTemplateMessageDto {
   @IsOptional()
   language?: 'en' | 'hi' | 'ml';
 }
+
+export class GenerateWaLinkDto {
+  @ApiProperty({
+    description: 'Recipient phone number',
+    example: '+919847034567',
+  })
+  @IsString()
+  @IsNotEmpty()
+  to: string;
+
+  @ApiProperty({
+    description: 'Message text to pre-fill in WhatsApp Web / Mobile',
+    example: 'പ്രിയ രക്ഷിതാവേ, ഫീസ് ഓർമ്മപ്പെടുത്തൽ...',
+  })
+  @IsString()
+  @IsNotEmpty()
+  message: string;
+
+  @ApiProperty({
+    description: 'Default country code (e.g. 91)',
+    example: '91',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  countryCode?: string;
+}
+
+export class TestProviderConnectionDto {
+  @ApiProperty({
+    description: 'Gateway provider to test',
+    enum: ['META_CLOUD_API', 'TWILIO', 'GUPSHUP', 'WHATSAPP_WEB'],
+  })
+  @IsString()
+  @IsNotEmpty()
+  provider: 'META_CLOUD_API' | 'TWILIO' | 'GUPSHUP' | 'WHATSAPP_WEB';
+
+  @IsString()
+  @IsOptional()
+  testPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  testMessage?: string;
+
+  @IsString()
+  @IsOptional()
+  metaAccessToken?: string;
+
+  @IsString()
+  @IsOptional()
+  metaPhoneNumberId?: string;
+
+  @IsString()
+  @IsOptional()
+  metaWabaId?: string;
+
+  @IsString()
+  @IsOptional()
+  metaApiVersion?: string;
+
+  @IsString()
+  @IsOptional()
+  twilioAccountSid?: string;
+
+  @IsString()
+  @IsOptional()
+  twilioAuthToken?: string;
+
+  @IsString()
+  @IsOptional()
+  twilioWhatsappNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  gupshupApiKey?: string;
+
+  @IsString()
+  @IsOptional()
+  gupshupAppName?: string;
+
+  @IsString()
+  @IsOptional()
+  gupshupSourceNumber?: string;
+}
+
 

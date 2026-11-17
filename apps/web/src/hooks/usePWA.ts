@@ -1,19 +1,35 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   registerServiceWorker,
   isPWA,
   isOnline,
+  isIOSDevice,
+  isAndroidDevice,
   addConnectionListeners,
   BeforeInstallPromptEvent,
 } from '@/lib/pwa';
 
-interface PWAState {
+// Cache event at module level so it is not lost before React hydration
+let moduleDeferredPrompt: BeforeInstallPromptEvent | null = null;
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e: Event) => {
+    e.preventDefault();
+    moduleDeferredPrompt = e as BeforeInstallPromptEvent;
+    window.dispatchEvent(new CustomEvent('krypton-pwa-ready'));
+  });
+}
+
+export interface PWAState {
   isInstalled: boolean;
   isOnline: boolean;
   canInstall: boolean;
-  showInstallPrompt: () => Promise<void>;
+  isIOS: boolean;
+  isAndroid: boolean;
+  platform: 'ios' | 'android' | 'desktop' | 'unknown';
+  showInstallPrompt: () => Promise<'accepted' | 'dismissed' | 'manual-ios' | 'unavailable'>;
   updateAvailable: boolean;
 }
 
@@ -21,20 +37,32 @@ export function usePWA(): PWAState {
   const [isInstalled, setIsInstalled] = useState(false);
   const [online, setOnline] = useState(true);
   const [canInstall, setCanInstall] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(moduleDeferredPrompt);
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
   useEffect(() => {
-    // Check if running as PWA
-    setIsInstalled(isPWA());
+    const installed = isPWA();
+    const ios = isIOSDevice();
+    const android = isAndroidDevice();
 
-    // Check online status
+    setIsInstalled(installed);
     setOnline(isOnline());
+    setIsIOS(ios);
+    setIsAndroid(android);
+
+    if (moduleDeferredPrompt) {
+      setInstallPrompt(moduleDeferredPrompt);
+      setCanInstall(!installed);
+    } else if (ios && !installed) {
+      // iOS doesn't fire beforeinstallprompt, but users can add to home screen manually
+      setCanInstall(true);
+    }
 
     // Register service worker
     registerServiceWorker().then((registration) => {
       if (registration) {
-        // Check for updates
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (!newWorker) return;
@@ -48,25 +76,33 @@ export function usePWA(): PWAState {
       }
     });
 
-    // Listen for install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      setInstallPrompt(e as BeforeInstallPromptEvent);
+      const promptEvent = e as BeforeInstallPromptEvent;
+      moduleDeferredPrompt = promptEvent;
+      setInstallPrompt(promptEvent);
       setCanInstall(true);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    const handlePWAReady = () => {
+      if (moduleDeferredPrompt) {
+        setInstallPrompt(moduleDeferredPrompt);
+        setCanInstall(true);
+      }
+    };
 
-    // Listen for app installed
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('krypton-pwa-ready', handlePWAReady);
+
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setCanInstall(false);
       setInstallPrompt(null);
+      moduleDeferredPrompt = null;
     };
 
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    // Listen for online/offline events
     const removeConnectionListeners = addConnectionListeners(
       () => setOnline(true),
       () => setOnline(false)
@@ -74,37 +110,55 @@ export function usePWA(): PWAState {
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('krypton-pwa-ready', handlePWAReady);
       window.removeEventListener('appinstalled', handleAppInstalled);
       removeConnectionListeners();
     };
   }, []);
 
-  const showInstallPrompt = async () => {
-    if (!installPrompt) {
-      return;
+  const showInstallPrompt = useCallback(async (): Promise<'accepted' | 'dismissed' | 'manual-ios' | 'unavailable'> => {
+    if (isIOS) {
+      return 'manual-ios';
+    }
+
+    const activePrompt = installPrompt || moduleDeferredPrompt;
+    if (!activePrompt) {
+      return 'unavailable';
     }
 
     try {
-      await installPrompt.prompt();
-      const { outcome } = await installPrompt.userChoice;
-      
+      await activePrompt.prompt();
+      const { outcome } = await activePrompt.userChoice;
       if (outcome === 'accepted') {
-        console.log('User accepted the install prompt');
+        setIsInstalled(true);
+        setCanInstall(false);
+        setInstallPrompt(null);
+        moduleDeferredPrompt = null;
+        return 'accepted';
       } else {
-        console.log('User dismissed the install prompt');
+        return 'dismissed';
       }
-      
-      setInstallPrompt(null);
-      setCanInstall(false);
     } catch (error) {
       console.error('Install prompt error:', error);
+      return 'unavailable';
     }
-  };
+  }, [installPrompt, isIOS]);
+
+  const platform: 'ios' | 'android' | 'desktop' | 'unknown' = isIOS
+    ? 'ios'
+    : isAndroid
+    ? 'android'
+    : typeof window !== 'undefined'
+    ? 'desktop'
+    : 'unknown';
 
   return {
     isInstalled,
     isOnline: online,
     canInstall,
+    isIOS,
+    isAndroid,
+    platform,
     showInstallPrompt,
     updateAvailable,
   };

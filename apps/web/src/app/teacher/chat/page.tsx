@@ -1,7 +1,7 @@
 import { SchoolChatHub } from '@/components/chat/SchoolChatHub';
 
 export const metadata = {
-  title: 'Teacher Chat & Channels | HustlerTech School ERP',
+  title: 'Teacher Chat & Channels | Krypton School ERP',
   description: 'Teacher communication with parents, staff room, and class groups.',
 };
 

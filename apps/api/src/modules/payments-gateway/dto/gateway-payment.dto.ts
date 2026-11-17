@@ -10,6 +10,7 @@ import {
   IsEnum,
   IsBoolean,
   IsObject,
+  IsArray,
 } from 'class-validator';
 
 export enum GatewayChoice {
@@ -138,6 +139,23 @@ export class VerifyPaymentDto {
 }
 
 export class PaymentWebhookDto {
+  @IsOptional()
+  @IsString()
+  entity?: string;
+
+  @IsOptional()
+  @IsString()
+  account_id?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  contains?: string[];
+
+  @IsOptional()
+  @IsInt()
+  created_at?: number;
+
   @ApiProperty()
   @IsString()
   event: string;

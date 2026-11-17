@@ -33,6 +33,8 @@ import {
 import { InteractiveClassroomBoard } from './InteractiveClassroomBoard';
 import { ChatCallModal } from './ChatCallModal';
 import { ScreenShareModal } from './ScreenShareModal';
+import { messageFor } from '@/lib/workspace';
+import { useAuth } from '@/contexts/AuthContext';
 
 const EMOJIS = ['👍', '❤️', '👏', '💡', '📚', '🔔', '🏫', '✅', '🔥', '🙌'];
 
@@ -46,6 +48,9 @@ const CANNED_REPLIES = [
 ];
 
 export function SchoolChatHub() {
+  const {user}=useAuth();
+  const [error,setError]=useState('');
+  const [uploading,setUploading]=useState(false);
   const [channels, setChannels] = useState<ChatChannel[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -62,6 +67,7 @@ export function SchoolChatHub() {
   const [attachedFiles, setAttachedFiles] = useState<ChatAttachment[]>([]);
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelDesc, setNewChannelDesc] = useState('');
+  const [newChannelMembers,setNewChannelMembers]=useState<string[]>([]);
   const [creatingChannel, setCreatingChannel] = useState(false);
   const [activeCall, setActiveCall] = useState<'audio' | 'video' | null>(null);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
@@ -69,6 +75,9 @@ export function SchoolChatHub() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const selectedChannel = useRef(activeChannelId);
+  useEffect(()=>{selectedChannel.current=activeChannelId;},[activeChannelId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -82,6 +91,9 @@ export function SchoolChatHub() {
       if (data.length > 0 && !activeChannelId) {
         setActiveChannelId(data[0].id);
       }
+      if(activeChannelId&&!data.some(channel=>channel.id===activeChannelId)){setActiveChannelId(data[0]?.id||'');setMessages([]);}
+    } catch(err) {
+      setError(messageFor(err));
     } finally {
       setLoading(false);
     }
@@ -90,8 +102,10 @@ export function SchoolChatHub() {
   // Load messages for active channel
   const loadMessages = useCallback(async (channelId: string) => {
     if (!channelId) return;
-    const list = await chatClient.getMessages(channelId);
-    setMessages(list);
+    try {
+      const list = await chatClient.getMessages(channelId);
+      if(selectedChannel.current===channelId)setMessages(list);
+    } catch(err) { if(selectedChannel.current===channelId)setError(messageFor(err)); }
   }, []);
 
   useEffect(() => {
@@ -99,6 +113,7 @@ export function SchoolChatHub() {
   }, [loadChannels]);
 
   useEffect(() => {
+    setMessages([]);setReplyingTo(null);setAttachedFiles([]);setInputText('');setError('');
     if (activeChannelId) {
       void loadMessages(activeChannelId);
       const timer = setInterval(() => {
@@ -127,7 +142,7 @@ export function SchoolChatHub() {
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if ((!inputText.trim() && attachedFiles.length === 0) || !activeChannelId || sending) {
+    if ((!inputText.trim() && attachedFiles.length === 0) || !activeChannelId || sending || uploading) {
       return;
     }
 
@@ -135,22 +150,26 @@ export function SchoolChatHub() {
     const attachmentsToSend = attachedFiles.length > 0 ? attachedFiles : undefined;
     const replyId = replyingTo?.id;
 
-    setInputText('');
-    setAttachedFiles([]);
-    setReplyingTo(null);
     setShowEmojiPicker(false);
     setShowCannedReplies(false);
     setSending(true);
+    setError('');
+    const targetChannelId=activeChannelId;
 
     try {
       const newMsg = await chatClient.sendMessage(
-        activeChannelId,
+        targetChannelId,
         content,
         attachmentsToSend,
         replyId,
       );
-      setMessages((prev) => [...prev, newMsg]);
+      if(selectedChannel.current===targetChannelId){
+        setMessages((prev) => prev.some(message=>message.id===newMsg.id)?prev:[...prev,newMsg]);
+        setInputText('');setAttachedFiles([]);setReplyingTo(null);
+      }
       void loadChannels();
+    } catch(err) {
+      setError(messageFor(err));
     } finally {
       setSending(false);
     }
@@ -158,34 +177,22 @@ export function SchoolChatHub() {
 
   const handleReaction = async (messageId: string, emoji: string) => {
     if (!activeChannelId) return;
-    setMessages((prev) =>
-      prev.map((m) => {
-        if (m.id !== messageId) return m;
-        const reactions = { ...(m.reactions || {}) };
-        const users = reactions[emoji] || [];
-        if (users.includes('me')) {
-          reactions[emoji] = users.filter((u) => u !== 'me');
-          if (reactions[emoji].length === 0) delete reactions[emoji];
-        } else {
-          reactions[emoji] = [...users, 'me'];
-        }
-        return { ...m, reactions };
-      }),
-    );
-    await chatClient.addReaction(activeChannelId, messageId, emoji);
+    try {await chatClient.addReaction(activeChannelId,messageId,emoji);await loadMessages(activeChannelId);}
+    catch(err){setError(messageFor(err));}
   };
 
   const openNewChat = async () => {
-    const list = await chatClient.getContacts();
-    setContacts(list);
-    setShowNewChatModal(true);
+    try {setContacts(await chatClient.getContacts());setShowNewChatModal(true);}
+    catch(err){setError(messageFor(err));}
   };
 
   const startDirectMessage = async (targetUserId: string) => {
+    try {
     const res = await chatClient.startDirectChat(targetUserId);
     setShowNewChatModal(false);
     await loadChannels();
     setActiveChannelId(res.channelId);
+    }catch(err){setError(messageFor(err));}
   };
 
   const handleCreateChannel = async (e: React.FormEvent) => {
@@ -194,38 +201,38 @@ export function SchoolChatHub() {
     setCreatingChannel(true);
     try {
       // Create channel via API
-      await chatClient.sendMessage(
-        'default-announcements',
-        `Channel #${newChannelName} has been created.`,
-      );
+      const channel=await chatClient.createChannel(newChannelName.trim(),newChannelDesc.trim(),newChannelMembers);
       setNewChannelName('');
       setNewChannelDesc('');
+      setNewChannelMembers([]);
       setShowNewChatModal(false);
       await loadChannels();
+      setActiveChannelId(channel.id);
+    } catch(err) {
+      setError(messageFor(err));
     } finally {
       setCreatingChannel(false);
     }
   };
 
-  const addAttachmentDemo = () => {
-    const sampleAttachment: ChatAttachment = {
-      name: 'Term_3_Curriculum_Schedule.pdf',
-      url: '/sample.pdf',
-      type: 'application/pdf',
-      size: 420000,
-    };
-    setAttachedFiles((prev) => [...prev, sampleAttachment]);
+  const uploadFile = async (file: File) => {
+    if(!activeChannelId||uploading)return;
+    if(file.size>5*1024*1024||!['image/png','image/jpeg','application/pdf'].includes(file.type)){setError('Choose a PNG, JPEG or PDF up to 5 MB');return;}
+    if(attachedFiles.length>=5){setError('Attach up to five files');return;}
+    const channelId=activeChannelId;setUploading(true);setError('');
+    try {const attachment=await chatClient.uploadAttachment(channelId,file);if(selectedChannel.current===channelId)setAttachedFiles(previous=>[...previous,attachment]);}
+    catch(err){setError(messageFor(err));}finally{setUploading(false);}
   };
 
   const handleShareSnapshot = async (dataUrl: string) => {
     if (!activeChannelId) return;
+    const attachment=await chatClient.uploadAttachment(activeChannelId,new File([await (await fetch(dataUrl)).blob()],'Classroom_Board_Notes.png',{type:'image/png'}));
     const newMsg = await chatClient.sendMessage(
       activeChannelId,
       '🎨 Shared interactive classroom board notes with students and teacher',
       [
         {
-          name: 'Classroom_Board_Notes.png',
-          url: dataUrl,
+          ...attachment,
           type: 'image/png',
         },
       ],
@@ -236,13 +243,13 @@ export function SchoolChatHub() {
 
   const handleShareScreenSnapshot = async (dataUrl: string) => {
     if (!activeChannelId) return;
+    const attachment=await chatClient.uploadAttachment(activeChannelId,new File([await (await fetch(dataUrl)).blob()],'Screen_Presentation_Snapshot.png',{type:'image/png'}));
     const newMsg = await chatClient.sendMessage(
       activeChannelId,
       '🖥️ Shared live screen presentation snapshot with class',
       [
         {
-          name: 'Screen_Presentation_Snapshot.png',
-          url: dataUrl,
+          ...attachment,
           type: 'image/png',
         },
       ],
@@ -252,7 +259,7 @@ export function SchoolChatHub() {
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[780px]">
+    <><div aria-live="polite">{error&&<div role="alert" className="state-box">{error}<button className="underline ml-3" onClick={()=>{setError('');void loadChannels();if(activeChannelId)void loadMessages(activeChannelId);}}>Retry chat</button></div>}</div><div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[780px]">
       {/* LEFT COLUMN: Channels and Direct Messages */}
       <div className="w-full md:w-80 lg:w-96 border-r border-slate-800 bg-slate-950/70 flex flex-col">
         {/* Header */}
@@ -499,7 +506,8 @@ export function SchoolChatHub() {
                               {msg.attachments.map((att, idx) => (
                                 <a
                                   key={idx}
-                                  href={att.url}
+                                  href={att.url?.startsWith('https://')?att.url:undefined}
+                                  aria-disabled={!att.url?.startsWith('https://')}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="flex items-center gap-2 p-2 rounded-lg bg-black/20 hover:bg-black/30 transition-colors text-[11px]"
@@ -659,12 +667,14 @@ export function SchoolChatHub() {
             >
               <button
                 type="button"
-                onClick={addAttachmentDemo}
+                onClick={()=>fileRef.current?.click()}
+                disabled={uploading||sending}
                 className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
                 title="Attach Document"
               >
                 <Paperclip size={18} />
               </button>
+              <input ref={fileRef} type="file" className="sr-only" aria-label="Upload chat attachment" accept="image/png,image/jpeg,application/pdf" onChange={event=>{const file=event.target.files?.[0];if(file)void uploadFile(file);event.target.value='';}}/>
 
               <button
                 type="button"
@@ -677,6 +687,7 @@ export function SchoolChatHub() {
 
               <input
                 ref={inputRef}
+                disabled={sending||uploading}
                 type="text"
                 placeholder="Type your message... (Enter to send)"
                 value={inputText}
@@ -686,7 +697,7 @@ export function SchoolChatHub() {
 
               <button
                 type="submit"
-                disabled={(!inputText.trim() && attachedFiles.length === 0) || sending}
+                disabled={(!inputText.trim() && attachedFiles.length === 0) || sending || uploading}
                 className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all shrink-0"
               >
                 <span>Send</span>
@@ -738,12 +749,14 @@ export function SchoolChatHub() {
               </div>
 
               {/* Create Channel Section */}
-              <div className="pt-3 border-t border-slate-800">
+              {!['PARENT','STUDENT'].includes(user?.role||'')&&<div className="pt-3 border-t border-slate-800">
                 <h4 className="text-xs font-semibold text-slate-300 mb-2">Create New Channel</h4>
                 <form onSubmit={handleCreateChannel} className="space-y-2.5">
                   <input
                     type="text"
                     placeholder="Channel name (e.g. Grade 5 Mathematics)"
+                    minLength={2}
+                    maxLength={100}
                     value={newChannelName}
                     onChange={(e) => setNewChannelName(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
@@ -751,10 +764,12 @@ export function SchoolChatHub() {
                   <input
                     type="text"
                     placeholder="Description (optional)"
+                    maxLength={500}
                     value={newChannelDesc}
                     onChange={(e) => setNewChannelDesc(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                   />
+                  <label className="block text-xs text-slate-300">Channel members<select multiple aria-label="Channel members" value={newChannelMembers} onChange={event=>setNewChannelMembers(Array.from(event.target.selectedOptions,option=>option.value))} className="w-full bg-slate-950 border border-slate-700 rounded-lg mt-2">{contacts.map(contact=><option key={contact.id} value={contact.id}>{contact.name}</option>)}</select></label>
                   <button
                     type="submit"
                     disabled={!newChannelName.trim() || creatingChannel}
@@ -763,7 +778,7 @@ export function SchoolChatHub() {
                     {creatingChannel ? 'Creating...' : 'Create Channel'}
                   </button>
                 </form>
-              </div>
+              </div>}
             </div>
           </div>
         </div>
@@ -775,6 +790,8 @@ export function SchoolChatHub() {
           <div className="w-full max-w-5xl">
             <InteractiveClassroomBoard
               channelName={activeChannel.name}
+              userName={[user?.firstName,user?.lastName].filter(Boolean).join(' ')}
+              userRole={user?.role}
               onClose={() => setShowWhiteboard(false)}
               onShareToChat={handleShareSnapshot}
             />
@@ -805,6 +822,6 @@ export function SchoolChatHub() {
           onOpenScreenShare={() => setShowScreenShare(true)}
         />
       )}
-    </div>
+    </div></>
   );
 }

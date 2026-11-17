@@ -1,9 +1,10 @@
 import {BadRequestException} from '@nestjs/common';
 import {isEmail,isUUID} from 'class-validator';
-export interface RecordSpec {model:string;roles?:string[];fields:Record<string,string>}
+export interface RecordSpec {model:string;roles?:string[];nullable?:string[];fields:Record<string,string>}
 export const recordSpecs:Record<string,RecordSpec> = {
   "students": {
     "model": "student",
+    "nullable": ["currentClassId", "userId"],
     "roles": [
       "SCHOOL_OWNER",
       "PRINCIPAL",
@@ -25,6 +26,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
   },
   "guardians": {
     "model": "guardian",
+    "nullable": ["email", "userId"],
     "roles": [
       "SCHOOL_OWNER",
       "PRINCIPAL",
@@ -55,6 +57,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
   },
   "staff": {
     "model": "staff",
+    "nullable": ["userId"],
     "roles": [
       "SCHOOL_OWNER",
       "PRINCIPAL",
@@ -120,6 +123,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
   },
   "schools": {
     "model": "school",
+    "nullable": ["district", "pincode", "boardAffiliation"],
     "fields": {
       "name": "text!",
       "email": "email!",
@@ -135,6 +139,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
   },
   "books": {
     "model": "book",
+    "nullable": ["author", "isbn", "category"],
     "roles": [
       "SCHOOL_OWNER",
       "PRINCIPAL",
@@ -165,6 +170,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
   },
   "vehicles": {
     "model": "vehicle",
+    "nullable": ["make", "model"],
     "roles": [
       "SCHOOL_OWNER",
       "PRINCIPAL",
@@ -181,6 +187,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
   },
   "routes": {
     "model": "route",
+    "nullable": ["vehicleId", "pickupTime", "dropoffTime"],
     "roles": [
       "SCHOOL_OWNER",
       "PRINCIPAL",
@@ -197,6 +204,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
   },
   "inventory": {
     "model": "inventoryItem",
+    "nullable": ["category", "unit"],
     "fields": {
       "name": "text!",
       "category": "text",
@@ -207,6 +215,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
   },
   "events": {
     "model": "schoolEvent",
+    "nullable": ["description", "location"],
     "fields": {
       "title": "text!",
       "description": "long",
@@ -276,6 +285,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
   },
   "tickets": {
     "model": "supportTicket",
+    "roles": ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "DEPUTY_PRINCIPAL", "SCHOOL_ADMIN", "ACCOUNTANT", "LIBRARIAN", "TRANSPORT_OFFICER", "RECEPTIONIST", "AUDITOR"],
     "fields": {
       "subject": "text!",
       "description": "long!",
@@ -304,6 +314,7 @@ export const recordSpecs:Record<string,RecordSpec> = {
   },
   "materials": {
     "model": "learningMaterial",
+    "nullable": ["description"],
     "roles": [
       "SUPER_ADMIN",
       "SCHOOL_OWNER",
@@ -337,7 +348,13 @@ export function parseRecord(spec:RecordSpec,input:Record<string,unknown>,partial
  for(const key of Object.keys(input))if(!Object.hasOwn(spec.fields,key))throw new BadRequestException('Unknown field: '+key);
  for(const [key,rule] of Object.entries(spec.fields)){
   const required=rule.endsWith('!');const kind=rule.replace(/!$/,'');const value=input[key];
-  if(value===undefined||value===null||value===''){if(required&&!partial)throw new BadRequestException(key+' is required');continue;}
+  if(value===undefined){if(required&&!partial)throw new BadRequestException(key+' is required');continue;}
+  if(value===null||value===''){
+   if(required)throw new BadRequestException(key+' is required');
+   if(partial&&spec.nullable?.includes(key))result[key]=null;
+   else if(value===null)throw new BadRequestException(key+' cannot be cleared');
+   continue;
+  }
   if(kind.startsWith('int:')){const [,min,max]=kind.split(':');if(typeof value!=='number'||!Number.isSafeInteger(value)||value<Number(min)||value>Number(max))throw new BadRequestException(key+' must be a whole number between '+min+' and '+max);result[key]=value;continue;}
   if(typeof value!=='string')throw new BadRequestException(key+' must be text');
   const trimmed=value.trim();if(!trimmed||trimmed.length>(kind==='long'?10000:kind==='password'?128:255))throw new BadRequestException('Invalid '+key);

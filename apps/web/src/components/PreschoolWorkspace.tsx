@@ -1,5 +1,6 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Baby, ClipboardCheck, Flower2, RefreshCw, Sparkles } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
@@ -30,6 +31,8 @@ import { PreschoolSettings } from './preschool/PreschoolSettings';
 import { PreschoolReports } from './preschool/PreschoolReports';
 import { Field } from './preschool/PreschoolFields';
 import { PreschoolCopilot } from './preschool/PreschoolCopilot';
+import { PreschoolSectionLocation } from './PreschoolSectionLocation';
+import { preschoolSectionsFor } from '@/lib/navigation';
 
 type View =
   'daily' | 'learning' | 'progress' | 'photos' | 'cameras' | 'reports' | 'settings' | 'copilot';
@@ -47,6 +50,17 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
   const { user } = useAuth(),
     { language } = useLanguageContext();
   const manager = preschoolManagers.includes(user?.role || '');
+  const router = useRouter(), pathname = usePathname();
+  const syncSection = useCallback((section: string | null) => {
+    const allowed = preschoolSectionsFor(user?.role || '');
+    setView(allowed.includes(section as View) ? section as View : 'daily');
+  }, [user?.role]);
+  const selectView = (tab: View) => {
+    setView(tab);
+    const query = new URLSearchParams(window.location.search);
+    query.set('section', tab);
+    router.push(pathname + '?' + query.toString(), { scroll: false });
+  };
   const [options, setOptions] = useState<PreschoolOptions>(emptyPreschoolOptions),
     [classId, setClass] = useState(''),
     [studentId, setStudent] = useState(''),
@@ -197,23 +211,13 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
   const eligible = options.classes.filter(
     (c) => c.educationLevel === 'PRE_PRIMARY' && c.school.programme !== 'STANDARD'
   );
-  const tabs: View[] = family
-    ? ['daily', 'learning', 'progress', 'photos', 'cameras']
-    : [
-        'daily',
-        'learning',
-        'copilot',
-        'progress',
-        'photos',
-        'cameras',
-        'reports',
-        ...(manager ? ['settings' as View] : []),
-      ];
+  const tabs: View[] = preschoolSectionsFor(user?.role || '');
   const title =
     language === 'ml' ? 'പ്ലേസ്കൂൾ' : language === 'hi' ? 'प्लेस्कूल' : 'Preschool workspace';
   const hasSchool = family ? !!studentId : !!classId;
   return (
     <>
+      <Suspense fallback={null}><PreschoolSectionLocation onChange={syncSection} /></Suspense>
       <PageHeading
         eyebrow="EARLY YEARS"
         title={title}
@@ -252,7 +256,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
             variant={view === tab ? 'primary' : 'outline'}
             aria-pressed={view === tab}
             disabled={busy}
-            onClick={() => setView(tab)}
+            onClick={() => selectView(tab)}
           >
             {labels[tab]}
           </Button>

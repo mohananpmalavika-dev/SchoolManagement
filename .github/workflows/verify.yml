@@ -46,6 +46,15 @@ jobs:
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3102/login && break || sleep 2; done
           pnpm test:ui:preschool
           pnpm test:ui:school-payments
+          pnpm test:ui:school-records
+          pnpm test:ui
+          pnpm test:ui:navigation
+          pnpm test:ui:meetings
+          pnpm test:ui:chat
+          pnpm test:ui:proxy
+          pnpm test:ui:teacher-ai
+          pnpm test:ui:analytics
+          pnpm test:ui:predictive
         env:
           UI_BASE_URL: http://127.0.0.1:3102
       - run: pnpm --filter @krypton/api test -- --runInBand
@@ -67,6 +76,7 @@ jobs:
           PRESCHOOL_MIGRATION_TEST_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_migrations_test
       - name: Rehearse encrypted database backup and recovery
         run: |
+          export PATH="/usr/lib/postgresql/16/bin:$PATH"
           createdb -h 127.0.0.1 -p 15432 -U krypton_qa krypton_backup_source_test
           createdb -h 127.0.0.1 -p 15432 -U krypton_qa krypton_backup_restore_test
           pnpm test:db:school-backup

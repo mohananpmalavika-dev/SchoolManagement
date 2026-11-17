@@ -42,4 +42,10 @@ describe('Saved meeting reservation workflow',()=>{
     prisma.teacherAvailability.findMany.mockResolvedValue([{startTime:'14:30',endTime:'16:30',slotDuration:30},{startTime:'15:30',endTime:'16:30',slotDuration:30}]);
     expect(await service.getAvailableSlots('teacher-1','2026-10-11')).toEqual([{startTime:'16:00',endTime:'16:30',duration:30}]);
   });
+  it('clears an obsolete meeting link while preserving the other editable details',async()=>{
+    prisma.parentTeacherBooking.findFirst=jest.fn().mockResolvedValue({id:'meeting-1',status:'CONFIRMED',meetingLink:'https://meeting.example.test/old'});
+    prisma.parentTeacherBooking.update=jest.fn().mockResolvedValue({id:'meeting-1',meetingLink:null});
+    await service.updateBooking('meeting-1',{meetingLink:null},'teacher-1');
+    expect(prisma.parentTeacherBooking.update).toHaveBeenCalledWith({where:{id:'meeting-1'},data:expect.objectContaining({meetingLink:null})});
+  });
 });

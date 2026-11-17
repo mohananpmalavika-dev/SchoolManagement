@@ -1,8 +1,28 @@
-# WhatsApp Integration Documentation 🔥
+# Live WhatsApp Business Gateway & Free Web Integration 🔥
 
 ## Overview
 
-The School Management System now includes **comprehensive WhatsApp integration** using Twilio's WhatsApp API. This game-changing feature enables automated communication with parents in both **English and Swahili**.
+The School Management System includes a **Multi-Provider Live WhatsApp Business Gateway** supporting **English, Malayalam (മലയാളം), and Hindi (हिन्दी)**:
+
+1. **Meta WhatsApp Cloud API (Official Graph API)** — Direct Meta integration (`META_CLOUD_API`) for real schools with automated server-side alerts, PDFs, and webhook verification.
+2. **Gupshup Enterprise WhatsApp API** — Leading Indian BSP (`GUPSHUP`) for high-throughput school messaging.
+3. **Twilio Programmable WhatsApp API** — Global enterprise WhatsApp gateway (`TWILIO`).
+4. **Play-School Zero-Cost Mode (WhatsApp Web / `wa.me`)** — 100% free click-to-chat mode (`WHATSAPP_WEB`) tailored for small play-schools & preschools. Opens pre-filled WhatsApp Web / Mobile messages directly without any monthly API costs or Meta approval!
+
+### Quick Environment Setup
+
+Set `WHATSAPP_PROVIDER` in `.env` to one of:
+- `META_CLOUD_API` (requires `META_WHATSAPP_ACCESS_TOKEN`, `META_WHATSAPP_PHONE_NUMBER_ID`)
+- `GUPSHUP` (requires `GUPSHUP_API_KEY`, `GUPSHUP_APP_NAME`, `GUPSHUP_SOURCE_NUMBER`)
+- `TWILIO` (requires `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_NUMBER`)
+- `WHATSAPP_WEB` (default zero-cost fallback — no API keys required)
+
+### Live API Endpoints
+- `GET /api/v1/whatsapp/status` — Gateway provider status & configured providers
+- `POST /api/v1/whatsapp/send` — Send via active live provider or return `wa.me` link
+- `POST /api/v1/whatsapp/wa-link` — Generate Zero-Cost Play-School `wa.me` & `web.whatsapp.com` deep links
+- `POST /api/v1/whatsapp/test-connection` — Validate live Meta / Gupshup / Twilio credentials or send a live test message
+- `GET/POST /api/v1/whatsapp/webhook` — Meta Cloud API webhook verification & delivery status callbacks
 
 ## 🎯 Features
 

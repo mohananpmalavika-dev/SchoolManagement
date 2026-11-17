@@ -8,6 +8,15 @@ const config = (values: Record<string, string> = {}) => ({
 });
 
 describe('Free AI provider boundary', () => {
+  it('uses the selected remarks focus in local drafts without needing a provider key',async()=>{
+    const service=new AIProviderService(config({AI_TEACHER_ENABLED:'true'}) as any);
+    const input={language:'English',students:[{key:'S1',average:55}]};
+    const academic=await service.generate('student_remarks','Instructions',{...input,tone:'ACADEMIC_RIGOR'}, {}) as any;
+    const growth=await service.generate('student_remarks','Instructions',{...input,tone:'GROWTH_MINDSET'}, {}) as any;
+    expect(academic.remarks[0].text).toContain('specific practice target');
+    expect(growth.remarks[0].text).toContain('recognise small improvements');
+    expect(academic.remarks[0].text).not.toEqual(growth.remarks[0].text);
+  });
   beforeEach(() => {
     jest.clearAllMocks();
     (axios.isAxiosError as unknown as jest.Mock).mockImplementation(error => !!error?.isAxiosError);

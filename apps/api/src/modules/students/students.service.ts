@@ -11,6 +11,7 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 import { QueryStudentsDto } from './dto/query-students.dto';
 import { AssignClassDto } from './dto/assign-class.dto';
 import { formatFullName } from '@krypton/utils';
+import { recordEnrollment } from './student-enrollment';
 
 @Injectable()
 export class StudentsService {
@@ -63,6 +64,8 @@ export class StudentsService {
           status: 'ACTIVE',
         },
       });
+
+      await recordEnrollment(tx, tenantId, newStudent);
 
       // Create or link guardians
       for (const guardianInfo of guardians) {
@@ -302,14 +305,16 @@ export class StudentsService {
       await this.validateClass(updateStudentDto.currentClassId);
     }
 
-    if (updateStudentDto.currentStreamId) {
-      const stream = await this.validateStream(updateStudentDto.currentStreamId);
-      if (stream.classId !== (updateStudentDto.currentClassId || existing.currentClassId)) throw new BadRequestException('Stream does not belong to the selected class');
-    }
-
-    const student = await this.prisma.student.update({
+    const student = await this.prisma.$transaction(async tx => {
+      const current = await tx.student.update({where:{id,tenantId},data:{updatedAt:new Date()}});
+      if(updateStudentDto.currentStreamId){
+        const stream=await tx.stream.findFirst({where:{id:updateStudentDto.currentStreamId,tenantId}});
+        const classId=updateStudentDto.currentClassId===undefined?current.currentClassId:updateStudentDto.currentClassId;
+        if(!stream||stream.classId!==classId)throw new BadRequestException('Stream does not belong to the selected class');
+      }
+      const saved = await tx.student.update({
       where: { id },
-      data: { ...updateStudentDto, ...(updateStudentDto.dateOfBirth ? { dateOfBirth: new Date(updateStudentDto.dateOfBirth) } : {}), ...(updateStudentDto.admissionDate ? { admissionDate: new Date(updateStudentDto.admissionDate) } : {}), ...(updateStudentDto.currentClassId && updateStudentDto.currentClassId !== existing.currentClassId && !updateStudentDto.currentStreamId ? { currentStreamId: null } : {}) },
+      data: { ...updateStudentDto, ...(updateStudentDto.dateOfBirth ? { dateOfBirth: new Date(updateStudentDto.dateOfBirth) } : {}), ...(updateStudentDto.admissionDate ? { admissionDate: new Date(updateStudentDto.admissionDate) } : {}), ...(updateStudentDto.currentClassId !== undefined && updateStudentDto.currentClassId !== current.currentClassId && !updateStudentDto.currentStreamId ? { currentStreamId: null } : {}) },
       include: {
         currentClass: {
           select: { id: true, name: true, level: true },
@@ -318,6 +323,9 @@ export class StudentsService {
           select: { id: true, name: true },
         },
       },
+      });
+      if(updateStudentDto.currentClassId!==undefined||updateStudentDto.currentStreamId!==undefined)await recordEnrollment(tx,tenantId,saved);
+      return saved;
     });
 
     return student;

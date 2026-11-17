@@ -1,7 +1,7 @@
 import { SchoolChatHub } from '@/components/chat/SchoolChatHub';
 
 export const metadata = {
-  title: 'Campus Live Chat | HustlerTech School ERP',
+  title: 'Campus Live Chat | Krypton School ERP',
   description: 'Real-time collaborative messaging for teachers, parents, and administrative teams.',
 };
 

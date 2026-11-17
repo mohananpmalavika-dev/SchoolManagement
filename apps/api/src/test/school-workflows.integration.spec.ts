@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
@@ -40,8 +40,14 @@ import { BehaviorController } from '../modules/behavior/behavior.controller';
 import { ChatService } from '../modules/chat/chat.service';
 import { ChatController } from '../modules/chat/chat.controller';
 import { ParentEngagementNotificationsService } from '../modules/parent-engagement-notifications/parent-engagement-notifications.service';
+import { OperationsService } from '../modules/operations/operations.service';
+import { OperationsController } from '../modules/operations/operations.controller';
+import { StorageService } from '../common/services/storage.service';
+import { SavedTransportController } from '../modules/operations/transport.controller';
+import { SavedTransportService } from '../modules/operations/transport.service';
 
 const url = process.env.SCHOOL_TEST_DATABASE_URL;
+jest.setTimeout(30000); // Authenticated multi-request database workflows also run on slower CI workers.
 const integration = url ? describe : describe.skip;
 integration('School PostgreSQL and authenticated HTTP workflows', () => {
   let db: PrismaService, tenants: TenantService, app: INestApplication, base: string;
@@ -292,6 +298,8 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     const module = await Test.createTestingModule({
       imports: [PassportModule],
       controllers: [
+        SavedTransportController,
+        OperationsController,
         WorkspaceController,
         FeesController,
         AttendanceController,
@@ -307,11 +315,16 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         StudentsController,
       ],
       providers: [
+        {provide:StorageService,useValue:{
+          isConfigured:()=>true,
+          uploadFile:async(bytes:Buffer,options:any)=>({key:tenant+'/documents/2026/11/'+options.filename}),
+          getPresignedUrl:async(key:string)=>({url:'https://private-storage.example.test/'+key+'?signed=fixture'})
+        }},
         { provide: PrismaService, useValue: db },
         { provide: TenantService, useValue: tenants },
         {
           provide: ConfigService,
-          useValue: new ConfigService({ JWT_SECRET: secret, SCHOOL_UPI_VPA: 'fixture-school@upi' }),
+          useValue: new ConfigService({ JWT_SECRET: secret, SCHOOL_UPI_VPA: 'fixture-school@upi', RAZORPAY_WEBHOOK_SECRET: secret }),
         },
         { provide: JwtService, useValue: jwt },
         {
@@ -328,6 +341,8 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         JwtStrategy,
         SchoolRecordAccessGuard,
         WorkspaceService,
+        SavedTransportService,
+        OperationsService,
         FeesService,
         AttendanceService,
         QRAttendanceService,
@@ -344,7 +359,7 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         StudentsService,
       ],
     }).compile();
-    app = module.createNestApplication({ logger: false });
+    app = module.createNestApplication({ logger: false, rawBody: true });
     app.use((_req: any, _res: any, next: () => void) => tenants.run(next));
     app.useGlobalGuards(
       new JwtAuthGuard(module.get(Reflector)),
@@ -366,6 +381,14 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     if (db) {
       try {
         for (const model of [
+          'transportJourney',
+          'travelAssignment',
+          'route',
+          'vehicle',
+          'bookBorrowing',
+          'book',
+          'inventoryItem',
+          'supportTicket',
           'chatChannel',
           'communication',
           'activityFeed',
@@ -814,8 +837,11 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         initiatedBy: parent,
       },
     });
-    const service = app.get(PaymentsGatewayService);
     const payload = {
+      entity: 'event',
+      account_id: 'acc_fixture',
+      contains: ['payment'],
+      created_at: Math.floor(Date.now() / 1000),
       event: 'payment.captured',
       payload: {
         payment: {
@@ -829,7 +855,23 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         },
       },
     };
-    await Promise.all([1, 2].map(() => inTenant(() => service.handleWebhook(payload))));
+    // Real provider envelope and noncanonical JSON bytes through the public HTTP endpoint.
+    const raw = JSON.stringify(payload, null, 2);
+    const signature = createHmac('sha256', secret).update(raw).digest('hex');
+    const deliver = (body: string, signed: string) => fetch(base + '/payments-gateway/webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-razorpay-signature': signed, Connection: 'close' },
+      body,
+    });
+    const rejected = await deliver(raw + ' ', signature);
+    expect(rejected.status).toBe(401);
+    await rejected.text();
+    expect(await db.payment.count({ where: { invoiceId: inv.body.id } })).toBe(0);
+    const results = await Promise.all([1, 2].map(() => deliver(raw, signature)));
+    for (const result of results) {
+      expect(result.status).toBe(200);
+      expect(await result.json()).toEqual({ received: true });
+    }
     const saved = await db.paymentGatewayTransaction.findUniqueOrThrow({ where: { id: order.id } });
     expect(saved.isReconciled).toBe(true);
     expect(saved.paymentId).toBeTruthy();
@@ -914,4 +956,157 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     expect((await request('/chat/channels', parent)).body.some((c: any) => c.id === channelId)).toBe(false);
   });
 
+  it('preserves teacher access after a partial staff edit',async()=>{
+    expect((await request('/workspace/staff/'+staff,principal,'PATCH',{data:{phone:'9847012345'}})).status).toBe(200);
+    expect((await db.staff.findUniqueOrThrow({where:{id:staff}})).isTeacher).toBe(true);
+  });
+
+  it('uploads chat files through membership checks and signs private links when messages are read',async()=>{
+    const created=await request('/chat/channels',teacher,'POST',{name:'Private attachment test',type:'GROUP',memberUserIds:[parent]});
+    expect(created.status).toBe(201);const channelId=created.body.id;
+    const upload=async(userId:string,bytes:string)=>{
+      const body=new FormData();body.append('file',new Blob([bytes],{type:'application/pdf'}),'class-notes.pdf');
+      const response=await fetch(base+'/chat/channels/'+channelId+'/attachments',{method:'POST',body,headers:{Authorization:'Bearer '+jwt.sign({sub:userId,ver:0,type:'access'},{expiresIn:'5m'}),Connection:'close'}});
+      return {status:response.status,body:await response.json() as {name:string;type:string;size:number;storageKey:string;url:string}};
+    };
+    expect((await upload(otherParent,'%PDF-1.4 fixture')).status).toBe(403);
+    expect((await upload(teacher,'invalid bytes')).status).toBe(400);
+    const uploaded=await upload(teacher,'%PDF-1.4 fixture');expect(uploaded.status).toBe(201);
+    expect(uploaded.body.url).toBe('');
+    const sent=await request('/chat/channels/'+channelId+'/messages',teacher,'POST',{content:'Class notes',attachments:[uploaded.body]});
+    expect(sent.status).toBe(201);expect(sent.body.attachments[0].url).toContain('?signed=fixture');
+    const stored=await db.chatMessage.findUniqueOrThrow({where:{id:sent.body.id}});
+    expect((stored.attachments as any)[0].url).toBe('');
+    const read=await request('/chat/channels/'+channelId+'/messages',parent);expect(read.status).toBe(200);expect(read.body[0].attachments[0].url).toContain('?signed=fixture');
+    expect((await request('/chat/channels/'+channelId+'/messages',otherParent)).status).toBe(403);
+    expect((await request('/chat/channels/'+channelId+'/messages',teacher,'POST',{content:'Invalid scope',attachments:[{...uploaded.body,storageKey:uploaded.body.storageKey.replace('chat-'+channelId,'chat-'+id())}]})).status).toBe(400);
+    expect((await request('/chat/channels/'+channelId+'/messages',teacher,'POST',{content:'Invalid attachment',attachments:[null]})).status).toBe(400);
+  });
+
+  it('saves admission enrollment history and prevents duplicate enrollment on retry',async()=>{
+    const created=await request('/operations/admissions',principal,'POST',{data:{schoolId:school,firstName:'Admitted',lastName:'Child',dateOfBirth:'2020-02-01',gender:'FEMALE',grade:'Class 1',guardianName:'New Parent',guardianEmail:'new-parent@example.test',guardianPhone:'9847012345'}});
+    expect(created.status).toBe(201);
+    const applicationId=created.body.id;
+    expect((await request('/operations/admissions/'+applicationId+'/accept',principal,'POST',{data:{}})).status).toBe(201);
+    expect((await request('/operations/admissions/'+applicationId+'/admit',principal,'POST',{data:{classId:cls,admissionNumber:'FLOW-'+id()}})).status).toBe(201);
+    const application=await db.admissionRecord.findUniqueOrThrow({where:{id:applicationId}});
+    expect(application.stage).toBe('ADMITTED');
+    expect(await db.enrollment.findMany({where:{studentId:application.studentId!}})).toEqual([expect.objectContaining({tenantId:tenant,classId:cls,academicYearId:year})]);
+    expect((await request('/operations/admissions/'+applicationId+'/admit',principal,'POST',{data:{classId:cls,admissionNumber:'RETRY-'+id()}})).status).toBe(409);
+    expect(await db.enrollment.count({where:{studentId:application.studentId!}})).toBe(1);
+  });
+
+  it('keeps school directory class changes and enrollment history consistent',async()=>{
+    const created=await request('/workspace/students',principal,'POST',{data:{admissionNumber:'DIRECTORY-'+id(),firstName:'Directory',lastName:'Learner',dateOfBirth:'2020-01-01',admissionDate:'2026-04-01',gender:'FEMALE',currentClassId:cls}});
+    expect(created.status).toBe(201);
+    const studentId=created.body.id;
+    expect(await db.enrollment.count({where:{studentId}})).toBe(1);
+    const stream=await db.stream.create({data:{tenantId:tenant,schoolId:school,classId:cls,name:'History '+id(),capacity:30}});
+    expect((await request('/workspace/streams/'+stream.id,principal,'PATCH',{data:{name:'Updated stream'}})).status).toBe(200);
+    await db.student.update({where:{id:studentId},data:{currentStreamId:stream.id}});
+    const transfers=await Promise.all([1,2].map(()=>request('/workspace/students/'+studentId,principal,'PATCH',{data:{currentClassId:otherClass}})));
+    expect(transfers.map(r=>r.status)).toEqual([200,200]);
+    expect(await db.student.findUniqueOrThrow({where:{id:studentId}})).toMatchObject({currentClassId:otherClass,currentStreamId:null});
+    expect(await db.enrollment.count({where:{studentId,classId:otherClass}})).toBe(1);
+    expect((await request('/workspace/students/'+studentId,principal,'PATCH',{data:{currentClassId:null}})).status).toBe(200);
+    expect(await db.student.findUniqueOrThrow({where:{id:studentId}})).toMatchObject({currentClassId:null,currentStreamId:null});
+    expect(await db.enrollment.count({where:{studentId}})).toBe(2);
+    expect((await request('/students/'+studentId,principal,'PATCH',{currentClassId:cls})).status).toBe(200);
+    expect(await db.enrollment.count({where:{studentId}})).toBe(2);
+    expect((await request('/students/'+studentId,principal,'PATCH',{currentClassId:otherClass,currentStreamId:stream.id})).status).toBe(400);
+  });
+
+  it('provides scoped portal choices and lets reception staff link or remove parent accounts',async()=>{
+    const receptionist=id();
+    await db.user.create({data:{id:receptionist,tenantId:tenant,email:receptionist+'@example.test',firstName:'Reception',lastName:'Staff',role:'RECEPTIONIST',passwordHash:'unused'}});
+    const choices=await request('/workspace/guardian-accounts',receptionist);
+    expect(choices.status).toBe(200);
+    expect(choices.body.every((u:any)=>u.role==='PARENT'&&!('passwordHash' in u))).toBe(true);
+    expect(choices.body.map((u:any)=>u.id)).toContain(parent);
+    expect((await request('/workspace/staff-accounts',receptionist)).status).toBe(403);
+    expect((await request('/workspace/student-accounts',receptionist)).body.map((u:any)=>u.id)).toEqual([studentUser]);
+    expect((await request('/workspace/guardian-accounts',parent)).status).toBe(403);
+    const created=await request('/workspace/guardians',receptionist,'POST',{data:{firstName:'New',lastName:'Guardian',phone:'9847012345',email:'clear@example.test',userId:parent}});
+    expect(created.status).toBe(201);
+    expect((await request('/workspace/guardians/'+created.body.id,receptionist,'PATCH',{data:{email:null,userId:null}})).status).toBe(200);
+    expect(await db.guardian.findUniqueOrThrow({where:{id:created.body.id}})).toMatchObject({email:null,userId:null});
+  });
+
+  it('lets operational staff open their own support requests without editing other staff tickets',async()=>{
+    const receptionist=await db.user.findFirstOrThrow({where:{tenantId:tenant,role:'RECEPTIONIST'}});
+    const created=await request('/workspace/tickets',receptionist.id,'POST',{data:{subject:'Portal access',description:'Please check our portal account.',priority:'HIGH'}});
+    expect(created.status).toBe(201);
+    const adminTicket=await request('/workspace/tickets',principal,'POST',{data:{subject:'Admin support',description:'Admin details'}});
+    expect(adminTicket.status).toBe(201);
+    const own=await request('/workspace/tickets',receptionist.id);
+    expect(own.body.map((ticket:any)=>ticket.id)).toEqual([created.body.id]);
+    expect((await request('/workspace/tickets/'+adminTicket.body.id,receptionist.id,'PATCH',{data:{subject:'Unauthorized'}})).status).toBe(404);
+    expect((await request('/workspace/tickets',parent,'POST',{data:{subject:'Denied',description:'Denied'}})).status).toBe(403);
+  });
+
+  it('checks partial calendar edits against the saved date range',async()=>{
+    const event=await request('/workspace/events',principal,'POST',{data:{title:'Range test',eventType:'ACADEMIC',category:'ACADEMIC',startDate:'2027-01-10',endDate:'2027-01-12'}});
+    expect(event.status).toBe(201);
+    expect((await request('/workspace/events/'+event.body.id,principal,'PATCH',{data:{startDate:'2027-01-13'}})).status).toBe(400);
+    expect((await request('/workspace/events/'+event.body.id,principal,'PATCH',{data:{endDate:'2027-01-09'}})).status).toBe(400);
+    expect((await request('/workspace/events/'+event.body.id,principal,'PATCH',{data:{endDate:'2027-01-15'}})).status).toBe(200);
+  });
+
+  it('keeps library stock correct under concurrent borrowing and repeated returns',async()=>{
+    const book=await request('/workspace/books',principal,'POST',{data:{title:'One copy',author:'Author',quantity:1}});
+    expect(book.status).toBe(201);
+    const borrowing=()=>request('/workspace/borrowings',principal,'POST',{data:{bookId:book.body.id,borrowerId:child,dueDate:'2030-01-01'}});
+    const results=await Promise.all([borrowing(),borrowing()]);
+    expect(results.map(r=>r.status).sort()).toEqual([201,400]);
+    const loan=results.find(r=>r.status===201)!.body;
+    const list=await request('/workspace/borrowings',principal);
+    expect(list.body.find((r:any)=>r.id===loan.id).borrowerName).toBeTruthy();
+    expect(list.body.find((r:any)=>r.id===loan.id).borrowerName).not.toBe(child);
+    await Promise.all([1,2].map(()=>request('/workspace/borrowings/'+loan.id+'/return',principal,'POST')));
+    expect(await db.book.findUniqueOrThrow({where:{id:book.body.id}})).toMatchObject({available:1,quantity:1});
+    expect((await request('/workspace/books/'+book.body.id,principal,'PATCH',{data:{author:null}})).status).toBe(200);
+  });
+
+  it('connects saved transport setup to student assignments, trips and family tracking',async()=>{
+    const vehicle=await request('/workspace/vehicles',principal,'POST',{data:{registrationNumber:'QA-'+id(),capacity:20,status:'ACTIVE'}});
+    expect(vehicle.status).toBe(201);
+    const route=await request('/workspace/routes',principal,'POST',{data:{name:'Saved route',vehicleId:vehicle.body.id}});
+    expect(route.status).toBe(201);
+    const savedRoutes=await request('/operations-transport/routes',principal);
+    expect(savedRoutes.body.find((r:any)=>r.id===route.body.id).vehicle.id).toBe(vehicle.body.id);
+    const stop=await request('/operations-transport/stops',principal,'POST',{data:{routeId:route.body.id,name:'Home stop',sequence:1,latitude:9.95,longitude:76.34,scheduledTime:'08:00'}});
+    expect(stop.status).toBe(201);
+    expect((await request('/operations/travel-assignments',principal,'POST',{data:{studentId:child,routeId:route.body.id,stopId:stop.body.id}})).status).toBe(201);
+    const trip=await request('/operations-transport/trips',principal,'POST',{data:{routeId:route.body.id,direction:'MORNING_PICKUP'}});
+    expect(trip.status).toBe(201);
+    expect((await request('/operations-transport/trips/'+trip.body.id+'/location',principal,'POST',{data:{latitude:9.95,longitude:76.34,accuracy:10,speed:20}})).status).toBe(201);
+    expect((await request('/operations-transport/tracking/'+child,parent)).body).toMatchObject({assignment:{routeName:'Saved route'},trip:{id:trip.body.id,latitude:9.95,longitude:76.34}});
+    expect((await request('/operations-transport/tracking/'+child,otherParent)).status).toBe(403);
+    expect((await request('/operations-transport/trips/'+trip.body.id+'/passenger',principal,'POST',{data:{studentId:child,status:'BOARDED'}})).status).toBe(201);
+    expect((await request('/operations-transport/trips/'+trip.body.id+'/end',principal,'POST')).status).toBe(409);
+    expect((await request('/operations-transport/trips/'+trip.body.id+'/passenger',principal,'POST',{data:{studentId:child,status:'DROPPED'}})).status).toBe(201);
+    expect((await request('/operations-transport/trips/'+trip.body.id+'/end',principal,'POST')).status).toBe(201);
+    expect((await request('/operations-transport/tracking/'+child,parent)).body.trip).toBeNull();
+  });
+
+  it('saves zero inventory counts and rejects negative stock',async()=>{
+    const item=await request('/workspace/inventory',principal,'POST',{data:{name:'Art supplies',quantity:5,reorderLevel:2}});
+    expect(item.status).toBe(201);
+    expect((await request('/workspace/inventory/'+item.body.id,principal,'PATCH',{data:{quantity:0}})).status).toBe(200);
+    expect((await request('/workspace/inventory/'+item.body.id,principal,'PATCH',{data:{quantity:-1}})).status).toBe(400);
+    expect(await db.inventoryItem.findUniqueOrThrow({where:{id:item.body.id}})).toMatchObject({quantity:0});
+  });
+
+  it('grants shared school tools to explicitly assigned preschool teachers and revokes them when unassigned',async()=>{
+    await db.timetableEntry.deleteMany({where:{teacherId:staff,tenantId:tenant}});
+    await db.preschoolStaffAssignment.create({data:{tenantId:tenant,classId:cls,staffId:staff}});
+    expect((await request('/workspace/classes',teacher)).body.map((row:any)=>row.id)).toEqual([cls]);
+    expect((await request('/operations/options',teacher)).body.classes.map((row:any)=>row.id)).toEqual([cls]);
+    await db.student.update({where:{id:child},data:{currentClassId:cls}});
+    expect((await request('/operations/portfolio',teacher,'POST',{data:{studentId:child,title:'Class participation',category:'OTHER',achievedOn:'2026-11-17'}})).status).toBe(201);
+    await db.preschoolStaffAssignment.deleteMany({where:{tenantId:tenant,staffId:staff}});
+    expect((await request('/workspace/classes',teacher)).body).toEqual([]);
+    expect((await request('/operations/options',teacher)).body.classes).toEqual([]);
+    expect((await request('/operations/portfolio',teacher,'POST',{data:{studentId:child,title:'Unassigned class',category:'OTHER',achievedOn:'2026-11-17'}})).status).toBe(403);
+  });
 });

@@ -4,7 +4,11 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { StorageService } from '../../common/services/storage.service';
 import { PrismaService } from '../../database/prisma.service';
 import { TenantService } from '../../database/tenant.service';
 import {
@@ -20,7 +24,37 @@ export class ChatService {
   constructor(
     private prisma: PrismaService,
     private tenantService: TenantService,
+    @Optional() private storage?: StorageService,
   ) {}
+
+  async uploadAttachment(channelId: string, tenantId: string, userId: string, file: Express.Multer.File) {
+    await this.authorizeChannel(channelId, tenantId, userId);
+    if (!this.storage?.isConfigured()) throw new ServiceUnavailableException('Chat file storage is not configured. You can still send text messages.');
+    if (!file?.buffer || file.size > 5 * 1024 * 1024) throw new BadRequestException('Choose a PNG, JPEG or PDF up to 5 MB');
+    const bytes = file.buffer;
+    const type = bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ? 'image/png'
+      : bytes[0]===255 && bytes[1]===216 && bytes[2]===255 ? 'image/jpeg'
+      : bytes.subarray(0,5).toString()==='%PDF-' ? 'application/pdf' : '';
+    if (!type || type !== file.mimetype) throw new BadRequestException('Choose a valid PNG, JPEG or PDF');
+    const extension = type==='image/png' ? 'png' : type==='image/jpeg' ? 'jpg' : 'pdf';
+    const uploaded = await this.storage.uploadFile(bytes, {tenantId,category:'documents',filename:`chat-${channelId}-${randomUUID()}.${extension}`,mimeType:type});
+    return {name:file.originalname.slice(0,255),type,size:bytes.length,storageKey:uploaded.key,url:''};
+  }
+
+  private async resolveAttachments(attachments: unknown, channelId: string, tenantId: string) {
+    if (!Array.isArray(attachments)) return null;
+    return Promise.all(attachments.map(async attachment => {
+      if (!attachment.storageKey) return attachment;
+      this.validateStorageKey(attachment.storageKey, channelId, tenantId);
+      if (!this.storage?.isConfigured()) return {...attachment,url:''};
+      const {url} = await this.storage.getPresignedUrl(attachment.storageKey, 120, {tenantId});
+      return {...attachment,url};
+    }));
+  }
+
+  private validateStorageKey(key: unknown, channelId: string, tenantId: string) {
+    if (typeof key !== 'string' || key.split('/').length!==5 || !key.startsWith(tenantId+'/documents/') || !key.split('/')[4].startsWith('chat-'+channelId+'-') || !/^[\w./-]+$/.test(key) || key.includes('..')) throw new BadRequestException('Attachment belongs to another conversation');
+  }
 
   /**
    * Ensure default school channels exist for this tenant
@@ -224,11 +258,11 @@ export class ChatService {
       },
     });
 
-    return messages.reverse().map((m) => ({
+    return Promise.all(messages.reverse().map(async (m) => ({
       id: m.id,
       channelId: m.channelId,
       content: m.content,
-      attachments: m.attachments,
+      attachments: await this.resolveAttachments(m.attachments, channelId, tenantId),
       reactions: m.reactions,
       isEdited: m.isEdited,
       createdAt: m.createdAt,
@@ -246,7 +280,7 @@ export class ChatService {
             senderName: `${m.replyTo.sender.firstName} ${m.replyTo.sender.lastName}`,
           }
         : null,
-    }));
+    })));
   }
 
   /**
@@ -260,7 +294,12 @@ export class ChatService {
   ) {
     const channel = await this.authorizeChannel(channelId, tenantId, userId);
     if (dto.replyToId && !await this.prisma.chatMessage.findFirst({ where: { id: dto.replyToId, channelId, isDeleted: false } })) throw new BadRequestException('Reply must reference a message in this conversation');
-    if (dto.attachments?.some(a => { try { return new URL(a.url).protocol !== 'https:'; } catch { return true; } })) throw new BadRequestException('Attachments require HTTPS links');
+    if (dto.attachments && (!Array.isArray(dto.attachments) || dto.attachments.length > 5)) throw new BadRequestException('Attach up to five files');
+    for (const attachment of dto.attachments || []) {
+      if (!attachment || typeof attachment.name!=='string' || !attachment.name.trim() || attachment.name.length>255 || typeof attachment.type!=='string') throw new BadRequestException('Invalid attachment');
+      if (attachment.storageKey) this.validateStorageKey(attachment.storageKey,channelId,tenantId);
+      else { try { if(new URL(attachment.url).protocol!=='https:')throw new Error(); } catch { throw new BadRequestException('Attachments require HTTPS links'); } }
+    }
 
     // Verify announcements permissions
     if (channel.type === ChannelType.ANNOUNCEMENT) {
@@ -288,7 +327,7 @@ export class ChatService {
         channelId,
         senderId: userId,
         content: dto.content,
-        attachments: dto.attachments ? JSON.parse(JSON.stringify(dto.attachments)) : null,
+        attachments: dto.attachments ? JSON.parse(JSON.stringify(dto.attachments.map(a=>a.storageKey?{...a,url:''}:a))) : null,
         replyToId: dto.replyToId,
       },
       include: {
@@ -332,7 +371,7 @@ export class ChatService {
       id: message.id,
       channelId: message.channelId,
       content: message.content,
-      attachments: message.attachments,
+      attachments: await this.resolveAttachments(message.attachments, channelId, tenantId),
       reactions: message.reactions,
       isEdited: message.isEdited,
       createdAt: message.createdAt,

@@ -7,7 +7,11 @@ import {
   Query,
   UseGuards,
   Request,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -30,6 +34,13 @@ import {
 @Controller('chat')
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
+
+  @Post('channels/:channelId/attachments')
+  @UseInterceptors(FileInterceptor('file', {limits:{fileSize:5*1024*1024,files:1,fields:0}}))
+  uploadAttachment(@Request() req:any,@Param('channelId') channelId:string,@UploadedFile() file:Express.Multer.File) {
+    if(!file)throw new BadRequestException('Choose a file');
+    return this.chatService.uploadAttachment(channelId,req.user.tenantId,req.user.id,file);
+  }
 
   @Get('channels')
   @ApiOperation({ summary: 'List all chat channels & conversations for user' })

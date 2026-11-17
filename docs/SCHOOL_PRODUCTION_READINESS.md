@@ -1,17 +1,21 @@
 # School release readiness — 17 November 2026
 
+Follow-up verification and fixes are recorded in [the school flow audit](SCHOOL_FLOW_AUDIT.md), including the real HTTP proxy correction, staff/admission/preschool access fixes, durable chat attachments and teaching workflow regressions.
+
 This is the current release record for the school module and its preschool extension. Earlier completion percentages, Kenyan deployment instructions and “all features verified” statements in historical reports are not production certification.
 
 The connected school workflows have been hardened and tested locally. This repository has **not** been deployed to or certified against a live school environment. Online payment acceptance, messaging delivery, private object storage, phone GPS and a CCTV provider require deployment-specific acceptance before enabling those services.
 
 ## Changes in this release
 
+- Menus expose the preschool care, activities, INKY, development, photos, cameras, reports and setup sections directly, according to account role and school programme. Section URLs survive reload/back navigation. Transport setup and student assignments, receptionist admissions and the family portfolio have menu entries. Operational staff retain their own home in preschool mode. Teachers no longer receive the inaccessible management analytics link. Mobile drawers restore focus to their opener and close after navigation.
 - Original attendance, student, guardian, homework, examination, invoice/payment and timetable APIs enforce object-level family/class permissions. Restricted collection APIs require an explicit linked student or assigned class. Teachers receive a limited staff directory. School payment credentials are omitted from workspace responses.
 - Tenant middleware preserves existing guardian/account predicates when adding a tenant condition. Compound unique lookups work after conversion to scoped queries. Chat models and their child records are tenant filtered.
 - Student admission accepts date-only form values, rejects impossible dates and duplicate admission numbers, validates stream/class consistency, and saves class allocation and enrollment history together. Repeated allocation does not duplicate history.
 - Invoice generation serializes concurrent billing for the same pupil. Payment retries are idempotent, concurrent payments cannot overpay, and cancellation cannot race a payment into a cancelled paid invoice. Monetary amounts are integer paise.
 - Parent fees open actual Razorpay Checkout or a locally generated UPI QR/app link. No UPI collect request is claimed. Unconfigured methods are shown as unavailable. A pending transfer does not change the paid balance.
 - Razorpay checkout verification checks the signature and fetches the provider payment to confirm the captured state, order, currency and amount. Gateway completion and ledger allocation commit together. Transient ledger failures roll back and can be retried. Captured payments that cannot be allocated remain visible for school reconciliation. Direct UPI receipts require a staff bank-statement check.
+- Razorpay webhooks require an HMAC signature over the exact received request bytes. URL tokens do not authorize settlement. The complete provider envelope passes validation, and signed deliveries and tampered bytes are exercised through the real HTTP endpoint.
 - Published report cards save an assessment snapshot and recompute their aggregate from published results. Later assessments cannot rewrite an issued report. Published assessments and report cards are locked against ordinary edits. Older published cards without snapshots retain their historical stored aggregates.
 - Absent counts are no longer doubled. In-app absence, shared activity, wellbeing and meeting notifications are durable and retry-safe. Notification flags are set after an inbox message is saved. External SMS/email delivery is a separate operation.
 - Chat checks membership before private reads, sends and reactions, validates same-school participants and reply targets, serializes reactions and direct-conversation creation, and returns recent bounded history. Class conversations use current student/guardian/staff assignments; stale membership does not retain access after a transfer. AI lesson shares can only target their selected class conversation.
@@ -31,6 +35,18 @@ This release adds:
 The preceding preschool and additive India-alignment migrations must also be present. All migrations are replayed in order by the disposable migration test. Installations originally created with `db:push` need an inspected baseline before `migrate deploy`; do not mark migrations applied without checking their objects. No production database was changed during this work.
 
 ## Verification commands and evidence
+
+Completed locally on 17 November 2026 after the dependency update:
+
+| Check | Result |
+|---|---|
+| API tests | 36 suites, 463 tests passed; no failures, skips or detected open handles. Includes real PostgreSQL school and preschool integration tests. |
+| Production builds | API build and Next.js 16.4.6 optimized build passed; all 129 pages generated. |
+| Type checking and lint | API type check and web build type check passed. Web lint: 0 errors, 32 existing warnings. |
+| Browser workflows | 15 general school checks, 6 payment checks, 6 preschool checks and 21 navigation checks passed against optimized builds, using API/provider fixtures. Navigation covers all 15 account roles and standard/preschool/combined modes, direct section URLs, back/reload, valid route files and mobile focus/overflow behavior. Payment and navigation screens visually inspected. |
+| Production dependency audit | 0 known vulnerabilities at all reported severity levels. Lockfile updated for the patched dependencies. |
+| Migration replay | All 9 migrations replayed successfully with historical-data preservation checks. |
+| Recovery rehearsal | Encrypted backup creation, authenticated archive verification and exact fixture restoration into a different empty database passed. |
 
 Use a separate migrated database whose name ends in `_test` or `_qa` for database tests. Never point these tests at school records.
 
@@ -52,6 +68,7 @@ $env:UI_BASE_URL = 'http://127.0.0.1:3102'
 pnpm test:ui
 pnpm test:ui:school-payments
 pnpm test:ui:preschool
+pnpm test:ui:navigation
 ```
 
 `test:db:school` fails if its test URL is missing; it cannot silently pass by skipping database tests. The school suite uses real PostgreSQL and authenticated HTTP. It tests admission, attendance, family/class denial, publication, invoice/payment races, webhook rollback/retry, notifications, private chat and transfer-based revocation. Its QR metadata uses a test Redis adapter; it does not certify a production Redis deployment. The browser suites use mock API/provider responses and verify UI behavior independently of live delivery.
@@ -59,6 +76,8 @@ pnpm test:ui:preschool
 The backup rehearsal (`pnpm test:db:school-backup`) requires two different **empty** databases ending in `_test`, `SCHOOL_BACKUP_TEST_URL`, `SCHOOL_BACKUP_RESTORE_DATABASE`, and PostgreSQL client binaries on PATH. It exercises the actual backup, archive verification and restore service, comparing recovered fixture rows. It rejects nonempty targets before running a restore. The migration replay (`pnpm test:db:preschool-migrations`) likewise requires an empty disposable database through `PRESCHOOL_MIGRATION_TEST_URL` and checks historical records are preserved.
 
 Local evidence is written under ignored `qa/`: `school-all-results.json`, `school-workflows-results.json`, `school-payments/results.json`, `school-backup-results.json`, `preschool/` and `redesign/`. CI includes school and preschool database tests, payment and preschool browser checks, migration replay, backup recovery and dependency audit. Historical unit suites include preview fixtures and conditionally executed backup checks; their passing assertions alone are not evidence of live integration delivery.
+
+The configured CI workflow was not executed in this local session. A full application startup/smoke run with real Redis is still required in CI or staging; the local authenticated school suite constructs the relevant Nest modules against real PostgreSQL. The smoke script now uses the Indian demo seed accounts, classes, admission numbers and payment endpoints.
 
 ## Go-live requirements
 
@@ -75,4 +94,4 @@ Local evidence is written under ignored `qa/`: `school-all-results.json`, `schoo
 | AI assistance | Built-in templates are labelled and teacher-reviewed. External generation needs a configured provider and school acceptance. AI suggestions do not automatically publish official assessment decisions. |
 | Disaster recovery | Rehearse the real production backup and restore to an isolated environment, retain encryption keys separately, configure off-site storage and monitor failures. The local fixture restore does not replace that rehearsal. |
 
-Razorpay integration behavior follows the provider's [Standard Checkout integration documentation](https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps). Live acceptance remains a merchant/environment test.
+Razorpay integration behavior follows the provider's [Standard Checkout integration documentation](https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps), [webhook validation requirements](https://razorpay.com/docs/webhooks/validate-test) and [payment event envelopes](https://razorpay.com/docs/webhooks/payments). Live acceptance remains a merchant/environment test.

@@ -25,7 +25,7 @@ export class UpdateBookingDto {
   @IsOptional()
   @IsUrl({protocols:['https'],require_protocol:true})
   @MaxLength(2048)
-  meetingLink?: string;
+  meetingLink?: string | null;
 }
 
 export class CancelBookingDto {

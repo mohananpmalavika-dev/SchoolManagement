@@ -1,7 +1,7 @@
 import { SchoolChatHub } from '@/components/chat/SchoolChatHub';
 
 export const metadata = {
-  title: 'Family Chat & Parent Forum | HustlerTech School ERP',
+  title: 'Family Chat & Parent Forum | Krypton School ERP',
   description: 'Connect directly with teachers, school staff, and the parent community.',
 };
 

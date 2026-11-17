@@ -117,7 +117,7 @@ export class TeacherAIService {
       'Describe evidenced strengths, one constructive area to improve, and a practical next step. Use neutral student references, not names or IDs. Do not invent grades, attendance, personality or behaviour. ' +
       'Behaviour can only come from the teacher-provided classroom observation. If data is missing, say what needs further observation without labelling the learner. ' +
       'Attendance with fewer than 10 recorded days is limited evidence. Never imply disability, diagnose, shame, or predict guaranteed failure. Evidence should be short factual source references.',
-      { language: dto.language, classLevel: data.cls.level, term: data.term.name,
+      { language: dto.language, tone: dto.tone || 'NEP_HOLISTIC', feedbackFocus: dto.tone==='ACADEMIC_RIGOR'?'Evidence of subject mastery and a concrete study target':dto.tone==='GROWTH_MINDSET'?'Constructive feedback, practice and incremental progress':dto.tone==='HOLISTIC'?'Balanced learning and wellbeing, with behaviour only from supplied observations':'Progress against taught competencies without inventing competency ratings', classLevel: data.cls.level, term: data.term.name,
         students: data.students.map((s, i) => ({ key: keys[i], ...s.source, behaviourObservation: dto.students.find(o => o.studentId === s.id)?.behaviourObservation?.trim() || null })) },
       objectSchema({ remarks: { type: 'array', items: objectSchema({ key: stringSchema, text: stringSchema, evidence: stringListSchema }) } }));
     const remarks = keyedItems(response, 'remarks', keys).map(item => ({ studentId: data.students[keys.indexOf(String(item.key))].id,

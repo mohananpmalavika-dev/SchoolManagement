@@ -59,7 +59,11 @@ try{
  await teacher.page.getByLabel('Notes for the family',{exact:true}).fill('Please bring the recent workbook.');
  await teacher.page.getByRole('button',{name:'Save meeting details',exact:true}).click();
  await teacher.page.getByRole('status').filter({hasText:'details have been saved'}).waitFor();
- assert.deepEqual(requests.find(request=>request.path==='/api/bookings/meeting-1'&&request.method==='PATCH')?.body,{location:'School office',teacherNotes:'Please bring the recent workbook.'});
+ assert.deepEqual(requests.find(request=>request.path==='/api/bookings/meeting-1'&&request.method==='PATCH')?.body,{location:'School office',teacherNotes:'Please bring the recent workbook.',meetingLink:null});
+ await teacher.page.getByRole('button',{name:'Edit meeting details',exact:true}).click();
+ await teacher.page.getByLabel('Virtual meeting link (HTTPS)',{exact:true}).fill('https://meeting.example.test/parent');
+ await teacher.page.getByRole('button',{name:'Save meeting details',exact:true}).click();
+ await teacher.page.getByRole('status').filter({hasText:'details have been saved'}).waitFor();
  await teacher.page.getByRole('button',{name:'Confirm',exact:true}).click();
  await teacher.page.getByText('confirmed',{exact:true}).waitFor();
  await teacher.page.screenshot({path:'qa/meetings/teacher-desktop.png',fullPage:true});
@@ -69,6 +73,15 @@ try{
  await family.page.getByRole('button',{name:'Refresh',exact:true}).click();
  await family.page.getByText('confirmed',{exact:true}).waitFor();
  await family.page.getByText('Location: School office',{exact:true}).waitFor();
+ await family.page.getByRole('link',{name:'Join virtual meeting'}).waitFor();
+ assert.ok((await family.page.locator('time').first().innerText()).endsWith('IST'));
+ await teacher.page.getByRole('button',{name:'Edit meeting details',exact:true}).click();
+ await teacher.page.getByLabel('Virtual meeting link (HTTPS)',{exact:true}).fill('');
+ await teacher.page.getByRole('button',{name:'Save meeting details',exact:true}).click();
+ await teacher.page.getByRole('status').filter({hasText:'details have been saved'}).waitFor();
+ await family.page.getByRole('button',{name:'Refresh',exact:true}).click();
+ await family.page.getByText('Location: School office',{exact:true}).waitFor();
+ assert.equal(await family.page.getByRole('link',{name:'Join virtual meeting'}).count(),0);
  await family.page.getByRole('button',{name:'Cancel appointment',exact:true}).click();
  await family.page.getByText('cancelled',{exact:true}).waitFor();
  slotsError=true;

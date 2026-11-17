@@ -15,6 +15,10 @@ module.exports = {
     ] }, { source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'no-cache' }] }];
   },
   async rewrites() {
-    return [{ source: '/api/:path*', destination: `${process.env.API_URL || 'http://localhost:3001'}/api/v1/:path*` }];
+    const backend = (process.env.API_URL || 'http://localhost:3001').replace(/\/$/, '');
+    return [
+      { source: '/api/v1/:path*', destination: `${backend}/api/v1/:path*` },
+      { source: '/api/:path*', destination: `${backend}/api/v1/:path*` },
+    ];
   },
 };

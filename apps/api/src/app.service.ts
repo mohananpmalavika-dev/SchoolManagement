@@ -5,7 +5,7 @@ import { RedisService } from './common/services/redis.service';
 export class AppService {
   constructor(private prisma: PrismaService, private redis: RedisService) {}
   getHealth() {
-    return {status:'ok', timestamp:new Date().toISOString(), service:'HustlerTech School ERP API', version:'1.0.0'};
+    return {status:'ok', timestamp:new Date().toISOString(), service:'Krypton School ERP API', version:'1.0.0'};
   }
   private async bounded<T>(operation: Promise<T>): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;

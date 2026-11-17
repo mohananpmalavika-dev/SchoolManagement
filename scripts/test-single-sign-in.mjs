@@ -61,10 +61,13 @@ try {
     await fits(login.page);
     await login.page.screenshot({ path: fileURLToPath(new URL('login-' + width + '.png', output)), fullPage: true });
   }
-  await login.page.locator('button[title="Switch to Kiswahili"]').click();
-  await login.page.getByText('Akaunti moja. Mazingira yako ya shule.', { exact: true }).waitFor();
+  await login.page.locator('button[title="Switch to हिन्दी"]').click();
+  await login.page.getByText('एक खाता। आपका विद्यालय कार्यक्षेत्र।', { exact: true }).waitFor();
   await fits(login.page);
-  await login.page.locator('button[title="Badilisha kwa English"]').click();
+  await login.page.locator('button[title="Switch to മലയാളം"]').click();
+  await login.page.getByText('ഒരു അക്കൗണ്ട്. നിങ്ങളുടെ സ്കൂൾ വർക്ക്‌സ്‌പേസ്.', { exact: true }).waitFor();
+  await fits(login.page);
+  await login.page.locator('button[title="Switch to English"]').click();
   login.setInvalid(true);
   await login.page.getByLabel('Email address', { exact: true }).fill('account@example.test');
   await login.page.getByLabel('Password', { exact: true }).fill('Incorrect123!');

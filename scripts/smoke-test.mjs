@@ -10,10 +10,10 @@ async function request(path,{token,method='GET',data,status=200}={}){
 }
 async function test(name,fn){await fn();passed.push(name);console.log('PASS '+name);}
 async function login(email){return request('/auth/login',{method:'POST',data:{email,password:process.env.SMOKE_PASSWORD||'KryptonDemo@2026'}});}
-const admin=await login('admin@kryptonschool.com'),principal=await login('principal@demoacademy.ac.ke'),teacher=await login('teacher@demoacademy.ac.ke'),parent=await login('parent@demoacademy.ac.ke'),outsider=await login('outsider@isolation.test');
+const admin=await login('admin@kryptonschool.edu.in'),principal=await login('principal@kryptonschool.edu.in'),teacher=await login('teacher@kryptonschool.edu.in'),parent=await login('parent@kryptonschool.edu.in'),outsider=await login('outsider@isolation.test');
 const a=admin.accessToken,p=principal.accessToken,t=teacher.accessToken,f=parent.accessToken,o=outsider.accessToken;
 assert.notEqual((await request('/admin/system',{token:a})).environment,'production','Refusing to mutate a production server');
-const students=await request('/workspace/students',{token:p});const classes=await request('/workspace/classes',{token:p});const cls=classes.find(c=>c.name==='Grade 5'),other=classes.find(c=>c.name==='Grade 6');const child=students.find(s=>s.admissionNumber==='GF0001'),unlinked=students.find(s=>s.admissionNumber==='GF0003');
+const students=await request('/workspace/students',{token:p});const classes=await request('/workspace/classes',{token:p});const cls=classes.find(c=>c.name==='Class 5'),other=classes.find(c=>c.name==='Class 6');const child=students.find(s=>s.admissionNumber==='KPS0001'),unlinked=students.find(s=>s.admissionNumber==='KPS0003');
 const post=(path,data,token=p,status=201)=>request(path,{method:'POST',data,token,status});
 await test('Health verifies the database',async()=>assert.equal((await request('/health')).checks.database,'healthy'));
 await test('Anonymous records are rejected',()=>request('/workspace/students',{status:401}));
@@ -46,8 +46,8 @@ await test('Concurrent payments cannot overpay an invoice',async()=>{
  const invoices=await request('/workspace/invoices',{token:p});assert.equal(invoices.find(i=>i.id===invoice.id).balanceAmount,4000);
 });
 await test('Repeated payment reference is idempotent',async()=>{await post('/workspace/payments',{data:{invoiceId:invoice.id,amount:6000,paymentMethod:'CASH',reference:successfulReference}});const invoices=await request('/workspace/invoices',{token:p});assert.equal(invoices.find(i=>i.id===invoice.id).balanceAmount,4000);});
-await test('Parent payment cannot target another child',async()=>{const inv=(await request('/workspace/invoices',{token:p})).find(i=>i.studentId===unlinked.id);await post('/workspace/pay',{invoiceId:inv.id,phoneNumber:'254700000101',amount:100},f,403);});
-await test('Unauthenticated callback credentials are rejected',()=>post('/mpesa/stk-push/callback',{Body:{stkCallback:{}}},undefined,503));
+await test('Parent payment cannot target another child',async()=>{const inv=(await request('/workspace/invoices',{token:p})).find(i=>i.studentId===unlinked.id);await post('/workspace/pay',{invoiceId:inv.id,phoneNumber:'919847000101',amount:100,gateway:'UPI'},f,403);});
+await test('Unconfigured payment webhooks fail closed',()=>post('/payments-gateway/webhook',{event:'payment.captured',payload:{}},undefined,503));
 const book=await post('/workspace/books',{data:{title:'Smoke loan '+suffix,quantity:1}});let loan;
 await test('Concurrent library loans cannot exceed available stock',async()=>{
  const results=await Promise.all([1,2].map(async()=>{const r=await fetch(base+'/workspace/borrowings',{method:'POST',headers:{Authorization:'Bearer '+p,'Content-Type':'application/json'},body:JSON.stringify({data:{bookId:book.id,borrowerId:child.id,dueDate:'2027-01-01'}})});return {status:r.status,body:await r.json()};}));

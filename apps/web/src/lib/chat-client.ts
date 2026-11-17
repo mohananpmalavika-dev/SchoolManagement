@@ -5,6 +5,7 @@ export interface ChatAttachment {
   url: string;
   type: string;
   size?: number;
+  storageKey?: string;
 }
 
 export interface ChatMessage {
@@ -58,234 +59,54 @@ export interface ChatContact {
 }
 
 class ChatClient {
-  private fallbackChannels: ChatChannel[] = [
-    {
-      id: 'default-announcements',
-      name: '📢 Official Announcements',
-      rawName: 'Official Announcements',
-      description: 'School circulars, term calendars, and verified official communications',
-      type: 'ANNOUNCEMENT',
-      memberCount: 240,
-      isMember: true,
-      myRole: 'MEMBER',
-      lastMessage: {
-        id: 'msg-1',
-        content: 'Welcome to Term 3! Please review the updated examination and fees timetable.',
-        createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-        senderName: 'Principal Office',
-      },
-      updatedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    },
-    {
-      id: 'default-staff',
-      name: '☕ Staff & Faculty Room',
-      rawName: 'Staff & Faculty Room',
-      description: 'Teacher collaboration, duty schedules, and academic discussions',
-      type: 'GROUP',
-      memberCount: 38,
-      isMember: true,
-      myRole: 'MEMBER',
-      lastMessage: {
-        id: 'msg-2',
-        content: 'All CBSE Class 4 assessment scores have been uploaded for moderation.',
-        createdAt: new Date(Date.now() - 3600000).toISOString(),
-        senderName: 'Mrs. Lakshmi Menon (HOD)',
-      },
-      updatedAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      id: 'default-parents',
-      name: '🤝 Parents & Guardians Association',
-      rawName: 'Parents & Guardians Association',
-      description: 'Parent-Teacher community discussions and school event coordination',
-      type: 'GROUP',
-      memberCount: 195,
-      isMember: true,
-      myRole: 'MEMBER',
-      lastMessage: {
-        id: 'msg-3',
-        content: 'Reminder: Virtual PTM parent meetings open for booking on Friday.',
-        createdAt: new Date(Date.now() - 1800000).toISOString(),
-        senderName: 'Dean of Students',
-      },
-      updatedAt: new Date(Date.now() - 1800000).toISOString(),
-    },
-    {
-      id: 'default-transport',
-      name: '🚌 Transport & Route A Desk',
-      rawName: 'Transport & Route A Desk',
-      description: 'Real-time school bus tracking, pick-up notices, and route assistance',
-      type: 'GROUP',
-      memberCount: 42,
-      isMember: true,
-      myRole: 'MEMBER',
-      lastMessage: {
-        id: 'msg-4',
-        content: 'Morning pickup completed safely. All students checked in.',
-        createdAt: new Date(Date.now() - 900000).toISOString(),
-        senderName: 'Driver Omondi',
-      },
-      updatedAt: new Date(Date.now() - 900000).toISOString(),
-    },
-  ];
-
+  async uploadAttachment(channelId: string, file: File): Promise<ChatAttachment> {
+    const body = new FormData();
+    body.append('file', file);
+    return (
+      await apiClient.post(`/chat/channels/${channelId}/attachments`, body, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+    ).data;
+  }
   async getChannels(): Promise<ChatChannel[]> {
-    try {
-      const response = await apiClient.get('/chat/channels');
-      if (Array.isArray(response.data) && response.data.length > 0) {
-        return response.data;
-      }
-      return this.fallbackChannels;
-    } catch {
-      return this.fallbackChannels;
-    }
+    return (await apiClient.get('/chat/channels')).data;
   }
-
   async getMessages(channelId: string): Promise<ChatMessage[]> {
-    try {
-      const response = await apiClient.get(`/chat/channels/${channelId}/messages`);
-      if (Array.isArray(response.data)) {
-        return response.data;
-      }
-    } catch {
-      // Fallback sample messages for demo
-    }
-
-    const now = Date.now();
-    return [
-      {
-        id: 'sample-1',
-        channelId,
-        content: 'Good morning everyone! Welcome to the HustlerTech school communications forum.',
-        createdAt: new Date(now - 3600000 * 3).toISOString(),
-        sender: {
-          id: 'user-admin',
-          name: 'Super Admin',
-          role: 'SUPER_ADMIN',
-          isMe: false,
-        },
-      },
-      {
-        id: 'sample-2',
-        channelId,
-        content: 'Please make sure all student progress records for Term 3 are updated before the weekend.',
-        createdAt: new Date(now - 3600000 * 2).toISOString(),
-        sender: {
-          id: 'user-principal',
-          name: 'Dr. Ramesh Nair (Principal)',
-          role: 'PRINCIPAL',
-          isMe: false,
-        },
-        reactions: { '👍': ['user-1', 'user-2'], '👏': ['user-3'] },
-      },
-      {
-        id: 'sample-3',
-        channelId,
-        content: 'Noted! The gradebook and CBSE holistic progress reports have been uploaded to the portal.',
-        createdAt: new Date(now - 1800000).toISOString(),
-        sender: {
-          id: 'user-me',
-          name: 'You',
-          role: 'TEACHER',
-          isMe: true,
-        },
-      },
-    ];
+    return (await apiClient.get(`/chat/channels/${channelId}/messages`)).data;
   }
-
   async sendMessage(
     channelId: string,
     content: string,
     attachments?: ChatAttachment[],
-    replyToId?: string,
+    replyToId?: string
   ): Promise<ChatMessage> {
-    try {
-      const response = await apiClient.post(`/chat/channels/${channelId}/messages`, {
+    return (
+      await apiClient.post(`/chat/channels/${channelId}/messages`, {
         content,
         attachments,
         replyToId,
-      });
-      return response.data;
-    } catch {
-      // Optimistic message fallback
-      return {
-        id: 'local-' + Date.now(),
-        channelId,
-        content,
-        attachments: attachments || null,
-        createdAt: new Date().toISOString(),
-        sender: {
-          id: 'me',
-          name: 'You',
-          role: 'STAFF',
-          isMe: true,
-        },
-        replyTo: null,
-      };
-    }
+      })
+    ).data;
   }
-
   async addReaction(channelId: string, messageId: string, emoji: string) {
-    try {
-      const response = await apiClient.post(
-        `/chat/channels/${channelId}/messages/${messageId}/reactions`,
-        { emoji },
-      );
-      return response.data;
-    } catch {
-      return { messageId, reactions: { [emoji]: ['me'] } };
-    }
+    return (
+      await apiClient.post(`/chat/channels/${channelId}/messages/${messageId}/reactions`, { emoji })
+    ).data;
   }
-
+  async createChannel(
+    name: string,
+    description: string,
+    memberUserIds: string[]
+  ): Promise<{ id: string }> {
+    return (
+      await apiClient.post('/chat/channels', { name, description, type: 'GROUP', memberUserIds })
+    ).data;
+  }
   async startDirectChat(targetUserId: string, initialMessage?: string) {
-    const response = await apiClient.post('/chat/direct', {
-      targetUserId,
-      initialMessage,
-    });
-    return response.data;
+    return (await apiClient.post('/chat/direct', { targetUserId, initialMessage })).data;
   }
-
   async getContacts(): Promise<ChatContact[]> {
-    try {
-      const response = await apiClient.get('/chat/contacts');
-      if (Array.isArray(response.data) && response.data.length > 0) {
-        return response.data;
-      }
-    } catch {}
-
-    return [
-      {
-        id: 'c-1',
-        name: 'Dr. Ramesh Nair (Principal)',
-        email: 'principal@kryptonschool.edu.in',
-        role: 'PRINCIPAL',
-      },
-      {
-        id: 'c-2',
-        name: 'Mrs. Lakshmi Menon (Vice Principal)',
-        email: 'viceprincipal@kryptonschool.edu.in',
-        role: 'DEPUTY_PRINCIPAL',
-      },
-      {
-        id: 'c-3',
-        name: 'Mr. Rajesh Varma (Senior Teacher)',
-        email: 'rajesh.varma@kryptonschool.edu.in',
-        role: 'TEACHER',
-      },
-      {
-        id: 'c-4',
-        name: 'Meera Krishnan (Accounts Officer)',
-        email: 'accounts@kryptonschool.edu.in',
-        role: 'ACCOUNTANT',
-      },
-      {
-        id: 'c-5',
-        name: 'Smt. Kavitha Pillai (Parent Representative)',
-        email: 'kavitha.pillai@parent.in',
-        role: 'PARENT',
-      },
-    ];
+    return (await apiClient.get('/chat/contacts')).data;
   }
 }
-
 export const chatClient = new ChatClient();
