@@ -2325,6 +2325,7 @@ model ComplianceReport {
   // Automation
   isAutomated        Boolean @default(false)
   automationSchedule String? // Cron expression
+  idempotencyKey     String?
 
   // Due Date
   dueDate DateTime?
@@ -2332,12 +2333,55 @@ model ComplianceReport {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  exports ComplianceExport[]
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, idempotencyKey])
   @@index([tenantId])
   @@index([reportType])
   @@index([status])
   @@index([reportYear])
   @@index([dueDate])
   @@map("compliance_reports")
+}
+
+// Immutable snapshots of the exact bytes reviewed for manual submission.
+model ComplianceExport {
+  id          String   @id @default(uuid())
+  tenantId    String
+  reportId    String
+  templateId  String
+  format      String
+  filename    String
+  contentType String
+  content     Bytes
+  contentHash String
+  validation  Json
+  createdBy   String
+  createdAt   DateTime @default(now())
+  report ComplianceReport @relation(fields: [reportId, tenantId], references: [id, tenantId], onDelete: Restrict)
+
+  @@index([tenantId, reportId])
+  @@map("compliance_exports")
+}
+
+// A serialized, append-only chain. Migration installs mutation-blocking triggers.
+model ComplianceLedger {
+  id           String   @id @default(uuid())
+  tenantId     String
+  sequence     Int
+  actorId      String
+  entityType   String
+  entityId     String
+  action       String
+  payload      Json
+  previousHash String
+  currentHash  String
+  createdAt    DateTime
+
+  @@unique([tenantId, sequence])
+  @@index([tenantId, entityType, entityId])
+  @@map("compliance_ledger")
 }
 
 enum ComplianceReportType {

@@ -1,20 +1,20 @@
+import { BullModule } from '@nestjs/bull';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { BullModule } from '@nestjs/bull';
 import { ScheduleModule } from '@nestjs/schedule';
-import { DatabaseModule } from '../../database/database.module';
+
 import { EncryptionUtil } from '../../common/utils/encryption.util';
+import { DatabaseModule } from '../../database/database.module';
 
-import { UdiseService } from './services/udise.service';
-import { BoardExamService } from './services/board-exam.service';
-import { ComplianceService } from './services/compliance.service';
 
-import { UdiseController } from './controllers/udise.controller';
 import { BoardExamController } from './controllers/board-exam.controller';
 import { ComplianceController } from './controllers/compliance.controller';
-
-import { GovernmentSyncProcessor } from './jobs/government-sync.processor';
+import { UdiseController } from './controllers/udise.controller';
 import { GovernmentSchedulerService } from './jobs/government-scheduler.service';
+import { GovernmentSyncProcessor } from './jobs/government-sync.processor';
+import { BoardExamService } from './services/board-exam.service';
+import { ComplianceService } from './services/compliance.service';
+import { UdiseService } from './services/udise.service';
 
 @Module({
   imports: [

@@ -1,13 +1,14 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../../database/prisma.service';
 import {
   UdiseSyncType,
   SyncStatus,
   SyncDirection,
   ValidationStatus,
 } from '@prisma/client';
+
 import { EncryptionUtil } from '../../../common/utils/encryption.util';
+import { PrismaService } from '../../../database/prisma.service';
 
 /**
  * UDISE+ / APAAR Integration Service (India)
@@ -35,7 +36,7 @@ export class UdiseService {
   ) {
     try {
       const integration = await this.prisma.udiseIntegration.upsert({
-        where: { udiseSchoolCode },
+        where: { udiseSchoolCode, tenantId },
         update: {
           apiKey: apiKey ? await this.encryptionUtil.encrypt(apiKey) : undefined,
           apiSecret: apiSecret ? await this.encryptionUtil.encrypt(apiSecret) : undefined,
@@ -54,7 +55,9 @@ export class UdiseService {
       });
 
       this.logger.log(`UDISE+ integration initialized for tenant: ${tenantId}`);
-      const { apiKey: _apiKey, apiSecret: _apiSecret, ...safe } = integration;
+      const safe = { ...integration };
+      delete safe.apiKey;
+      delete safe.apiSecret;
       return { ...safe, externalApiAvailable: false };
     } catch (error: any) {
       this.logger.error(`Failed to initialize UDISE+ integration: ${error.message}`);
@@ -70,7 +73,9 @@ export class UdiseService {
       where: { tenantId },
     });
     if (!integration) return null;
-    const { apiKey: _apiKey, apiSecret: _apiSecret, ...safe } = integration;
+    const safe = { ...integration };
+    delete safe.apiKey;
+    delete safe.apiSecret;
     return { ...safe, externalApiAvailable: false };
   }
 
@@ -574,7 +579,7 @@ export class UdiseService {
     });
   }
 
-  private async callUdiseApi(integration: any, endpoint: string, method: string, data?: any): Promise<any> {
+  private async callUdiseApi(_integration: any, _endpoint: string, _method: string, _data?: any): Promise<any> {
     this.requireOfficialIntegration();
     throw new HttpException('Official API unavailable', HttpStatus.NOT_IMPLEMENTED);
   }

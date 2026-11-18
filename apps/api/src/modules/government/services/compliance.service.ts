@@ -1,447 +1,430 @@
-import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
-import { PrismaService } from '../../../database/prisma.service';
-import { 
-  ComplianceReportType, 
-  ReportStatus, 
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  NotImplementedException,
+} from '@nestjs/common';
+import {
+  ComplianceReportType,
+  ReportStatus,
   ComplianceArea,
   ChecklistStatus,
   DataAuditType,
-  AuditStatus,
   ComplianceAlertType,
   AlertSeverity,
   AlertStatus,
-  StudentStatus,
-  AttendanceStatus,
 } from '@prisma/client';
 
-/**
- * Compliance Reporting Service
- * Handles automated compliance reporting for government agencies
- */
+import { PrismaService } from '../../../database/prisma.service';
+import {
+  GenerateReportDto,
+  ExportPortalDataDto,
+  ManualSubmissionDto,
+  SubmissionOutcomeDto,
+  LogAuditRecordOverrideDto,
+  ManualBoardRecordDto,
+} from '../dto/compliance.dto';
+import { csv, xlsx } from '../utils/workbook';
+
+import { auditData } from './compliance-audits';
+import {
+  Db,
+  REPORTS,
+  TEMPLATES,
+  GENESIS,
+  append,
+  atomic,
+  bounds,
+  countBy,
+  day,
+  json,
+  parseDate,
+  round,
+  sha,
+  stable,
+} from './compliance-core';
+import { exportRows } from './compliance-exports';
+import { buildReport } from './compliance-reports';
+
 @Injectable()
 export class ComplianceService {
-  private readonly logger = new Logger(ComplianceService.name);
-
   constructor(private readonly prisma: PrismaService) {}
-
-  /**
-   * Generate enrollment statistics report
-   */
-  async generateEnrollmentReport(
+  async options(tenantId: string) {
+    const [years, terms, students] = await Promise.all([
+      this.prisma.academicYear.findMany({ where: { tenantId }, orderBy: { startDate: 'desc' } }),
+      this.prisma.term.findMany({ where: { tenantId }, orderBy: { startDate: 'desc' } }),
+      this.prisma.student.findMany({
+        where: { tenantId, deletedAt: null },
+        select: { id: true, firstName: true, lastName: true, admissionNumber: true },
+        orderBy: { admissionNumber: 'asc' },
+        take: 5000,
+      }),
+    ]);
+    return {
+      reportTypes: REPORTS,
+      templates: TEMPLATES,
+      years,
+      terms,
+      students,
+      externalApiAvailable: false,
+      submissionMode: 'MANUAL_PORTAL',
+      formatNotice:
+        'School preparation files. Compare columns with the current official portal template before upload; portal acceptance is not certified.',
+    };
+  }
+  async generateReport(
     tenantId: string,
-    reportPeriod: string,
-    reportYear: number,
-    reportQuarter?: number,
+    dto: GenerateReportDto,
+    actorId = 'SYSTEM',
+    idempotencyKey?: string
   ) {
-    this.logger.log(`Generating enrollment report for ${reportPeriod}`);
-
-    const students = await this.prisma.student.findMany({
-      where: { tenantId },
-      include: {
-        currentClass: true,
-        currentStream: true,
-      },
-    });
-
-    // Statistics by status
-    const byStatus = this.groupBy(students, 'status');
-    
-    // Statistics by gender
-    const byGender = this.groupBy(students, 'gender');
-    
-    // Statistics by class
-    const byClass = students.reduce((acc: any, student: any) => {
-      const className = student.currentClass?.name || 'Unassigned';
-      if (!acc[className]) {
-        acc[className] = { total: 0, male: 0, female: 0 };
+    if (!REPORTS.includes(dto.reportType)) throw new BadRequestException('Unsupported report type');
+    if (!dto.reportPeriod?.trim()) throw new BadRequestException('Enter a reporting period');
+    bounds(dto);
+    if (dto.reportType === 'ATTENDANCE_SUMMARY' && (!dto.startDate || !dto.endDate))
+      throw new BadRequestException('Attendance reports require both period dates');
+    if (dto.reportType === 'EXAMINATION_ANALYSIS' && !dto.termId)
+      throw new BadRequestException('Choose an examination term');
+    return atomic(this.prisma, tenantId, async (tx) => {
+      if (idempotencyKey) {
+        const existing = await tx.complianceReport.findFirst({
+          where: { tenantId, idempotencyKey },
+        });
+        if (existing) return existing;
       }
-      acc[className].total++;
-      if (student.gender === 'MALE') acc[className].male++;
-      if (student.gender === 'FEMALE') acc[className].female++;
-      return acc;
-    }, {} as any);
-
-    const reportData = {
-      summary: {
-        totalStudents: students.length,
-        activeStudents: byStatus[StudentStatus.ACTIVE] || 0,
-        maleStudents: byGender['MALE'] || 0,
-        femaleStudents: byGender['FEMALE'] || 0,
-      },
-      byStatus: byStatus,
-      byGender: byGender,
-      byClass: byClass,
-      generatedAt: new Date(),
-    };
-
-    const report = await this.prisma.complianceReport.create({
-      data: {
-        tenantId,
-        reportType: ComplianceReportType.ENROLLMENT_STATISTICS,
-        reportPeriod,
-        reportYear,
-        reportQuarter,
-        status: ReportStatus.DRAFT,
-        reportData,
-        isAutomated: true,
-      },
-    });
-
-    this.logger.log(`Enrollment report generated: ${report.id}`);
-    return report;
-  }
-
-  /**
-   * Generate attendance summary report
-   */
-  async generateAttendanceReport(
-    tenantId: string,
-    reportPeriod: string,
-    reportYear: number,
-    startDate: Date,
-    endDate: Date,
-  ) {
-    this.logger.log(`Generating attendance report for ${reportPeriod}`);
-
-    const attendanceRecords = await this.prisma.attendanceRecord.findMany({
-      where: {
-        tenantId,
-        date: {
-          gte: startDate,
-          lte: endDate,
+      if (dto.replacesReportId) {
+        const previous = await this.report(tx, tenantId, dto.replacesReportId);
+        if (previous.status !== 'REJECTED')
+          throw new ConflictException('Only a rejected report can be replaced');
+      }
+      const data = await buildReport(tx, tenantId, dto);
+      const saved = await tx.complianceReport.create({
+        data: {
+          tenantId,
+          reportType: dto.reportType,
+          reportPeriod: dto.reportPeriod.trim(),
+          reportYear: dto.reportYear,
+          reportMonth: dto.reportMonth,
+          reportQuarter: dto.reportQuarter,
+          dueDate: dto.dueDate ? parseDate(dto.dueDate) : undefined,
+          reportData: json(data),
+          metadata: json({
+            schemaVersion: 1,
+            generatedBy: actorId,
+            request: dto,
+            replacesReportId: dto.replacesReportId || null,
+          }),
+          status: 'DRAFT',
+          isAutomated: actorId === 'SYSTEM',
+          idempotencyKey,
         },
-      },
-      include: {
-        student: {
-          include: {
-            currentClass: true,
-          },
-        },
-      },
-    });
-
-    // Calculate statistics
-    const totalRecords = attendanceRecords.length;
-    const byStatus = this.groupBy(attendanceRecords, 'status');
-    
-    const presentCount = byStatus[AttendanceStatus.PRESENT] || 0;
-    const absentCount = byStatus[AttendanceStatus.ABSENT] || 0;
-    const lateCount = byStatus[AttendanceStatus.LATE] || 0;
-    
-    const attendanceRate = totalRecords > 0 
-      ? ((presentCount / totalRecords) * 100).toFixed(2)
-      : '0.00';
-
-    // Daily attendance trends
-    const dailyStats = this.groupAttendanceByDate(attendanceRecords);
-    
-    // Class-wise attendance
-    const classStats = this.groupAttendanceByClass(attendanceRecords);
-
-    const reportData = {
-      period: {
-        startDate,
-        endDate,
-        totalDays: this.calculateSchoolDays(startDate, endDate),
-      },
-      summary: {
-        totalRecords,
-        presentCount,
-        absentCount,
-        lateCount,
-        attendanceRate: parseFloat(attendanceRate),
-        absenteeismRate: totalRecords > 0 
-          ? parseFloat(((absentCount / totalRecords) * 100).toFixed(2))
-          : 0,
-      },
-      byStatus,
-      dailyStats,
-      classStats,
-      generatedAt: new Date(),
-    };
-
-    const report = await this.prisma.complianceReport.create({
-      data: {
-        tenantId,
-        reportType: ComplianceReportType.ATTENDANCE_SUMMARY,
-        reportPeriod,
-        reportYear,
-        status: ReportStatus.DRAFT,
-        reportData,
-        isAutomated: true,
-      },
-    });
-
-    return report;
-  }
-
-  /**
-   * Generate teacher data report for UDISE+ / CBSE Teacher Registry compliance
-   */
-  async generateTeacherDataReport(
-    tenantId: string,
-    reportPeriod: string,
-    reportYear: number,
-  ) {
-    this.logger.log(`Generating teacher data report for ${reportPeriod}`);
-
-    const teachers = await this.prisma.staff.findMany({
-      where: {
-        tenantId,
-        isTeacher: true,
-      },
-    });
-
-    // Get UDISE+ staff records for National Teacher Codes
-    const udiseRecords = await this.prisma.udiseStaffRecord.findMany({
-      where: {
-        tenantId,
-        staffId: { in: teachers.map((t: any) => t.id) },
-      },
-    });
-
-    const teacherCodeMap = new Map(udiseRecords.map((r: any) => [r.staffId, r.teacherCode]));
-
-    const teacherData = teachers.map((teacher: any) => ({
-      staffNumber: teacher.staffNumber,
-      teacherCode: teacherCodeMap.get(teacher.id) || 'PENDING',
-      name: `${teacher.firstName} ${teacher.middleName || ''} ${teacher.lastName}`,
-      gender: teacher.gender,
-      email: teacher.email,
-      phone: teacher.phone,
-      department: teacher.department,
-      position: teacher.position,
-      employmentType: teacher.employmentType,
-      hireDate: teacher.hireDate,
-      status: teacher.status,
-      subjects: teacher.subjects,
-    }));
-
-    // Statistics
-    const byStatus = this.groupBy(teachers, 'status');
-    const byEmploymentType = this.groupBy(teachers, 'employmentType');
-    const byGender = this.groupBy(teachers, 'gender');
-
-    const reportData = {
-      summary: {
-        totalTeachers: teachers.length,
-        activeTeachers: byStatus['ACTIVE'] || 0,
-        permanentTeachers: byEmploymentType['PERMANENT'] || 0,
-        contractTeachers: byEmploymentType['CONTRACT'] || 0,
-        maleTeachers: byGender['MALE'] || 0,
-        femaleTeachers: byGender['FEMALE'] || 0,
-        registeredWithUdise: udiseRecords.filter((r: any) => r.teacherCode).length,
-      },
-      byStatus,
-      byEmploymentType,
-      byGender,
-      teachers: teacherData,
-      generatedAt: new Date(),
-    };
-
-    const report = await this.prisma.complianceReport.create({
-      data: {
-        tenantId,
-        reportType: ComplianceReportType.TEACHER_DATA_REPORT,
-        reportPeriod,
-        reportYear,
-        status: ReportStatus.DRAFT,
-        reportData,
-        submittedTo: 'UDISE_PLUS',
-        isAutomated: true,
-      },
-    });
-
-    return report;
-  }
-
-  /**
-   * Generate examination analysis report
-   */
-  async generateExaminationReport(
-    tenantId: string,
-    reportPeriod: string,
-    reportYear: number,
-    termId: string,
-  ) {
-    this.logger.log(`Generating examination report for ${reportPeriod}`);
-
-    const examinations = await this.prisma.examination.findMany({
-      where: {
-        tenantId,
-        termId,
-      },
-      include: {
-        grades: {
-          include: {
-            student: true,
-            subject: true,
-          },
-        },
-      },
-    });
-
-    const allGrades = examinations.flatMap((exam: any) => exam.grades);
-
-    // Calculate statistics
-    const totalExams = examinations.length;
-    const totalGrades = allGrades.length;
-    const averageScore = totalGrades > 0
-      ? allGrades.reduce((sum: any, g: any) => sum + (g.marks || 0), 0) / totalGrades
-      : 0;
-
-    // Grade distribution
-    const gradeDistribution = this.groupBy(allGrades, 'grade');
-
-    // Subject performance
-    const subjectPerformance = this.calculateSubjectPerformance(allGrades);
-
-    const reportData = {
-      summary: {
-        totalExaminations: totalExams,
-        totalGradesRecorded: totalGrades,
-        averageScore: parseFloat(averageScore.toFixed(2)),
-        passingRate: this.calculatePassingRate(allGrades),
-      },
-      gradeDistribution,
-      subjectPerformance,
-      examinations: examinations.map((exam: any) => ({
-        name: exam.name,
-        examType: exam.examType,
-        totalStudents: exam.grades.length,
-        averageScore: exam.grades.length > 0
-          ? exam.grades.reduce((sum: any, g: any) => sum + (g.marks || 0), 0) / exam.grades.length
-          : 0,
-      })),
-      generatedAt: new Date(),
-    };
-
-    const report = await this.prisma.complianceReport.create({
-      data: {
-        tenantId,
-        reportType: ComplianceReportType.EXAMINATION_ANALYSIS,
-        reportPeriod,
-        reportYear,
-        status: ReportStatus.DRAFT,
-        reportData,
-        isAutomated: true,
-      },
-    });
-
-    return report;
-  }
-
-  /**
-   * Generate financial summary report
-   */
-  async generateFinancialReport(
-    tenantId: string,
-    reportPeriod: string,
-    reportYear: number,
-    reportMonth?: number,
-  ) {
-    this.logger.log(`Generating financial report for ${reportPeriod}`);
-
-    // Get invoices and payments
-    const invoices = await this.prisma.invoice.findMany({
-      where: { tenantId },
-      include: {
-        payments: true,
-      },
-    });
-
-    const totalRevenue = invoices.reduce((sum: any, inv: any) => sum + inv.paidAmount, 0);
-    const totalExpected = invoices.reduce((sum: any, inv: any) => sum + inv.totalAmount, 0);
-    const totalOutstanding = invoices.reduce((sum: any, inv: any) => sum + inv.balanceAmount, 0);
-
-    // Payment methods breakdown
-    const payments = invoices.flatMap((inv: any) => inv.payments);
-    const byPaymentMethod = this.groupBy(payments, 'paymentMethod');
-
-    // Monthly collection trend
-    const monthlyCollections = this.groupPaymentsByMonth(payments);
-
-    const reportData = {
-      summary: {
-        totalExpectedRevenue: totalExpected,
-        totalCollectedRevenue: totalRevenue,
-        totalOutstanding: totalOutstanding,
-        collectionRate: totalExpected > 0 
-          ? parseFloat(((totalRevenue / totalExpected) * 100).toFixed(2))
-          : 0,
-        totalInvoices: invoices.length,
-        paidInvoices: invoices.filter((i: any) => i.status === 'PAID').length,
-        pendingInvoices: invoices.filter((i: any) => i.status === 'PENDING').length,
-      },
-      byPaymentMethod: Object.entries(byPaymentMethod).map(([method, count]) => ({
-        method,
-        count,
-        amount: payments
-          .filter((p: any) => p.paymentMethod === method)
-          .reduce((sum: any, p: any) => sum + p.amount, 0),
-      })),
-      monthlyCollections,
-      generatedAt: new Date(),
-    };
-
-    const report = await this.prisma.complianceReport.create({
-      data: {
-        tenantId,
-        reportType: ComplianceReportType.FINANCIAL_SUMMARY,
-        reportPeriod,
-        reportYear,
-        reportMonth,
-        status: ReportStatus.DRAFT,
-        reportData: reportData as any,
-        isAutomated: true,
-      },
-    });
-
-    return report;
-  }
-
-  /**
-   * Submit report to government body
-   */
-  async submitReport(reportId: string, userId: string): Promise<{submittedTo:string}> {throw new HttpException('Automatic government submission is not configured. Export and submit the reviewed report through the official portal', HttpStatus.NOT_IMPLEMENTED);}
-
-  /**
-   * Approve report
-   */
-  async approveReport(reportId: string, userId: string) {
-    return this.prisma.complianceReport.update({
-      where: { id: reportId },
-      data: {
-        status: ReportStatus.APPROVED,
-        approvedBy: userId,
-        approvedAt: new Date(),
-      },
+      });
+      await append(tx, tenantId, actorId, 'REPORT', saved.id, 'GENERATED', {
+        reportType: dto.reportType,
+        contentHash: sha(stable(saved.reportData)),
+        replacesReportId: dto.replacesReportId || null,
+      });
+      return saved;
     });
   }
-
-  /**
-   * Get all reports for tenant
-   */
-  async getReport(tenantId:string,id:string){const report=await this.prisma.complianceReport.findFirst({where:{id,tenantId}});if(!report)throw new HttpException('Report not found',HttpStatus.NOT_FOUND);return report;}
-
-  async getReports(
-    tenantId: string,
-    reportType?: ComplianceReportType,
-    status?: ReportStatus,
-  ) {
-    const where: any = { tenantId };
-    if (reportType) where.reportType = reportType;
-    if (status) where.status = status;
-
+  generateEnrollmentReport(t: string, p: string, y: number, q?: number) {
+    return this.generateReport(t, {
+      reportType: 'ENROLLMENT_STATISTICS',
+      reportPeriod: p,
+      reportYear: y,
+      reportQuarter: q,
+    });
+  }
+  generateAttendanceReport(t: string, p: string, y: number, s: Date, e: Date) {
+    return this.generateReport(t, {
+      reportType: 'ATTENDANCE_SUMMARY',
+      reportPeriod: p,
+      reportYear: y,
+      startDate: day(s),
+      endDate: day(e),
+    });
+  }
+  generateTeacherDataReport(t: string, p: string, y: number) {
+    return this.generateReport(t, {
+      reportType: 'TEACHER_DATA_REPORT',
+      reportPeriod: p,
+      reportYear: y,
+    });
+  }
+  generateExaminationReport(t: string, p: string, y: number, termId: string) {
+    return this.generateReport(t, {
+      reportType: 'EXAMINATION_ANALYSIS',
+      reportPeriod: p,
+      reportYear: y,
+      termId,
+    });
+  }
+  generateFinancialReport(t: string, p: string, y: number, m?: number) {
+    return this.generateReport(t, {
+      reportType: 'FINANCIAL_SUMMARY',
+      reportPeriod: p,
+      reportYear: y,
+      reportMonth: m,
+    });
+  }
+  private async report(db: Db, tenantId: string, id: string) {
+    const row = await db.complianceReport.findFirst({ where: { tenantId, id } });
+    if (!row) throw new NotFoundException('Report not found');
+    return row;
+  }
+  getReports(tenantId: string, reportType?: ComplianceReportType, status?: ReportStatus) {
     return this.prisma.complianceReport.findMany({
-      where,
+      where: { tenantId, ...(reportType ? { reportType } : {}), ...(status ? { status } : {}) },
+      select: {
+        id: true,
+        tenantId: true,
+        reportType: true,
+        reportPeriod: true,
+        reportYear: true,
+        reportMonth: true,
+        reportQuarter: true,
+        status: true,
+        approvedBy: true,
+        approvedAt: true,
+        submittedTo: true,
+        submittedAt: true,
+        dueDate: true,
+        createdAt: true,
+        updatedAt: true,
+        isAutomated: true,
+        metadata: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
-
-  /**
-   * Create compliance checklist
-   */
+  async getReport(tenantId: string, id: string) {
+    const row = await this.report(this.prisma, tenantId, id);
+    const [exports, history] = await Promise.all([
+      this.prisma.complianceExport.findMany({
+        where: { tenantId, reportId: id },
+        select: {
+          id: true,
+          filename: true,
+          format: true,
+          templateId: true,
+          contentHash: true,
+          validation: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.complianceLedger.findMany({
+        where: { tenantId, entityType: 'REPORT', entityId: id },
+        orderBy: { sequence: 'asc' },
+      }),
+    ]);
+    return { ...row, exports, history };
+  }
+  async action(tenantId: string, actorId: string, id: string, action: string, notes?: string) {
+    return atomic(this.prisma, tenantId, async (tx) => {
+      const row = await this.report(tx, tenantId, id),
+        meta = (row.metadata as any) || {};
+      const transitions: Record<string, { from: string[]; to: ReportStatus }> = {
+        REQUEST_REVIEW: { from: ['DRAFT'], to: 'PENDING_APPROVAL' },
+        APPROVE: { from: ['PENDING_APPROVAL'], to: 'APPROVED' },
+        REJECT: { from: ['PENDING_APPROVAL'], to: 'REJECTED' },
+        REOPEN: { from: ['REJECTED'], to: 'DRAFT' },
+      };
+      const transition = transitions[action];
+      if (!transition || !transition.from.includes(row.status))
+        throw new ConflictException('Action is not available for the current report status');
+      if (action === 'REJECT' && !notes?.trim())
+        throw new BadRequestException('Enter the reason for rejection');
+      if (action === 'APPROVE' && meta.reviewRequestedBy === actorId)
+        throw new ForbiddenException('Another school manager must approve this report');
+      if (action === 'REOPEN' && meta.manualSubmission)
+        throw new ConflictException(
+          'Generate a corrected replacement to preserve submitted evidence'
+        );
+      const saved = await tx.complianceReport.update({
+        where: { id, tenantId },
+        data: {
+          status: transition.to,
+          metadata: {
+            ...meta,
+            ...(action === 'REQUEST_REVIEW' ? { reviewRequestedBy: actorId } : {}),
+          },
+          ...(action === 'APPROVE'
+            ? { approvedBy: actorId, approvedAt: new Date() }
+            : { approvedBy: null, approvedAt: null }),
+        },
+      });
+      await append(tx, tenantId, actorId, 'REPORT', id, action, {
+        from: row.status,
+        to: saved.status,
+        notes: notes?.trim() || null,
+      });
+      return saved;
+    });
+  }
+  approveReport(tenantId: string, id: string, userId: string) {
+    return this.action(tenantId, userId, id, 'APPROVE');
+  }
+  async submitReport(_reportId: string, _userId: string): Promise<never> {
+    throw new NotImplementedException(
+      'Direct government submission is unavailable. Upload the reviewed file manually and record its portal receipt.'
+    );
+  }
+  async validateExport(tenantId: string, id: string, templateId: string) {
+    return exportRows(await this.report(this.prisma, tenantId, id), templateId).validation;
+  }
+  async exportPortalData(tenantId: string, actorId: string, dto: ExportPortalDataDto) {
+    if (!['xlsx', 'csv', 'json'].includes(dto.format || 'xlsx'))
+      throw new BadRequestException('Choose CSV, XLSX or JSON');
+    return atomic(this.prisma, tenantId, async (tx) => {
+      const row = await this.report(tx, tenantId, dto.reportId),
+        { table, validation } = exportRows(row, dto.templateId),
+        format = dto.format || 'xlsx';
+      if (!validation.ready)
+        throw new BadRequestException({
+          message: 'Resolve source errors and generate a corrected report',
+          validation,
+        });
+      const content =
+        format === 'csv'
+          ? csv(table)
+          : format === 'xlsx'
+            ? xlsx(table)
+            : Buffer.from(
+                JSON.stringify(
+                  {
+                    reference: row.id,
+                    type: row.reportType,
+                    period: row.reportPeriod,
+                    data: row.reportData,
+                    validation,
+                  },
+                  null,
+                  2
+                )
+              );
+      const contentType =
+        format === 'csv'
+          ? 'text/csv;charset=utf-8'
+          : format === 'xlsx'
+            ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            : 'application/json';
+      const file = await tx.complianceExport.create({
+        data: {
+          tenantId,
+          reportId: row.id,
+          templateId: dto.templateId,
+          format,
+          filename: `${dto.templateId}_${row.id}.${format}`,
+          contentType,
+          content,
+          contentHash: sha(content),
+          validation: json(validation),
+          createdBy: actorId,
+        },
+      });
+      await append(tx, tenantId, actorId, 'REPORT', row.id, 'EXPORTED', {
+        exportId: file.id,
+        contentHash: file.contentHash,
+        templateId: file.templateId,
+        approved: row.status === 'APPROVED',
+        validation,
+      });
+      return {
+        id: file.id,
+        filename: file.filename,
+        contentHash: file.contentHash,
+        validation,
+        downloadUrl: `/government/compliance/downloads/${file.id}`,
+      };
+    });
+  }
+  async download(tenantId: string, id: string) {
+    const file = await this.prisma.complianceExport.findFirst({ where: { tenantId, id } });
+    if (!file) throw new NotFoundException('Export not found');
+    if (sha(file.content) !== file.contentHash)
+      throw new ConflictException('Export integrity check failed');
+    return file;
+  }
+  private evidence(url?: string) {
+    if (url && !/^https:\/\/[^\s]+$/i.test(url))
+      throw new BadRequestException('Evidence must be an HTTPS document link');
+  }
+  async recordSubmission(tenantId: string, actorId: string, dto: ManualSubmissionDto) {
+    if (!dto.portalFormatReviewed)
+      throw new BadRequestException(
+        'Confirm that you reviewed the portal format and uploaded this file'
+      );
+    if (!dto.portal.trim() || !dto.receiptReference.trim())
+      throw new BadRequestException('Portal and receipt reference are required');
+    const submittedAt = new Date(dto.submittedAt);
+    this.evidence(dto.evidenceUrl);
+    if (!Number.isFinite(submittedAt.getTime()) || submittedAt > new Date())
+      throw new BadRequestException('Submission time must be a valid past time');
+    return atomic(this.prisma, tenantId, async (tx) => {
+      const row = await this.report(tx, tenantId, dto.reportId),
+        metadata = (row.metadata as any) || {};
+      if (
+        row.status === 'SUBMITTED' &&
+        metadata.manualSubmission?.exportId === dto.exportId &&
+        metadata.manualSubmission?.receiptReference === dto.receiptReference &&
+        metadata.manualSubmission?.portal === dto.portal
+      )
+        return row;
+      if (row.status !== 'APPROVED')
+        throw new ConflictException('Approve the report before recording manual submission');
+      const file = await tx.complianceExport.findFirst({
+        where: { tenantId, id: dto.exportId, reportId: row.id },
+      });
+      if (!file || !(file.validation as any).ready || sha(file.content) !== file.contentHash)
+        throw new BadRequestException('Choose a valid saved export for this report');
+      if (!row.approvedAt || file.createdAt < row.approvedAt || submittedAt < row.approvedAt)
+        throw new ConflictException(
+          'Export and upload the approved version before recording its receipt'
+        );
+      const manualSubmission = {
+        ...dto,
+        contentHash: file.contentHash,
+        recordedBy: actorId,
+        recordedAt: new Date(),
+      };
+      const saved = await tx.complianceReport.update({
+        where: { id: row.id, tenantId },
+        data: {
+          status: 'SUBMITTED',
+          submittedTo: dto.portal.trim(),
+          submittedAt,
+          submittedBy: actorId,
+          metadata: json({ ...metadata, manualSubmission }),
+        },
+      });
+      await append(tx, tenantId, actorId, 'REPORT', row.id, 'MANUALLY_SUBMITTED', manualSubmission);
+      return saved;
+    });
+  }
+  async recordOutcome(tenantId: string, actorId: string, dto: SubmissionOutcomeDto) {
+    if (!dto.notes.trim()) throw new BadRequestException('Record the portal response');
+    this.evidence(dto.evidenceUrl);
+    return atomic(this.prisma, tenantId, async (tx) => {
+      const row = await this.report(tx, tenantId, dto.reportId);
+      if (row.status !== 'SUBMITTED')
+        throw new ConflictException('Only submitted reports can receive a portal outcome');
+      const saved = await tx.complianceReport.update({
+        where: { id: row.id, tenantId },
+        data: {
+          status: dto.status,
+          metadata: json({
+            ...((row.metadata as any) || {}),
+            outcome: { ...dto, actorId, recordedAt: new Date() },
+          }),
+        },
+      });
+      await append(tx, tenantId, actorId, 'REPORT', row.id, 'PORTAL_' + dto.status, dto);
+      return saved;
+    });
+  }
   async createChecklist(
     tenantId: string,
     title: string,
@@ -450,297 +433,166 @@ export class ComplianceService {
     requiredBy: string,
     frequency: string,
     dueDate?: Date,
+    actorId = 'SYSTEM'
   ) {
-    return this.prisma.complianceChecklist.create({
-      data: {
-        tenantId,
-        title,
-        description,
-        complianceArea,
-        requiredBy,
-        frequency,
-        dueDate,
-        status: ChecklistStatus.PENDING,
-      },
+    if (
+      !title.trim() ||
+      !requiredBy.trim() ||
+      !['DAILY', 'WEEKLY', 'MONTHLY', 'TERMLY', 'ANNUAL', 'ONCE'].includes(frequency)
+    )
+      throw new BadRequestException('Enter a title, authority and supported frequency');
+    return atomic(this.prisma, tenantId, async (tx) => {
+      const row = await tx.complianceChecklist.create({
+        data: {
+          tenantId,
+          title: title.trim(),
+          description,
+          complianceArea,
+          requiredBy,
+          frequency,
+          dueDate,
+        },
+      });
+      await append(tx, tenantId, actorId, 'CHECKLIST', row.id, 'CREATED', row);
+      return row;
     });
   }
-
-  /**
-   * Complete checklist item
-   */
-  async completeChecklist(
-    checklistId: string,
-    userId: string,
-    evidence?: any,
-    notes?: string,
-  ) {
-    return this.prisma.complianceChecklist.update({
-      where: { id: checklistId },
-      data: {
-        status: ChecklistStatus.COMPLETED,
-        completedAt: new Date(),
-        completedBy: userId,
-        evidence,
-        notes,
-      },
-    });
-  }
-
-  /**
-   * Get compliance checklists
-   */
-  async getChecklists(
-    tenantId: string,
-    complianceArea?: ComplianceArea,
-    status?: ChecklistStatus,
-  ) {
-    const where: any = { tenantId };
-    if (complianceArea) where.complianceArea = complianceArea;
-    if (status) where.status = status;
-
+  getChecklists(tenantId: string, complianceArea?: ComplianceArea, status?: ChecklistStatus) {
     return this.prisma.complianceChecklist.findMany({
-      where,
+      where: {
+        tenantId,
+        ...(complianceArea ? { complianceArea } : {}),
+        ...(status ? { status } : {}),
+      },
       orderBy: { dueDate: 'asc' },
     });
   }
-
-  /**
-   * Run data quality audit
-   */
-  async runDataQualityAudit(tenantId: string, auditType: DataAuditType) {
-    this.logger.log(`Running data quality audit: ${auditType}`);
-
-    let auditResults: any;
-
-    switch (auditType) {
-      case DataAuditType.STUDENT_DATA:
-        auditResults = await this.auditStudentData(tenantId);
-        break;
-      case DataAuditType.STAFF_DATA:
-        auditResults = await this.auditStaffData(tenantId);
-        break;
-      case DataAuditType.ATTENDANCE_DATA:
-        auditResults = await this.auditAttendanceData(tenantId);
-        break;
-      case DataAuditType.FULL_AUDIT:
-        auditResults = await this.runFullAudit(tenantId);
-        break;
-      default:
-        throw new HttpException('Invalid audit type', HttpStatus.BAD_REQUEST);
-    }
-
-    return this.prisma.dataQualityAudit.create({
-      data: {
-        tenantId,
-        auditType,
-        entityType: this.getEntityType(auditType),
-        completeness: auditResults.completeness,
-        accuracy: auditResults.accuracy,
-        consistency: auditResults.consistency,
-        overallScore: auditResults.overallScore,
-        issuesFound: auditResults.issues.length,
-        criticalIssues: auditResults.issues.filter((i: any) => i.severity === 'CRITICAL').length,
-        warningIssues: auditResults.issues.filter((i: any) => i.severity === 'WARNING').length,
-        issues: auditResults.issues,
-        status: auditResults.issues.length > 0 
-          ? AuditStatus.REQUIRES_ACTION 
-          : AuditStatus.COMPLETED,
-      },
-    });
+  async getChecklist(tenantId: string, id: string) {
+    const row = await this.prisma.complianceChecklist.findFirst({ where: { tenantId, id } });
+    if (!row) throw new NotFoundException('Checklist item not found');
+    return row;
   }
-
-  /**
-   * Audit student data quality
-   */
-  private async auditStudentData(tenantId: string) {
-    const students = await this.prisma.student.findMany({
-      where: { tenantId, status: StudentStatus.ACTIVE },
-    });
-
-    const issues: any[] = [];
-    let completenessScore = 0;
-    let accuracyScore = 0;
-
-    students.forEach((student: any) => {
-      let studentCompleteness = 0;
-      const requiredFields = 10;
-
-      // Check required fields
-      if (student.firstName) studentCompleteness++;
-      if (student.lastName) studentCompleteness++;
-      if (student.dateOfBirth) studentCompleteness++;
-      if (student.gender) studentCompleteness++;
-      if (student.admissionNumber) studentCompleteness++;
-      if (student.admissionDate) studentCompleteness++;
-      if (student.currentClassId) studentCompleteness++;
-      if (student.email || student.phone) studentCompleteness++;
-      if (student.aadhaarLast4 || student.apaarId || student.birthCertNumber) studentCompleteness++;
-      if (student.address) studentCompleteness++;
-
-      completenessScore += (studentCompleteness / requiredFields) * 100;
-
-      // Identify issues
-      if (!student.aadhaarLast4 && !student.apaarId && !student.birthCertNumber) {
-        issues.push({
-          severity: 'CRITICAL',
-          entity: 'STUDENT',
-          entityId: student.id,
-          field: 'identification',
-          message: `Student ${student.admissionNumber} missing Aadhaar (last 4), APAAR ID, and Birth Certificate`,
-        });
-      }
-
-      if (!student.currentClassId) {
-        issues.push({
-          severity: 'WARNING',
-          entity: 'STUDENT',
-          entityId: student.id,
-          field: 'currentClassId',
-          message: `Student ${student.admissionNumber} not assigned to a class`,
-        });
-      }
-    });
-
-    const avgCompleteness = students.length > 0 ? completenessScore / students.length : 0;
-
-    return {
-      completeness: parseFloat(avgCompleteness.toFixed(2)),
-      accuracy: 95, // Placeholder
-      consistency: 90, // Placeholder
-      overallScore: parseFloat(((avgCompleteness + 95 + 90) / 3).toFixed(2)),
-      issues,
-    };
-  }
-
-  /**
-   * Audit staff data quality
-   */
-  private async auditStaffData(tenantId: string) {
-    const staff = await this.prisma.staff.findMany({
-      where: { tenantId, status: 'ACTIVE' },
-    });
-
-    const issues: any[] = [];
-    let completenessScore = 0;
-
-    staff.forEach((member: any) => {
-      let staffCompleteness = 0;
-      const requiredFields = 9;
-
-      if (member.firstName) staffCompleteness++;
-      if (member.lastName) staffCompleteness++;
-      if (member.email) staffCompleteness++;
-      if (member.phone) staffCompleteness++;
-      if (member.staffNumber) staffCompleteness++;
-      if (member.department) staffCompleteness++;
-      if (member.position) staffCompleteness++;
-      if (member.employmentType) staffCompleteness++;
-      if (member.hireDate) staffCompleteness++;
-
-      completenessScore += (staffCompleteness / requiredFields) * 100;
-
-      // Check UDISE+ teacher code registration
-      if (member.isTeacher) {
-        issues.push({
-          severity: 'WARNING',
-          entity: 'STAFF',
-          entityId: member.id,
-          field: 'teacherCode',
-          message: `Teacher ${member.staffNumber} - verify UDISE+ National Teacher Code`,
-        });
-      }
-    });
-
-    const avgCompleteness = staff.length > 0 ? completenessScore / staff.length : 0;
-
-    return {
-      completeness: parseFloat(avgCompleteness.toFixed(2)),
-      accuracy: 92,
-      consistency: 88,
-      overallScore: parseFloat(((avgCompleteness + 92 + 88) / 3).toFixed(2)),
-      issues,
-    };
-  }
-
-  /**
-   * Audit attendance data quality
-   */
-  private async auditAttendanceData(tenantId: string) {
-    // Get last 30 days of attendance
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const records = await this.prisma.attendanceRecord.findMany({
-      where: {
-        tenantId,
-        date: { gte: thirtyDaysAgo },
-      },
-    });
-
-    const issues: any[] = [];
-    
-    // Check for missing dates
-    const uniqueDates = new Set(records.map((r: any) => r.date.toISOString().split('T')[0]));
-    const expectedDays = 22; // Approximate school days in 30 days
-
-    if (uniqueDates.size < expectedDays) {
-      issues.push({
-        severity: 'WARNING',
-        entity: 'ATTENDANCE',
-        field: 'date',
-        message: `Only ${uniqueDates.size} days of attendance recorded in last 30 days`,
+  async completeChecklist(
+    tenantId: string,
+    id: string,
+    actorId: string,
+    evidence?: any,
+    notes?: string
+  ) {
+    return atomic(this.prisma, tenantId, async (tx) => {
+      const row = await tx.complianceChecklist.findFirst({ where: { tenantId, id } });
+      if (!row) throw new NotFoundException('Checklist item not found');
+      if (row.status === 'COMPLETED') return row;
+      const saved = await tx.complianceChecklist.update({
+        where: { id, tenantId },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+          completedBy: actorId,
+          evidence,
+          notes,
+        },
       });
-    }
-
-    return {
-      completeness: parseFloat(((uniqueDates.size / expectedDays) * 100).toFixed(2)),
-      accuracy: 95,
-      consistency: 92,
-      overallScore: 94,
-      issues,
-    };
+      await append(tx, tenantId, actorId, 'CHECKLIST', id, 'COMPLETED', {
+        evidence: evidence || null,
+        notes: notes || null,
+      });
+      return saved;
+    });
   }
-
-  /**
-   * Run full audit
-   */
-  private async runFullAudit(tenantId: string) {
-    const studentAudit = await this.auditStudentData(tenantId);
-    const staffAudit = await this.auditStaffData(tenantId);
-    const attendanceAudit = await this.auditAttendanceData(tenantId);
-
-    const allIssues = [
-      ...studentAudit.issues,
-      ...staffAudit.issues,
-      ...attendanceAudit.issues,
-    ];
-
-    const overallScore = (
-      studentAudit.overallScore +
-      staffAudit.overallScore +
-      attendanceAudit.overallScore
-    ) / 3;
-
-    return {
-      completeness: (studentAudit.completeness + staffAudit.completeness + attendanceAudit.completeness) / 3,
-      accuracy: (studentAudit.accuracy + staffAudit.accuracy + attendanceAudit.accuracy) / 3,
-      consistency: (studentAudit.consistency + staffAudit.consistency + attendanceAudit.consistency) / 3,
-      overallScore: parseFloat(overallScore.toFixed(2)),
-      issues: allIssues,
-    };
+  async runDataQualityAudit(
+    tenantId: string,
+    auditType: DataAuditType,
+    actorId = 'SYSTEM',
+    idempotencyKey?: string
+  ) {
+    if (
+      ![
+        'STUDENT_DATA',
+        'STAFF_DATA',
+        'SCHOOL_PROFILE',
+        'ATTENDANCE_DATA',
+        'EXAMINATION_DATA',
+        'FULL_AUDIT',
+      ].includes(auditType)
+    )
+      throw new BadRequestException('Unsupported audit type');
+    return atomic(this.prisma, tenantId, async (tx) => {
+      if (idempotencyKey) {
+        const previous = await tx.complianceLedger.findFirst({
+          where: {
+            tenantId,
+            action: 'AUDIT_COMPLETED',
+            payload: { path: ['idempotencyKey'], equals: idempotencyKey },
+          },
+        });
+        if (previous)
+          return tx.dataQualityAudit.findFirst({ where: { tenantId, id: previous.entityId } });
+      }
+      const results = await auditData(tx, tenantId, auditType);
+      const row = await tx.dataQualityAudit.create({
+        data: {
+          tenantId,
+          auditType,
+          entityType: auditType,
+          completeness: results.completeness,
+          accuracy: results.accuracy,
+          consistency: results.consistency,
+          overallScore: results.overallScore,
+          issuesFound: results.issues.length,
+          criticalIssues: results.issues.filter((i) => i.severity === 'ERROR').length,
+          warningIssues: results.issues.filter((i) => i.severity === 'WARNING').length,
+          issues: json(results),
+          status: results.issues.length ? 'REQUIRES_ACTION' : 'COMPLETED',
+        },
+      });
+      await append(tx, tenantId, actorId, 'AUDIT', row.id, 'AUDIT_COMPLETED', {
+        overallScore: row.overallScore,
+        idempotencyKey: idempotencyKey || null,
+      });
+      return row;
+    });
   }
-
-  /**
-   * Create compliance alert
-   */
-  async createAlert(
+  getAudits(tenantId: string, limit = 50) {
+    return this.prisma.dataQualityAudit.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: 'desc' },
+      take: Math.max(1, Math.min(Number(limit) || 50, 100)),
+    });
+  }
+  async getAudit(tenantId: string, id: string) {
+    const row = await this.prisma.dataQualityAudit.findFirst({ where: { tenantId, id } });
+    if (!row) throw new NotFoundException('Audit not found');
+    return row;
+  }
+  async resolveAudit(tenantId: string, id: string, actorId: string) {
+    const previous = await this.getAudit(tenantId, id),
+      current = await this.runDataQualityAudit(tenantId, previous.auditType, actorId);
+    if (!current) throw new ConflictException('Audit could not be rerun');
+    await atomic(this.prisma, tenantId, async (tx) => {
+      await tx.dataQualityAudit.update({
+        where: { id, tenantId },
+        data: {
+          status: current.issuesFound ? 'REQUIRES_ACTION' : 'COMPLETED',
+          resolvedIssues: Math.max(0, previous.issuesFound - current.issuesFound),
+          resolvedAt: current.issuesFound ? null : new Date(),
+        },
+      });
+      await append(tx, tenantId, actorId, 'AUDIT', id, 'REAUDITED', {
+        latestAuditId: current.id,
+        remainingIssues: current.issuesFound,
+      });
+    });
+    return current;
+  }
+  createAlert(
     tenantId: string,
     alertType: ComplianceAlertType,
     severity: AlertSeverity,
     title: string,
     message: string,
     relatedEntity?: string,
-    relatedEntityId?: string,
+    relatedEntityId?: string
   ) {
     return this.prisma.complianceAlert.create({
       data: {
@@ -751,187 +603,445 @@ export class ComplianceService {
         message,
         relatedEntity,
         relatedEntityId,
-        actionRequired: severity === AlertSeverity.CRITICAL || severity === AlertSeverity.ERROR,
-        status: AlertStatus.ACTIVE,
+        actionRequired: ['CRITICAL', 'ERROR'].includes(severity),
+        status: 'ACTIVE',
       },
     });
   }
-
-  /**
-   * Get active alerts
-   */
-  async getAlerts(tenantId: string, status?: AlertStatus) {
-    const where: any = { tenantId };
-    if (status) where.status = status;
-    else where.status = AlertStatus.ACTIVE;
-
+  getAlerts(tenantId: string, status?: AlertStatus) {
     return this.prisma.complianceAlert.findMany({
-      where,
-      orderBy: [
-        { severity: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      where: { tenantId, ...(status ? { status } : {}) },
+      orderBy: { createdAt: 'desc' },
     });
   }
-
-  /**
-   * Acknowledge alert
-   */
-  async acknowledgeAlert(alertId: string, userId: string) {
-    return this.prisma.complianceAlert.update({
-      where: { id: alertId },
-      data: {
-        status: AlertStatus.ACKNOWLEDGED,
-        acknowledgedBy: userId,
-        acknowledgedAt: new Date(),
-      },
+  private async alertAction(
+    tenantId: string,
+    id: string,
+    actorId: string,
+    status: AlertStatus,
+    notes?: string
+  ) {
+    return atomic(this.prisma, tenantId, async (tx) => {
+      const row = await tx.complianceAlert.findFirst({ where: { tenantId, id } });
+      if (!row) throw new NotFoundException('Alert not found');
+      if (row.status === status) return row;
+      if (row.status === 'RESOLVED') throw new ConflictException('Alert is already resolved');
+      if (status === 'RESOLVED' && !notes?.trim())
+        throw new BadRequestException('Record how this alert was resolved');
+      const saved = await tx.complianceAlert.update({
+        where: { id, tenantId },
+        data:
+          status === 'ACKNOWLEDGED'
+            ? { status, acknowledgedBy: actorId, acknowledgedAt: new Date() }
+            : { status, resolvedBy: actorId, resolvedAt: new Date(), resolutionNotes: notes },
+      });
+      await append(tx, tenantId, actorId, 'ALERT', id, status, { notes: notes || null });
+      return saved;
     });
   }
-
-  /**
-   * Resolve alert
-   */
-  async resolveAlert(alertId: string, userId: string, resolutionNotes: string) {
-    return this.prisma.complianceAlert.update({
-      where: { id: alertId },
-      data: {
-        status: AlertStatus.RESOLVED,
-        resolvedBy: userId,
-        resolvedAt: new Date(),
-        resolutionNotes,
-      },
-    });
+  acknowledgeAlert(tenantId: string, id: string, actorId: string) {
+    return this.alertAction(tenantId, id, actorId, 'ACKNOWLEDGED');
   }
-
-  // Helper methods
-
-  private groupBy(array: any[], key: string): any {
-    return array.reduce((acc, item) => {
-      const value = item[key];
-      acc[value] = (acc[value] || 0) + 1;
-      return acc;
-    }, {});
+  resolveAlert(tenantId: string, id: string, actorId: string, notes: string) {
+    return this.alertAction(tenantId, id, actorId, 'RESOLVED', notes);
   }
-
-  private groupAttendanceByDate(records: any[]): any[] {
-    const grouped = records.reduce((acc, record) => {
-      const date = record.date.toISOString().split('T')[0];
-      if (!acc[date]) {
-        acc[date] = { date, present: 0, absent: 0, late: 0, total: 0 };
+  async checkDeadlines(tenantId: string, now = new Date()) {
+    return atomic(this.prisma, tenantId, async (tx) => {
+      const horizon = new Date(now.getTime() + 7 * 86400000);
+      const [reports, lists] = await Promise.all([
+        tx.complianceReport.findMany({
+          where: {
+            tenantId,
+            dueDate: { lte: horizon },
+            status: { in: ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED'] },
+          },
+        }),
+        tx.complianceChecklist.findMany({
+          where: {
+            tenantId,
+            dueDate: { lte: horizon },
+            status: { in: ['PENDING', 'IN_PROGRESS', 'OVERDUE'] },
+          },
+        }),
+      ]);
+      const candidates = [
+        ...reports.map((r) => ({
+          id: r.id,
+          title: r.reportPeriod,
+          dueDate: r.dueDate,
+          entity: 'REPORT',
+        })),
+        ...lists.map((r) => ({
+          id: r.id,
+          title: r.title,
+          dueDate: r.dueDate,
+          entity: 'CHECKLIST',
+        })),
+      ];
+      let created = 0;
+      for (const row of candidates) {
+        const overdue = day(row.dueDate!) < day(now),
+          alertType = overdue ? 'REPORT_DUE' : 'DEADLINE_APPROACHING';
+        if (
+          !(await tx.complianceAlert.findFirst({
+            where: { tenantId, relatedEntity: row.entity, relatedEntityId: row.id, alertType },
+          }))
+        ) {
+          await tx.complianceAlert.create({
+            data: {
+              tenantId,
+              alertType,
+              severity: overdue ? 'ERROR' : 'WARNING',
+              title: `${overdue ? 'Overdue' : 'Due soon'}: ${row.title}`,
+              message: `Due ${day(row.dueDate!)}. Review and complete this school reporting task.`,
+              relatedEntity: row.entity,
+              relatedEntityId: row.id,
+              actionRequired: true,
+              actionUrl: '/dashboard/compliance',
+            },
+          });
+          created++;
+        }
+        if (overdue && row.entity === 'CHECKLIST')
+          await tx.complianceChecklist.update({
+            where: { id: row.id, tenantId },
+            data: { status: 'OVERDUE' },
+          });
       }
-      acc[date].total++;
-      if (record.status === AttendanceStatus.PRESENT) acc[date].present++;
-      if (record.status === AttendanceStatus.ABSENT) acc[date].absent++;
-      if (record.status === AttendanceStatus.LATE) acc[date].late++;
-      return acc;
-    }, {});
-
-    return Object.values(grouped);
-  }
-
-  private groupAttendanceByClass(records: any[]): any {
-    return records.reduce((acc, record) => {
-      const className = record.student?.currentClass?.name || 'Unknown';
-      if (!acc[className]) {
-        acc[className] = { class: className, present: 0, absent: 0, total: 0 };
-      }
-      acc[className].total++;
-      if (record.status === AttendanceStatus.PRESENT) acc[className].present++;
-      if (record.status === AttendanceStatus.ABSENT) acc[className].absent++;
-      return acc;
-    }, {});
-  }
-
-  private calculateSchoolDays(startDate: Date, endDate: Date): number {
-    const oneDay = 24 * 60 * 60 * 1000;
-    const days = Math.round((endDate.getTime() - startDate.getTime()) / oneDay);
-    // Approximate school days (excluding weekends)
-    return Math.floor((days / 7) * 5);
-  }
-
-  private calculateSubjectPerformance(grades: any[]): any[] {
-    const subjectMap = new Map<string, any>();
-
-    grades.forEach(grade => {
-      const subjectName = grade.subject?.name || 'Unknown';
-      if (!subjectMap.has(subjectName)) {
-        subjectMap.set(subjectName, {
-          subject: subjectName,
-          count: 0,
-          totalMarks: 0,
-          averageMarks: 0,
+      if (created)
+        await append(tx, tenantId, 'SYSTEM', 'DEADLINES', tenantId, 'REMINDERS_CREATED', {
+          created,
         });
-      }
-
-      const stats = subjectMap.get(subjectName);
-      stats.count++;
-      stats.totalMarks += grade.marks || 0;
+      return { checked: candidates.length, created };
     });
-
-    return Array.from(subjectMap.values()).map(stat => ({
-      ...stat,
-      averageMarks: parseFloat((stat.totalMarks / stat.count).toFixed(2)),
-    }));
   }
-
-  private calculatePassingRate(grades: any[]): number {
-    if (grades.length === 0) return 0;
-
-    const passingGrades = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'D', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D'];
-    const passing = grades.filter(g => passingGrades.includes(g.grade || g.letterGrade || '')).length;
-
-    return parseFloat(((passing / grades.length) * 100).toFixed(2));
+  async dashboard(tenantId: string) {
+    const [reports, checklists, alerts, audits] = await Promise.all([
+      this.getReports(tenantId),
+      this.getChecklists(tenantId),
+      this.getAlerts(tenantId),
+      this.getAudits(tenantId, 1),
+    ]);
+    return {
+      externalApiAvailable: false,
+      reports: { total: reports.length, ...countBy(reports, 'status') },
+      checklists: { total: checklists.length, ...countBy(checklists, 'status') },
+      alerts: { total: alerts.length, ...countBy(alerts, 'status') },
+      latestAudit: audits[0] || null,
+    };
   }
-
-  private groupPaymentsByMonth(payments: any[]): any[] {
-    const monthly = payments.reduce((acc, payment) => {
-      const date = new Date(payment.paymentDate);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-
-      if (!acc[monthKey]) {
-        acc[monthKey] = { month: monthKey, count: 0, amount: 0 };
+  getAuditTrail(tenantId: string, entityType?: string) {
+    return this.prisma.complianceLedger.findMany({
+      where: { tenantId, ...(entityType ? { entityType } : {}) },
+      orderBy: { sequence: 'desc' },
+      take: 500,
+    });
+  }
+  async verifyAuditChain(tenantId: string) {
+    return atomic(this.prisma, tenantId, async (tx) => {
+      const rows = await tx.complianceLedger.findMany({
+        where: { tenantId },
+        orderBy: { sequence: 'asc' },
+      });
+      let previousHash = GENESIS;
+      for (let i = 0; i < rows.length; i++) {
+        const { currentHash, ...event } = rows[i];
+        if (
+          event.sequence !== i + 1 ||
+          event.previousHash !== previousHash ||
+          currentHash !== sha(stable(json(event)))
+        )
+          return {
+            isValid: false,
+            tamperingDetected: true,
+            brokenSequence: event.sequence,
+            totalBlocksVerified: i,
+          };
+        previousHash = currentHash;
       }
-
-      acc[monthKey].count++;
-      acc[monthKey].amount += payment.amount;
-      return acc;
-    }, {});
-
-    return Object.values(monthly);
+      const reports = await tx.complianceReport.findMany({ where: { tenantId } });
+      const generated = new Map(
+        rows
+          .filter((event) => event.entityType === 'REPORT' && event.action === 'GENERATED')
+          .map((event) => [event.entityId, (event.payload as any).contentHash])
+      );
+      const actual = new Map(reports.map((report) => [report.id, report]));
+      const altered = [...generated].find(
+        ([id, hash]) => !actual.has(id) || hash !== sha(stable(actual.get(id)!.reportData))
+      );
+      if (altered)
+        return {
+          isValid: false,
+          tamperingDetected: true,
+          brokenReportId: altered[0],
+          totalBlocksVerified: rows.length,
+        };
+      const exported = new Map(
+        rows
+          .filter((event) => event.action === 'EXPORTED')
+          .map((event) => [(event.payload as any).exportId, (event.payload as any).contentHash])
+      );
+      const files = await tx.complianceExport.findMany({ where: { tenantId } }),
+        broken = files.find(
+          (f) => sha(f.content) !== f.contentHash || exported.get(f.id) !== f.contentHash
+        );
+      return {
+        isValid: !broken,
+        tamperingDetected: !!broken,
+        brokenExportId: broken?.id || null,
+        totalBlocksVerified: rows.length,
+        latestHash: previousHash,
+        legacyReportsWithoutContentEvidence: reports.filter((report) => !generated.has(report.id))
+          .length,
+        algorithm: 'SHA-256 append-only chain',
+        verifiedAt: new Date().toISOString(),
+        scope:
+          'Application evidence; privileged database administrators remain outside this integrity boundary',
+      };
+    });
+  }
+  async override(tenantId: string, actorId: string, dto: LogAuditRecordOverrideDto) {
+    if (!dto.reason.trim() || !Array.isArray(dto.changes) || !dto.changes.length)
+      throw new BadRequestException('Provide the correction and justification');
+    return atomic(this.prisma, tenantId, async (tx) => {
+      if (dto.entityType === 'STAFF_RECORD') {
+        const staff = await tx.staff.findFirst({
+          where: { tenantId, id: dto.entityId, isTeacher: true },
+        });
+        if (!staff) throw new NotFoundException('Teacher record not found');
+        const current = await tx.udiseStaffRecord.findFirst({
+          where: { tenantId, staffId: staff.id },
+        });
+        const change = dto.changes[0];
+        if (
+          dto.changes.length !== 1 ||
+          change.field !== 'teacherCode' ||
+          typeof change.newValue !== 'string' ||
+          !/^[A-Z0-9]{6,15}$/i.test(change.newValue)
+        )
+          throw new BadRequestException(
+            'Enter a verified teacher code containing 6–15 letters/digits'
+          );
+        if ((current?.teacherCode || null) !== (change.oldValue || null))
+          throw new ConflictException('Teacher mapping changed. Refresh and review again');
+        const duplicate = await tx.udiseStaffRecord.findFirst({
+          where: { teacherCode: change.newValue, NOT: { staffId: staff.id } },
+        });
+        if (duplicate) throw new ConflictException('Teacher code is already assigned');
+        let record;
+        try {
+          record = await tx.udiseStaffRecord.upsert({
+            where: { staffId: staff.id },
+            create: { tenantId, staffId: staff.id, teacherCode: change.newValue },
+            update: { teacherCode: change.newValue },
+          });
+        } catch (error: any) {
+          if (error.code === 'P2002')
+            throw new ConflictException('Teacher code is already assigned');
+          throw error;
+        }
+        const event = await append(
+          tx,
+          tenantId,
+          actorId,
+          'STAFF_RECORD',
+          staff.id,
+          'MAPPING_CORRECTED',
+          {
+            reason: dto.reason,
+            changes: dto.changes,
+            source: 'Manually reviewed school record; external sync not performed',
+          }
+        );
+        return { record, auditId: event.id, currentHash: event.currentHash };
+      }
+      const model =
+        dto.entityType === 'STUDENT_RECORD'
+          ? tx.student
+          : dto.entityType === 'GRADE'
+            ? tx.grade
+            : dto.entityType === 'FEE_PAYMENT'
+              ? tx.payment
+              : null;
+      if (!model) throw new BadRequestException('Unsupported correction type');
+      const row: any = await (model.findFirst as any)({ where: { tenantId, id: dto.entityId } });
+      if (!row) throw new NotFoundException('School record not found');
+      const allowed =
+        dto.entityType === 'STUDENT_RECORD'
+          ? [
+              'firstName',
+              'lastName',
+              'dateOfBirth',
+              'penNumber',
+              'apaarId',
+              'birthCertNumber',
+              'aadhaarLast4',
+            ]
+          : dto.entityType === 'GRADE'
+            ? ['score']
+            : ['notes'];
+      const data: any = {};
+      for (const change of dto.changes) {
+        if (
+          !allowed.includes(change.field) ||
+          Object.prototype.hasOwnProperty.call(data, change.field)
+        )
+          throw new BadRequestException('Change this field through its dedicated school workflow');
+        const old = row[change.field] instanceof Date ? day(row[change.field]) : row[change.field];
+        if (stable(old ?? null) !== stable(change.oldValue ?? null))
+          throw new ConflictException('Source record changed. Refresh and review again');
+        if (change.field === 'score') {
+          if (
+            typeof change.newValue !== 'number' ||
+            !Number.isInteger(change.newValue) ||
+            change.newValue < 0 ||
+            change.newValue > row.totalMarks ||
+            row.totalMarks <= 0
+          )
+            throw new BadRequestException('Score must be within the subject maximum');
+          data.score = change.newValue;
+        } else if (change.field === 'dateOfBirth') {
+          data.dateOfBirth = parseDate(String(change.newValue));
+          if (data.dateOfBirth >= row.admissionDate || data.dateOfBirth > new Date())
+            throw new BadRequestException('Birth date must precede admission');
+        } else {
+          if (change.newValue !== null && typeof change.newValue !== 'string')
+            throw new BadRequestException('Enter a text value');
+          const value = change.newValue?.trim() ?? null;
+          if (['firstName', 'lastName'].includes(change.field) && !value)
+            throw new BadRequestException('Name cannot be empty');
+          if (value && value.length > 1000) throw new BadRequestException('Correction is too long');
+          if (value && change.field === 'apaarId' && !/^\d{12}$/.test(value))
+            throw new BadRequestException('APAAR must contain 12 digits');
+          if (value && change.field === 'aadhaarLast4' && !/^\d{4}$/.test(value))
+            throw new BadRequestException('Store only the final four Aadhaar digits');
+          data[change.field] = value;
+        }
+      }
+      if (dto.entityType === 'GRADE') {
+        const exam = await tx.examination.findFirst({ where: { tenantId, id: row.examinationId } });
+        if (!exam || exam.isPublished)
+          throw new ConflictException(
+            'Review and unpublish the examination through the examination workflow before correcting marks'
+          );
+        data.marks = data.score;
+        data.percentage = round((data.score / row.totalMarks) * 100);
+        data.letterGrade =
+          data.percentage >= 91
+            ? 'A1'
+            : data.percentage >= 81
+              ? 'A2'
+              : data.percentage >= 71
+                ? 'B1'
+                : data.percentage >= 61
+                  ? 'B2'
+                  : data.percentage >= 51
+                    ? 'C1'
+                    : data.percentage >= 41
+                      ? 'C2'
+                      : data.percentage >= 33
+                        ? 'D'
+                        : 'E';
+        data.grade = data.letterGrade;
+      }
+      const unchanged = Object.fromEntries(
+        dto.changes.map((change) => [change.field, row[change.field]])
+      );
+      const changed = await (model.updateMany as any)({
+        where: { id: row.id, tenantId, ...unchanged },
+        data,
+      });
+      if (!changed.count)
+        throw new ConflictException('Source record changed. Refresh and review again');
+      const updated = await (model.findFirst as any)({ where: { id: row.id, tenantId } });
+      const event = await append(tx, tenantId, actorId, dto.entityType, row.id, 'CORRECTED', {
+        reason: dto.reason.trim(),
+        approvalRef: dto.approvalRef || null,
+        changes: dto.changes,
+      });
+      return {
+        record: updated,
+        auditId: event.id,
+        currentHash: event.currentHash,
+        notice:
+          'Existing snapshots are preserved. Generate a replacement report to include corrected source data.',
+      };
+    });
   }
 
-  private getSubmissionDestination(reportType: ComplianceReportType): string {
-    const destinations: Record<ComplianceReportType, string> = {
-      [ComplianceReportType.TSC_COMPLIANCE]: 'TSC_LEGACY',
-      [ComplianceReportType.TERMLY_RETURNS]: 'MOE_KENYA_LEGACY',
-      [ComplianceReportType.ENROLLMENT_STATISTICS]: 'UDISE_PLUS',
-      [ComplianceReportType.ATTENDANCE_SUMMARY]: 'UDISE_PLUS',
-      [ComplianceReportType.TEACHER_DATA_REPORT]: 'UDISE_PLUS',
-      [ComplianceReportType.EXAMINATION_ANALYSIS]: 'CBSE',
-      [ComplianceReportType.FINANCIAL_SUMMARY]: 'MOE_INDIA',
-      [ComplianceReportType.INFRASTRUCTURE_STATUS]: 'UDISE_PLUS',
-      [ComplianceReportType.SAFETY_AUDIT]: 'CBSE',
-      [ComplianceReportType.TEACHER_COMPLIANCE]: 'UDISE_PLUS',
-      [ComplianceReportType.ANNUAL_SCHOOL_CENSUS]: 'UDISE_PLUS',
-      [ComplianceReportType.TERM_RETURNS]: 'STATE_BOARD',
-      [ComplianceReportType.LEARNER_TRACKING]: 'APAAR',
-      [ComplianceReportType.DROPOUT_ANALYSIS]: 'UDISE_PLUS',
-      [ComplianceReportType.SPECIAL_NEEDS_REPORT]: 'UDISE_PLUS',
-    };
-
-    return destinations[reportType] || 'UDISE_PLUS';
+  getManualBoardRecords(tenantId: string) {
+    return this.prisma.complianceLedger.findMany({
+      where: { tenantId, entityType: 'BOARD_RECORD' },
+      orderBy: { sequence: 'desc' },
+      take: 500,
+    });
   }
-
-  private getEntityType(auditType: DataAuditType): string {
-    const types: Record<DataAuditType, string> = {
-      [DataAuditType.STUDENT_DATA]: 'STUDENT',
-      [DataAuditType.STAFF_DATA]: 'STAFF',
-      [DataAuditType.SCHOOL_PROFILE]: 'SCHOOL',
-      [DataAuditType.ATTENDANCE_DATA]: 'ATTENDANCE',
-      [DataAuditType.EXAMINATION_DATA]: 'EXAMINATION',
-      [DataAuditType.FULL_AUDIT]: 'ALL',
-    };
-
-    return types[auditType] || 'UNKNOWN';
+  async recordManualBoard(tenantId: string, actorId: string, dto: ManualBoardRecordDto) {
+    this.evidence(dto.evidenceUrl);
+    if (!dto.portalReference.trim() || !dto.notes.trim())
+      throw new BadRequestException('Record the official reference and your verification notes');
+    if (dto.kind !== 'TIMETABLE' && (!dto.studentId || !dto.candidateNumber?.trim()))
+      throw new BadRequestException(
+        'Choose a school student and enter the official candidate number'
+      );
+    if (
+      dto.kind === 'RESULT' &&
+      (!dto.subjectCode?.trim() ||
+        dto.marks === undefined ||
+        !dto.totalMarks ||
+        dto.marks > dto.totalMarks)
+    )
+      throw new BadRequestException('Enter the subject and marks within the maximum');
+    if (dto.kind === 'TIMETABLE') {
+      if (
+        !dto.examDate ||
+        !dto.subjectCode?.trim() ||
+        !/^([01]\d|2[0-3]):[0-5]\d$/.test(dto.startTime || '') ||
+        !/^([01]\d|2[0-3]):[0-5]\d$/.test(dto.endTime || '') ||
+        dto.startTime! >= dto.endTime!
+      )
+        throw new BadRequestException(
+          'Enter a subject, valid exam date and ordered start/end times'
+        );
+      if (parseDate(dto.examDate).getUTCFullYear() !== dto.examYear)
+        throw new BadRequestException('Exam date must match the examination year');
+    }
+    return atomic(this.prisma, tenantId, async (tx) => {
+      const student = dto.studentId
+        ? await tx.student.findFirst({ where: { tenantId, id: dto.studentId, deletedAt: null } })
+        : null;
+      if (dto.studentId && !student) throw new NotFoundException('Student not found');
+      if (
+        dto.replacesId &&
+        !(await tx.complianceLedger.findFirst({
+          where: { tenantId, id: dto.replacesId, entityType: 'BOARD_RECORD' },
+        }))
+      )
+        throw new NotFoundException('Previous board record not found');
+      const dedupKey = sha(stable(json(dto))),
+        previous = await tx.complianceLedger.findFirst({
+          where: {
+            tenantId,
+            entityType: 'BOARD_RECORD',
+            payload: { path: ['dedupKey'], equals: dedupKey },
+          },
+        });
+      if (previous) return previous;
+      return append(
+        tx,
+        tenantId,
+        actorId,
+        'BOARD_RECORD',
+        dto.studentId || `${dto.examLevel}-${dto.examYear}`,
+        'BOARD_MANUALLY_RECORDED',
+        {
+          ...dto,
+          dedupKey,
+          studentName: student ? [student.firstName, student.lastName].join(' ') : null,
+          admissionNumber: student?.admissionNumber || null,
+          source: 'Official portal/document entered and reviewed manually; no external API call',
+        }
+      );
+    });
   }
 }

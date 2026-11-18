@@ -1,2 +1,4 @@
-import { ComplianceWorkspace } from '@/components/ComplianceWorkspace';
-export default function Page(){return <ComplianceWorkspace/>;}
+import { redirect } from 'next/navigation';
+export default function Page() {
+  redirect('/school/compliance');
+}

@@ -11,7 +11,7 @@ import axios from 'axios';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { PreschoolAccessService } from './preschool-access.service';
-import { PreschoolService, preschoolDate } from './preschool.service';
+import { PreschoolService, preschoolDate, preschoolTimestamp } from './preschool.service';
 import { ClassroomCameraService, cameraWindow } from './classroom-camera.service';
 import { PreschoolContentService } from './preschool-content.service';
 import { preschoolGuidance, preschoolTemplate } from './preschool-templates';
@@ -20,9 +20,13 @@ import {
   BulkCheckInDto,
   BulkMarkAbsentDto,
   CameraDto,
+  CheckInDto,
+  CorrectDayTimesDto,
   GeneratePreschoolDto,
   MarkAbsentDto,
   PreschoolCopilotDto,
+  UndoDayActionDto,
+  UpdateObservationDto,
   contentKinds,
   CheckOutDto,
 } from './preschool.dto';
@@ -52,7 +56,13 @@ const fn = (result: unknown = null) => jest.fn().mockResolvedValue(result);
 function setup() {
   const db: any = {
     tenant: { findFirst: fn({ timezone: 'Asia/Kolkata' }) },
-    student: { findFirst: fn(child), findMany: fn([]), update: fn(child), updateMany: fn({ count: 1 }) },
+    student: {
+      findFirst: fn(child),
+      findMany: fn([]),
+      count: fn(0),
+      update: fn(child),
+      updateMany: fn({ count: 1 }),
+    },
     class: { findFirst: fn({ id: 'class' }), updateMany: fn({ count: 1 }) },
     staff: { findFirst: fn({ id: 'staff' }) },
     timetableEntry: { findMany: fn([]) },
@@ -81,14 +91,22 @@ function setup() {
       findMany: fn([]),
       createMany: fn({ count: 1 }),
       updateMany: fn({ count: 1 }),
+      deleteMany: fn({ count: 1 }),
     },
     activityFeed: { create: fn({}), createMany: fn({ count: 1 }), findMany: fn([]) },
     auditLog: { create: fn({}) },
-    developmentObservation: { create: fn({ id: 'obs' }), findMany: fn([]) },
+    developmentObservation: {
+      create: fn({ id: 'obs' }),
+      findMany: fn([]),
+      findFirst: fn(null),
+      updateMany: fn({ count: 1 }),
+      deleteMany: fn({ count: 1 }),
+    },
     preschoolContent: {
       findMany: fn([]),
       findFirst: fn({ id: 'content', classId: 'class', scheduledOn: new Date('2026-11-17') }),
       updateMany: fn({ count: 1 }),
+      deleteMany: fn({ count: 1 }),
     },
     classroomCamera: {
       findFirst: fn({
@@ -555,6 +573,330 @@ describe('Preschool authorization and daily care', () => {
       ConflictException
     );
   });
+  it('updates and deletes development observations with tenant scoping, parent denial and sharing feed', async () => {
+    const { db, service } = setup();
+    const existing = {
+      id: 'obs-1',
+      tenantId: 'tenant-a',
+      studentId: 'child',
+      domain: 'LANGUAGE',
+      level: 'EMERGING',
+      skill: 'Naming colours',
+      observation: 'Named red and blue blocks.',
+      observedOn: new Date('2026-11-16T00:00:00.000Z'),
+      shared: false,
+    };
+    db.developmentObservation.findFirst.mockResolvedValue(existing);
+
+    await expect(
+      service.updateObservation(parent, 'obs-1', {
+        domain: 'LANGUAGE',
+        level: 'DEVELOPING',
+        skill: 'Naming colours',
+        observation: 'Named red, blue and yellow blocks.',
+        observedOn: '2026-11-17',
+        shared: true,
+      })
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    await expect(
+      service.updateObservation(teacher, 'obs-1', {
+        domain: 'LANGUAGE',
+        level: 'DEVELOPING',
+        skill: 'Naming colours',
+        observation: 'Named red, blue and yellow blocks.',
+        observedOn: '2026-11-18',
+        shared: true,
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    const updated = await service.updateObservation(teacher, 'obs-1', {
+      domain: 'COGNITIVE',
+      level: 'DEVELOPING',
+      skill: '  Sorting shapes  ',
+      observation: '  Sorted circles and squares independently.  ',
+      observedOn: '2026-11-16',
+      shared: true,
+    });
+    expect(updated).toMatchObject({
+      id: 'obs-1',
+      domain: 'COGNITIVE',
+      level: 'DEVELOPING',
+      skill: 'Sorting shapes',
+      observation: 'Sorted circles and squares independently.',
+      shared: true,
+    });
+    expect(db.developmentObservation.updateMany).toHaveBeenCalledWith({
+      where: { id: 'obs-1', tenantId: 'tenant-a' },
+      data: expect.objectContaining({ domain: 'COGNITIVE', shared: true }),
+    });
+    expect(db.activityFeed.create).toHaveBeenCalledTimes(1);
+    expect(db.auditLog.create.mock.calls[0][0].data).toMatchObject({
+      action: 'PRESCHOOL_OBSERVATION_UPDATED',
+      entityId: 'obs-1',
+    });
+
+    const deleted = await service.deleteObservation(teacher, 'obs-1');
+    expect(deleted).toEqual({ deleted: true, id: 'obs-1' });
+    expect(db.developmentObservation.deleteMany).toHaveBeenCalledWith({
+      where: { id: 'obs-1', tenantId: 'tenant-a' },
+    });
+    expect(db.auditLog.create.mock.calls[1][0].data).toMatchObject({
+      action: 'PRESCHOOL_OBSERVATION_DELETED',
+      entityId: 'obs-1',
+    });
+
+    db.developmentObservation.findFirst.mockResolvedValue(null);
+    await expect(service.deleteObservation(teacher, 'missing-obs')).rejects.toBeInstanceOf(
+      NotFoundException
+    );
+  });
+  it('deletes preschool teaching content with classroom authorization and audit trail', async () => {
+    const { db, service } = setup();
+    await expect(service.deleteContent(parent, 'content')).rejects.toBeInstanceOf(
+      ForbiddenException
+    );
+
+    const res = await service.deleteContent(teacher, 'content');
+    expect(res).toEqual({ deleted: true, id: 'content' });
+    expect(db.preschoolContent.deleteMany).toHaveBeenCalledWith({
+      where: { id: 'content', tenantId: 'tenant-a' },
+    });
+    expect(db.auditLog.create.mock.calls[0][0].data).toMatchObject({
+      action: 'PRESCHOOL_CONTENT_DELETED',
+      entityId: 'content',
+    });
+
+    db.preschoolContent.findFirst.mockResolvedValue(null);
+    await expect(service.deleteContent(teacher, 'missing')).rejects.toBeInstanceOf(
+      NotFoundException
+    );
+  });
+  it('supports undoing check-in, checkout and absence safely with ordering and audit checks', async () => {
+    const { db, service } = setup();
+    // Cannot undo check-in when none exists
+    await expect(service.undoCheckIn(teacher, 'child')).rejects.toBeInstanceOf(ConflictException);
+
+    // Cannot undo check-in while checkout is still present
+    db.preschoolDayRecord.findFirst.mockResolvedValue({
+      id: 'day',
+      checkInAt: new Date('2026-11-17T03:30:00Z'),
+      checkOutAt: new Date('2026-11-17T09:00:00Z'),
+      version: 2,
+    });
+    await expect(service.undoCheckIn(teacher, 'child')).rejects.toBeInstanceOf(ConflictException);
+
+    // Undo checkout first
+    const undoneOut = await service.undoCheckOut(teacher, 'child');
+    expect(undoneOut).toMatchObject({ undone: true, id: 'day', date: '2026-11-17' });
+    expect(db.preschoolDayRecord.updateMany.mock.calls[0][0]).toMatchObject({
+      where: { id: 'day', tenantId: 'tenant-a', version: 2 },
+      data: {
+        checkOutAt: null,
+        checkedOutBy: null,
+        pickupGuardianId: null,
+        pickupVerificationMethod: null,
+        pickupPassId: null,
+        version: { increment: 1 },
+      },
+    });
+    expect(db.auditLog.create.mock.calls[0][0].data.action).toBe('PRESCHOOL_CHECK_OUT_UNDONE');
+
+    // Now undo check-in succeeds and deletes PRESENT attendance record
+    db.preschoolDayRecord.findFirst.mockResolvedValue({
+      id: 'day',
+      checkInAt: new Date('2026-11-17T03:30:00Z'),
+      checkOutAt: null,
+      version: 3,
+    });
+    const undoneIn = await service.undoCheckIn(teacher, 'child');
+    expect(undoneIn).toMatchObject({ undone: true, id: 'day', date: '2026-11-17' });
+    expect(db.attendanceRecord.deleteMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-a',
+        studentId: 'child',
+        date: preschoolDate('2026-11-17'),
+        period: 1,
+        status: 'PRESENT',
+      },
+    });
+    expect(db.auditLog.create.mock.calls[1][0].data.action).toBe('PRESCHOOL_CHECK_IN_UNDONE');
+
+    // Undo absence clears ABSENT attendance record
+    db.attendanceRecord.findFirst.mockResolvedValue({ id: 'att-abs', status: 'ABSENT' });
+    const undoneAbs = await service.undoAbsent(teacher, 'child');
+    expect(undoneAbs).toEqual({ undone: true, studentId: 'child', date: '2026-11-17' });
+    expect(db.attendanceRecord.deleteMany).toHaveBeenLastCalledWith({
+      where: {
+        tenantId: 'tenant-a',
+        studentId: 'child',
+        date: preschoolDate('2026-11-17'),
+        period: 1,
+        status: 'ABSENT',
+      },
+    });
+    expect(db.auditLog.create.mock.calls[2][0].data.action).toBe('PRESCHOOL_ABSENCE_UNDONE');
+  });
+  it('allows correcting check-in/checkout times and pickup guardian with version and bounds checks', async () => {
+    const { db, service } = setup();
+    // Yesterday (2026-11-16) in Asia/Kolkata: 09:00 IST = 03:30Z, 15:00 IST = 09:30Z
+    db.preschoolDayRecord.findFirst.mockResolvedValue({
+      id: 'day-yday',
+      checkInAt: preschoolTimestamp('2026-11-16', '09:00', 'Asia/Kolkata'),
+      checkOutAt: preschoolTimestamp('2026-11-16', '15:00', 'Asia/Kolkata'),
+      pickupGuardianId: 'guardian',
+      version: 2,
+    });
+
+    // Rejects stale version
+    await expect(
+      service.correctDayTimes(teacher, 'child', {
+        date: '2026-11-16',
+        version: 1,
+        checkInTime: '08:45',
+      })
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    // Rejects checkout earlier than check-in
+    await expect(
+      service.correctDayTimes(teacher, 'child', {
+        date: '2026-11-16',
+        version: 2,
+        checkOutTime: '08:30',
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    // Valid correction updates both preschoolDayRecord and attendanceRecord.arrivalTime
+    const res = await service.correctDayTimes(teacher, 'child', {
+      date: '2026-11-16',
+      version: 2,
+      checkInTime: '08:45',
+      checkOutTime: '15:30',
+      pickupGuardianId: 'guardian',
+    });
+    expect(res.date).toBe('2026-11-16');
+    expect(res.checkInAt).toEqual(preschoolTimestamp('2026-11-16', '08:45', 'Asia/Kolkata'));
+    expect(res.checkOutAt).toEqual(preschoolTimestamp('2026-11-16', '15:30', 'Asia/Kolkata'));
+    expect(db.attendanceRecord.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ date: preschoolDate('2026-11-16'), period: 1 }),
+        data: expect.objectContaining({
+          arrivalTime: preschoolTimestamp('2026-11-16', '08:45', 'Asia/Kolkata'),
+        }),
+      })
+    );
+    expect(db.auditLog.create.mock.calls[0][0].data.action).toBe('PRESCHOOL_ATTENDANCE_CORRECTED');
+  });
+  it('supports backfilling yesterday roster, missed checkout, care log and absence without triggering today alerts', async () => {
+    const { db, service, notifications } = setup();
+    // 1. Roster for yesterday works; future date rejected
+    const pastRoster = await service.roster(teacher, 'class', 0, '2026-11-16');
+    expect(pastRoster).toMatchObject({ today: '2026-11-17', date: '2026-11-16', isToday: false });
+    await expect(service.roster(teacher, 'class', 0, '2026-11-18')).rejects.toBeInstanceOf(
+      BadRequestException
+    );
+
+    // 2. Backfill yesterday's missed checkout even when school policy is REQUIRED for live today pickups
+    db.student.findFirst.mockResolvedValue({
+      ...child,
+      currentClass: {
+        ...child.currentClass,
+        school: {
+          programme: 'PRESCHOOL',
+          isActive: true,
+          preschoolPickupVerification: 'REQUIRED',
+        },
+      },
+    });
+    db.preschoolDayRecord.findFirst.mockResolvedValue({
+      id: 'day-yday',
+      checkInAt: preschoolTimestamp('2026-11-16', '09:00', 'Asia/Kolkata'),
+      checkOutAt: null,
+      version: 1,
+    });
+    const backfilledOut = await service.checkOut(teacher, 'child', {
+      date: '2026-11-16',
+      time: '15:15',
+      guardianId: 'guardian',
+      identityVerified: true,
+    });
+    expect(backfilledOut).toEqual({
+      id: 'day-yday',
+      verificationMethod: 'MANUAL',
+      guardianId: 'guardian',
+    });
+    expect(db.preschoolDayRecord.updateMany.mock.calls[0][0].data.checkOutAt).toEqual(
+      preschoolTimestamp('2026-11-16', '15:15', 'Asia/Kolkata')
+    );
+    expect(db.auditLog.create.mock.calls[0][0].data.action).toBe('PRESCHOOL_CHECK_OUT_BACKFILLED');
+
+    // 3. Backfill yesterday's care log
+    db.preschoolDayRecord.findFirst.mockResolvedValue(null);
+    await service.care(teacher, 'child', {
+      date: '2026-11-16',
+      version: 0,
+      meals: 'Ate lunch well',
+      mood: 'HAPPY',
+      shareWithParents: true,
+    });
+    expect(db.preschoolDayRecord.create.mock.calls[0][0].data).toMatchObject({
+      date: preschoolDate('2026-11-16'),
+      meals: 'Ate lunch well',
+      mood: 'HAPPY',
+    });
+
+    // 4. Backfill yesterday's absence does NOT trigger live today absence push alerts
+    db.preschoolDayRecord.findFirst.mockResolvedValue(null);
+    db.attendanceRecord.findFirst.mockResolvedValue(null);
+    const backfilledAbsent = await service.markAbsent(teacher, 'child', {
+      date: '2026-11-16',
+      remarks: 'Reported late',
+    });
+    expect(backfilledAbsent).toMatchObject({ date: '2026-11-16', status: 'ABSENT' });
+    expect(notifications.sendAttendanceAlert).not.toHaveBeenCalled();
+
+    // 5. Rejects dates older than 93 days or in the future
+    await expect(
+      service.care(teacher, 'child', {
+        date: '2026-01-01',
+        version: 0,
+        notes: 'Too old',
+        shareWithParents: false,
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.checkIn(teacher, 'child', { date: '2026-11-18' })
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    // 6. Validates new DTOs strictly
+    const badCheckIn = plainToInstance(CheckInDto, { date: '16-11-2026', time: '25:99' });
+    expect((await validate(badCheckIn)).map((e) => e.property)).toEqual(
+      expect.arrayContaining(['date', 'time'])
+    );
+    const badUndo = plainToInstance(UndoDayActionDto, { date: 'not-a-date' });
+    expect((await validate(badUndo)).some((e) => e.property === 'date')).toBe(true);
+    const badCorrect = plainToInstance(CorrectDayTimesDto, {
+      version: -1,
+      checkInTime: '9:00',
+      pickupGuardianId: 'not-uuid',
+    });
+    expect((await validate(badCorrect)).map((e) => e.property)).toEqual(
+      expect.arrayContaining(['version', 'checkInTime', 'pickupGuardianId'])
+    );
+    const badObs = plainToInstance(
+      UpdateObservationDto,
+      {
+        domain: 'INVALID',
+        level: 'EXPERT',
+        skill: 'a',
+        observation: 'no',
+        observedOn: 'bad',
+        shared: 'true',
+      },
+      { enableImplicitConversion: true }
+    );
+    expect((await validate(badObs)).length).toBeGreaterThanOrEqual(5);
+  });
 });
 describe('Preschool teaching drafts', () => {
   it.each(['English', 'Malayalam', 'Hindi'])(
@@ -568,6 +910,36 @@ describe('Preschool teaching drafts', () => {
       }
     }
   );
+  it('tailors colouring and worksheet template prompts to the requested theme instead of generic shapes', () => {
+    const rainyMl = preschoolTemplate({
+      ...draft,
+      kind: 'COLOURING',
+      theme: 'മഴക്കാലം',
+      language: 'Malayalam',
+    });
+    expect(rainyMl.body).toContain('മഴക്കാലം');
+    expect(rainyMl.body).toContain('കുട');
+    expect(rainyMl.body).not.toContain('വലിയ ആകൃതികൾ');
+
+    const animalsWs = preschoolTemplate({
+      ...draft,
+      kind: 'WORKSHEET',
+      theme: 'മൃഗങ്ങൾ',
+      language: 'Malayalam',
+    });
+    expect(animalsWs.body).toContain('മൃഗങ്ങൾ');
+    expect(animalsWs.body).toContain('ആന');
+    expect(animalsWs.body).not.toContain('ഒരുപോലെയുള്ള ആകൃതികൾ');
+
+    const rainEn = preschoolTemplate({
+      ...draft,
+      kind: 'WORKSHEET',
+      theme: 'Rainy Season',
+      language: 'English',
+    });
+    expect(rainEn.body).toContain('umbrella');
+    expect(rainEn.body).not.toContain('matching shapes');
+  });
   it('keeps student identifiers out of generation and labels template fallback accurately', async () => {
     const { access } = setup(),
       ai: any = { generate: fn(preschoolTemplate(draft)), status: () => ({ provider: 'Gemini' }) };

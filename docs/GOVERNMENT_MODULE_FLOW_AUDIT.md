@@ -1,5 +1,7 @@
 # Government submission and compliance flow audit
 
+> Historical findings from the initial audit. The remediation is implemented in the current code; use [Government reporting](GOVERNMENT_REPORTING.md) for the supported workflow, deployment migration and verification commands. The findings below describe the pre-fix implementation.
+
 Audit date: 18 November 2026 (Asia/Calcutta).
 
 **Verdict: the module is not complete end to end.** The active UI implements saved school reports with JSON export. A complete, tracked manual government submission workflow is missing. Direct government API submission is deliberately unavailable, including when credentials are supplied.

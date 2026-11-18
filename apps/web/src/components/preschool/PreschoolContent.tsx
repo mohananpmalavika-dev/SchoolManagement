@@ -12,14 +12,30 @@ import { messageFor } from '@/lib/workspace';
 import { Button } from '../ui';
 import { EmptyState, Panel, StatusPill } from '../WorkspaceUI';
 import { Field, PreschoolArea, PreschoolText } from './PreschoolFields';
+import {
+  PRINTABLE_THEME_OPTIONS,
+  PreschoolPrintableSvg,
+  printableThemeMeta,
+  resolvePrintableTheme,
+  type PrintableKind,
+  type PrintableThemeId,
+} from './PreschoolPrintableSvg';
 
 export function PreschoolPrint({ content, close }: { content: Content; close: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [selectedTheme, setSelectedTheme] = useState<PrintableThemeId | 'auto'>('auto');
   useEffect(() => {
     const node = dialog.current;
     node?.showModal();
     return () => node?.close();
   }, []);
+  useEffect(() => {
+    setSelectedTheme('auto');
+  }, [content.id, content.theme, content.kind]);
+  const isPrintableVisual = content.kind === 'COLOURING' || content.kind === 'WORKSHEET';
+  const autoTheme = isPrintableVisual
+    ? resolvePrintableTheme(content.theme, content.title, content.body)
+    : 'custom';
   const cards =
     content.kind === 'FLASHCARDS'
       ? content.body
@@ -38,8 +54,26 @@ export function PreschoolPrint({ content, close }: { content: Content; close: ()
       aria-label="Printable teaching sheet"
       className="preschool-print-overlay fixed inset-0 z-50 overflow-auto bg-white p-6 w-screen h-screen max-w-none max-h-none m-0"
     >
-      <div className="preschool-print-controls mx-auto flex max-w-3xl gap-3 mb-6">
+      <div className="preschool-print-controls mx-auto flex flex-wrap items-center gap-3 max-w-3xl mb-6">
         <Button onClick={() => window.print()}>Print / Save PDF</Button>
+        {isPrintableVisual && (
+          <label className="flex items-center gap-2 text-sm text-gray-800">
+            <span className="font-medium">Illustration</span>
+            <select
+              aria-label="Printable illustration theme"
+              className="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm"
+              value={selectedTheme}
+              onChange={(e) => setSelectedTheme(e.target.value as PrintableThemeId | 'auto')}
+            >
+              <option value="auto">Auto ({printableThemeMeta(autoTheme).label})</option>
+              {PRINTABLE_THEME_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <Button variant="outline" onClick={close}>
           Close printable sheet
         </Button>
@@ -47,6 +81,7 @@ export function PreschoolPrint({ content, close }: { content: Content; close: ()
       <article className="preschool-print-sheet mx-auto max-w-3xl text-black">
         <h1 className="text-3xl font-bold mb-3">{content.title}</h1>
         <p>
+          {content.theme ? `${content.theme} · ` : ''}
           {content.language} · {content.ageMinMonths}–{content.ageMaxMonths} months ·{' '}
           {content.durationMinutes} minutes
         </p>
@@ -71,29 +106,15 @@ export function PreschoolPrint({ content, close }: { content: Content; close: ()
             ))}
           </div>
         )}
-        {['COLOURING', 'WORKSHEET'].includes(content.kind) && (
-          <>
-            <svg
-              className="w-full border rounded-xl"
-              viewBox="0 0 700 330"
-              role="img"
-              aria-label="Large circle, square, triangle and matching shapes for drawing and colouring"
-              fill="none"
-              stroke="black"
-              strokeWidth="4"
-            >
-              <circle cx="115" cy="100" r="65" />
-              <rect x="285" y="35" width="130" height="130" rx="4" />
-              <path d="M560 35 L630 165 H490 Z" />
-              <rect x="50" y="230" width="80" height="80" />
-              <circle cx="350" cy="270" r="40" />
-              <path d="M560 230 L600 310 H520 Z" />
-            </svg>
-            <div
-              className="my-5 h-56 border-2 border-black rounded-xl"
-              aria-label="Blank space for your own drawing"
-            />
-          </>
+        {isPrintableVisual && (
+          <PreschoolPrintableSvg
+            kind={content.kind as PrintableKind}
+            theme={content.theme}
+            title={content.title}
+            body={content.body}
+            language={content.language}
+            overrideTheme={selectedTheme}
+          />
         )}
       </article>
     </dialog>

@@ -72,15 +72,15 @@ async function session(role, width = 1440) {
       return ok(
         body?.history?.length
           ? {
-              answer: 'Offer a calm sensory basket for younger children while peers take turns.',
-              suggestedActivities: ['Calm sensory basket'],
-              source: 'Classroom guidance library',
-            }
+            answer: 'Offer a calm sensory basket for younger children while peers take turns.',
+            suggestedActivities: ['Calm sensory basket'],
+            source: 'Classroom guidance library',
+          }
           : {
-              answer: 'Model a short supported turn and offer a quiet alternative.',
-              suggestedActivities: ['Picture circle'],
-              source: 'Classroom guidance library',
-            }
+            answer: 'Model a short supported turn and offer a quiet alternative.',
+            suggestedActivities: ['Picture circle'],
+            source: 'Classroom guidance library',
+          }
       );
     }
     if (path === '/api/preschool/options')
@@ -163,14 +163,14 @@ async function session(role, width = 1440) {
         role === 'PARENT'
           ? pickupPass
           : {
-              id: pickupPass.id,
-              guardianId: pickupPass.guardianId,
-              guardianName: pickupPass.guardianName,
-              relationship: pickupPass.relationship,
-              issuedByRole: pickupPass.issuedByRole,
-              deliveryChannels: pickupPass.deliveryChannels,
-              expiresAt: pickupPass.expiresAt,
-            }
+            id: pickupPass.id,
+            guardianId: pickupPass.guardianId,
+            guardianName: pickupPass.guardianName,
+            relationship: pickupPass.relationship,
+            issuedByRole: pickupPass.issuedByRole,
+            deliveryChannels: pickupPass.deliveryChannels,
+            expiresAt: pickupPass.expiresAt,
+          }
       );
     }
     if (path.endsWith('/pickup-pass')) {
@@ -187,13 +187,13 @@ async function session(role, width = 1440) {
           ? role === 'PARENT'
             ? pickupPass
             : {
-                id: pickupPass.id,
-                guardianId: pickupPass.guardianId,
-                guardianName: pickupPass.guardianName,
-                issuedByRole: pickupPass.issuedByRole,
-                deliveryChannels: pickupPass.deliveryChannels,
-                expiresAt: pickupPass.expiresAt,
-              }
+              id: pickupPass.id,
+              guardianId: pickupPass.guardianId,
+              guardianName: pickupPass.guardianName,
+              issuedByRole: pickupPass.issuedByRole,
+              deliveryChannels: pickupPass.deliveryChannels,
+              expiresAt: pickupPass.expiresAt,
+            }
           : null,
         selfGuardianId: guardianId,
         authorizedGuardians: [
@@ -231,8 +231,19 @@ async function session(role, width = 1440) {
         ],
         content: content.filter((c) => c.status === 'PUBLISHED'),
       });
-    if (path === '/api/preschool/content/generate')
-      return ok({ ...plan, source: 'Editable template library', reviewRequired: true });
+    if (path === '/api/preschool/content/generate') {
+      const req = route.request().postDataJSON() || {};
+      const isVisual = req.kind === 'COLOURING' || req.kind === 'WORKSHEET';
+      return ok({
+        ...plan,
+        kind: isVisual ? req.kind : plan.kind,
+        theme: req.theme || plan.theme,
+        language: req.language || plan.language,
+        title: isVisual ? `${req.theme || plan.theme} · ${req.kind}` : plan.title,
+        source: 'Editable template library',
+        reviewRequired: true,
+      });
+    }
     if (path === '/api/preschool/content' && method === 'POST') {
       const created = {
         ...plan,
@@ -324,9 +335,9 @@ try {
     await page.getByRole('button', { name: 'Confirm checkout', exact: true }).isEnabled(),
     false
   );
-  await page.getByLabel('Meals / snacks').fill('Ate lunch');
-  await page.getByLabel('Rest / sleep (minutes)').fill('30');
-  await page.getByLabel('Classroom notes').fill('Enjoyed shared drawing.');
+  await page.getByLabel('Meals / snacks', { exact: true }).fill('Ate lunch');
+  await page.getByLabel('Rest / sleep (minutes)', { exact: true }).fill('30');
+  await page.getByLabel('Classroom notes', { exact: true }).fill('Enjoyed shared drawing.');
   await page.getByLabel('Share these care notes with the linked parents').check();
   await page.getByRole('button', { name: 'Save daily care', exact: true }).click();
   await page.getByRole('status').filter({ hasText: 'Saved successfully' }).waitFor();
@@ -369,6 +380,34 @@ try {
   await page.emulateMedia({ media: 'screen' });
   await page.getByRole('button', { name: 'Close printable sheet', exact: true }).click();
   checks.push('Malayalam draft generation, review-gated publishing and printable content');
+
+  // Verify themed printable colouring sheet (മഴക്കാലം -> rainy) and worksheet (മൃഗങ്ങൾ -> animals)
+  await page.getByLabel('Content type').selectOption('COLOURING');
+  await page.getByLabel('Theme / topic').fill('മഴക്കാലം');
+  await page.getByLabel('Content language').selectOption('Malayalam');
+  await page.getByRole('button', { name: 'Prepare teaching draft', exact: true }).click();
+  await page.getByRole('button', { name: 'Save draft', exact: true }).click();
+  await page.getByRole('heading', { name: 'മഴക്കാലം · COLOURING', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Printable sheet', exact: true }).first().click();
+  const rainySvg = page.locator('.preschool-print-sheet svg[data-printable-kind="COLOURING"]');
+  await rainySvg.waitFor();
+  assert.equal(await rainySvg.getAttribute('data-printable-theme'), 'rainy');
+  await page.getByRole('button', { name: 'Close printable sheet', exact: true }).click();
+
+  await page.getByLabel('Content type').selectOption('WORKSHEET');
+  await page.getByLabel('Theme / topic').fill('മൃഗങ്ങൾ');
+  await page.getByLabel('Content language').selectOption('Malayalam');
+  await page.getByRole('button', { name: 'Prepare teaching draft', exact: true }).click();
+  await page.getByRole('button', { name: 'Save draft', exact: true }).click();
+  await page.getByRole('heading', { name: 'മൃഗങ്ങൾ · WORKSHEET', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Printable sheet', exact: true }).first().click();
+  const animalsSvg = page.locator('.preschool-print-sheet svg[data-printable-kind="WORKSHEET"]');
+  await animalsSvg.waitFor();
+  assert.equal(await animalsSvg.getAttribute('data-printable-theme'), 'animals');
+  await page.getByLabel('Printable illustration theme').selectOption('fruits');
+  assert.equal(await animalsSvg.getAttribute('data-printable-theme'), 'fruits');
+  await page.getByRole('button', { name: 'Close printable sheet', exact: true }).click();
+  checks.push('Theme-matched printable colouring sheet and worksheet SVGs with manual theme override');
   await page.getByRole('button', { name: 'INKY assistant', exact: true }).click();
   await page
     .getByLabel('Describe the classroom situation')

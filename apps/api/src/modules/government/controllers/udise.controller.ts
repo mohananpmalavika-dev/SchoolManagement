@@ -1,6 +1,5 @@
-import { NotImplementedException } from '@nestjs/common';
-import { Roles } from '../../../common/decorators/roles.decorator';
 import { UserRole } from '@krypton/types';
+import { NotImplementedException } from '@nestjs/common';
 import {
   Controller,
   Post,
@@ -12,7 +11,8 @@ import {
   Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { UdiseService } from '../services/udise.service';
+
+import { Roles } from '../../../common/decorators/roles.decorator';
 import {
   InitializeUdiseDto,
   UpdateUdiseConfigDto,
@@ -20,6 +20,7 @@ import {
   SyncResultDto,
   ValidationResultDto,
 } from '../dto';
+import { UdiseService } from '../services/udise.service';
 
 @ApiTags('Government - UDISE+ & APAAR Integration (India)')
 @ApiBearerAuth()
@@ -48,7 +49,7 @@ export class UdiseController {
 
   @Put('integration')
   @ApiOperation({ summary: 'Update UDISE+ integration settings' })
-  async updateIntegration(@Request() req: any, @Body() _dto: UpdateUdiseConfigDto): Promise<any> {
+  async updateIntegration(@Request() _req: any, @Body() _dto: UpdateUdiseConfigDto): Promise<any> {
     throw new NotImplementedException('Official integration settings cannot be enabled until an authorized provider adapter is configured');
   }
 

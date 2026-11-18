@@ -13,8 +13,8 @@ The following capabilities are architected, tested, and validated end-to-end, bu
 | Service / Integration | Provider | Operational Status | Production Blocker / Prerequisite |
 |---|---|---|---|
 | **M-Pesa Daraja 2.0 (Live Paybill)** | Safaricom PLC | Fully Functional in Sandbox | Production Go-Live requires Safaricom KYC verification and live Shortcode certificate assignment. |
-| **NEMIS / KEMIS Direct API** | Ministry of Education (MoE) | Export / Import Ready | Direct MoE REST endpoints require authorized ministerial API credentials; official CSV/JSON export workflow is active as standard. |
-| **KNEC Assessment Upload** | Kenya National Examinations Council | Formats & Nominal Rolls Ready | Direct portal integration requires KNEC school center code registration; official portal-compliant upload spreadsheets are active. |
+| **UDISE+ / APAAR direct API** | Ministry of Education | Manual reporting workflow | No authorized adapter is implemented. Credentials alone cannot enable it. CSV/XLSX/JSON preparation files require review against the official portal template. |
+| **Board examination portal API** | CBSE / CISCE / State boards | Manual document tracking | Direct registration/results/timetable APIs return 501. Record official documents and receipts manually; portal acceptance is external. |
 | **Bulk SMS (Africa's Talking)** | Africa's Talking | Sandbox Mode Active | Live production delivery requires registered Sender ID approval (e.g. `KRYPTON` or school shortcode) from CAK (Communications Authority of Kenya). |
 | **WhatsApp Business API** | Twilio / Meta | Template Engine Active | WhatsApp Business Account verification and template approval by Meta. |
 | **Offsite Object Storage** | AWS S3 / MinIO | Configured & Validated | Production deployment requires an active S3 bucket with `S3_ACCESS_KEY` and `S3_SECRET_KEY` supplied in the runtime environment. |

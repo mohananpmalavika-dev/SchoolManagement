@@ -14,18 +14,6 @@ interface LocationPayload {
   heading: number;
 }
 
-interface WakeLockSentinelLike {
-  released?: boolean;
-  release: () => Promise<void>;
-  addEventListener?: (type: 'release', listener: () => void) => void;
-}
-
-interface NavigatorWithWakeLock extends Navigator {
-  wakeLock?: {
-    request: (type: 'screen') => Promise<WakeLockSentinelLike>;
-  };
-}
-
 export interface DriverGpsStatus {
   active: boolean;
   wakeLock: WakeLockState;
@@ -51,7 +39,7 @@ export function useDriverGpsTracker(options: {
   const [lastAccuracy, setLastAccuracy] = useState<number | null>(null);
 
   const watchIdRef = useRef<number | null>(null);
-  const wakeLockSentinelRef = useRef<WakeLockSentinelLike | null>(null);
+  const wakeLockSentinelRef = useRef<WakeLockSentinel | null>(null);
   const lastPostAtRef = useRef<number>(0);
   const pendingPayloadRef = useRef<LocationPayload | null>(null);
   const inFlightRef = useRef<boolean>(false);
@@ -59,9 +47,11 @@ export function useDriverGpsTracker(options: {
   const onDisableRef = useRef(onDisable);
   const onErrorRef = useRef(onError);
   const onPingSuccessRef = useRef(onPingSuccess);
-  onDisableRef.current = onDisable;
-  onErrorRef.current = onError;
-  onPingSuccessRef.current = onPingSuccess;
+  useEffect(() => {
+    onDisableRef.current = onDisable;
+    onErrorRef.current = onError;
+    onPingSuccessRef.current = onPingSuccess;
+  }, [onDisable, onError, onPingSuccess]);
 
   const postFix = useCallback(
     async (payload: LocationPayload, force = false) => {
@@ -137,8 +127,7 @@ export function useDriverGpsTracker(options: {
     let cancelled = false;
 
     const requestWakeLock = async () => {
-      const nav = navigator as NavigatorWithWakeLock;
-      if (!nav.wakeLock || typeof nav.wakeLock.request !== 'function') {
+      if (!('wakeLock' in navigator) || typeof navigator.wakeLock?.request !== 'function') {
         if (!cancelled) setWakeLock('unsupported');
         return;
       }
@@ -148,7 +137,7 @@ export function useDriverGpsTracker(options: {
           if (!cancelled) setWakeLock('active');
           return;
         }
-        const sentinel = await nav.wakeLock.request('screen');
+        const sentinel = await navigator.wakeLock.request('screen');
         if (cancelled) {
           await sentinel.release().catch(() => undefined);
           return;

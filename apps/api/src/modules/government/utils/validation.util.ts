@@ -42,7 +42,7 @@ export class ValidationUtil {
    * Validate Board Affiliation / Centre Number (CBSE, ICSE, State Board)
    */
   static isValidBoardAffiliationNumber(affiliationNumber: string): boolean {
-    return /^[A-Z0-9\/-]{4,20}$/i.test(affiliationNumber.trim());
+    return /^[A-Z0-9/-]{4,20}$/i.test(affiliationNumber.trim());
   }
 
   /**

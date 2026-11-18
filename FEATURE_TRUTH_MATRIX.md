@@ -36,7 +36,7 @@
 | **Smart Teacher Substitution** | Yes (`SubstitutionService`)| Yes (`/school/substitution`)| Enforced | Yes (`Staff`) | Passing | **PRODUCTION READY** | Free period detection, workload balancing, and notification dispatch. |
 | **Admissions CRM & Tracking** | Yes (`AdmissionsService`)| Yes (`/admissions/*`)| Enforced | Yes (`Student`) | Passing | **PRODUCTION READY** | Multi-step public application, document upload, review pipeline. |
 | **School Transport & Route Tracking**| Yes (`TransportService`)| Yes (`/school/transport`, `/driver`)| Enforced | Yes (`Vehicle`, `Route`)| Passing | **BETA** | Driver GPS ping endpoints active; geofence notifications simulated. |
-| **Government Compliance (NEMIS/KNEC)**| Yes (`GovtIntegration`)| Yes (`/dashboard/compliance`)| Enforced | Yes (10 models) | Passing | **BETA** | Real CSV/EDI export workflows; direct API adapters require official KEMIS credentials. |
+| **Government reporting (India)**| Yes (`ComplianceService`)| Yes (`/school/compliance`)| Enforced | Saved snapshots, exports, ledger | Targeted API/database/browser checks | **MANUAL PORTAL** | Review, CSV/XLSX/JSON, manual receipt/outcome and board documents. Direct API adapters unavailable; portal acceptance not certified. |
 | **Parent Super App** | Yes (`ParentPortal`)| Yes (`/parent/*`) | Enforced (GuardianLink)| Yes (`Guardian`) | Passing | **BETA** | Multi-child switcher, homework view, fee payment active. |
 | **Super Admin Platform SaaS** | Yes (`PlatformService`)| Yes (`/admin/*`) | Platform-wide | Yes (`Tenant`, `Subscription`)| Passing | **BETA** | School provisioning, subscription tiers, revenue analytics active. |
 

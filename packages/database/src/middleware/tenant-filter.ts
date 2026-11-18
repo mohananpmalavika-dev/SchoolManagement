@@ -16,7 +16,7 @@ const directModels = new Set([
   'ActivityFeed', 'MediaItem', 'BehaviorRecord', 'TeacherAvailability', 'ParentTeacherBooking',
   'UdiseIntegration', 'UdiseSyncLog', 'UdiseStudentRecord', 'UdiseStaffRecord',
   'BoardIntegration', 'BoardSyncLog', 'BoardExamRegistration',
-  'ComplianceReport', 'ComplianceChecklist', 'DataQualityAudit', 'GovernmentApiLog', 'ComplianceAlert'
+  'ComplianceReport', 'ComplianceExport', 'ComplianceLedger', 'ComplianceChecklist', 'DataQualityAudit', 'GovernmentApiLog', 'ComplianceAlert'
 ]);
 const relations: Record<string, string> = { ChatChannelMember: 'channel', ChatMessage: 'channel', GuardianStudentLink: 'guardian', FeeItem: 'feeStructure', InvoiceItem: 'invoice', CommunicationLog: 'communication', RouteStop: 'route', ExaminationSubject: 'examination' };
 const reads = new Set(['findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow', 'findMany', 'count', 'aggregate', 'groupBy', 'update', 'updateMany', 'delete', 'deleteMany', 'upsert']);

@@ -1211,12 +1211,25 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
   it('provides scoped portal choices and lets reception staff link or remove parent accounts',async()=>{
     const receptionist=id();
     await db.user.create({data:{id:receptionist,tenantId:tenant,email:receptionist+'@example.test',firstName:'Reception',lastName:'Staff',role:'RECEPTIONIST',passwordHash:'unused'}});
+    const additionalStudent=id(),inactiveStudent=id(),foreignStudent=id();
+    await db.user.createMany({data:[
+      {id:additionalStudent,tenantId:tenant,isActive:true},
+      {id:inactiveStudent,tenantId:tenant,isActive:false},
+      {id:foreignStudent,tenantId:foreignTenant,isActive:true},
+    ].map(account=>({...account,email:account.id+'@example.test',firstName:'Directory',lastName:'Student',role:'STUDENT' as const,passwordHash:'unused'}))});
     const choices=await request('/workspace/guardian-accounts',receptionist);
     expect(choices.status).toBe(200);
     expect(choices.body.every((u:any)=>u.role==='PARENT'&&!('passwordHash' in u))).toBe(true);
     expect(choices.body.map((u:any)=>u.id)).toContain(parent);
     expect((await request('/workspace/staff-accounts',receptionist)).status).toBe(403);
-    expect((await request('/workspace/student-accounts',receptionist)).body.map((u:any)=>u.id)).toEqual([studentUser]);
+    const studentChoices=await request('/workspace/student-accounts',receptionist);
+    expect(studentChoices.status).toBe(200);
+    expect(studentChoices.body.every((u:any)=>u.role==='STUDENT'&&!('passwordHash' in u))).toBe(true);
+    const studentChoiceIds=studentChoices.body.map((u:any)=>u.id);
+    expect(studentChoiceIds).toEqual(expect.arrayContaining([studentUser,additionalStudent]));
+    expect(studentChoiceIds).not.toContain(inactiveStudent);
+    expect(studentChoiceIds).not.toContain(foreignStudent);
+    expect(studentChoiceIds).not.toContain(parent);
     expect((await request('/workspace/guardian-accounts',parent)).status).toBe(403);
     const created=await request('/workspace/guardians',receptionist,'POST',{data:{firstName:'New',lastName:'Guardian',phone:'9847012345',email:'clear@example.test',userId:parent}});
     expect(created.status).toBe(201);

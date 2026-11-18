@@ -1,6 +1,6 @@
-import { IsString, IsOptional, IsBoolean, IsEnum, IsDateString, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UdiseSyncType } from '@prisma/client';
+import { IsString, IsOptional, IsBoolean, IsEnum, IsDateString, IsArray } from 'class-validator';
 
 export class InitializeUdiseDto {
   @ApiProperty({ description: '11-digit UDISE+ School Code', example: '32080501204' })

@@ -1,13 +1,14 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../../database/prisma.service';
 import {
   BoardSyncType,
   SyncStatus,
   BoardExamLevel,
   RegistrationStatus,
 } from '@prisma/client';
+
 import { EncryptionUtil } from '../../../common/utils/encryption.util';
+import { PrismaService } from '../../../database/prisma.service';
 
 /**
  * Indian Board Examination Integration Service
@@ -37,7 +38,7 @@ export class BoardExamService {
   ) {
     try {
       const integration = await this.prisma.boardIntegration.upsert({
-        where: { affiliationNumber },
+        where: { affiliationNumber, tenantId },
         update: {
           boardName,
           schoolCode,
@@ -57,7 +58,9 @@ export class BoardExamService {
       });
 
       this.logger.log(`Board Exam (${boardName}) integration initialized for tenant: ${tenantId}`);
-      const { apiKey: _apiKey, apiSecret: _apiSecret, ...safe } = integration;
+      const safe = { ...integration };
+      delete safe.apiKey;
+      delete safe.apiSecret;
       return { ...safe, externalApiAvailable: false };
     } catch (error: any) {
       this.logger.error(`Failed to initialize Board integration: ${error.message}`);
@@ -73,7 +76,9 @@ export class BoardExamService {
       where: { tenantId },
     });
     if (!integration) return null;
-    const { apiKey: _apiKey, apiSecret: _apiSecret, ...safe } = integration;
+    const safe = { ...integration };
+    delete safe.apiKey;
+    delete safe.apiSecret;
     return { ...safe, externalApiAvailable: false };
   }
 
@@ -447,7 +452,7 @@ export class BoardExamService {
     });
   }
 
-  private async callBoardApi(integration: any, endpoint: string, method: string, data?: any): Promise<any> {
+  private async callBoardApi(_integration: any, _endpoint: string, _method: string, _data?: any): Promise<any> {
     this.requireOfficialIntegration();
     throw new HttpException('Official API unavailable', HttpStatus.NOT_IMPLEMENTED);
   }

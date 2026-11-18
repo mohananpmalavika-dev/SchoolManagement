@@ -56,6 +56,8 @@
     "test:ui:school-payments": "node scripts/test-school-payments-ui.mjs",
     "test:ui:school-payment-settings": "node scripts/test-school-payment-settings-ui.mjs",
     "test:ui:school-records": "node scripts/test-school-records-ui.mjs",
+    "test:ui:compliance": "node scripts/test-compliance-ui.mjs",
+    "test:db:compliance": "node scripts/test-compliance-database.mjs",
     "test:ui:academic-rollover": "node scripts/test-academic-rollover-ui.mjs",
     "test:push:worker": "node scripts/test-push-service-worker.mjs",
     "test:ui:push": "node scripts/test-push-notifications-ui.mjs",

@@ -78,6 +78,8 @@ function baseNavigation(portal: Portal, role: string): NavigationGroup[] {
     group('PEOPLE', [['students', 'Students', Users], ['admissions', 'Admissions', GraduationCap], ['guardians', 'Guardians', Users], ['staff', 'Staff directory', Users]]),
     group('ACADEMICS', [['academics', 'Academic setup', BookOpen], ['academics/promotion', 'Year-end promotion', GraduationCap], ['attendance', 'Attendance', ClipboardCheck], ['grades', 'Gradebook', BookOpen], ['examinations', 'Examinations', FileCheck], ['report-cards', 'Report cards', FileCheck], ['learning', 'Learning management', Library], ['calendar', 'School calendar', CalendarDays], ['timetable', 'Timetable', CalendarDays], ['timetable/preview', 'Timetable planner', CalendarDays], ['substitution', 'Staff substitutions', Zap]]),
     group('OPERATIONS', [['chat', 'Live campus chat', MessageSquare], ['absences','Absence requests',ClipboardCheck], ['portfolio','Student portfolios',GraduationCap], ['certificates','Certificates',FileCheck], ['quizzes','Class quizzes',ClipboardCheck], ['fees', 'Fees & invoices', CreditCard], ['library', 'Library', Library], ['inventory', 'Inventory', Library], ['messages', 'Communications', MessageSquare], ['support', 'Support', LifeBuoy]]),
+    ...(managersForCompliance(role) ? [group('REPORTING', [['compliance', 'Government reporting', FileCheck]])] : []),
     group('TRANSPORT', [['transport', 'Trips & live GPS', Bus], ['transport/setup', 'Vehicles & routes', Bus], ['transport/assignments', 'Student transport assignments', Users]]),
   ];
 }
+function managersForCompliance(role: string) { return ['SCHOOL_OWNER','PRINCIPAL','SCHOOL_ADMIN'].includes(role); }

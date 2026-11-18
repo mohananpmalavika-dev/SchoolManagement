@@ -254,7 +254,7 @@ export class MfaService {
       if (user.mfaBackupCodes && user.mfaBackupCodes.length > 0) {
         for (let i = 0; i < user.mfaBackupCodes.length; i++) {
           const isBackupCodeValid = await bcrypt.compare(token, user.mfaBackupCodes[i]);
-          
+
           if (isBackupCodeValid) {
             // Remove used backup code
             const updatedBackupCodes = user.mfaBackupCodes.filter((_, index) => index !== i);
@@ -267,9 +267,9 @@ export class MfaService {
 
             // Clear rate limit
             await this.redis.del(rateLimitKey);
-            
+
             this.logger.log(`MFA backup code used by user ${userId}. ${updatedBackupCodes.length} codes remaining.`);
-            
+
             // Log security event
             await this.logSecurityEvent(userId, 'MFA_BACKUP_CODE_USED', {
               remainingCodes: updatedBackupCodes.length,

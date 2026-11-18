@@ -1,6 +1,6 @@
-import { IsString, IsOptional, IsInt, IsEnum, IsArray, IsBoolean, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BoardExamLevel, RegistrationStatus } from '@prisma/client';
+import { IsString, IsOptional, IsInt, IsEnum, IsArray, IsBoolean, Min, Max } from 'class-validator';
 
 export class InitializeBoardDto {
   @ApiPropertyOptional({ description: 'Board Name (CBSE, ICSE, STATE_BOARD)', default: 'CBSE' })

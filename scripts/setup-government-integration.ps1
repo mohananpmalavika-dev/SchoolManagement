@@ -155,13 +155,13 @@ Write-Host "Next Steps:" -ForegroundColor Cyan
 Write-Host "1. Start Redis (if not running): redis-server" -ForegroundColor White
 Write-Host "2. Start the application: npm run dev" -ForegroundColor White
 Write-Host "3. Access API docs: http://localhost:3000/api/docs" -ForegroundColor White
-Write-Host "4. Initialize NEMIS: POST /government/nemis/initialize" -ForegroundColor White
-Write-Host "5. Initialize KNEC: POST /government/knec/initialize" -ForegroundColor White
+Write-Host "4. Open school reporting: /school/compliance" -ForegroundColor White
+Write-Host "5. Review/export reports and record manual portal receipts. Direct adapters are unavailable." -ForegroundColor White
 Write-Host ""
 Write-Host "Documentation:" -ForegroundColor Cyan
 Write-Host "- Module README: apps/api/src/modules/government/README.md" -ForegroundColor White
 Write-Host "- Integration Guide: apps/api/INTEGRATION_GUIDE.md" -ForegroundColor White
 Write-Host "- Summary: GOVERNMENT_INTEGRATION_SUMMARY.md" -ForegroundColor White
 Write-Host ""
-Write-Host "🔥 Manual reporting time eliminated! 🔥" -ForegroundColor Green
+Write-Host "School reporting prepared. Official portal upload remains a manual step." -ForegroundColor Green
 Write-Host ""

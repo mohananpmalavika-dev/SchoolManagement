@@ -1,27 +1,59 @@
-import { IsString, IsOptional, IsInt, IsEnum, IsBoolean, IsDateString, Min, Max, IsObject } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { 
-  ComplianceReportType, 
-  ReportStatus, 
+import {
+  ComplianceReportType,
+  ReportStatus,
   ComplianceArea,
   ChecklistStatus,
   DataAuditType,
   ComplianceAlertType,
   AlertSeverity,
   AlertStatus,
+  BoardExamLevel,
 } from '@prisma/client';
+import { Transform, Type } from 'class-transformer';
+import {
+  IsString,
+  IsOptional,
+  IsInt,
+  IsEnum,
+  IsBoolean,
+  IsDateString,
+  Min,
+  Max,
+  IsObject,
+  IsIn,
+  IsNotEmpty,
+  MaxLength,
+  IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
+  Allow,
+  ValidateNested,
+} from 'class-validator';
 
 export class GenerateReportDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Type of compliance report',
     enum: ComplianceReportType,
   })
-  @IsEnum(ComplianceReportType)
+  @IsIn([
+    'ENROLLMENT_STATISTICS',
+    'ATTENDANCE_SUMMARY',
+    'TEACHER_DATA_REPORT',
+    'EXAMINATION_ANALYSIS',
+    'FINANCIAL_SUMMARY',
+  ])
   reportType: ComplianceReportType;
 
   @ApiProperty({ description: 'Report period', example: 'Term 1 2024' })
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
   reportPeriod: string;
+
+  @IsOptional() @IsString() academicYearId?: string;
+  @IsOptional() @IsString() replacesReportId?: string;
+  @IsOptional() @IsDateString() dueDate?: string;
 
   @ApiProperty({ description: 'Report year', example: 2024 })
   @IsInt()
@@ -60,7 +92,7 @@ export class GenerateReportDto {
 }
 
 export class GetReportsQueryDto {
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Filter by report type',
     enum: ComplianceReportType,
   })
@@ -68,7 +100,7 @@ export class GetReportsQueryDto {
   @IsEnum(ComplianceReportType)
   reportType?: ComplianceReportType;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Filter by status',
     enum: ReportStatus,
   })
@@ -99,7 +131,7 @@ export class CreateChecklistDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Compliance area',
     enum: ComplianceArea,
   })
@@ -137,7 +169,7 @@ export class CompleteChecklistDto {
 }
 
 export class GetChecklistsQueryDto {
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Filter by compliance area',
     enum: ComplianceArea,
   })
@@ -145,7 +177,7 @@ export class GetChecklistsQueryDto {
   @IsEnum(ComplianceArea)
   complianceArea?: ComplianceArea;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Filter by status',
     enum: ChecklistStatus,
   })
@@ -155,7 +187,7 @@ export class GetChecklistsQueryDto {
 }
 
 export class RunDataAuditDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Type of data audit',
     enum: DataAuditType,
   })
@@ -164,14 +196,14 @@ export class RunDataAuditDto {
 }
 
 export class CreateAlertDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Alert type',
     enum: ComplianceAlertType,
   })
   @IsEnum(ComplianceAlertType)
   alertType: ComplianceAlertType;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Alert severity',
     enum: AlertSeverity,
   })
@@ -198,7 +230,7 @@ export class CreateAlertDto {
 }
 
 export class GetAlertsQueryDto {
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Filter by status',
     enum: AlertStatus,
   })
@@ -436,9 +468,11 @@ export class AlertResponseDto {
 }
 
 export class ExportPortalDataDto {
+  @IsString() @IsNotEmpty() reportId: string;
   @ApiProperty({
     description: 'Target Government Board Template',
     enum: [
+      'SCHOOL_REPORT',
       'CBSE_OASIS_LOC',
       'ICSE_COUNCIL_RETURN',
       'STATE_BOARD_ANNUAL_RETURN',
@@ -448,18 +482,35 @@ export class ExportPortalDataDto {
       'EXAM_BOARD_REGISTER',
     ],
   })
-  @IsString()
+  @IsIn([
+    'SCHOOL_REPORT',
+    'CBSE_OASIS_LOC',
+    'ICSE_COUNCIL_RETURN',
+    'STATE_BOARD_ANNUAL_RETURN',
+    'UDISE_PLUS_SDMIS',
+    'APAAR_PEN_REGISTRY',
+    'TEACHER_MANDATORY_DISCLOSURE',
+    'EXAM_BOARD_REGISTER',
+  ])
   templateId: string;
 
-  @ApiPropertyOptional({ enum: ['xlsx', 'csv'], default: 'xlsx' })
+  @ApiPropertyOptional({ enum: ['xlsx', 'csv', 'json'], default: 'xlsx' })
   @IsOptional()
-  @IsString()
-  format?: 'xlsx' | 'csv';
+  @IsIn(['xlsx', 'csv', 'json'])
+  format?: 'xlsx' | 'csv' | 'json';
 }
 
+export class AuditChangeDto {
+  @IsString() @IsNotEmpty() @MaxLength(100) field: string;
+  @Allow() oldValue: unknown;
+  @Allow() newValue: unknown;
+}
 export class LogAuditRecordOverrideDto {
-  @ApiProperty({ description: 'Target entity type', enum: ['GRADE', 'FEE_PAYMENT', 'STUDENT_RECORD', 'CERTIFICATE'] })
-  @IsString()
+  @ApiProperty({
+    description: 'Target entity type',
+    enum: ['GRADE', 'FEE_PAYMENT', 'STUDENT_RECORD', 'STAFF_RECORD'],
+  })
+  @IsIn(['GRADE', 'FEE_PAYMENT', 'STUDENT_RECORD', 'STAFF_RECORD'])
   entityType: string;
 
   @ApiProperty({ description: 'Target entity identifier' })
@@ -476,6 +527,8 @@ export class LogAuditRecordOverrideDto {
 
   @ApiProperty({ description: 'Mandatory reason for override' })
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
   reason: string;
 
   @ApiPropertyOptional({ description: 'Official reference / order number' })
@@ -484,6 +537,52 @@ export class LogAuditRecordOverrideDto {
   approvalRef?: string;
 
   @ApiProperty({ description: 'Array of diff field modifications' })
-  @IsObject({ each: true })
-  changes: any[];
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => AuditChangeDto)
+  changes: AuditChangeDto[];
+}
+
+export class ReportActionDto {
+  @IsString() @IsNotEmpty() reportId: string;
+  @IsIn(['REQUEST_REVIEW', 'APPROVE', 'REJECT', 'REOPEN']) action:
+    'REQUEST_REVIEW' | 'APPROVE' | 'REJECT' | 'REOPEN';
+  @IsOptional() @IsString() @MaxLength(2000) notes?: string;
+}
+export class ManualSubmissionDto {
+  @IsString() @IsNotEmpty() reportId: string;
+  @IsString() @IsNotEmpty() exportId: string;
+  @IsString() @IsNotEmpty() @MaxLength(150) portal: string;
+  @IsString() @IsNotEmpty() @MaxLength(200) receiptReference: string;
+  @IsDateString() submittedAt: string;
+  @Transform(({ obj, key }) => obj[key]) @IsBoolean() portalFormatReviewed: boolean;
+  @IsOptional() @IsString() @MaxLength(1000) evidenceUrl?: string;
+  @IsOptional() @IsString() @MaxLength(2000) notes?: string;
+}
+export class SubmissionOutcomeDto {
+  @IsString() @IsNotEmpty() reportId: string;
+  @IsIn(['ACKNOWLEDGED', 'REJECTED']) status: 'ACKNOWLEDGED' | 'REJECTED';
+  @IsString() @IsNotEmpty() @MaxLength(2000) notes: string;
+  @IsOptional() @IsString() @MaxLength(1000) evidenceUrl?: string;
+}
+
+export class ManualBoardRecordDto {
+  @IsIn(['CANDIDATE', 'RESULT', 'TIMETABLE', 'IRREGULARITY']) kind:
+    'CANDIDATE' | 'RESULT' | 'TIMETABLE' | 'IRREGULARITY';
+  @IsEnum(BoardExamLevel) examLevel: BoardExamLevel;
+  @IsInt() @Min(2020) @Max(2100) examYear: number;
+  @IsOptional() @IsString() studentId?: string;
+  @IsOptional() @IsString() @MaxLength(100) candidateNumber?: string;
+  @IsString() @IsNotEmpty() @MaxLength(200) portalReference: string;
+  @IsString() @IsNotEmpty() @MaxLength(2000) notes: string;
+  @IsOptional() @IsString() @MaxLength(1000) evidenceUrl?: string;
+  @IsOptional() @IsString() @MaxLength(100) subjectCode?: string;
+  @IsOptional() @IsInt() @Min(0) @Max(100000) marks?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(100000) totalMarks?: number;
+  @IsOptional() @IsDateString() examDate?: string;
+  @IsOptional() @IsString() startTime?: string;
+  @IsOptional() @IsString() endTime?: string;
+  @IsOptional() @IsString() replacesId?: string;
 }

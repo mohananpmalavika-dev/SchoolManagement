@@ -81,3 +81,6 @@ dependency-audit*.json
 .next-modern*/
 .next-preschool*/
 scratch/preschool/
+# Isolated government workflow verification infrastructure.
+/scratch/compliance-postgres/
+/apps/web/.next-compliance*/

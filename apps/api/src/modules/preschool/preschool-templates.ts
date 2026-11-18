@@ -10,6 +10,46 @@ export function preschoolTemplate(input: GeneratePreschoolDto) {
     `“${theme}” വലിയ ചിത്രങ്ങളിലൂടെ പരിചയപ്പെടാം. കാണാനും പേര് പറയാനും ചൂണ്ടിക്കാണിക്കാനും അവസരം നൽകുക. മാതൃഭാഷയിലെ മറുപടികളും സ്വീകരിക്കുക.`,
     `“${theme}” को बड़े चित्रों से जानें। बच्चे देखकर, बोलकर या इशारे से बताएँ। घर की भाषा में भी जवाब स्वीकार करें।`
   );
+  const visualItems = (() => {
+    if (/rainbow|colou?r|മഴവില്ല|നിറ|इंद्रधनुष|रंग/i.test(theme))
+      return t('rainbow, clouds and crayons', 'മഴവില്ല്, മേഘങ്ങൾ, ക്രയോണുകൾ', 'इंद्रधनुष, बादल और क्रेयॉन');
+    if (/festival|onam|diwali|pookkalam|ഉത്സവ|ഓണം|പൂക്കളം|ദീപാവലി|त्योहार|दिवाली|ओणम/i.test(theme))
+      return t('pookkalam, festive lamp and balloons', 'പൂക്കളം, വിളക്ക്, ബലൂണുകൾ', 'फूलों की रंगोली, दीया और गुब्बारे');
+    if (/bird|butterfly|പക്ഷി|ചിത്രശലഭ|പൂമ്പാറ്റ|पक्षी|तितली/i.test(theme))
+      return t('butterfly, bird and bee', 'ചിത്രശലഭം, പക്ഷി, തേനീച്ച', 'तितली, चिड़िया और मधुमक्खी');
+    if (/rain|monsoon|umbrella|cloud|മഴ|കുട|മേഘ|बारिश|वर्षा|छाता/i.test(theme))
+      return t('rain cloud, umbrella, raindrops and paper boat', 'മേഘം, കുട, മഴത്തുള്ളികൾ, കടലാസുതോണി', 'बादल, छाता, बारिश की बूँदें और कागज़ की नाव');
+    if (/fish|sea|ocean|pond|turtle|മത്സ്യ|മീൻ|കടൽ|കുളം|ആമ|मछली|समुद्र|कछुआ/i.test(theme))
+      return t('fish, sea turtle, starfish and bubbles', 'മത്സ്യം, ആമ, നക്ഷത്രമത്സ്യം, കുമിളകൾ', 'मछली, कछुआ, स्टारफ़िश और बुलबुले');
+    if (/animal|pet|farm|jungle|elephant|cat|dog|cow|മൃഗ|ആന|പൂച്ച|നായ|പശു|മുയൽ|जानवर|पशु|हाथी|बिल्ली/i.test(theme))
+      return t('elephant, cat and rabbit', 'ആന, പൂച്ച, മുയൽ', 'हाथी, बिल्ली और खरगोश');
+    if (/fruit|vegetable|apple|mango|banana|പഴ|പച്ചക്കറി|ആപ്പിൾ|മാങ്ങ|फल|सब्ज|सेब|आम/i.test(theme))
+      return t('apple, mango, banana, grapes and carrot', 'ആപ്പിൾ, മാങ്ങ, വാഴപ്പഴം, മുന്തിരി, കാരറ്റ്', 'सेब, आम, केला, अंगूर और गाजर');
+    if (/flower|garden|tree|plant|leaf|nature|പൂ|തോട്ട|മരം|ചെടി|ഇല|फूल|बगीचा|पेड़|पौधा/i.test(theme))
+      return t('sunflower, leafy tree and garden plant', 'സൂര്യകാന്തിപ്പൂവ്, മരം, ചെടി', 'सूरजमुखी, पेड़ और पौधा');
+    if (/vehicle|transport|bus|car|train|boat|plane|വാഹന|ബസ്|കാർ|ട്രെയിൻ|ബോട്ട്|വിമാന|वाहन|बस|कार|नाव/i.test(theme))
+      return t('school bus, car, boat and airplane', 'സ്കൂൾ ബസ്, കാർ, ബോട്ട്, വിമാനം', 'स्कूल बस, कार, नाव और हवाई जहाज़');
+    if (/sun|moon|star|sky|space|rocket|സൂര്യ|ചന്ദ്ര|നക്ഷത്ര|ആകാശ|റോക്കറ്റ്|सूरज|चाँद|तारा|आकाश/i.test(theme))
+      return t('sun, crescent moon, stars and rocket', 'സൂര്യൻ, ചന്ദ്രൻ, നക്ഷത്രങ്ങൾ, റോക്കറ്റ്', 'सूरज, चाँद, तारे और रॉकेट');
+    if (/number|count|എണ്ണ|സംഖ്യ|गिन|संख्या/i.test(theme))
+      return t('numbers 1 to 4 with countable pictures', '1 മുതൽ 4 വരെയുള്ള സംഖ്യകളും ചിത്രങ്ങളും', '1 से 4 तक संख्याएँ और चित्र');
+    if (/alphabet|letter|abc|reading|book|അക്ഷര|വായന|പുസ്തക|अक्षर|वर्णमाला|किताब/i.test(theme))
+      return t('large letters and storybook pictures', 'വലിയ അക്ഷരങ്ങളും ചിത്രപുസ്തകവും', 'बड़े अक्षर और कहानी की किताब');
+    if (/home|house|family|school|വീട്|കുടുംബ|സ്കൂൾ|घर|परिवार|स्कूल/i.test(theme))
+      return t('house, garden tree and sun', 'വീട്, മരം, സൂര്യൻ', 'घर, पेड़ और सूरज');
+    if (/body|hand|wash|brush|teeth|health|clean|ശരീര|കൈ|പല്ല്|ആരോഗ്യ|ശുചിത്വ|शरीर|हाथ|दाँत|स्वच्छ/i.test(theme))
+      return t('handprint, soap bubbles and smiling tooth', 'കൈപ്പത്തി, സോപ്പുകുമിളകൾ, പല്ല്', 'हाथ, साबुन के बुलबुले और दाँत');
+    if (/shape|circle|square|triangle|ആകൃതി|വൃത്ത|ചതുര|ത്രികോണ|आकार|गोला|वर्ग/i.test(theme))
+      return t('circle, square, triangle, star and heart', 'വൃത്തം, ചതുരം, ത്രികോണം, നക്ഷത്രം, ഹൃദയം', 'गोला, वर्ग, त्रिकोण, तारा और दिल');
+    return '';
+  })();
+  const visualPrompt = visualItems
+    ? t(
+        ` (${visualItems})`,
+        ` (${visualItems})`,
+        ` (${visualItems})`
+      )
+    : '';
   const tasks: Record<string, string> = {
     LESSON_PLAN: t(
       'Welcome circle (3 min): Share a picture and ask what children notice.\nExplore: Name and match two large pictures together.\nPlay: Children choose a picture, describe it or copy a movement.\nReflect (2 min): Ask what they discovered. Record the help that each child used.',
@@ -37,14 +77,14 @@ export function preschoolTemplate(input: GeneratePreschoolDto) {
       'चार बड़े कार्ड बनाएँ:\nकार्ड 1 — नाम: परिचित चित्र और बड़े अक्षरों में नाम।\nकार्ड 2 — रंग: चित्र का एक बड़ा रंग।\nकार्ड 3 — आकार: हवा में उँगली से बनाने के लिए आकार।\nकार्ड 4 — क्रिया: नकल करने के लिए क्रिया।\nएक समय पर एक दिखाएँ। इशारे से जवाब भी स्वीकार करें।'
     ),
     COLOURING: t(
-      'Use the large outlines on the printable sheet. Choose colours and create a picture connected to the theme. Ask: “Tell me about your picture.” Offer chunky crayons. Staying inside the outline is optional.',
-      'പ്രിന്റ് ചെയ്യാവുന്ന ഷീറ്റിലെ വലിയ ആകൃതികൾ ഉപയോഗിക്കുക. ഇഷ്ടനിറങ്ങൾ തിരഞ്ഞെടുത്ത് വിഷയവുമായി ബന്ധപ്പെട്ട ചിത്രം ഉണ്ടാക്കട്ടെ. “ചിത്രത്തെക്കുറിച്ച് പറയാമോ?” എന്ന് ചോദിക്കുക. വലിയ ക്രയോണുകൾ നൽകുക. വരയ്ക്കുള്ളിൽ മാത്രം നിറയ്ക്കണമെന്ന് നിർബന്ധിക്കരുത്.',
-      'प्रिंट पन्ने के बड़े आकारों में मनपसंद रंग भरकर विषय से जुड़ा चित्र बनाएँ। पूछें “अपने चित्र के बारे में बताओ।” मोटे क्रेयॉन दें। रेखा के भीतर रंगना ज़रूरी नहीं है।'
+      `Colour the large “${theme}” picture${visualPrompt} on the printable sheet. Invite children to choose colours freely and talk about what they see. Ask: “Tell me about your picture.” Offer chunky crayons. Staying inside the lines is optional.`,
+      `പ്രിന്റ് ചെയ്യാവുന്ന ഷീറ്റിലെ “${theme}” എന്ന വിഷയവുമായി ബന്ധപ്പെട്ട വലിയ ചിത്രത്തിന്${visualPrompt} ഇഷ്ടനിറങ്ങൾ നൽകുക. കാണുന്ന കാര്യങ്ങളെക്കുറിച്ച് സംസാരിക്കാൻ കുട്ടികളെ പ്രോത്സാഹിപ്പിക്കുക. “ചിത്രത്തെക്കുറിച്ച് പറയാമോ?” എന്ന് ചോദിക്കുക. വലിയ ക്രയോണുകൾ നൽകുക. വരയ്ക്കുള്ളിൽ മാത്രം നിറയ്ക്കണമെന്ന് നിർബന്ധിക്കരുത്.`,
+      `प्रिंट पन्ने पर “${theme}” से जुड़े बड़े चित्र${visualPrompt} में मनपसंद रंग भरें। बच्चों से पूछें “अपने चित्र के बारे में बताओ।” मोटे क्रेयॉन दें। रेखा के भीतर रंगना ज़रूरी नहीं है।`
     ),
     WORKSHEET: t(
-      '1. Point to two matching shapes.\n2. Connect matching shapes with a line or a finger.\n3. Draw something you noticed about the theme in the blank box.\n4. Tell an adult about your drawing; the adult can write your words.\nNo score or time limit.',
-      '1. ഒരുപോലെയുള്ള ആകൃതികൾ ചൂണ്ടിക്കാണിക്കുക.\n2. വരകൊണ്ടോ വിരൽകൊണ്ടോ അവയെ ബന്ധിപ്പിക്കുക.\n3. വിഷയത്തിൽ ശ്രദ്ധിച്ച കാര്യം ഒഴിഞ്ഞ കളത്തിൽ വരയ്ക്കുക.\n4. ചിത്രത്തെക്കുറിച്ച് പറയുക. മുതിർന്നവർ കുട്ടിയുടെ വാക്കുകൾ എഴുതട്ടെ.\nമാർക്കും സമയപരിധിയും വേണ്ട.',
-      '1. दो एक जैसे आकार दिखाएँ।\n2. मिलते आकारों को रेखा या उँगली से जोड़ें।\n3. खाली खाने में विषय से जुड़ा चित्र बनाएँ।\n4. चित्र के बारे में बताएँ; वयस्क बच्चे के शब्द लिख सकता है।\nअंक या समय सीमा न रखें।'
+      `1. Look at the “${theme}” pictures${visualPrompt} and connect matching pairs with a line or a finger.\n2. Trace along the dotted path slowly with a crayon.\n3. Count and colour the themed pictures in the box.\n4. Draw your own “${theme}” picture in the blank space and tell an adult about it.\nNo score or time limit.`,
+      `1. “${theme}” എന്ന വിഷയത്തിലെ ഒരുപോലെയുള്ള ചിത്രങ്ങൾ${visualPrompt} കണ്ടെത്തി വരകൊണ്ടോ വിരൽകൊണ്ടോ യോജിപ്പിക്കുക.\n2. പൊട്ടുവരയിലൂടെ ക്രയോൺ ഉപയോഗിച്ച് മെല്ലെ വരയ്ക്കുക.\n3. കളത്തിലെ ചിത്രങ്ങൾ എണ്ണി നിറം നൽകുക.\n4. ഒഴിഞ്ഞ കളത്തിൽ “${theme}” സംബന്ധിച്ച സ്വന്തം ചിത്രം വരച്ച് അതിനെക്കുറിച്ച് പറയുക.\nമാർക്കും സമയപരിധിയും വേണ്ട.`,
+      `1. “${theme}” से जुड़े एक जैसे चित्रों${visualPrompt} को रेखा या उँगली से जोड़ें।\n2. बिंदु रेखा पर धीरे-धीरे क्रेयॉन चलाएँ।\n3. खाने में दिए चित्रों को गिनें और रंग भरें।\n4. खाली खाने में “${theme}” से जुड़ा अपना चित्र बनाएँ और उसके बारे में बताएँ।\nअंक या समय सीमा न रखें।`
     ),
     GAME: t(
       'Picture explorers\nPlace large pictures in a clear, accessible area. Describe one without naming it. Children may walk, point or tell an adult which picture matches. Take turns giving clues. Play cooperatively; nobody is eliminated. End by sharing a favourite discovery.',

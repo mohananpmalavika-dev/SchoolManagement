@@ -165,9 +165,9 @@ export function createGatewayServer(options = {}) {
     const bearerPrefix = 'Bearer ';
     return Boolean(
       gatewayKey &&
-        gatewayKey.length >= 32 &&
-        authHeader.startsWith(bearerPrefix) &&
-        timingSafeStringEqual(authHeader.slice(bearerPrefix.length), gatewayKey)
+      gatewayKey.length >= 32 &&
+      authHeader.startsWith(bearerPrefix) &&
+      timingSafeStringEqual(authHeader.slice(bearerPrefix.length), gatewayKey)
     );
   }
 

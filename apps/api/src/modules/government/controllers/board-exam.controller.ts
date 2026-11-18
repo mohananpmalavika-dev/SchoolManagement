@@ -1,6 +1,5 @@
-import { NotImplementedException } from '@nestjs/common';
-import { Roles } from '../../../common/decorators/roles.decorator';
 import { UserRole } from '@krypton/types';
+import { NotImplementedException } from '@nestjs/common';
 import {
   Controller,
   Post,
@@ -12,7 +11,8 @@ import {
   Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { BoardExamService } from '../services/board-exam.service';
+
+import { Roles } from '../../../common/decorators/roles.decorator';
 import {
   InitializeBoardDto,
   UpdateBoardConfigDto,
@@ -25,6 +25,7 @@ import {
   CandidateRegistrationResultDto,
   ResultsDownloadResultDto,
 } from '../dto';
+import { BoardExamService } from '../services/board-exam.service';
 
 @ApiTags('Government - Indian Board Exam Integration (CBSE / ICSE / State Board)')
 @ApiBearerAuth()
@@ -55,7 +56,7 @@ export class BoardExamController {
 
   @Put('integration')
   @ApiOperation({ summary: 'Update Board Exam integration settings' })
-  async updateIntegration(@Request() req: any, @Body() _dto: UpdateBoardConfigDto): Promise<any> {
+  async updateIntegration(@Request() _req: any, @Body() _dto: UpdateBoardConfigDto): Promise<any> {
     throw new NotImplementedException('Official integration settings cannot be enabled until an authorized provider adapter is configured');
   }
 

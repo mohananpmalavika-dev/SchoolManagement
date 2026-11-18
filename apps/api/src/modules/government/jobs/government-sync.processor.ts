@@ -1,9 +1,12 @@
 import { Processor, Process, OnQueueActive, OnQueueCompleted, OnQueueFailed } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
+import { ComplianceReportType } from '@prisma/client';
 import { Job } from 'bull';
-import { UdiseService } from '../services/udise.service';
+
 import { BoardExamService } from '../services/board-exam.service';
 import { ComplianceService } from '../services/compliance.service';
+import { UdiseService } from '../services/udise.service';
 
 @Processor('government-sync')
 export class GovernmentSyncProcessor {
@@ -12,7 +15,7 @@ export class GovernmentSyncProcessor {
   constructor(
     private readonly udiseService: UdiseService,
     private readonly boardExamService: BoardExamService,
-    private readonly complianceService: ComplianceService,
+    private readonly complianceService: ComplianceService
   ) {}
 
   @OnQueueActive()
@@ -47,7 +50,7 @@ export class GovernmentSyncProcessor {
           'UDISE+ Sync Completed with Errors',
           `UDISE+ sync completed but encountered ${errors.length} error(s)`,
           'UDISE_SYNC',
-          tenantId,
+          tenantId
         );
       }
 
@@ -61,7 +64,7 @@ export class GovernmentSyncProcessor {
         'UDISE+ Sync Failed',
         `UDISE+ sync failed: ${error.message}`,
         'UDISE_SYNC',
-        tenantId,
+        tenantId
       );
       throw error;
     }
@@ -80,26 +83,20 @@ export class GovernmentSyncProcessor {
   }
 
   @Process('udise-attendance-sync')
-  async processUdiseAttendanceSync(
-    job: Job<{ tenantId: string; startDate: Date; endDate: Date }>,
-  ) {
+  async processUdiseAttendanceSync(job: Job<{ tenantId: string; startDate: Date; endDate: Date }>) {
     const { tenantId, startDate, endDate } = job.data;
-    return this.udiseService.syncAttendanceData(
-      tenantId,
-      new Date(startDate),
-      new Date(endDate),
-    );
+    return this.udiseService.syncAttendanceData(tenantId, new Date(startDate), new Date(endDate));
   }
 
   @Process('board-results-download')
   async processBoardResultsDownload(
-    job: Job<{ tenantId: string; examYear: number; examLevel: string }>,
+    job: Job<{ tenantId: string; examYear: number; examLevel: string }>
   ) {
     const { tenantId, examYear, examLevel } = job.data;
     const result = await this.boardExamService.downloadResults(
       tenantId,
       examYear,
-      examLevel as any,
+      examLevel as any
     );
 
     if (result.succeeded > 0) {
@@ -110,7 +107,7 @@ export class GovernmentSyncProcessor {
         'Board Exam Results Available',
         `Downloaded ${result.succeeded} examination results for ${examLevel} ${examYear}`,
         'BOARD_RESULTS',
-        tenantId,
+        tenantId
       );
     }
 
@@ -127,31 +124,39 @@ export class GovernmentSyncProcessor {
       reportMonth?: number;
       startDate?: Date;
       endDate?: Date;
-    }>,
+    }>
   ) {
-    const { tenantId, reportType, reportPeriod, reportYear, reportMonth, startDate, endDate } = job.data;
-    switch (reportType) {
-      case 'ENROLLMENT_STATISTICS':
-        return this.complianceService.generateEnrollmentReport(tenantId, reportPeriod, reportYear);
-      case 'ATTENDANCE_SUMMARY':
-        return this.complianceService.generateAttendanceReport(
-          tenantId,
-          reportPeriod,
-          reportYear,
-          new Date(startDate || new Date()),
-          new Date(endDate || new Date()),
-        );
-      case 'TEACHER_DATA_REPORT':
-        return this.complianceService.generateTeacherDataReport(tenantId, reportPeriod, reportYear);
-      case 'FINANCIAL_SUMMARY':
-        return this.complianceService.generateFinancialReport(tenantId, reportPeriod, reportYear, reportMonth);
-      default:
-        return null;
-    }
+    const { tenantId, reportType, reportPeriod, reportYear, reportMonth, startDate, endDate } =
+      job.data;
+    if (reportType === 'ATTENDANCE_SUMMARY' && (!startDate || !endDate))
+      throw new BadRequestException('Attendance job requires explicit period dates');
+    return this.complianceService.generateReport(
+      tenantId,
+      {
+        reportType: reportType as ComplianceReportType,
+        reportPeriod,
+        reportYear,
+        reportMonth,
+        ...(startDate ? { startDate: new Date(startDate).toISOString().slice(0, 10) } : {}),
+        ...(endDate ? { endDate: new Date(endDate).toISOString().slice(0, 10) } : {}),
+      },
+      'SYSTEM',
+      `job-${job.id}`
+    );
   }
 
   @Process('data-quality-audit')
   async processDataQualityAudit(job: Job<{ tenantId: string; auditType: string }>) {
-    return this.complianceService.runDataQualityAudit(job.data.tenantId, job.data.auditType as any);
+    return this.complianceService.runDataQualityAudit(
+      job.data.tenantId,
+      job.data.auditType as any,
+      'SYSTEM',
+      `job-${job.id}`
+    );
+  }
+
+  @Process('check-compliance-deadlines')
+  processComplianceDeadlines(job: Job<{ tenantId: string }>) {
+    return this.complianceService.checkDeadlines(job.data.tenantId);
   }
 }
