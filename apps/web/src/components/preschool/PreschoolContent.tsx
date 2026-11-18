@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Trash2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import {
   friendly,
@@ -141,7 +142,8 @@ export function PreschoolContent({
     [generating, setGenerating] = useState(false),
     [source, setSource] = useState(''),
     [reviewed, setReviewed] = useState(false),
-    [print, setPrint] = useState<Content | null>(null);
+    [print, setPrint] = useState<Content | null>(null),
+    [confirmDeleteId, setConfirmDeleteId] = useState('');
   const dirtyRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const edit = useCallback(
@@ -200,6 +202,7 @@ export function PreschoolContent({
     setReviewed(false);
     setSource('');
     setOffset(0);
+    setConfirmDeleteId('');
     dirtyRef.current = false;
   }, [classId, today, language]);
   useEffect(() => {
@@ -294,6 +297,18 @@ export function PreschoolContent({
       setDraft(initial);
       setReviewed(false);
       setSource('');
+    }
+  }
+  async function removeItem(id: string) {
+    if (await action('/content/' + id, undefined, 'delete')) {
+      setConfirmDeleteId('');
+      if (editing?.id === id) {
+        dirtyRef.current = false;
+        setEditing(null);
+        setDraft(initial);
+        setReviewed(false);
+        setSource('');
+      }
     }
   }
   return (
@@ -485,6 +500,36 @@ export function PreschoolContent({
                       }
                     >
                       Publish to families
+                    </Button>
+                  )}
+                  {confirmDeleteId === item.id ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={busy || generating}
+                        onClick={() => void removeItem(item.id)}
+                      >
+                        Confirm delete
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => setConfirmDeleteId('')}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      leftIcon={<Trash2 size={14} />}
+                      disabled={busy || generating}
+                      onClick={() => setConfirmDeleteId(item.id)}
+                    >
+                      Delete
                     </Button>
                   )}
                 </div>

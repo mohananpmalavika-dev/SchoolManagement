@@ -18,8 +18,10 @@ import { preschoolGuidance, preschoolTemplate } from './preschool-templates';
 import {
   BulkCareRecordDto,
   BulkCheckInDto,
+  BulkMarkAbsentDto,
   CameraDto,
   GeneratePreschoolDto,
+  MarkAbsentDto,
   PreschoolCopilotDto,
   contentKinds,
   CheckOutDto,
@@ -74,7 +76,8 @@ function setup() {
       findMany: fn([]),
     },
     attendanceRecord: {
-      upsert: fn({}),
+      findFirst: fn(null),
+      upsert: fn({ id: 'att-1' }),
       findMany: fn([]),
       createMany: fn({ count: 1 }),
       updateMany: fn({ count: 1 }),
@@ -103,8 +106,9 @@ function setup() {
   };
   db.$transaction = jest.fn(async (work: (tx: any) => unknown) => work(db));
   const access = new PreschoolAccessService(db, { requireTenantContext: () => 'tenant-a' } as any);
-  const service = new PreschoolService(db, access);
-  return { db, access, service };
+  const notifications: any = { sendAttendanceAlert: fn({ delivered: 1 }) };
+  const service = new PreschoolService(db, access, undefined, notifications);
+  return { db, access, service, notifications };
 }
 describe('Preschool authorization and daily care', () => {
   beforeEach(() => jest.useFakeTimers().setSystemTime(new Date('2026-11-17T04:30:00Z')));
@@ -305,6 +309,175 @@ describe('Preschool authorization and daily care', () => {
         shareWithParents: true,
       })
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+  it('marks an individual preschool child absent, notifies parents and blocks duplicate or post-check-in absence', async () => {
+    const { db, service, notifications } = setup();
+    const res = await service.markAbsent(teacher, 'child', { remarks: 'Fever' });
+    expect(res).toMatchObject({
+      id: 'att-1',
+      studentId: 'child',
+      date: '2026-11-17',
+      status: 'ABSENT',
+      remarks: 'Fever',
+    });
+    expect(db.attendanceRecord.upsert.mock.calls[0][0].create).toMatchObject({
+      tenantId: 'tenant-a',
+      studentId: 'child',
+      classId: 'class',
+      period: 1,
+      status: 'ABSENT',
+      arrivalTime: null,
+      remarks: 'Fever',
+      markedBy: 'teacher',
+    });
+    expect(db.activityFeed.create.mock.calls[0][0].data).toMatchObject({
+      studentId: 'child',
+      title: 'Marked absent at preschool',
+      activityType: 'ATTENDANCE',
+    });
+    expect(db.auditLog.create.mock.calls[0][0].data).toMatchObject({
+      action: 'PRESCHOOL_MARK_ABSENT',
+      entityId: 'att-1',
+    });
+    expect(notifications.sendAttendanceAlert).toHaveBeenCalledWith('att-1');
+
+    // Already absent today -> ConflictException
+    db.attendanceRecord.findFirst.mockResolvedValue({ id: 'att-1', status: 'ABSENT' });
+    await expect(service.markAbsent(teacher, 'child', {})).rejects.toBeInstanceOf(
+      ConflictException
+    );
+
+    // Already checked in today -> ConflictException
+    db.attendanceRecord.findFirst.mockResolvedValue(null);
+    db.preschoolDayRecord.findFirst.mockResolvedValue({ id: 'day', checkInAt: new Date() });
+    await expect(service.markAbsent(teacher, 'child', {})).rejects.toBeInstanceOf(
+      ConflictException
+    );
+
+    // Parents cannot mark absent
+    await expect(service.markAbsent(parent, 'child', {})).rejects.toBeInstanceOf(
+      ForbiddenException
+    );
+  });
+  it('bulk marks unmarked children absent, skips checked-in and already-absent children, and respects absent children during bulk check-in remaining', async () => {
+    const { db, service, notifications } = setup();
+    db.student.findMany.mockResolvedValue([{ id: 's1' }, { id: 's2' }, { id: 's3' }, { id: 's4' }]);
+    db.preschoolDayRecord.findMany.mockResolvedValue([
+      { id: 'd1', studentId: 's1', checkInAt: new Date(), checkOutAt: null },
+    ]);
+    db.attendanceRecord.findMany
+      .mockResolvedValueOnce([
+        { id: 'a2', studentId: 's2', status: 'ABSENT' },
+        { id: 'a3', studentId: 's3', status: 'LATE' },
+      ])
+      .mockResolvedValueOnce([{ id: 'a3' }, { id: 'a4' }]);
+
+    const absentRes = await service.bulkMarkAbsent(teacher, 'class', { remarks: 'Rain' });
+    expect(absentRes).toMatchObject({
+      classId: 'class',
+      absentCount: 2,
+      skippedCount: 2,
+      absentStudentIds: ['s3', 's4'],
+      skippedStudentIds: ['s1', 's2'],
+    });
+    expect(db.attendanceRecord.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          studentId: 's4',
+          classId: 'class',
+          status: 'ABSENT',
+          arrivalTime: null,
+          remarks: 'Rain',
+        }),
+      ],
+    });
+    expect(db.attendanceRecord.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ studentId: { in: ['s3'] } }),
+        data: expect.objectContaining({
+          status: 'ABSENT',
+          arrivalTime: null,
+          remarks: 'Rain',
+          markedBy: 'teacher',
+        }),
+      })
+    );
+    expect(db.auditLog.create.mock.calls[0][0].data).toMatchObject({
+      action: 'PRESCHOOL_BULK_MARK_ABSENT',
+      entityId: 'class',
+    });
+    expect(notifications.sendAttendanceAlert).toHaveBeenCalledWith('a3');
+    expect(notifications.sendAttendanceAlert).toHaveBeenCalledWith('a4');
+
+    // Bulk check-in remaining ({}) should skip s1 (checked in) and s2 (already ABSENT), checking in only s3
+    db.student.findMany.mockResolvedValue([{ id: 's1' }, { id: 's2' }, { id: 's3' }]);
+    db.preschoolDayRecord.findMany.mockResolvedValue([
+      { id: 'd1', studentId: 's1', checkInAt: new Date(), checkOutAt: null },
+    ]);
+    db.attendanceRecord.findMany.mockResolvedValue([{ studentId: 's2', status: 'ABSENT' }]);
+    const remainingCheckIn = await service.bulkCheckIn(teacher, 'class', {});
+    expect(remainingCheckIn).toMatchObject({
+      checkedInCount: 1,
+      skippedCount: 2,
+      checkedInStudentIds: ['s3'],
+      skippedStudentIds: ['s1', 's2'],
+    });
+
+    // Explicit selection in bulkCheckIn can still check in an ABSENT child who arrives late
+    db.student.findMany.mockResolvedValue([{ id: 's2' }]);
+    db.preschoolDayRecord.findMany.mockResolvedValue([]);
+    db.attendanceRecord.findMany.mockResolvedValue([{ studentId: 's2', status: 'ABSENT' }]);
+    const lateArrival = await service.bulkCheckIn(teacher, 'class', { studentIds: ['s2'] });
+    expect(lateArrival).toMatchObject({
+      checkedInCount: 1,
+      skippedCount: 0,
+      checkedInStudentIds: ['s2'],
+    });
+
+    db.student.findMany.mockResolvedValue([{ id: 's1' }]);
+    await expect(
+      service.bulkMarkAbsent(teacher, 'class', { studentIds: ['s1', 'foreign'] })
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.bulkMarkAbsent(parent, 'class', {})).rejects.toBeInstanceOf(
+      ForbiddenException
+    );
+  });
+  it('merges absent attendance days into child history and validates mark-absent DTOs', async () => {
+    const { db, service } = setup();
+    db.preschoolDayRecord.findMany.mockResolvedValue([
+      {
+        id: 'day-1',
+        date: new Date('2026-11-16T00:00:00.000Z'),
+        checkInAt: new Date('2026-11-16T04:00:00.000Z'),
+        checkOutAt: null,
+        sharedAt: null,
+      },
+    ]);
+    db.attendanceRecord.findMany.mockResolvedValue([
+      {
+        id: 'att-absent',
+        date: new Date('2026-11-17T00:00:00.000Z'),
+        status: 'ABSENT',
+        remarks: 'Family trip',
+      },
+    ]);
+    const view = await service.child(parent, 'child', {});
+    expect(view.days).toHaveLength(2);
+    expect(view.days[0]).toMatchObject({
+      id: 'att-att-absent',
+      attendanceStatus: 'ABSENT',
+      attendanceRemarks: 'Family trip',
+      checkInAt: null,
+    });
+    expect(view.days[1]).toMatchObject({
+      id: 'day-1',
+      attendanceStatus: 'PRESENT',
+    });
+
+    const badSingle = plainToInstance(MarkAbsentDto, { remarks: 'x'.repeat(501) });
+    expect((await validate(badSingle)).some((e) => e.property === 'remarks')).toBe(true);
+    const badBulk = plainToInstance(BulkMarkAbsentDto, { studentIds: [] });
+    expect((await validate(badBulk)).some((e) => e.property === 'studentIds')).toBe(true);
   });
   it('validates bulk check-in and bulk care DTOs strictly', async () => {
     const emptyIds = plainToInstance(BulkCheckInDto, { studentIds: [] });

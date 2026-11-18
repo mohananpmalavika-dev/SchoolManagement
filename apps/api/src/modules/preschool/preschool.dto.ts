@@ -52,15 +52,32 @@ export class PreschoolAssignmentDto {
 }
 export class PreschoolQueryDto {
   @IsOptional() @IsUUID() classId?: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
   @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) from?: string;
   @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) to?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(100000) offset?: number;
+}
+export class CheckInDto {
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) time?: string;
 }
 export class CheckOutDto {
   @IsOptional() @IsUUID() guardianId?: string;
   @Transform(({ obj, key }) => obj[key]) @IsBoolean() identityVerified: boolean;
   @IsOptional() @IsString() @Matches(/^\d{6}$/) pickupOtp?: string;
   @IsOptional() @IsString() @MinLength(16) @MaxLength(256) pickupQrToken?: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) time?: string;
+}
+export class UndoDayActionDto {
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
+}
+export class CorrectDayTimesDto {
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
+  @IsInt() @Min(0) version: number;
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) checkInTime?: string;
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) checkOutTime?: string;
+  @IsOptional() @IsUUID() pickupGuardianId?: string;
 }
 export class PickupPassDto {
   @IsOptional() @IsUUID() guardianId?: string;
@@ -71,6 +88,7 @@ export class PickupPermissionDto {
 }
 export class CareRecordDto {
   @IsInt() @Min(0) version: number;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
   @IsOptional() @IsString() @MaxLength(2000) meals?: string;
   @IsOptional() @IsInt() @Min(0) @Max(720) sleepMinutes?: number | null;
   @IsOptional() @IsIn(['NOT_RECORDED', 'INDEPENDENT', 'ASSISTED', 'CHANGED']) toileting?: string;
@@ -86,6 +104,23 @@ export class BulkCheckInDto {
   @ArrayUnique()
   @IsUUID(undefined, { each: true })
   studentIds?: string[];
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) time?: string;
+}
+export class MarkAbsentDto {
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
+  @IsOptional() @IsString() @MaxLength(500) remarks?: string;
+}
+export class BulkMarkAbsentDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  studentIds?: string[];
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
+  @IsOptional() @IsString() @MaxLength(500) remarks?: string;
 }
 export class BulkCareRecordDto {
   @IsOptional()
@@ -95,6 +130,7 @@ export class BulkCareRecordDto {
   @ArrayUnique()
   @IsUUID(undefined, { each: true })
   studentIds?: string[];
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
   @IsOptional() @Transform(({ obj, key }) => obj[key]) @IsBoolean() checkedInOnly?: boolean;
   @IsOptional() @IsString() @MaxLength(2000) meals?: string;
   @IsOptional() @IsInt() @Min(0) @Max(720) sleepMinutes?: number | null;
@@ -105,6 +141,14 @@ export class BulkCareRecordDto {
 }
 export class ObservationDto {
   @IsUUID() studentId: string;
+  @IsIn(domains) domain: (typeof domains)[number];
+  @IsIn(['EMERGING', 'DEVELOPING', 'CONSISTENT']) level: 'EMERGING' | 'DEVELOPING' | 'CONSISTENT';
+  @IsString() @MinLength(2) @MaxLength(200) skill: string;
+  @IsString() @MinLength(5) @MaxLength(5000) observation: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) observedOn: string;
+  @Transform(({ obj, key }) => obj[key]) @IsBoolean() shared: boolean;
+}
+export class UpdateObservationDto {
   @IsIn(domains) domain: (typeof domains)[number];
   @IsIn(['EMERGING', 'DEVELOPING', 'CONSISTENT']) level: 'EMERGING' | 'DEVELOPING' | 'CONSISTENT';
   @IsString() @MinLength(2) @MaxLength(200) skill: string;

@@ -2,16 +2,18 @@
 /* Private signed photo links bypass the shared Next.js image-optimizer cache. */
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { CheckCheck, QrCode, Send, ShieldCheck } from 'lucide-react';
+import { CheckCheck, Clock, Pencil, QrCode, RotateCcw, Send, ShieldCheck, Trash2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import {
   developmentDomains,
   friendly,
   pickupMethodLabel,
+  timeInputValue,
   timeLabel,
   type PreschoolAction,
   type PreschoolChild,
   type PreschoolChildView,
+  type PreschoolObservation,
   type PreschoolPickupPassSummary,
 } from '@/lib/preschool';
 import { messageFor, dateLabel } from '@/lib/workspace';
@@ -35,6 +37,8 @@ export function PreschoolBulkCareForm({
   roster,
   total,
   selectedIds,
+  date,
+  isToday = true,
   busy,
   action,
   onClearSelection,
@@ -43,6 +47,8 @@ export function PreschoolBulkCareForm({
   roster: PreschoolChild[];
   total: number;
   selectedIds: string[];
+  date?: string;
+  isToday?: boolean;
   busy: boolean;
   action: PreschoolAction;
   onClearSelection?: () => void;
@@ -90,7 +96,10 @@ export function PreschoolBulkCareForm({
   async function submitBulkCare(e: FormEvent) {
     e.preventDefault();
     if (!canApplyChanges || targetUnavailable) return;
-    const payload: Record<string, unknown> = { shareWithParents: share };
+    const payload: Record<string, unknown> = {
+      shareWithParents: share,
+      ...(date ? { date } : {}),
+    };
     if (scope === 'SELECTED') payload.studentIds = selectedIds;
     if (scope === 'CHECKED_IN') payload.checkedInOnly = true;
     if (meals.trim()) payload.meals = meals.trim();
@@ -111,8 +120,12 @@ export function PreschoolBulkCareForm({
 
   return (
     <Panel
-      title="Bulk daily care update"
-      subtitle="Update meals, nap, mood or notes for the whole class in one click. Blank fields keep each child’s existing record."
+      title={isToday ? 'Bulk daily care update' : `Bulk daily care backfill · ${date}`}
+      subtitle={
+        isToday
+          ? 'Update meals, nap, mood or notes for the whole class in one click. Blank fields keep each child’s existing record.'
+          : `Backfill or correct meals, nap, mood or notes for ${date}. Blank fields keep each child’s existing record.`
+      }
     >
       <form className="panel-body space-y-4" onSubmit={submitBulkCare}>
         <div className="space-y-2">
@@ -126,7 +139,7 @@ export function PreschoolBulkCareForm({
               disabled={busy || (!isPaginated && checkedInCount === 0)}
               onClick={() => setScope('CHECKED_IN')}
             >
-              Checked-in today ({checkedInCount}
+              {isToday ? 'Checked-in today' : `Checked-in on ${date}`} ({checkedInCount}
               {isPaginated ? '+' : ''})
             </Button>
             <Button
@@ -300,12 +313,16 @@ export function PreschoolBulkCareForm({
 
 export function PreschoolCareForm({
   child,
+  date,
+  isToday = true,
   busy,
   action,
   pickupVerification = 'OPTIONAL',
   timezone = 'Asia/Kolkata',
 }: {
   child: PreschoolChild;
+  date?: string;
+  isToday?: boolean;
   busy: boolean;
   action: PreschoolAction;
   pickupVerification?: 'OPTIONAL' | 'REQUIRED';
@@ -320,6 +337,7 @@ export function PreschoolCareForm({
     [share, setShare] = useState(!!day?.sharedAt),
     [guardian, setGuardian] = useState(child.activePickupPass?.guardianId || ''),
     [verified, setVerified] = useState(false),
+    [checkoutTime, setCheckoutTime] = useState(isToday ? '' : '15:00'),
     [otp, setOtp] = useState(''),
     [qrToken, setQrToken] = useState(''),
     [showScanner, setShowScanner] = useState(false),
@@ -328,7 +346,11 @@ export function PreschoolCareForm({
     ),
     [passBusy, setPassBusy] = useState(false),
     [passNotice, setPassNotice] = useState(''),
-    [passError, setPassError] = useState('');
+    [passError, setPassError] = useState(''),
+    [editCheckInTime, setEditCheckInTime] = useState(timeInputValue(day?.checkInAt, timezone)),
+    [editCheckOutTime, setEditCheckOutTime] = useState(timeInputValue(day?.checkOutAt, timezone)),
+    [editGuardianId, setEditGuardianId] = useState(day?.pickupGuardianId || ''),
+    [confirmUndo, setConfirmUndo] = useState<'' | 'check-in' | 'check-out' | 'absent'>('');
 
   async function requestParentOtp() {
     if (!guardian) return;
@@ -375,12 +397,22 @@ export function PreschoolCareForm({
   const trimmedQr = qrToken.trim();
   const hasValidOtp = /^\d{6}$/.test(trimmedOtp);
   const hasQr = trimmedQr.length >= 16;
-  const missingRequiredPass = pickupVerification === 'REQUIRED' && !hasValidOtp && !hasQr;
-  const canSubmitCheckout = verified && (!!guardian || hasQr) && !missingRequiredPass;
+  const missingRequiredPass =
+    isToday && pickupVerification === 'REQUIRED' && !hasValidOtp && !hasQr;
+  const canSubmitCheckout =
+    verified && (!!guardian || (isToday && hasQr)) && !missingRequiredPass;
+  const originalCheckInTime = timeInputValue(day?.checkInAt, timezone);
+  const originalCheckOutTime = timeInputValue(day?.checkOutAt, timezone);
+  const hasTimeCorrection = Boolean(
+    (day?.checkInAt && editCheckInTime && editCheckInTime !== originalCheckInTime) ||
+      (day?.checkOutAt && editCheckOutTime && editCheckOutTime !== originalCheckOutTime) ||
+      (day?.checkOutAt && editGuardianId && editGuardianId !== (day?.pickupGuardianId || ''))
+  );
   function save(e: FormEvent) {
     e.preventDefault();
     void action('/students/' + child.id + '/care', {
       version: day?.version || 0,
+      ...(date ? { date } : {}),
       meals,
       sleepMinutes: sleep !== '' ? Number(sleep) : null,
       toileting,
@@ -389,13 +421,50 @@ export function PreschoolCareForm({
       shareWithParents: share,
     });
   }
+  function saveCorrection(e: FormEvent) {
+    e.preventDefault();
+    if (!day || !hasTimeCorrection) return;
+    const payload: Record<string, unknown> = {
+      version: day.version || 0,
+      ...(date ? { date } : {}),
+    };
+    if (day.checkInAt && editCheckInTime && editCheckInTime !== originalCheckInTime) {
+      payload.checkInTime = editCheckInTime;
+    }
+    if (day.checkOutAt && editCheckOutTime && editCheckOutTime !== originalCheckOutTime) {
+      payload.checkOutTime = editCheckOutTime;
+    }
+    if (day.checkOutAt && editGuardianId && editGuardianId !== (day.pickupGuardianId || '')) {
+      payload.pickupGuardianId = editGuardianId;
+    }
+    void action('/students/' + child.id + '/attendance-times', payload, 'patch');
+  }
+  const dateTag = isToday ? 'today' : date || 'this date';
   return (
     <div className="content-stack">
       <Panel
-        title={'Daily care · ' + child.firstName + ' ' + child.lastName}
-        subtitle="Share reviewed care notes with the family."
+        title={
+          (isToday ? 'Daily care · ' : `Daily care backfill (${date}) · `) +
+          child.firstName +
+          ' ' +
+          child.lastName
+        }
+        subtitle={
+          isToday
+            ? 'Share reviewed care notes with the family.'
+            : `Record or update missed care notes for ${date}.`
+        }
       >
         <form className="panel-body space-y-4" onSubmit={save}>
+          {!day?.checkInAt && child.attendance?.status === 'ABSENT' && (
+            <div className="state-box flex flex-wrap items-center gap-2" role="status">
+              <StatusPill value="ABSENT" />
+              <span>
+                {child.firstName} is marked absent for {dateTag}. Use Check in above if they
+                attended, or Undo absence below.
+              </span>
+            </div>
+          )}
           <div className="form-grid">
             <PreschoolArea
               label="Meals / snacks"
@@ -447,11 +516,13 @@ export function PreschoolCareForm({
       </Panel>
       {day?.checkInAt && !day.checkOutAt && (
         <Panel
-          title="Authorized pickup"
+          title={isToday ? 'Authorized pickup' : `Backfill missed checkout · ${date}`}
           subtitle={
-            pickupVerification === 'REQUIRED'
-              ? 'Verify the collecting guardian using the parent’s 6-digit OTP or QR pickup pass.'
-              : 'Confirm the collecting person’s identity before recording checkout. Optional parent OTP or QR pass verification is also available.'
+            !isToday
+              ? `Record a missed checkout for ${date}. Choose the authorized collecting guardian and pickup time.`
+              : pickupVerification === 'REQUIRED'
+                ? 'Verify the collecting guardian using the parent’s 6-digit OTP or QR pickup pass.'
+                : 'Confirm the collecting person’s identity before recording checkout. Optional parent OTP or QR pass verification is also available.'
           }
         >
           <form
@@ -461,175 +532,391 @@ export function PreschoolCareForm({
               void action('/students/' + child.id + '/check-out', {
                 ...(guardian ? { guardianId: guardian } : {}),
                 identityVerified: verified,
-                ...(trimmedOtp ? { pickupOtp: trimmedOtp } : {}),
-                ...(trimmedQr ? { pickupQrToken: trimmedQr } : {}),
+                ...(date ? { date } : {}),
+                ...(checkoutTime ? { time: checkoutTime } : {}),
+                ...(isToday && trimmedOtp ? { pickupOtp: trimmedOtp } : {}),
+                ...(isToday && trimmedQr ? { pickupQrToken: trimmedQr } : {}),
               });
             }}
           >
-            <Field label="Collecting guardian">
-              {(id) => (
-                <select
-                  id={id}
-                  required={!hasQr}
-                  value={guardian}
-                  onChange={(e) => {
-                    setGuardian(e.target.value);
-                    setVerified(false);
-                  }}
-                >
-                  <option value="">Choose authorized guardian</option>
-                  {child.guardianLinks
-                    .filter((link) => link.canPickup !== false)
-                    .map((link) => (
-                      <option key={link.guardianId} value={link.guardianId}>
-                        {link.guardian.firstName} {link.guardian.lastName} ·{' '}
-                        {friendly(link.relationship)}
-                      </option>
-                    ))}
-                </select>
-              )}
-            </Field>
+            <div className="form-grid">
+              <Field label="Collecting guardian">
+                {(id) => (
+                  <select
+                    id={id}
+                    required={!isToday || !hasQr}
+                    value={guardian}
+                    onChange={(e) => {
+                      setGuardian(e.target.value);
+                      setVerified(false);
+                    }}
+                  >
+                    <option value="">Choose authorized guardian</option>
+                    {child.guardianLinks
+                      .filter((link) => link.canPickup !== false)
+                      .map((link) => (
+                        <option key={link.guardianId} value={link.guardianId}>
+                          {link.guardian.firstName} {link.guardian.lastName} ·{' '}
+                          {friendly(link.relationship)}
+                        </option>
+                      ))}
+                  </select>
+                )}
+              </Field>
+              <Field
+                label={
+                  isToday
+                    ? 'Checkout time (optional — defaults to now)'
+                    : `Checkout time on ${date}`
+                }
+              >
+                {(id) => (
+                  <input
+                    id={id}
+                    type="time"
+                    required={!isToday}
+                    value={checkoutTime}
+                    onChange={(e) => setCheckoutTime(e.target.value)}
+                  />
+                )}
+              </Field>
+            </div>
             {!child.guardianLinks.some((link) => link.canPickup !== false) && (
               <p className="muted text-sm">
                 The office must add a guardian with pickup permission before this child can be
                 checked out.
               </p>
             )}
-            <div className="border rounded-xl p-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-semibold text-sm flex items-center gap-2">
-                  <ShieldCheck size={16} />
-                  Safe pickup OTP / QR verification
-                </p>
-                <StatusPill
-                  value={
-                    pickupVerification === 'REQUIRED' ? 'Required by school' : 'Optional'
-                  }
-                />
-              </div>
+            {isToday && (
+              <div className="border rounded-xl p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-semibold text-sm flex items-center gap-2">
+                    <ShieldCheck size={16} />
+                    Safe pickup OTP / QR verification
+                  </p>
+                  <StatusPill
+                    value={
+                      pickupVerification === 'REQUIRED' ? 'Required by school' : 'Optional'
+                    }
+                  />
+                </div>
 
-              {passError && (
-                <p role="alert" className="state-box">
-                  {passError}
-                </p>
-              )}
-              {passNotice && (
-                <p role="status" className="state-box success">
-                  {passNotice}
-                </p>
-              )}
+                {passError && (
+                  <p role="alert" className="state-box">
+                    {passError}
+                  </p>
+                )}
+                {passNotice && (
+                  <p role="status" className="state-box success">
+                    {passNotice}
+                  </p>
+                )}
 
-              {activePass && (
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm muted">
-                  <span>
-                    Active pass for <strong>{activePass.guardianName}</strong> · expires at{' '}
-                    {timeLabel(activePass.expiresAt, timezone)}
-                  </span>
+                {activePass && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm muted">
+                    <span>
+                      Active pass for <strong>{activePass.guardianName}</strong> · expires at{' '}
+                      {timeLabel(activePass.expiresAt, timezone)}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy || passBusy}
+                      onClick={() => void revokeParentPass()}
+                    >
+                      Revoke pass
+                    </Button>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     size="sm"
-                    variant="ghost"
-                    disabled={busy || passBusy}
-                    onClick={() => void revokeParentPass()}
+                    variant="outline"
+                    leftIcon={<Send size={14} />}
+                    disabled={!guardian || busy || passBusy}
+                    isLoading={passBusy}
+                    onClick={() => void requestParentOtp()}
                   >
-                    Revoke pass
+                    Send pickup OTP to parent
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<QrCode size={14} />}
+                    disabled={busy}
+                    onClick={() => setShowScanner((v) => !v)}
+                  >
+                    {showScanner ? 'Hide QR scanner' : 'Scan parent QR pass'}
                   </Button>
                 </div>
-              )}
 
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  leftIcon={<Send size={14} />}
-                  disabled={!guardian || busy || passBusy}
-                  isLoading={passBusy}
-                  onClick={() => void requestParentOtp()}
-                >
-                  Send pickup OTP to parent
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  leftIcon={<QrCode size={14} />}
-                  disabled={busy}
-                  onClick={() => setShowScanner((v) => !v)}
-                >
-                  {showScanner ? 'Hide QR scanner' : 'Scan parent QR pass'}
-                </Button>
+                {showScanner && (
+                  <PreschoolQrScanner
+                    onDetected={(value) => {
+                      setQrToken(value);
+                      setShowScanner(false);
+                      setPassNotice(
+                        'Parent QR pickup pass scanned. Confirm checkout to complete.'
+                      );
+                    }}
+                    onClose={() => setShowScanner(false)}
+                  />
+                )}
+
+                <div className="form-grid">
+                  <Field
+                    label={
+                      pickupVerification === 'REQUIRED'
+                        ? 'Parent pickup OTP (6 digits)'
+                        : 'Parent pickup OTP (optional)'
+                    }
+                  >
+                    {(id) => (
+                      <input
+                        id={id}
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        placeholder="6-digit OTP from parent phone"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
+                      />
+                    )}
+                  </Field>
+                  <Field
+                    label={
+                      pickupVerification === 'REQUIRED'
+                        ? 'Parent QR pass code'
+                        : 'Parent QR pass code (optional)'
+                    }
+                  >
+                    {(id) => (
+                      <input
+                        id={id}
+                        type="text"
+                        placeholder="Scan or paste KRYPTON-PICKUP-1:…"
+                        value={qrToken}
+                        onChange={(e) => setQrToken(e.target.value)}
+                      />
+                    )}
+                  </Field>
+                </div>
+                {missingRequiredPass && (
+                  <p className="text-xs muted">
+                    Enter the 6-digit OTP from the parent’s phone or scan their QR pickup pass to
+                    enable checkout.
+                  </p>
+                )}
               </div>
-
-              {showScanner && (
-                <PreschoolQrScanner
-                  onDetected={(value) => {
-                    setQrToken(value);
-                    setShowScanner(false);
-                    setPassNotice('Parent QR pickup pass scanned. Confirm checkout to complete.');
-                  }}
-                  onClose={() => setShowScanner(false)}
-                />
-              )}
-
-              <div className="form-grid">
-                <Field
-                  label={
-                    pickupVerification === 'REQUIRED'
-                      ? 'Parent pickup OTP (6 digits)'
-                      : 'Parent pickup OTP (optional)'
-                  }
-                >
-                  {(id) => (
-                    <input
-                      id={id}
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={6}
-                      placeholder="6-digit OTP from parent phone"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
-                    />
-                  )}
-                </Field>
-                <Field
-                  label={
-                    pickupVerification === 'REQUIRED'
-                      ? 'Parent QR pass code'
-                      : 'Parent QR pass code (optional)'
-                  }
-                >
-                  {(id) => (
-                    <input
-                      id={id}
-                      type="text"
-                      placeholder="Scan or paste KRYPTON-PICKUP-1:…"
-                      value={qrToken}
-                      onChange={(e) => setQrToken(e.target.value)}
-                    />
-                  )}
-                </Field>
-              </div>
-              {missingRequiredPass && (
-                <p className="text-xs muted">
-                  Enter the 6-digit OTP from the parent’s phone or scan their QR pickup pass to
-                  enable checkout.
-                </p>
-              )}
-            </div>
+            )}
             <label className="flex items-start gap-3">
               <input
                 type="checkbox"
                 checked={verified}
                 onChange={(e) => setVerified(e.target.checked)}
               />
-              I verified this person’s identity and pickup authorization
+              {isToday
+                ? 'I verified this person’s identity and pickup authorization'
+                : `I confirm this authorized guardian collected ${child.firstName} on ${date}`}
             </label>
             <Button type="submit" disabled={!canSubmitCheckout} isLoading={busy}>
-              Confirm checkout
+              {isToday ? 'Confirm checkout' : `Record checkout for ${date}`}
             </Button>
           </form>
+        </Panel>
+      )}
+      {(day?.checkInAt || child.attendance?.status === 'ABSENT') && (
+        <Panel
+          title={`Attendance corrections & undo · ${child.firstName}`}
+          subtitle="Adjust recorded check-in/checkout times or undo an accidental entry. Every change is audited."
+        >
+          <div className="panel-body space-y-4">
+            {day?.checkInAt && (
+              <form className="space-y-4" onSubmit={saveCorrection}>
+                <div className="form-grid">
+                  <Field label="Check-in time">
+                    {(id) => (
+                      <input
+                        id={id}
+                        type="time"
+                        value={editCheckInTime}
+                        disabled={busy}
+                        onChange={(e) => setEditCheckInTime(e.target.value)}
+                      />
+                    )}
+                  </Field>
+                  {day.checkOutAt && (
+                    <>
+                      <Field label="Checkout time">
+                        {(id) => (
+                          <input
+                            id={id}
+                            type="time"
+                            value={editCheckOutTime}
+                            disabled={busy}
+                            onChange={(e) => setEditCheckOutTime(e.target.value)}
+                          />
+                        )}
+                      </Field>
+                      <Field label="Collecting guardian">
+                        {(id) => (
+                          <select
+                            id={id}
+                            value={editGuardianId}
+                            disabled={busy}
+                            onChange={(e) => setEditGuardianId(e.target.value)}
+                          >
+                            <option value="">Keep recorded guardian</option>
+                            {child.guardianLinks
+                              .filter((link) => link.canPickup !== false)
+                              .map((link) => (
+                                <option key={link.guardianId} value={link.guardianId}>
+                                  {link.guardian.firstName} {link.guardian.lastName} ·{' '}
+                                  {friendly(link.relationship)}
+                                </option>
+                              ))}
+                          </select>
+                        )}
+                      </Field>
+                    </>
+                  )}
+                </div>
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Clock size={14} />}
+                  disabled={busy || !hasTimeCorrection}
+                  isLoading={busy}
+                >
+                  Save attendance correction
+                </Button>
+              </form>
+            )}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+              {day?.checkOutAt &&
+                (confirmUndo === 'check-out' ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={busy}
+                      onClick={async () => {
+                        if (
+                          await action('/students/' + child.id + '/check-out/undo', {
+                            ...(date ? { date } : {}),
+                          })
+                        )
+                          setConfirmUndo('');
+                      }}
+                    >
+                      Confirm undo checkout
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => setConfirmUndo('')}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<RotateCcw size={14} />}
+                    disabled={busy}
+                    onClick={() => setConfirmUndo('check-out')}
+                  >
+                    Undo checkout
+                  </Button>
+                ))}
+              {day?.checkInAt &&
+                !day.checkOutAt &&
+                (confirmUndo === 'check-in' ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={busy}
+                      onClick={async () => {
+                        if (
+                          await action('/students/' + child.id + '/check-in/undo', {
+                            ...(date ? { date } : {}),
+                          })
+                        )
+                          setConfirmUndo('');
+                      }}
+                    >
+                      Confirm undo check-in
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => setConfirmUndo('')}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<RotateCcw size={14} />}
+                    disabled={busy}
+                    onClick={() => setConfirmUndo('check-in')}
+                  >
+                    Undo check-in
+                  </Button>
+                ))}
+              {!day?.checkInAt &&
+                child.attendance?.status === 'ABSENT' &&
+                (confirmUndo === 'absent' ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={busy}
+                      onClick={async () => {
+                        if (
+                          await action('/students/' + child.id + '/mark-absent/undo', {
+                            ...(date ? { date } : {}),
+                          })
+                        )
+                          setConfirmUndo('');
+                      }}
+                    >
+                      Confirm undo absence
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => setConfirmUndo('')}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<RotateCcw size={14} />}
+                    disabled={busy}
+                    onClick={() => setConfirmUndo('absent')}
+                  >
+                    Undo absence
+                  </Button>
+                ))}
+            </div>
+          </div>
         </Panel>
       )}
     </div>
@@ -641,11 +928,15 @@ export function PreschoolObservationForm({
   today,
   busy,
   action,
+  editing,
+  onCancelEdit,
 }: {
   studentId: string;
   today: string;
   busy: boolean;
   action: PreschoolAction;
+  editing?: PreschoolObservation | null;
+  onCancelEdit?: () => void;
 }) {
   const [domain, setDomain] = useState('LANGUAGE'),
     [level, setLevel] = useState('EMERGING'),
@@ -653,29 +944,63 @@ export function PreschoolObservationForm({
     [observation, setObservation] = useState(''),
     [date, setDate] = useState(today),
     [shared, setShared] = useState(false);
-  async function save(e: FormEvent) {
-    e.preventDefault();
-    if (
-      await action('/observations', {
-        studentId,
-        domain,
-        level,
-        skill,
-        observation,
-        observedOn: date,
-        shared,
-      })
-    ) {
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      setDomain(editing.domain);
+      setLevel(editing.level);
+      setSkill(editing.skill);
+      setObservation(editing.observation);
+      setDate(editing.observedOn.slice(0, 10));
+      setShared(Boolean(editing.shared));
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      setDomain('LANGUAGE');
+      setLevel('EMERGING');
       setSkill('');
       setObservation('');
+      setDate(today);
+      setShared(false);
+    }
+  }, [editing, today]);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    const ok = editing
+      ? await action(
+          '/observations/' + editing.id,
+          {
+            domain,
+            level,
+            skill,
+            observation,
+            observedOn: date,
+            shared,
+          },
+          'patch'
+        )
+      : await action('/observations', {
+          studentId,
+          domain,
+          level,
+          skill,
+          observation,
+          observedOn: date,
+          shared,
+        });
+    if (ok) {
+      setSkill('');
+      setObservation('');
+      if (editing) onCancelEdit?.();
     }
   }
   return (
     <Panel
-      title="Record a development observation"
+      title={editing ? 'Edit development observation' : 'Record a development observation'}
       subtitle="Describe what you saw during play. Leave unobserved skills unrecorded."
     >
-      <form className="panel-body space-y-4" onSubmit={save}>
+      <form ref={formRef} className="panel-body space-y-4" onSubmit={save}>
         <div className="form-grid">
           <Field label="Development area">
             {(id) => (
@@ -723,9 +1048,21 @@ export function PreschoolObservationForm({
           <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
           Share this observation with parents
         </label>
-        <Button type="submit" isLoading={busy}>
-          Save observation
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" isLoading={busy}>
+            {editing ? 'Update observation' : 'Save observation'}
+          </Button>
+          {editing && (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => onCancelEdit?.()}
+            >
+              Cancel editing
+            </Button>
+          )}
+        </div>
       </form>
     </Panel>
   );
@@ -734,10 +1071,19 @@ export function PreschoolObservationForm({
 export function PreschoolChildHistory({
   view,
   timezone,
+  canManageObservations = false,
+  busy = false,
+  onEditObservation,
+  onDeleteObservation,
 }: {
   view: PreschoolChildView;
   timezone: string;
+  canManageObservations?: boolean;
+  busy?: boolean;
+  onEditObservation?: (observation: PreschoolObservation) => void;
+  onDeleteObservation?: (id: string) => Promise<boolean>;
 }) {
+  const [confirmDeleteObsId, setConfirmDeleteObsId] = useState('');
   return (
     <div className="content-stack">
       <Panel title="Care & attendance history">
@@ -747,29 +1093,41 @@ export function PreschoolChildHistory({
           ) : (
             view.days.map((day) => (
               <article className="border rounded-xl p-4 space-y-2" key={day.id}>
-                <h3 className="font-semibold">{dateLabel(day.date)}</h3>
-                <p className="text-sm flex flex-wrap items-center gap-2">
-                  <span>
-                    Check-in {timeLabel(day.checkInAt, timezone)} · Checkout{' '}
-                    {timeLabel(day.checkOutAt, timezone)}
-                  </span>
-                  {day.checkOutAt && pickupMethodLabel(day.pickupVerificationMethod) && (
-                    <StatusPill value={pickupMethodLabel(day.pickupVerificationMethod)!} />
-                  )}
-                </p>
-                {day.sharedAt ? (
-                  <>
-                    <p>Meals: {day.meals || 'Not recorded'}</p>
-                    <p>
-                      Rest:{' '}
-                      {day.sleepMinutes != null ? day.sleepMinutes + ' minutes' : 'Not recorded'} ·
-                      Mood: {friendly(day.mood || 'NOT_RECORDED')} · Toileting:{' '}
-                      {friendly(day.toileting || 'NOT_RECORDED')}
-                    </p>
-                    <p className="whitespace-pre-wrap">{day.notes}</p>
-                  </>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">{dateLabel(day.date)}</h3>
+                  {day.attendanceStatus === 'ABSENT' && <StatusPill value="ABSENT" />}
+                </div>
+                {day.attendanceStatus === 'ABSENT' && !day.checkInAt ? (
+                  <p className="text-sm muted">
+                    Marked absent
+                    {day.attendanceRemarks ? ` · ${day.attendanceRemarks}` : ''}
+                  </p>
                 ) : (
-                  <p className="muted text-sm">Care notes have not been shared for this day.</p>
+                  <>
+                    <p className="text-sm flex flex-wrap items-center gap-2">
+                      <span>
+                        Check-in {timeLabel(day.checkInAt, timezone)} · Checkout{' '}
+                        {timeLabel(day.checkOutAt, timezone)}
+                      </span>
+                      {day.checkOutAt && pickupMethodLabel(day.pickupVerificationMethod) && (
+                        <StatusPill value={pickupMethodLabel(day.pickupVerificationMethod)!} />
+                      )}
+                    </p>
+                    {day.sharedAt ? (
+                      <>
+                        <p>Meals: {day.meals || 'Not recorded'}</p>
+                        <p>
+                          Rest:{' '}
+                          {day.sleepMinutes != null ? day.sleepMinutes + ' minutes' : 'Not recorded'} ·
+                          Mood: {friendly(day.mood || 'NOT_RECORDED')} · Toileting:{' '}
+                          {friendly(day.toileting || 'NOT_RECORDED')}
+                        </p>
+                        <p className="whitespace-pre-wrap">{day.notes}</p>
+                      </>
+                    ) : (
+                      <p className="muted text-sm">Care notes have not been shared for this day.</p>
+                    )}
+                  </>
                 )}
               </article>
             ))
@@ -795,6 +1153,54 @@ export function PreschoolChildHistory({
                   {!o.shared && ' · Staff only'}
                 </p>
                 <p className="whitespace-pre-wrap">{o.observation}</p>
+                {canManageObservations && (
+                  <div className="flex flex-wrap gap-2 pt-2 border-t">
+                    {onEditObservation && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        leftIcon={<Pencil size={14} />}
+                        disabled={busy}
+                        onClick={() => onEditObservation(o)}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                    {onDeleteObservation &&
+                      (confirmDeleteObsId === o.id ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            disabled={busy}
+                            onClick={async () => {
+                              if (await onDeleteObservation(o.id)) setConfirmDeleteObsId('');
+                            }}
+                          >
+                            Confirm delete
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() => setConfirmDeleteObsId('')}
+                          >
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          leftIcon={<Trash2 size={14} />}
+                          disabled={busy}
+                          onClick={() => setConfirmDeleteObsId(o.id)}
+                        >
+                          Delete
+                        </Button>
+                      ))}
+                  </div>
+                )}
               </article>
             ))
           )}
@@ -815,12 +1221,14 @@ export function PreschoolPhotos({
   refresh,
   busy,
   notify,
+  action,
 }: {
   studentId: string;
   family: boolean;
   refresh: number;
   busy: boolean;
   notify: () => void;
+  action?: PreschoolAction;
 }) {
   const [items, setItems] = useState<{ id: string; caption: string; createdAt: string }[]>([]),
     [offset, setOffset] = useState(0),
@@ -828,12 +1236,14 @@ export function PreschoolPhotos({
     [caption, setCaption] = useState(''),
     [error, setError] = useState(''),
     [uploading, setUploading] = useState(false),
-    [preview, setPreview] = useState<{ url: string; caption: string } | null>(null);
+    [confirmDeleteId, setConfirmDeleteId] = useState(''),
+    [preview, setPreview] = useState<{ id: string; url: string; caption: string } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const controller = new AbortController();
     setItems([]);
     setError('');
+    setConfirmDeleteId('');
     apiClient
       .get('/preschool/students/' + studentId + '/photos', {
         params: { offset },
@@ -881,9 +1291,17 @@ export function PreschoolPhotos({
       const { data } = await apiClient.get(
         '/preschool/students/' + studentId + '/photos/' + id + '/view'
       );
-      setPreview({ url: data.url, caption });
+      setPreview({ id, url: data.url, caption });
     } catch (err) {
       setError(messageFor(err));
+    }
+  }
+  async function removePhoto(id: string) {
+    if (!action) return;
+    setError('');
+    if (await action('/students/' + studentId + '/photos/' + id, undefined, 'delete')) {
+      setConfirmDeleteId('');
+      setPreview((current) => (current?.id === id ? null : current));
     }
   }
   return (
@@ -922,15 +1340,49 @@ export function PreschoolPhotos({
           items.map((item) => (
             <div
               key={item.id}
-              className="flex justify-between items-center border rounded-xl p-4 gap-3"
+              className="flex flex-wrap justify-between items-center border rounded-xl p-4 gap-3"
             >
               <p>
                 {item.caption || 'Classroom photo'}
                 <span className="block text-sm muted">{dateLabel(item.createdAt)}</span>
               </p>
-              <Button size="sm" variant="outline" onClick={() => void view(item.id, item.caption)}>
-                View photo
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => void view(item.id, item.caption)}>
+                  View photo
+                </Button>
+                {!family && action && (
+                  confirmDeleteId === item.id ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={busy || uploading}
+                        onClick={() => void removePhoto(item.id)}
+                      >
+                        Confirm delete
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => setConfirmDeleteId('')}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      leftIcon={<Trash2 size={14} />}
+                      disabled={busy || uploading}
+                      onClick={() => setConfirmDeleteId(item.id)}
+                    >
+                      Delete
+                    </Button>
+                  )
+                )}
+              </div>
             </div>
           ))
         )}

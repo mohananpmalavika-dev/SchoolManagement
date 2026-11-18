@@ -1,4 +1,6 @@
 # KRYPTON SCHOOL ERP — FINAL RELEASE & DEPLOYMENT CHECKLIST
+
+> Verification correction, 18 November 2026: this historical checklist is not current production sign-off. It includes legacy M-Pesa/CBC references and unmeasured recovery claims. Real CCTV/mobile, phone GPS, cross-network TURN calls, live provider delivery/settlement, deployed private storage and production-archive recovery remain unverified. Physical-device tests were deferred by the user. See [the current live verification status and procedure](docs/LIVE_VERIFICATION.md); local tests and earlier fixtures must not be promoted to live PASS.
 **Release Version:** v2.0.0-PROD  
 **Build Status:** Clean (5/5 packages compile, 19/19 test suites pass)  
 **Distribution Target:** Docker Container / Kubernetes Cluster / Cloudflare Edge

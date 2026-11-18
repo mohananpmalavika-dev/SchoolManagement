@@ -2,19 +2,31 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Baby, CheckCheck, ClipboardCheck, Flower2, RefreshCw, Sparkles } from 'lucide-react';
+import {
+  Baby,
+  Calendar,
+  CheckCheck,
+  ClipboardCheck,
+  Flower2,
+  RefreshCw,
+  RotateCcw,
+  Sparkles,
+  UserX,
+} from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguageContext } from '@/contexts/LanguageContext';
 import {
   emptyPreschoolOptions,
   preschoolManagers,
+  shiftIsoDate,
   timeLabel,
   type PreschoolAction,
   type PreschoolChild,
   type PreschoolChildView,
   type PreschoolContent as Content,
   type PreschoolCopilotMessage,
+  type PreschoolObservation,
   type PreschoolOptions,
 } from '@/lib/preschool';
 import { messageFor, dateLabel } from '@/lib/workspace';
@@ -82,8 +94,14 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
     [busy, setBusy] = useState(false),
     [from, setFrom] = useState(''),
     [to, setTo] = useState(''),
+    [dailyDate, setDailyDate] = useState(''),
     [print, setPrint] = useState<Content | null>(null),
     [selectedIds, setSelectedIds] = useState<string[]>([]),
+    [editingObservation, setEditingObservation] = useState<PreschoolObservation | null>(null),
+    [confirmRowUndo, setConfirmRowUndo] = useState<{
+      studentId: string;
+      kind: 'check-in' | 'check-out' | 'absent';
+    } | null>(null),
     [copilotHistoryByClass, setCopilotHistoryByClass] = useState<
       Record<string, PreschoolCopilotMessage[]>
     >({}),
@@ -151,6 +169,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
               .slice(0, 10)
         );
         setTo((current) => current || data.today);
+        setDailyDate((current) => current || data.today);
         if (family)
           setStudent((current) =>
             data.students.some((s) => s.id === current) ? current : data.students[0]?.id || ''
@@ -183,9 +202,10 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
     setRosterLoading(true);
     setRoster([]);
     setChild(null);
+    setConfirmRowUndo(null);
     apiClient
       .get('/preschool/classes/' + classId + '/roster', {
-        params: { offset },
+        params: { offset, ...(dailyDate ? { date: dailyDate } : {}) },
         signal: controller.signal,
       })
       .then(({ data }) => {
@@ -210,7 +230,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
         if (!controller.signal.aborted) setRosterLoading(false);
       });
     return () => controller.abort();
-  }, [classId, family, offset, refresh]);
+  }, [classId, dailyDate, family, offset, refresh]);
   useEffect(() => {
     if (!studentId || !from || !to) {
       setChild(null);
@@ -253,6 +273,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
       const result = response?.data as
         | {
           checkedInCount?: number;
+          absentCount?: number;
           updatedCount?: number;
           skippedCount?: number;
           sharedWithParents?: boolean;
@@ -263,10 +284,39 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
         const skipped = result.skippedCount || 0;
         setNotice(
           count === 0
-            ? 'All selected children were already checked in today.'
-            : `Checked in ${count} ${count === 1 ? 'child' : 'children'}${skipped ? ` (${skipped} already checked in)` : ''
+            ? 'No remaining children needed check-in today.'
+            : `Checked in ${count} ${count === 1 ? 'child' : 'children'}${skipped ? ` (${skipped} skipped)` : ''
             }.`
         );
+      } else if (path.endsWith('/mark-absent/bulk') && typeof result?.absentCount === 'number') {
+        const count = result.absentCount;
+        const skipped = result.skippedCount || 0;
+        setNotice(
+          count === 0
+            ? 'No unmarked children were eligible to be marked absent today.'
+            : `Marked ${count} ${count === 1 ? 'child' : 'children'} absent${skipped ? ` (${skipped} already marked)` : ''
+            }.`
+        );
+      } else if (path.endsWith('/mark-absent')) {
+        setNotice('Marked absent.');
+      } else if (path.endsWith('/check-in/undo')) {
+        setNotice('Check-in undone.');
+      } else if (path.endsWith('/check-out/undo')) {
+        setNotice('Checkout undone.');
+      } else if (path.endsWith('/mark-absent/undo')) {
+        setNotice('Absence cleared.');
+      } else if (path.endsWith('/attendance-times')) {
+        setNotice('Attendance time updated.');
+      } else if (method === 'delete' && path.includes('/photos/')) {
+        setNotice('Photo deleted.');
+      } else if (method === 'delete' && path.startsWith('/observations/')) {
+        setNotice('Observation deleted.');
+      } else if (method === 'patch' && path.startsWith('/observations/')) {
+        setNotice('Observation updated.');
+      } else if (method === 'delete' && path.startsWith('/content/')) {
+        setNotice('Teaching content deleted.');
+      } else if (method === 'delete' && path.startsWith('/cameras/')) {
+        setNotice('Classroom camera removed.');
       } else if (path.endsWith('/care/bulk') && typeof result?.updatedCount === 'number') {
         const count = result.updatedCount;
         const skipped = result.skippedCount || 0;
@@ -289,11 +339,24 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
       setBusy(false);
     }
   }, []);
+  const activeDailyDate = dailyDate || options.today;
+  const isDailyToday = !options.today || activeDailyDate === options.today;
+  const minBackfillDate = options.today ? shiftIsoDate(options.today, -93) : undefined;
+  const yesterdayDate = options.today ? shiftIsoDate(options.today, -1) : '';
   const selected = roster.find((s) => s.id === studentId);
+  const checkedInOnPage = roster.filter((s) => !!s.day?.checkInAt || !!s.day?.checkOutAt);
+  const absentOnPage = roster.filter(
+    (s) => !s.day?.checkInAt && !s.day?.checkOutAt && s.attendance?.status === 'ABSENT'
+  );
+  const unmarkedOnPage = roster.filter(
+    (s) => !s.day?.checkInAt && !s.day?.checkOutAt && s.attendance?.status !== 'ABSENT'
+  );
   const uncheckedOnPage = roster.filter((s) => !s.day?.checkInAt && !s.day?.checkOutAt);
-  const checkedInOnPage = roster.filter((s) => !!s.day?.checkInAt);
   const selectedUncheckedIds = selectedIds.filter((id) =>
     uncheckedOnPage.some((s) => s.id === id)
+  );
+  const selectedUnmarkedIds = selectedIds.filter((id) =>
+    unmarkedOnPage.some((s) => s.id === id)
   );
   const allSelectedOnPage =
     roster.length > 0 && roster.every((s) => selectedIds.includes(s.id));
@@ -413,6 +476,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                           disabled={busy || rosterLoading}
                           onChange={(e) => {
                             setStudent(e.target.value);
+                            setEditingObservation(null);
                             setError('');
                             setNotice('');
                           }}
@@ -423,6 +487,58 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                             </option>
                           ))}
                         </select>
+                      )}
+                    </Field>
+                  )}
+                  {!family && view === 'daily' && options.today && (
+                    <Field label="Daily register date (today or backfill)">
+                      {(id) => (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            id={id}
+                            type="date"
+                            required
+                            value={activeDailyDate}
+                            min={minBackfillDate}
+                            max={options.today}
+                            disabled={busy}
+                            onChange={(e) => {
+                              setDailyDate(e.target.value || options.today);
+                              setSelectedIds([]);
+                              setConfirmRowUndo(null);
+                              setError('');
+                              setNotice('');
+                            }}
+                          />
+                          {yesterdayDate && (
+                            <Button
+                              size="sm"
+                              variant={activeDailyDate === yesterdayDate ? 'primary' : 'outline'}
+                              disabled={busy}
+                              onClick={() => {
+                                setDailyDate(yesterdayDate);
+                                setSelectedIds([]);
+                                setConfirmRowUndo(null);
+                              }}
+                            >
+                              Yesterday
+                            </Button>
+                          )}
+                          {!isDailyToday && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={busy}
+                              onClick={() => {
+                                setDailyDate(options.today);
+                                setSelectedIds([]);
+                                setConfirmRowUndo(null);
+                              }}
+                            >
+                              Today
+                            </Button>
+                          )}
+                        </div>
                       )}
                     </Field>
                   )}
@@ -484,6 +600,30 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
               </div>
               {view === 'daily' && !family && (
                 <>
+                  {!isDailyToday && activeDailyDate && (
+                    <div
+                      className="state-box flex flex-wrap items-center justify-between gap-3"
+                      role="status"
+                    >
+                      <span className="flex items-center gap-2 text-sm">
+                        <Calendar size={16} />
+                        <strong>Backfill mode · {activeDailyDate}</strong> — You are viewing and
+                        updating a past date (missed check-in, missed checkout, or daily care log).
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => {
+                          setDailyDate(options.today);
+                          setSelectedIds([]);
+                          setConfirmRowUndo(null);
+                        }}
+                      >
+                        Return to today ({options.today})
+                      </Button>
+                    </div>
+                  )}
                   <div className="metric-grid preschool-metrics">
                     <StatCard
                       label="Children in class"
@@ -493,9 +633,15 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                     />
                     <StatCard
                       label="Checked in on this page"
-                      value={roster.filter((s) => s.day?.checkInAt).length}
-                      note={'Today · ' + options.today}
+                      value={checkedInOnPage.length}
+                      note={(isDailyToday ? 'Today · ' : 'Backfill · ') + activeDailyDate}
                       icon={ClipboardCheck}
+                    />
+                    <StatCard
+                      label="Absent on this page"
+                      value={absentOnPage.length}
+                      note={'Marked absent · ' + activeDailyDate}
+                      icon={UserX}
                     />
                     <StatCard
                       label="Care shared on this page"
@@ -505,8 +651,16 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                     />
                   </div>
                   <Panel
-                    title="Today’s attendance"
-                    subtitle="Check in individual children or the entire class in one click. Checkout requires an authorized guardian."
+                    title={
+                      isDailyToday
+                        ? 'Today’s attendance'
+                        : `Attendance register · ${activeDailyDate}`
+                    }
+                    subtitle={
+                      isDailyToday
+                        ? 'Check in arriving children, mark absences, undo mistakes, or update the entire class in one click. Checkout requires an authorized guardian.'
+                        : `Backfill missed check-ins, missed checkouts, absences or undo mistakes for ${activeDailyDate}.`
+                    }
                   >
                     <div className="panel-body space-y-4">
                       {rosterLoading ? (
@@ -537,12 +691,12 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={busy || !uncheckedOnPage.length}
+                                disabled={busy || !unmarkedOnPage.length}
                                 onClick={() =>
-                                  setSelectedIds(uncheckedOnPage.map((s) => s.id))
+                                  setSelectedIds(unmarkedOnPage.map((s) => s.id))
                                 }
                               >
-                                Not checked in ({uncheckedOnPage.length})
+                                Unmarked ({unmarkedOnPage.length})
                               </Button>
                               <Button
                                 size="sm"
@@ -553,6 +707,16 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                                 }
                               >
                                 Checked in ({checkedInOnPage.length})
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy || !absentOnPage.length}
+                                onClick={() =>
+                                  setSelectedIds(absentOnPage.map((s) => s.id))
+                                }
+                              >
+                                Absent ({absentOnPage.length})
                               </Button>
                               {selectedIds.length > 0 && (
                                 <span className="text-sm muted">
@@ -570,6 +734,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                                     if (
                                       await action('/classes/' + classId + '/check-in/bulk', {
                                         studentIds: selectedUncheckedIds,
+                                        ...(activeDailyDate ? { date: activeDailyDate } : {}),
                                       })
                                     )
                                       setSelectedIds([]);
@@ -578,18 +743,70 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                                   Check in selected ({selectedUncheckedIds.length})
                                 </Button>
                               )}
+                              {selectedUnmarkedIds.length > 0 && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  leftIcon={<UserX size={15} />}
+                                  disabled={busy}
+                                  onClick={async () => {
+                                    if (
+                                      await action('/classes/' + classId + '/mark-absent/bulk', {
+                                        studentIds: selectedUnmarkedIds,
+                                        ...(activeDailyDate ? { date: activeDailyDate } : {}),
+                                      })
+                                    )
+                                      setSelectedIds([]);
+                                  }}
+                                >
+                                  Mark selected absent ({selectedUnmarkedIds.length})
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant={selectedUncheckedIds.length > 0 ? 'outline' : 'primary'}
                                 leftIcon={<CheckCheck size={15} />}
-                                disabled={busy || (total <= roster.length && !uncheckedOnPage.length)}
+                                disabled={busy || (total <= roster.length && !unmarkedOnPage.length)}
                                 onClick={async () => {
-                                  if (await action('/classes/' + classId + '/check-in/bulk', {}))
+                                  if (
+                                    await action('/classes/' + classId + '/check-in/bulk', {
+                                      ...(activeDailyDate ? { date: activeDailyDate } : {}),
+                                    })
+                                  )
                                     setSelectedIds([]);
                                 }}
                               >
                                 Check in all remaining
-                                {total <= roster.length ? ` (${uncheckedOnPage.length})` : ''}
+                                {total <= roster.length ? ` (${unmarkedOnPage.length})` : ''}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                leftIcon={<UserX size={15} />}
+                                disabled={busy || (total <= roster.length && !unmarkedOnPage.length)}
+                                onClick={async () => {
+                                  const countLabel =
+                                    total <= roster.length
+                                      ? `${unmarkedOnPage.length} unmarked ${unmarkedOnPage.length === 1 ? 'child' : 'children'}`
+                                      : 'all unmarked children in this class';
+                                  if (
+                                    !window.confirm(
+                                      isDailyToday
+                                        ? `Mark ${countLabel} as absent for today? Linked parents will be notified.`
+                                        : `Mark ${countLabel} as absent for ${activeDailyDate}?`
+                                    )
+                                  )
+                                    return;
+                                  if (
+                                    await action('/classes/' + classId + '/mark-absent/bulk', {
+                                      ...(activeDailyDate ? { date: activeDailyDate } : {}),
+                                    })
+                                  )
+                                    setSelectedIds([]);
+                                }}
+                              >
+                                Mark remaining absent
+                                {total <= roster.length ? ` (${unmarkedOnPage.length})` : ''}
                               </Button>
                             </div>
                           </div>
@@ -611,14 +828,23 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                                     />
                                   </th>
                                   <th>Child</th>
+                                  <th>Status</th>
                                   <th>Check-in</th>
                                   <th>Checkout</th>
-                                  <th>Today’s care</th>
+                                  <th>{isDailyToday ? 'Today’s care' : 'Daily care'}</th>
                                   <th>Action</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {roster.map((s) => (
+                                {roster.map((s) => {
+                                  const isCheckedIn = !!s.day?.checkInAt || !!s.day?.checkOutAt;
+                                  const isCheckedOut = !!s.day?.checkOutAt;
+                                  const isAbsent = !isCheckedIn && s.attendance?.status === 'ABSENT';
+                                  const rowConfirm =
+                                    confirmRowUndo?.studentId === s.id
+                                      ? confirmRowUndo.kind
+                                      : null;
+                                  return (
                                   <tr key={s.id}>
                                     <td>
                                       <input
@@ -631,6 +857,17 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                                     </td>
                                     <td>
                                       {s.firstName} {s.lastName}
+                                    </td>
+                                    <td>
+                                      {isCheckedIn ? (
+                                        <StatusPill value="PRESENT" />
+                                      ) : s.attendance?.status ? (
+                                        <span title={s.attendance.remarks || undefined}>
+                                          <StatusPill value={s.attendance.status} />
+                                        </span>
+                                      ) : (
+                                        <span className="muted text-xs">Not marked</span>
+                                      )}
                                     </td>
                                     <td>{timeLabel(s.day?.checkInAt, options.timezone)}</td>
                                     <td>{timeLabel(s.day?.checkOutAt, options.timezone)}</td>
@@ -661,16 +898,185 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                                     </td>
                                     <td>
                                       <div className="flex flex-wrap gap-2">
-                                        {!s.day?.checkInAt && (
+                                        {!isCheckedIn && (
                                           <Button
                                             size="sm"
                                             disabled={busy}
                                             onClick={() =>
-                                              void action('/students/' + s.id + '/check-in')
+                                              void action('/students/' + s.id + '/check-in', {
+                                                ...(activeDailyDate
+                                                  ? { date: activeDailyDate }
+                                                  : {}),
+                                              })
                                             }
                                           >
                                             Check in {s.firstName}
                                           </Button>
+                                        )}
+                                        {!isCheckedIn && !isAbsent && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            leftIcon={<UserX size={14} />}
+                                            aria-label={`Mark ${s.firstName} absent`}
+                                            disabled={busy}
+                                            onClick={() =>
+                                              void action('/students/' + s.id + '/mark-absent', {
+                                                ...(activeDailyDate
+                                                  ? { date: activeDailyDate }
+                                                  : {}),
+                                              })
+                                            }
+                                          >
+                                            Mark absent
+                                          </Button>
+                                        )}
+                                        {isCheckedIn && !isCheckedOut && (
+                                          rowConfirm === 'check-in' ? (
+                                            <>
+                                              <Button
+                                                variant="danger"
+                                                size="sm"
+                                                disabled={busy}
+                                                onClick={async () => {
+                                                  if (
+                                                    await action(
+                                                      '/students/' + s.id + '/check-in/undo',
+                                                      {
+                                                        ...(activeDailyDate
+                                                          ? { date: activeDailyDate }
+                                                          : {}),
+                                                      }
+                                                    )
+                                                  )
+                                                    setConfirmRowUndo(null);
+                                                }}
+                                              >
+                                                Confirm undo
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                disabled={busy}
+                                                onClick={() => setConfirmRowUndo(null)}
+                                              >
+                                                Cancel
+                                              </Button>
+                                            </>
+                                          ) : (
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              leftIcon={<RotateCcw size={14} />}
+                                              disabled={busy}
+                                              onClick={() =>
+                                                setConfirmRowUndo({
+                                                  studentId: s.id,
+                                                  kind: 'check-in',
+                                                })
+                                              }
+                                            >
+                                              Undo check-in
+                                            </Button>
+                                          )
+                                        )}
+                                        {isCheckedOut && (
+                                          rowConfirm === 'check-out' ? (
+                                            <>
+                                              <Button
+                                                variant="danger"
+                                                size="sm"
+                                                disabled={busy}
+                                                onClick={async () => {
+                                                  if (
+                                                    await action(
+                                                      '/students/' + s.id + '/check-out/undo',
+                                                      {
+                                                        ...(activeDailyDate
+                                                          ? { date: activeDailyDate }
+                                                          : {}),
+                                                      }
+                                                    )
+                                                  )
+                                                    setConfirmRowUndo(null);
+                                                }}
+                                              >
+                                                Confirm undo
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                disabled={busy}
+                                                onClick={() => setConfirmRowUndo(null)}
+                                              >
+                                                Cancel
+                                              </Button>
+                                            </>
+                                          ) : (
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              leftIcon={<RotateCcw size={14} />}
+                                              disabled={busy}
+                                              onClick={() =>
+                                                setConfirmRowUndo({
+                                                  studentId: s.id,
+                                                  kind: 'check-out',
+                                                })
+                                              }
+                                            >
+                                              Undo checkout
+                                            </Button>
+                                          )
+                                        )}
+                                        {isAbsent && (
+                                          rowConfirm === 'absent' ? (
+                                            <>
+                                              <Button
+                                                variant="danger"
+                                                size="sm"
+                                                disabled={busy}
+                                                onClick={async () => {
+                                                  if (
+                                                    await action(
+                                                      '/students/' + s.id + '/mark-absent/undo',
+                                                      {
+                                                        ...(activeDailyDate
+                                                          ? { date: activeDailyDate }
+                                                          : {}),
+                                                      }
+                                                    )
+                                                  )
+                                                    setConfirmRowUndo(null);
+                                                }}
+                                              >
+                                                Confirm undo
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                disabled={busy}
+                                                onClick={() => setConfirmRowUndo(null)}
+                                              >
+                                                Cancel
+                                              </Button>
+                                            </>
+                                          ) : (
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              leftIcon={<RotateCcw size={14} />}
+                                              disabled={busy}
+                                              onClick={() =>
+                                                setConfirmRowUndo({
+                                                  studentId: s.id,
+                                                  kind: 'absent',
+                                                })
+                                              }
+                                            >
+                                              Undo absent
+                                            </Button>
+                                          )
                                         )}
                                         <Button
                                           variant="outline"
@@ -683,7 +1089,8 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                                       </div>
                                     </td>
                                   </tr>
-                                ))}
+                                  );
+                                })}
                               </tbody>
                             </table>
                           </div>
@@ -693,11 +1100,13 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                   </Panel>
                   {roster.length > 0 && (
                     <PreschoolBulkCareForm
-                      key={'bulk-' + classId}
+                      key={'bulk-' + classId + '-' + activeDailyDate}
                       classId={classId}
                       roster={roster}
                       total={total}
                       selectedIds={selectedIds}
+                      date={activeDailyDate}
+                      isToday={isDailyToday}
                       busy={busy}
                       action={action}
                       onClearSelection={() => setSelectedIds([])}
@@ -705,8 +1114,10 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                   )}
                   {selected && (
                     <PreschoolCareForm
-                      key={selected.id + '-' + (selected.day?.version || 0)}
+                      key={selected.id + '-' + activeDailyDate + '-' + (selected.day?.version || 0)}
                       child={selected}
+                      date={activeDailyDate}
+                      isToday={isDailyToday}
                       busy={busy}
                       action={action}
                       pickupVerification={pickupVerification}
@@ -878,6 +1289,8 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                       today={options.today}
                       busy={busy}
                       action={action}
+                      editing={editingObservation}
+                      onCancelEdit={() => setEditingObservation(null)}
                     />
                   )}
                   <div>
@@ -888,6 +1301,14 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                         <PreschoolChildHistory
                           view={{ ...child, days: [] }}
                           timezone={options.timezone}
+                          canManageObservations={!family}
+                          busy={busy}
+                          onEditObservation={(obs) => setEditingObservation(obs)}
+                          onDeleteObservation={async (id) => {
+                            const ok = await action('/observations/' + id, undefined, 'delete');
+                            if (ok && editingObservation?.id === id) setEditingObservation(null);
+                            return ok;
+                          }}
                         />
                       )
                     )}
@@ -901,6 +1322,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                   family={family}
                   refresh={refresh}
                   busy={busy}
+                  action={action}
                   notify={() => {
                     setRefresh((v) => v + 1);
                     setNotice('Photo shared with the family.');

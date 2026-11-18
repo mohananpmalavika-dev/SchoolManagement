@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../database/database.module';
+import { ParentEngagementNotificationsModule } from '../parent-engagement-notifications/parent-engagement-notifications.module';
 import { AIProviderService } from '../teacher-ai/ai-provider.service';
 import { PreschoolAccessService } from './preschool-access.service';
 import { PreschoolService } from './preschool.service';
@@ -13,7 +14,7 @@ import { EmailService } from '../../common/services/email.service';
 import { WhatsAppService } from '../communications/whatsapp/whatsapp.service';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, ParentEngagementNotificationsModule],
   controllers: [PreschoolController],
   providers: [
     PreschoolAccessService,

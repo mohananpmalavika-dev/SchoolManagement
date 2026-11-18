@@ -1,5 +1,11 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common';
-import { SavedTransportService, transportEstimate, travelDistanceKm } from './transport.service';
+import {
+  SavedTransportService,
+  calculateRoadTransportEstimate,
+  transportEstimate,
+  travelDistanceKm,
+} from './transport.service';
+import { clearRoadRouteCache, fetchRoadRoute } from './transport-routing';
 const actor = { userId: 'driver', role: 'TRANSPORT_OFFICER' };
 const studentId = '00000000-0000-4000-8000-000000000001';
 function setup() {
@@ -85,5 +91,70 @@ describe('Saved transport and parent alerts', () => {
     expect(
       transportEstimate(trip, { latitude: null, longitude: null }, 100001).estimatedMinutes
     ).toBeNull();
+  });
+  it('computes road-route ETA and geometry via routing engine with caching and straight-line fallback', async () => {
+    clearRoadRouteCache();
+    const trip = { latitude: 9.9312, longitude: 76.2673, lastPingAt: new Date(100000), speed: 30 };
+    const stop = { latitude: 9.9816, longitude: 76.2999 };
+    const mockFetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        code: 'Ok',
+        routes: [
+          {
+            distance: 7420,
+            duration: 810,
+            geometry: {
+              coordinates: [
+                [76.2673, 9.9312],
+                [76.281, 9.956],
+                [76.2999, 9.9816],
+              ],
+            },
+          },
+        ],
+      }),
+    });
+
+    const road = await fetchRoadRoute([
+      { latitude: trip.latitude, longitude: trip.longitude },
+      stop,
+    ], { fetchImpl: mockFetch as any });
+    expect(road).toEqual({
+      distanceKm: 7.42,
+      durationSeconds: 810,
+      geometry: [
+        [9.9312, 76.2673],
+        [9.956, 76.281],
+        [9.9816, 76.2999],
+      ],
+    });
+    // Cached second call should not hit network again
+    await fetchRoadRoute([
+      { latitude: trip.latitude, longitude: trip.longitude },
+      stop,
+    ], { fetchImpl: mockFetch as any });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    const estimate = await calculateRoadTransportEstimate(
+      trip,
+      stop,
+      100001,
+      async () => road,
+    );
+    expect(estimate.source).toBe('ROAD_ROUTE');
+    expect(estimate.distanceKm).toBe(7.42);
+    expect(estimate.estimatedMinutes).toBe(14);
+    expect(estimate.routeGeometry).toHaveLength(3);
+
+    const fallback = await calculateRoadTransportEstimate(
+      trip,
+      stop,
+      100001,
+      async () => null,
+    );
+    expect(fallback.source).toBe('STRAIGHT_LINE');
+    expect(fallback.estimatedMinutes).toBeGreaterThan(0);
+    expect(fallback.routeGeometry).toBeUndefined();
   });
 });

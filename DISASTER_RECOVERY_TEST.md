@@ -1,4 +1,6 @@
 # KRYPTON SCHOOL ERP — DISASTER RECOVERY & BACKUP DRILL REPORT
+
+> Verification correction, 18 November 2026: this is a historical design/report, not evidence of production recovery. The RPO/RTO measurements and VERIFIED/MET labels below have no supporting production drill artifact available in this workspace and must not be used for release sign-off. Current backups use AES-256-GCM with legacy CBC recovery compatibility, and pg_dump/psql are still required. Local fixtures and conditional unit tests do not establish an offsite production restore. See [current observations and the recovery drill procedure](docs/LIVE_VERIFICATION.md).
 **Module:** `apps/api/src/modules/backup/` (`BackupService`, `BackupScheduler`)  
 **Targets:** RPO < 1 Hour, RTO < 30 Minutes  
 **Encryption Standard:** AES-256-CBC, PBKDF2 Master Key Derivation, SHA-256 Verification

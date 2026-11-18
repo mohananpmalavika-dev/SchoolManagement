@@ -9,6 +9,7 @@ import { GatewayChoice } from '../modules/payments-gateway/dto/gateway-payment.d
 import { PrismaService } from '../database/prisma.service';
 import { TenantService } from '../database/tenant.service';
 import { FeesService } from '../modules/fees/fees.service';
+import { SchoolPaymentAccountsService } from '../modules/payments-gateway/school-payment-accounts.service';
 
 describe('Indian Payments Gateway Service & Idempotency Suite', () => {
   let service: PaymentsGatewayService;
@@ -75,6 +76,11 @@ describe('Indian Payments Gateway Service & Idempotency Suite', () => {
         { provide: TenantService, useValue: tenantService },
         { provide: FeesService, useValue: feesService },
         { provide: ConfigService, useValue: configService },
+        { provide: SchoolPaymentAccountsService, useValue: {
+          forInvoice: jest.fn().mockResolvedValue({ id: 'account-school-1', schoolId: 'campus-1', merchantName: 'Test school', upiVpa: 'testschool@okhdfcbank', razorpayEnabled: true, razorpayWebhookSecret: 'encrypted' }),
+          forTransaction: jest.fn().mockResolvedValue({ keyId: 'rzp_test_12345', keySecret: 'rzp_test_secret_abc' }),
+          credentials: jest.fn().mockResolvedValue({ keyId: 'rzp_test_12345', keySecret: 'rzp_test_secret_abc' }),
+        } },
       ],
     }).compile();
 
@@ -146,6 +152,7 @@ describe('Indian Payments Gateway Service & Idempotency Suite', () => {
     });
 
     it('should reject invalid Razorpay checkout signature', async () => {
+      prisma.paymentGatewayTransaction.findFirst.mockResolvedValue(mockPendingTransaction);
       await expect(
         service.verifyRazorpayCheckout({
           razorpayOrderId: mockPendingTransaction.gatewayOrderId,

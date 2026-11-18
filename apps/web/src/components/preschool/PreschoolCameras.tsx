@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, type FormEvent } from 'react';
+import { Trash2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { type PreschoolAction, type PreschoolCamera } from '@/lib/preschool';
 import { messageFor } from '@/lib/workspace';
@@ -398,7 +399,7 @@ export function PreschoolCameras({
                           <>
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="danger"
                               disabled={busy}
                               onClick={() => void removeCamera(camera.id)}
                             >
@@ -416,6 +417,7 @@ export function PreschoolCameras({
                           <Button
                             size="sm"
                             variant="ghost"
+                            leftIcon={<Trash2 size={14} />}
                             disabled={busy}
                             onClick={() => setConfirmDeleteId(camera.id)}
                           >

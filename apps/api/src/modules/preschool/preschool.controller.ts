@@ -25,11 +25,15 @@ import { PreschoolPickupService } from './preschool-pickup.service';
 import {
   BulkCareRecordDto,
   BulkCheckInDto,
+  BulkMarkAbsentDto,
   CameraConsentDto,
   CameraDto,
   CareRecordDto,
+  CheckInDto,
   CheckOutDto,
+  CorrectDayTimesDto,
   GeneratePreschoolDto,
+  MarkAbsentDto,
   ObservationDto,
   PickupPassDto,
   PreschoolAssignmentDto,
@@ -38,6 +42,8 @@ import {
   PublishPreschoolContentDto,
   SavePreschoolContentDto,
   SchoolProgrammeDto,
+  UndoDayActionDto,
+  UpdateObservationDto,
   UpdatePreschoolContentDto,
   PickupPermissionDto,
 } from './preschool.dto';
@@ -84,6 +90,13 @@ export class PreschoolController {
   ) {
     return this.media.view(user, id, photoId);
   }
+  @Delete('students/:id/photos/:photoId') deletePhoto(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string
+  ) {
+    return this.media.remove(user, id, photoId);
+  }
   @Patch('students/:id/guardians/:guardianId/pickup')
   pickupPermission(
     @CurrentUser() user: CurrentUserData,
@@ -127,7 +140,7 @@ export class PreschoolController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: PreschoolQueryDto
   ) {
-    return this.service.roster(user, id, query.offset);
+    return this.service.roster(user, id, query.offset, query.date);
   }
   @Post('classes/:id/check-in/bulk') bulkCheckIn(
     @CurrentUser() user: CurrentUserData,
@@ -135,6 +148,13 @@ export class PreschoolController {
     @Body() dto: BulkCheckInDto
   ) {
     return this.service.bulkCheckIn(user, id, dto);
+  }
+  @Post('classes/:id/mark-absent/bulk') bulkMarkAbsent(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: BulkMarkAbsentDto
+  ) {
+    return this.service.bulkMarkAbsent(user, id, dto);
   }
   @Post('classes/:id/care/bulk') bulkCare(
     @CurrentUser() user: CurrentUserData,
@@ -152,9 +172,31 @@ export class PreschoolController {
   }
   @Post('students/:id/check-in') checkIn(
     @CurrentUser() user: CurrentUserData,
-    @Param('id', ParseUUIDPipe) id: string
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CheckInDto
   ) {
-    return this.service.checkIn(user, id);
+    return this.service.checkIn(user, id, dto);
+  }
+  @Post('students/:id/check-in/undo') undoCheckIn(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UndoDayActionDto
+  ) {
+    return this.service.undoCheckIn(user, id, dto);
+  }
+  @Post('students/:id/mark-absent') markAbsent(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: MarkAbsentDto
+  ) {
+    return this.service.markAbsent(user, id, dto);
+  }
+  @Post('students/:id/mark-absent/undo') undoAbsent(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UndoDayActionDto
+  ) {
+    return this.service.undoAbsent(user, id, dto);
   }
   @Post('students/:id/check-out') checkOut(
     @CurrentUser() user: CurrentUserData,
@@ -162,6 +204,20 @@ export class PreschoolController {
     @Body() dto: CheckOutDto
   ) {
     return this.service.checkOut(user, id, dto);
+  }
+  @Post('students/:id/check-out/undo') undoCheckOut(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UndoDayActionDto
+  ) {
+    return this.service.undoCheckOut(user, id, dto);
+  }
+  @Patch('students/:id/attendance-times') correctDayTimes(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CorrectDayTimesDto
+  ) {
+    return this.service.correctDayTimes(user, id, dto);
   }
   @Get('students/:id/pickup-pass') pickupPassStatus(
     @CurrentUser() user: CurrentUserData,
@@ -195,6 +251,19 @@ export class PreschoolController {
   @Post('observations') observe(@CurrentUser() user: CurrentUserData, @Body() dto: ObservationDto) {
     return this.service.observe(user, dto);
   }
+  @Patch('observations/:id') updateObservation(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateObservationDto
+  ) {
+    return this.service.updateObservation(user, id, dto);
+  }
+  @Delete('observations/:id') deleteObservation(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
+    return this.service.deleteObservation(user, id);
+  }
   @Get('content') content(@CurrentUser() user: CurrentUserData, @Query() query: PreschoolQueryDto) {
     return this.service.content(user, query);
   }
@@ -223,6 +292,12 @@ export class PreschoolController {
     @Body() dto: PublishPreschoolContentDto
   ) {
     return this.service.publish(user, id, dto.version, dto.reviewed);
+  }
+  @Delete('content/:id') deleteContent(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
+    return this.service.deleteContent(user, id);
   }
   @Get('reports') report(@CurrentUser() user: CurrentUserData, @Query() query: PreschoolQueryDto) {
     return this.service.report(user, query);

@@ -26,6 +26,7 @@ export class SchoolPaymentAccountsService {
 
   async save(schoolId: string, dto: SchoolPaymentAccountDto, userId: string) {
     const tenantId = this.tenants.requireTenantContext();
+    if (dto.merchantName.trim().length < 2) throw new BadRequestException('Merchant display name is required');
     // An ephemeral salt would make saved merchant credentials unreadable after restart.
     if ((dto.razorpayKeySecret || dto.razorpayWebhookSecret) &&
       (!this.config.get<string>('ENCRYPTION_MASTER_KEY') || !/^[a-fA-F0-9]{64}$/.test(this.config.get<string>('ENCRYPTION_SALT') || ''))) {
@@ -37,7 +38,10 @@ export class SchoolPaymentAccountsService {
       if (!locked.count) throw new NotFoundException('School not found');
       const previous = await tx.schoolPaymentAccount.findFirst({ where: { tenantId, schoolId, isCurrent: true } });
       if ((previous?.id || '') !== dto.expectedAccountId) throw new ConflictException('Payment settings changed. Reload before saving.');
-      const keyId = dto.razorpayKeyId === undefined ? previous?.razorpayKeyId : dto.razorpayKeyId || null;
+      const keyId = dto.razorpayKeyId === undefined ? (previous?.razorpayKeyId || null) : dto.razorpayKeyId || null;
+      if (dto.razorpayEnabled && this.config.get<string>('NODE_ENV') === 'production' && !keyId?.startsWith('rzp_live_')) {
+        throw new BadRequestException('Production school payments require live Razorpay keys');
+      }
       const keyChanged = keyId !== (previous?.razorpayKeyId || null);
       const keySecret = dto.razorpayKeySecret ? await this.encryption.encrypt(dto.razorpayKeySecret) : keyChanged ? null : previous?.razorpayKeySecret;
       const webhookSecret = dto.razorpayWebhookSecret ? await this.encryption.encrypt(dto.razorpayWebhookSecret) : keyChanged ? null : previous?.razorpayWebhookSecret;
@@ -79,6 +83,7 @@ export class SchoolPaymentAccountsService {
 
   async credentials(account: { razorpayKeyId: string | null; razorpayKeySecret: string | null }) {
     if (!account.razorpayKeyId || !account.razorpayKeySecret) throw new ServiceUnavailableException('School Razorpay credentials are unavailable');
+    if (this.config.get<string>('NODE_ENV') === 'production' && !account.razorpayKeyId.startsWith('rzp_live_')) throw new ServiceUnavailableException('Test payments are disabled in production');
     return { keyId: account.razorpayKeyId, keySecret: await this.encryption.decrypt(account.razorpayKeySecret) };
   }
 
@@ -88,6 +93,7 @@ export class SchoolPaymentAccountsService {
       const keyId = this.config.get<string>('RAZORPAY_KEY_ID') || '';
       const keySecret = this.config.get<string>('RAZORPAY_KEY_SECRET') || '';
       if (!keyId || !keySecret) throw new ServiceUnavailableException('Legacy payment credentials are unavailable');
+      if (this.config.get<string>('NODE_ENV') === 'production' && !keyId.startsWith('rzp_live_')) throw new ServiceUnavailableException('Test payments are disabled in production');
       return { keyId, keySecret };
     }
     const account = await this.db.schoolPaymentAccount.findFirst({ where: { id: transaction.paymentAccountId, tenantId: transaction.tenantId } });
@@ -101,8 +107,13 @@ export class SchoolPaymentAccountsService {
       const transaction = await this.db.paymentGatewayTransaction.findFirst({ where: { gatewayOrderId: orderId, gateway: 'RAZORPAY' },
         select: { tenantId: true, paymentAccountId: true } });
       if (!transaction) return null;
-      if (!transaction.paymentAccountId) return this.config.get<string>('RAZORPAY_WEBHOOK_SECRET') || this.config.get<string>('PAYMENT_WEBHOOK_SECRET') || null;
+      if (!transaction.paymentAccountId) {
+        if (this.config.get<string>('NODE_ENV') === 'production' && !this.config.get<string>('RAZORPAY_KEY_ID')?.startsWith('rzp_live_')) return null;
+        return this.config.get<string>('RAZORPAY_WEBHOOK_SECRET') || this.config.get<string>('PAYMENT_WEBHOOK_SECRET') || null;
+      }
       const account = await this.db.schoolPaymentAccount.findFirst({ where: { id: transaction.paymentAccountId, tenantId: transaction.tenantId } });
+      if (!account) return null;
+      if (this.config.get<string>('NODE_ENV') === 'production' && !account?.razorpayKeyId?.startsWith('rzp_live_')) return null;
       return account?.razorpayWebhookSecret ? this.encryption.decrypt(account.razorpayWebhookSecret) : null;
     });
   }

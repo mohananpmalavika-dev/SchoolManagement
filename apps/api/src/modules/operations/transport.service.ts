@@ -3,19 +3,26 @@ import { PrismaService } from '../../database/prisma.service';
 import { TenantService } from '../../database/tenant.service';
 import { OperationsService, Actor } from './operations.service';
 import { parseRecord } from '../workspace/records';
+import {
+  calculateRoadTransportEstimate,
+  fetchRoadRoute,
+  transportEstimate,
+  travelDistanceKm,
+} from './transport-routing';
+export { calculateRoadTransportEstimate, fetchRoadRoute, transportEstimate, travelDistanceKm };
 const managers=['SUPER_ADMIN','SCHOOL_OWNER','PRINCIPAL','DEPUTY_PRINCIPAL','SCHOOL_ADMIN'];
-export function travelDistanceKm(lat1:number,lon1:number,lat2:number,lon2:number){
- const radians=(n:number)=>n*Math.PI/180;const a=Math.sin(radians(lat2-lat1)/2)**2+Math.cos(radians(lat1))*Math.cos(radians(lat2))*Math.sin(radians(lon2-lon1)/2)**2;
- return 6371*2*Math.atan2(Math.sqrt(a),Math.sqrt(Math.max(0,1-a)));
-}
-export function transportEstimate(trip:{latitude:number|null;longitude:number|null;lastPingAt:Date|null;speed?:number|null},stop:{latitude:number|null;longitude:number|null},now=Date.now()){
- const stale=!trip.lastPingAt||now-trip.lastPingAt.getTime()>60000;
- if(stale||trip.latitude==null||trip.longitude==null||stop.latitude==null||stop.longitude==null)return {stale,estimatedMinutes:null,distanceKm:null,estimateMethod:'Straight-line distance; actual travel time varies'};
- const distanceKm=travelDistanceKm(trip.latitude,trip.longitude,stop.latitude,stop.longitude);
- // The driver client converts Geolocation speed to km/h before posting it.
- // Use a labelled 20 km/h planning speed when measured speed is unavailable.
- const speedKmh=trip.speed!=null&&trip.speed>=7?Math.min(trip.speed,80):20;
- return {stale,estimatedMinutes:distanceKm<0.15?0:Math.max(1,Math.ceil(distanceKm/speedKmh*60)),distanceKm:Math.round(distanceKm*100)/100,estimateMethod:'Straight-line distance; actual travel time varies'};
+const STOP_ROUTE_TTL_MS = 10 * 60_000;
+
+async function routeStopsGeometry(
+  stops: Array<{ latitude: number | null; longitude: number | null }> | undefined,
+): Promise<[number, number][] | null> {
+  if (!stops || stops.length < 2) return null;
+  const waypoints = stops
+    .filter((s): s is { latitude: number; longitude: number } => s.latitude != null && s.longitude != null)
+    .map((s) => ({ latitude: s.latitude, longitude: s.longitude }));
+  if (waypoints.length < 2) return null;
+  const road = await fetchRoadRoute(waypoints, { ttlMs: STOP_ROUTE_TTL_MS });
+  return road && road.geometry.length >= 2 ? road.geometry : null;
 }
 @Injectable()
 export class SavedTransportService {
@@ -33,7 +40,13 @@ export class SavedTransportService {
   await tx.route.update({where:{id:route.id,tenantId},data:{updatedAt:new Date()}});if(await tx.transportJourney.findFirst({where:{tenantId,routeId:route.id,status:'IN_TRANSIT'}}))throw new ConflictException('A trip is already active on this route');
   const students=route.travelAssignments.filter(a=>!a.student.deletedAt&&a.student.status==='ACTIVE');if(students.length>route.vehicle.capacity)throw new ConflictException('Assigned students exceed vehicle capacity');const trip=await tx.transportJourney.create({data:{tenantId,routeId:route.id,driverUserId,direction:data.direction,passengers:{create:students.map(s=>({tenantId,studentId:s.studentId}))}}});return {id:trip.id};
  });}
- async trip(user:Actor,id:string){await this.permitted(user,id);return this.db.transportJourney.findFirst({where:{id,tenantId:this.tenant()},include:{route:{include:{vehicle:true}},passengers:{include:{student:{select:{firstName:true,lastName:true,admissionNumber:true}}}}}});}
+ async trip(user:Actor,id:string){
+  await this.permitted(user,id);
+  const record=await this.db.transportJourney.findFirst({where:{id,tenantId:this.tenant()},include:{route:{include:{vehicle:true,stops:{orderBy:{sequence:'asc'}}}},passengers:{include:{student:{select:{firstName:true,lastName:true,admissionNumber:true}}}}}});
+  if(!record)return null;
+  const routeGeometry=await routeStopsGeometry(record.route?.stops);
+  return {...record,routeGeometry};
+ }
  private async alert(tx:any,user:Actor,tripId:string,studentId:string,kind:string){
   const result=await tx.transportAlert.createMany({data:[{tenantId:this.tenant(),tripId,studentId,kind}],skipDuplicates:true});
   if(result.count){const descriptions:Record<string,string>={ARRIVING:'The bus reported a location close to your child’s stop. Check the latest location before pickup.',BOARDED:'School transport staff recorded that your child boarded the bus.',DROPPED:'School transport staff recorded that your child was dropped off.',ABSENT:'School transport staff marked your child absent for this trip.'};await tx.activityFeed.create({data:{tenantId:this.tenant(),studentId,activityType:'TRANSPORT',title:kind==='ARRIVING'?'Bus approaching your stop':'School bus: '+kind.toLowerCase(),description:descriptions[kind],isVisibleToParents:true,createdBy:user.userId,metadata:{tripId,kind}}});}
@@ -65,5 +78,47 @@ export class SavedTransportService {
   if(await tx.tripPassenger.count({where:{tenantId:this.tenant(),tripId:id,status:'BOARDED'}}))throw new ConflictException('Confirm drop-off for every boarded child before completing the trip');
   return {id};
  });}
- async tracking(user:Actor,studentId:string){await this.operations.studentAccess(user,studentId);const assignment=await this.db.travelAssignment.findFirst({where:{tenantId:this.tenant(),studentId},include:{route:{include:{vehicle:true}},stop:true}});if(!assignment)return {assignment:null,trip:null};const trip=await this.db.transportJourney.findFirst({where:{tenantId:this.tenant(),routeId:assignment.routeId,status:'IN_TRANSIT'},orderBy:{startedAt:'desc'},include:{passengers:{where:{studentId},select:{status:true,updatedAt:true}}}});return {assignment:{routeName:assignment.route.name,vehicle:assignment.route.vehicle?.registrationNumber,stop:assignment.stop},estimate:trip?transportEstimate(trip,assignment.stop):null,trip:trip?{id:trip.id,direction:trip.direction,status:trip.status,latitude:trip.latitude,longitude:trip.longitude,accuracy:trip.accuracy,lastPingAt:trip.lastPingAt,passenger:trip.passengers[0]||null}:null};}
+ async tracking(user:Actor,studentId:string){
+  await this.operations.studentAccess(user,studentId);
+  const assignment=await this.db.travelAssignment.findFirst({
+   where:{tenantId:this.tenant(),studentId},
+   include:{
+    route:{
+     include:{
+      vehicle:true,
+      stops:{orderBy:{sequence:'asc'},select:{id:true,name:true,sequence:true,latitude:true,longitude:true,scheduledTime:true}},
+     },
+    },
+    stop:true,
+   },
+  });
+  if(!assignment)return {assignment:null,trip:null};
+  const trip=await this.db.transportJourney.findFirst({where:{tenantId:this.tenant(),routeId:assignment.routeId,status:'IN_TRANSIT'},orderBy:{startedAt:'desc'},include:{passengers:{where:{studentId},select:{status:true,updatedAt:true}}}});
+  const [estimate,routeGeometry]=await Promise.all([
+   trip?calculateRoadTransportEstimate(trip,assignment.stop):Promise.resolve(null),
+   routeStopsGeometry(assignment.route.stops),
+  ]);
+  return {
+   assignment:{
+    routeName:assignment.route.name,
+    vehicle:assignment.route.vehicle?.registrationNumber,
+    stop:assignment.stop,
+    stops:assignment.route.stops||[],
+    routeGeometry,
+   },
+   estimate,
+   trip:trip?{
+    id:trip.id,
+    direction:trip.direction,
+    status:trip.status,
+    latitude:trip.latitude,
+    longitude:trip.longitude,
+    accuracy:trip.accuracy,
+    speed:trip.speed,
+    heading:trip.heading,
+    lastPingAt:trip.lastPingAt,
+    passenger:trip.passengers[0]||null,
+   }:null,
+  };
+ }
 }

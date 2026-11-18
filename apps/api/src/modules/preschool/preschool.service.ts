@@ -10,16 +10,23 @@ import { PrismaService } from '../../database/prisma.service';
 import { Actor } from '../operations/operations.service';
 import { PreschoolAccessService, preschoolManagers } from './preschool-access.service';
 import { PreschoolPickupService } from './preschool-pickup.service';
+import { ParentEngagementNotificationsService } from '../parent-engagement-notifications/parent-engagement-notifications.service';
 import {
   BulkCareRecordDto,
   BulkCheckInDto,
+  BulkMarkAbsentDto,
   CareRecordDto,
+  CheckInDto,
   CheckOutDto,
+  CorrectDayTimesDto,
+  MarkAbsentDto,
   ObservationDto,
   PreschoolAssignmentDto,
   PreschoolQueryDto,
   SavePreschoolContentDto,
   SchoolProgrammeDto,
+  UndoDayActionDto,
+  UpdateObservationDto,
   UpdatePreschoolContentDto,
 } from './preschool.dto';
 
@@ -33,12 +40,50 @@ export function preschoolDate(value: string) {
     throw new BadRequestException('Choose a valid calendar date');
   return date;
 }
+
+export function preschoolTimestamp(dateStr: string, timeStr: string, timezone: string): Date {
+  preschoolDate(dateStr);
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(timeStr)) {
+    throw new BadRequestException('Choose a valid 24-hour time (HH:mm)');
+  }
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const [hh, mm] = timeStr.split(':').map(Number);
+  const desiredUtc = Date.UTC(y, m - 1, d, hh, mm, 0, 0);
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+  let guess = desiredUtc;
+  for (let i = 0; i < 2; i++) {
+    const parts = formatter.formatToParts(new Date(guess));
+    const num = (type: string) => Number(parts.find((p) => p.type === type)?.value || 0);
+    const localAsUtc = Date.UTC(
+      num('year'),
+      num('month') - 1,
+      num('day'),
+      num('hour') === 24 ? 0 : num('hour'),
+      num('minute'),
+      0,
+      0
+    );
+    const diff = desiredUtc - localAsUtc;
+    if (diff === 0) break;
+    guess += diff;
+  }
+  return new Date(guess);
+}
 @Injectable()
 export class PreschoolService {
   constructor(
     private db: PrismaService,
     private access: PreschoolAccessService,
-    @Optional() private pickup?: PreschoolPickupService
+    @Optional() private pickup?: PreschoolPickupService,
+    @Optional() private notifications?: ParentEngagementNotificationsService
   ) { }
   private tenant() {
     return this.access.tenant();
@@ -274,10 +319,39 @@ export class PreschoolService {
       throw new BadRequestException('Choose a date range of up to 93 days');
     return { gte: from, lte: to };
   }
-  async roster(user: Actor, classId: string, offset = 0) {
+  private async resolveServiceDate(dateStr?: string, maxDaysBack = 93) {
+    const { today, timezone } = await this.clock();
+    const target = dateStr || today;
+    const date = preschoolDate(target);
+    const todayDate = preschoolDate(today);
+    if (date > todayDate) {
+      throw new BadRequestException('Choose today or a past date');
+    }
+    if (todayDate.getTime() - date.getTime() > maxDaysBack * 86400000) {
+      throw new BadRequestException(`Choose a date within the last ${maxDaysBack} days`);
+    }
+    return { dateStr: target, date, today, timezone, isToday: target === today };
+  }
+  private resolveEventTime(
+    ctx: { dateStr: string; timezone: string; isToday: boolean },
+    timeStr: string | undefined,
+    defaultBackfillTime: string
+  ) {
+    if (timeStr) {
+      const ts = preschoolTimestamp(ctx.dateStr, timeStr, ctx.timezone);
+      if (ctx.isToday && ts.getTime() > Date.now() + 60000) {
+        throw new BadRequestException('Time cannot be in the future');
+      }
+      return ts;
+    }
+    return ctx.isToday
+      ? new Date()
+      : preschoolTimestamp(ctx.dateStr, defaultBackfillTime, ctx.timezone);
+  }
+  async roster(user: Actor, classId: string, offset = 0, dateStr?: string) {
     const classroom = await this.access.classroom(user, classId);
-    const { today } = await this.clock();
-    const date = preschoolDate(today);
+    const ctx = await this.resolveServiceDate(dateStr, 365);
+    const { today, date, isToday } = ctx;
     const now = new Date();
     const [students, total] = await Promise.all([
       this.db.student.findMany({
@@ -303,6 +377,11 @@ export class PreschoolService {
           },
           preschoolDays: {
             where: { tenantId: this.tenant(), date },
+            take: 1,
+          },
+          attendanceRecords: {
+            where: { tenantId: this.tenant(), date, period: 1 },
+            select: { id: true, status: true, remarks: true },
             take: 1,
           },
           pickupPasses: {
@@ -340,22 +419,33 @@ export class PreschoolService {
     ]);
     return {
       today,
+      date: ctx.dateStr,
+      isToday,
       pickupVerification:
         (classroom.school?.preschoolPickupVerification as 'OPTIONAL' | 'REQUIRED') || 'OPTIONAL',
-      students: students.map(({ preschoolDays, pickupPasses, ...student }) => ({
+      students: students.map(({ preschoolDays, attendanceRecords, pickupPasses, ...student }) => ({
         ...student,
         day: preschoolDays[0] || null,
-        activePickupPass: pickupPasses?.[0]
+        attendance: attendanceRecords?.[0]
           ? {
-            id: pickupPasses[0].id,
-            guardianId: pickupPasses[0].guardianId,
-            guardianName:
-              `${pickupPasses[0].guardian.firstName} ${pickupPasses[0].guardian.lastName}`.trim(),
-            issuedByRole: pickupPasses[0].issuedByRole,
-            deliveryChannels: pickupPasses[0].deliveryChannels,
-            expiresAt: pickupPasses[0].expiresAt,
+            status: attendanceRecords[0].status,
+            remarks: attendanceRecords[0].remarks || null,
           }
-          : null,
+          : preschoolDays[0]?.checkInAt
+            ? { status: 'PRESENT', remarks: null }
+            : null,
+        activePickupPass:
+          isToday && pickupPasses?.[0]
+            ? {
+              id: pickupPasses[0].id,
+              guardianId: pickupPasses[0].guardianId,
+              guardianName:
+                `${pickupPasses[0].guardian.firstName} ${pickupPasses[0].guardian.lastName}`.trim(),
+              issuedByRole: pickupPasses[0].issuedByRole,
+              deliveryChannels: pickupPasses[0].deliveryChannels,
+              expiresAt: pickupPasses[0].expiresAt,
+            }
+            : null,
       })),
       total,
       offset,
@@ -381,11 +471,13 @@ export class PreschoolService {
       },
     });
   }
-  async checkIn(user: Actor, studentId: string) {
+  async checkIn(user: Actor, studentId: string, dto: CheckInDto = {}) {
     this.access.allow(user);
     const student = await this.access.student(user, studentId);
-    const date = preschoolDate((await this.clock()).today),
-      now = new Date();
+    const ctx = await this.resolveServiceDate(dto?.date);
+    const { date, dateStr, isToday } = ctx;
+    const now = new Date();
+    const checkInAt = this.resolveEventTime(ctx, dto?.time, '09:00');
     return this.db.$transaction(async (tx) => {
       // Serialize attendance and care writes for this child across API instances.
       await tx.student.update({
@@ -396,17 +488,21 @@ export class PreschoolService {
         where: { tenantId: this.tenant(), studentId, date },
       });
       if (existing?.checkInAt || existing?.checkOutAt)
-        throw new ConflictException('Check-in has already been recorded today');
+        throw new ConflictException(
+          isToday
+            ? 'Check-in has already been recorded today'
+            : `Check-in has already been recorded for ${dateStr}`
+        );
       const day = await tx.preschoolDayRecord.upsert({
         where: { tenantId_studentId_date: { tenantId: this.tenant(), studentId, date } },
         create: {
           tenantId: this.tenant(),
           studentId,
           date,
-          checkInAt: now,
+          checkInAt,
           checkedInBy: user.userId,
         },
-        update: { checkInAt: now, checkedInBy: user.userId, version: { increment: 1 } },
+        update: { checkInAt, checkedInBy: user.userId, version: { increment: 1 } },
       });
       await tx.attendanceRecord.upsert({
         where: {
@@ -419,29 +515,121 @@ export class PreschoolService {
           date,
           period: 1,
           status: 'PRESENT',
-          arrivalTime: now,
+          arrivalTime: checkInAt,
           markedBy: user.userId,
         },
-        update: { status: 'PRESENT', arrivalTime: now, markedBy: user.userId },
+        update: { status: 'PRESENT', arrivalTime: checkInAt, remarks: null, markedBy: user.userId },
       });
       await this.activity(
         tx,
         user,
         studentId,
         'Checked in at preschool',
-        'Your child has arrived. The school recorded their check-in.',
+        isToday
+          ? 'Your child has arrived. The school recorded their check-in.'
+          : `The school recorded a check-in for ${dateStr}.`,
         'ATTENDANCE'
       );
-      await this.audit(tx, user, 'PRESCHOOL_CHECK_IN', day.id);
+      await this.audit(
+        tx,
+        user,
+        isToday ? 'PRESCHOOL_CHECK_IN' : 'PRESCHOOL_CHECK_IN_BACKFILLED',
+        day.id
+      );
       return day;
     });
   }
-  async bulkCheckIn(user: Actor, classId: string, dto: BulkCheckInDto) {
+  async markAbsent(user: Actor, studentId: string, dto: MarkAbsentDto = {}) {
+    this.access.allow(user);
+    const student = await this.access.student(user, studentId);
+    const ctx = await this.resolveServiceDate(dto?.date);
+    const { date, dateStr, isToday } = ctx;
+    const now = new Date(),
+      tenantId = this.tenant();
+    const remarks = dto?.remarks?.trim() || null;
+    const record = await this.db.$transaction(async (tx) => {
+      // Serialize attendance and care writes for this child across API instances.
+      await tx.student.update({
+        where: { id: studentId, tenantId },
+        data: { updatedAt: now },
+      });
+      const existingDay = await tx.preschoolDayRecord.findFirst({
+        where: { tenantId, studentId, date },
+      });
+      if (existingDay?.checkInAt || existingDay?.checkOutAt) {
+        throw new ConflictException(
+          isToday
+            ? 'Cannot mark absent because check-in has already been recorded today'
+            : `Cannot mark absent because check-in has already been recorded for ${dateStr}`
+        );
+      }
+      const existingAttendance = await tx.attendanceRecord.findFirst({
+        where: { tenantId, studentId, date, period: 1 },
+      });
+      if (existingAttendance?.status === 'ABSENT') {
+        throw new ConflictException(
+          isToday
+            ? 'Absence has already been recorded today'
+            : `Absence has already been recorded for ${dateStr}`
+        );
+      }
+      const saved = await tx.attendanceRecord.upsert({
+        where: {
+          tenantId_studentId_date_period: { tenantId, studentId, date, period: 1 },
+        },
+        create: {
+          tenantId,
+          studentId,
+          classId: student.currentClassId,
+          date,
+          period: 1,
+          status: 'ABSENT',
+          arrivalTime: null,
+          remarks,
+          markedBy: user.userId,
+        },
+        update: {
+          status: 'ABSENT',
+          arrivalTime: null,
+          remarks,
+          markedBy: user.userId,
+        },
+      });
+      await this.activity(
+        tx,
+        user,
+        studentId,
+        'Marked absent at preschool',
+        isToday
+          ? remarks
+            ? `Your child was marked absent today (${remarks}). Contact the class teacher if this is incorrect.`
+            : 'Your child was marked absent today. Contact the class teacher if this is incorrect.'
+          : remarks
+            ? `Your child was marked absent on ${dateStr} (${remarks}).`
+            : `Your child was marked absent on ${dateStr}.`,
+        'ATTENDANCE'
+      );
+      await this.audit(tx, user, 'PRESCHOOL_MARK_ABSENT', saved?.id || studentId);
+      return saved;
+    });
+    if (isToday && this.notifications && record?.id) {
+      await this.notifications.sendAttendanceAlert(record.id);
+    }
+    return {
+      id: record?.id || null,
+      studentId,
+      date: dateStr,
+      status: 'ABSENT' as const,
+      remarks,
+    };
+  }
+  async bulkCheckIn(user: Actor, classId: string, dto: BulkCheckInDto = {}) {
     this.access.allow(user);
     await this.access.classroom(user, classId);
-    const { today } = await this.clock();
-    const date = preschoolDate(today);
+    const ctx = await this.resolveServiceDate(dto?.date);
+    const { date, dateStr, isToday } = ctx;
     const now = new Date();
+    const checkInAt = this.resolveEventTime(ctx, dto?.time, '09:00');
     const tenantId = this.tenant();
     const requestedIds = dto.studentIds?.length ? [...new Set(dto.studentIds)] : undefined;
     return this.db.$transaction(async (tx) => {
@@ -463,7 +651,7 @@ export class PreschoolService {
       if (!targetIds.length) {
         return {
           classId,
-          date: today,
+          date: dateStr,
           checkedInCount: 0,
           skippedCount: 0,
           checkedInStudentIds: [],
@@ -475,17 +663,34 @@ export class PreschoolService {
         where: { tenantId, id: { in: targetIds } },
         data: { updatedAt: now },
       });
-      const existingDays = await tx.preschoolDayRecord.findMany({
-        where: { tenantId, date, studentId: { in: targetIds } },
-        select: { id: true, studentId: true, checkInAt: true, checkOutAt: true },
-      });
+      const [existingDays, existingAttendance] = await Promise.all([
+        tx.preschoolDayRecord.findMany({
+          where: { tenantId, date, studentId: { in: targetIds } },
+          select: { id: true, studentId: true, checkInAt: true, checkOutAt: true },
+        }),
+        tx.attendanceRecord.findMany({
+          where: { tenantId, date, period: 1, studentId: { in: targetIds } },
+          select: { studentId: true, status: true },
+        }),
+      ]);
       const existingByStudent = new Map(existingDays.map((row) => [row.studentId, row]));
+      const existingAttendanceByStudent = new Map(
+        existingAttendance.map((row) => [row.studentId, row])
+      );
       const skippedStudentIds: string[] = [];
       const checkedInStudentIds: string[] = [];
       for (const sid of targetIds) {
         const existing = existingByStudent.get(sid);
-        if (existing?.checkInAt || existing?.checkOutAt) skippedStudentIds.push(sid);
-        else checkedInStudentIds.push(sid);
+        const attendance = existingAttendanceByStudent.get(sid);
+        if (
+          existing?.checkInAt ||
+          existing?.checkOutAt ||
+          (!requestedIds && attendance?.status === 'ABSENT')
+        ) {
+          skippedStudentIds.push(sid);
+        } else {
+          checkedInStudentIds.push(sid);
+        }
       }
       if (checkedInStudentIds.length) {
         const newDayIds = checkedInStudentIds.filter((sid) => !existingByStudent.has(sid));
@@ -496,7 +701,7 @@ export class PreschoolService {
               tenantId,
               studentId,
               date,
-              checkInAt: now,
+              checkInAt,
               checkedInBy: user.userId,
             })),
           });
@@ -510,19 +715,14 @@ export class PreschoolService {
               checkInAt: null,
               checkOutAt: null,
             },
-            data: { checkInAt: now, checkedInBy: user.userId, version: { increment: 1 } },
+            data: { checkInAt, checkedInBy: user.userId, version: { increment: 1 } },
           });
         }
-        const existingAttendance = await tx.attendanceRecord.findMany({
-          where: { tenantId, date, period: 1, studentId: { in: checkedInStudentIds } },
-          select: { studentId: true },
-        });
-        const existingAttendanceSet = new Set(existingAttendance.map((row) => row.studentId));
         const newAttendanceIds = checkedInStudentIds.filter(
-          (sid) => !existingAttendanceSet.has(sid)
+          (sid) => !existingAttendanceByStudent.has(sid)
         );
         const updateAttendanceIds = checkedInStudentIds.filter((sid) =>
-          existingAttendanceSet.has(sid)
+          existingAttendanceByStudent.has(sid)
         );
         if (newAttendanceIds.length) {
           await tx.attendanceRecord.createMany({
@@ -533,7 +733,7 @@ export class PreschoolService {
               date,
               period: 1,
               status: 'PRESENT',
-              arrivalTime: now,
+              arrivalTime: checkInAt,
               markedBy: user.userId,
             })),
           });
@@ -541,7 +741,7 @@ export class PreschoolService {
         if (updateAttendanceIds.length) {
           await tx.attendanceRecord.updateMany({
             where: { tenantId, date, period: 1, studentId: { in: updateAttendanceIds } },
-            data: { status: 'PRESENT', arrivalTime: now, markedBy: user.userId },
+            data: { status: 'PRESENT', arrivalTime: checkInAt, remarks: null, markedBy: user.userId },
           });
         }
         await tx.activityFeed.createMany({
@@ -549,7 +749,9 @@ export class PreschoolService {
             tenantId,
             studentId,
             title: 'Checked in at preschool',
-            description: 'Your child has arrived. The school recorded their check-in.',
+            description: isToday
+              ? 'Your child has arrived. The school recorded their check-in.'
+              : `The school recorded a check-in for ${dateStr}.`,
             activityType: 'ATTENDANCE',
             createdBy: user.userId,
             isVisibleToParents: true,
@@ -559,13 +761,152 @@ export class PreschoolService {
       }
       return {
         classId,
-        date: today,
+        date: dateStr,
         checkedInCount: checkedInStudentIds.length,
         skippedCount: skippedStudentIds.length,
         checkedInStudentIds,
         skippedStudentIds,
       };
     });
+  }
+  async bulkMarkAbsent(user: Actor, classId: string, dto: BulkMarkAbsentDto = {}) {
+    this.access.allow(user);
+    await this.access.classroom(user, classId);
+    const ctx = await this.resolveServiceDate(dto?.date);
+    const { date, dateStr, isToday } = ctx;
+    const now = new Date();
+    const tenantId = this.tenant();
+    const remarks = dto?.remarks?.trim() || null;
+    const requestedIds = dto.studentIds?.length ? [...new Set(dto.studentIds)] : undefined;
+    const result = await this.db.$transaction(async (tx) => {
+      const students = await tx.student.findMany({
+        where: {
+          tenantId,
+          currentClassId: classId,
+          status: 'ACTIVE',
+          deletedAt: null,
+          ...(requestedIds ? { id: { in: requestedIds } } : {}),
+        },
+        select: { id: true },
+        orderBy: { id: 'asc' },
+      });
+      if (requestedIds && students.length !== requestedIds.length) {
+        throw new BadRequestException('All selected children must belong to this preschool class');
+      }
+      const targetIds = students.map((student) => student.id);
+      if (!targetIds.length) {
+        return {
+          classId,
+          date: dateStr,
+          absentCount: 0,
+          skippedCount: 0,
+          absentStudentIds: [] as string[],
+          skippedStudentIds: [] as string[],
+          alertRecordIds: [] as string[],
+        };
+      }
+      // Serialize concurrent attendance and care writes for these students.
+      await tx.student.updateMany({
+        where: { tenantId, id: { in: targetIds } },
+        data: { updatedAt: now },
+      });
+      const [existingDays, existingAttendance] = await Promise.all([
+        tx.preschoolDayRecord.findMany({
+          where: { tenantId, date, studentId: { in: targetIds } },
+          select: { id: true, studentId: true, checkInAt: true, checkOutAt: true },
+        }),
+        tx.attendanceRecord.findMany({
+          where: { tenantId, date, period: 1, studentId: { in: targetIds } },
+          select: { id: true, studentId: true, status: true },
+        }),
+      ]);
+      const existingByStudent = new Map(existingDays.map((row) => [row.studentId, row]));
+      const existingAttendanceByStudent = new Map(
+        existingAttendance.map((row) => [row.studentId, row])
+      );
+      const skippedStudentIds: string[] = [];
+      const absentStudentIds: string[] = [];
+      for (const sid of targetIds) {
+        const existing = existingByStudent.get(sid);
+        const attendance = existingAttendanceByStudent.get(sid);
+        if (existing?.checkInAt || existing?.checkOutAt || attendance?.status === 'ABSENT') {
+          skippedStudentIds.push(sid);
+        } else {
+          absentStudentIds.push(sid);
+        }
+      }
+      let alertRecordIds: string[] = [];
+      if (absentStudentIds.length) {
+        const newAttendanceIds = absentStudentIds.filter(
+          (sid) => !existingAttendanceByStudent.has(sid)
+        );
+        const updateAttendanceIds = absentStudentIds.filter((sid) =>
+          existingAttendanceByStudent.has(sid)
+        );
+        if (newAttendanceIds.length) {
+          await tx.attendanceRecord.createMany({
+            data: newAttendanceIds.map((studentId) => ({
+              tenantId,
+              studentId,
+              classId,
+              date,
+              period: 1,
+              status: 'ABSENT',
+              arrivalTime: null,
+              remarks,
+              markedBy: user.userId,
+            })),
+          });
+        }
+        if (updateAttendanceIds.length) {
+          await tx.attendanceRecord.updateMany({
+            where: { tenantId, date, period: 1, studentId: { in: updateAttendanceIds } },
+            data: { status: 'ABSENT', arrivalTime: null, remarks, markedBy: user.userId },
+          });
+        }
+        await tx.activityFeed.createMany({
+          data: absentStudentIds.map((studentId) => ({
+            tenantId,
+            studentId,
+            title: 'Marked absent at preschool',
+            description: isToday
+              ? remarks
+                ? `Your child was marked absent today (${remarks}). Contact the class teacher if this is incorrect.`
+                : 'Your child was marked absent today. Contact the class teacher if this is incorrect.'
+              : remarks
+                ? `Your child was marked absent on ${dateStr} (${remarks}).`
+                : `Your child was marked absent on ${dateStr}.`,
+            activityType: 'ATTENDANCE',
+            createdBy: user.userId,
+            isVisibleToParents: true,
+          })),
+        });
+        await this.audit(tx, user, 'PRESCHOOL_BULK_MARK_ABSENT', classId);
+        if (isToday && this.notifications) {
+          const savedRows = await tx.attendanceRecord.findMany({
+            where: { tenantId, date, period: 1, status: 'ABSENT', studentId: { in: absentStudentIds } },
+            select: { id: true },
+          });
+          alertRecordIds = savedRows.map((r) => r.id);
+        }
+      }
+      return {
+        classId,
+        date: dateStr,
+        absentCount: absentStudentIds.length,
+        skippedCount: skippedStudentIds.length,
+        absentStudentIds,
+        skippedStudentIds,
+        alertRecordIds,
+      };
+    });
+    if (isToday && this.notifications && result.alertRecordIds.length) {
+      for (const recordId of result.alertRecordIds) {
+        await this.notifications.sendAttendanceAlert(recordId);
+      }
+    }
+    const { alertRecordIds: _alertRecordIds, ...response } = result;
+    return response;
   }
   async pickupPermission(user: Actor, studentId: string, guardianId: string, canPickup: boolean) {
     this.access.allow(user, preschoolManagers);
@@ -602,15 +943,21 @@ export class PreschoolService {
     const pickupPolicy =
       (student.currentClass?.school?.preschoolPickupVerification as 'OPTIONAL' | 'REQUIRED') ||
       'OPTIONAL';
+    const ctx = await this.resolveServiceDate(dto.date);
+    const { today, date, dateStr, isToday } = ctx;
     const usingPass = !!(dto.pickupOtp?.trim() || dto.pickupQrToken?.trim());
-    if (pickupPolicy === 'REQUIRED' && !usingPass) {
+    if (!isToday && usingPass) {
+      throw new BadRequestException(
+        'Pickup OTP or QR passes can only be used for today. Choose an authorized guardian to backfill a past checkout.'
+      );
+    }
+    if (isToday && pickupPolicy === 'REQUIRED' && !usingPass) {
       throw new BadRequestException('Parent pickup OTP or QR pass is required for checkout');
     }
     if (!usingPass && !dto.guardianId) {
       throw new BadRequestException('Choose an authorized pickup guardian');
     }
-    const { today } = await this.clock();
-    const date = preschoolDate(today);
+    const checkOutAt = this.resolveEventTime(ctx, dto.time, '15:00');
     const tenantId = this.tenant();
     return this.db.$transaction(async (tx) => {
       await tx.student.update({
@@ -620,7 +967,7 @@ export class PreschoolService {
       let resolvedGuardianId = dto.guardianId;
       let verificationMethod: 'MANUAL' | 'OTP' | 'QR' = 'MANUAL';
       let pickupPassId: string | null = null;
-      let row = await tx.preschoolDayRecord.findFirst({
+      const row = await tx.preschoolDayRecord.findFirst({
         where: { tenantId, studentId, date },
       });
 
@@ -674,11 +1021,18 @@ export class PreschoolService {
           'This person is not an authorized pickup guardian for this child'
         );
       if (!row?.checkInAt || row.checkOutAt)
-        throw new ConflictException('Checkout requires an active check-in today');
+        throw new ConflictException(
+          isToday
+            ? 'Checkout requires an active check-in today'
+            : `Checkout requires an active check-in for ${dateStr}`
+        );
+      if (checkOutAt.getTime() < new Date(row.checkInAt).getTime()) {
+        throw new BadRequestException('Checkout time cannot be earlier than check-in time');
+      }
       const result = await tx.preschoolDayRecord.updateMany({
         where: { id: row.id, tenantId, checkOutAt: null, version: row.version },
         data: {
-          checkOutAt: new Date(),
+          checkOutAt,
           checkedOutBy: user.userId,
           pickupGuardianId: resolvedGuardianId!,
           pickupVerificationMethod: verificationMethod,
@@ -692,7 +1046,9 @@ export class PreschoolService {
           ? 'Verified with parent pickup OTP.'
           : verificationMethod === 'QR'
             ? 'Verified with parent pickup QR pass.'
-            : 'School staff verified the pickup.';
+            : isToday
+              ? 'School staff verified the pickup.'
+              : `Recorded by school staff for ${dateStr}.`;
       await this.activity(
         tx,
         user,
@@ -701,8 +1057,9 @@ export class PreschoolService {
         `Collected by ${link.guardian.firstName} ${link.guardian.lastName}. ${verificationSummary}`,
         'ATTENDANCE'
       );
-      const auditAction =
-        verificationMethod === 'OTP'
+      const auditAction = !isToday
+        ? 'PRESCHOOL_CHECK_OUT_BACKFILLED'
+        : verificationMethod === 'OTP'
           ? 'PRESCHOOL_CHECK_OUT_OTP_VERIFIED'
           : verificationMethod === 'QR'
             ? 'PRESCHOOL_CHECK_OUT_QR_VERIFIED'
@@ -711,11 +1068,246 @@ export class PreschoolService {
       return { id: row.id, verificationMethod, guardianId: resolvedGuardianId };
     });
   }
+  async undoCheckIn(user: Actor, studentId: string, dto: UndoDayActionDto = {}) {
+    this.access.allow(user);
+    await this.access.student(user, studentId);
+    const { date, dateStr, isToday } = await this.resolveServiceDate(dto?.date);
+    const tenantId = this.tenant();
+    const now = new Date();
+    return this.db.$transaction(async (tx) => {
+      await tx.student.update({
+        where: { id: studentId, tenantId },
+        data: { updatedAt: now },
+      });
+      const existing = await tx.preschoolDayRecord.findFirst({
+        where: { tenantId, studentId, date },
+      });
+      if (!existing?.checkInAt) {
+        throw new ConflictException(
+          isToday
+            ? 'No check-in is recorded today'
+            : `No check-in is recorded for ${dateStr}`
+        );
+      }
+      if (existing.checkOutAt) {
+        throw new ConflictException('Undo checkout before undoing check-in');
+      }
+      const updated = await tx.preschoolDayRecord.updateMany({
+        where: { id: existing.id, tenantId, checkOutAt: null, version: existing.version },
+        data: { checkInAt: null, checkedInBy: null, version: { increment: 1 } },
+      });
+      if (!updated.count) {
+        throw new ConflictException('Record changed. Refresh before trying again');
+      }
+      await tx.attendanceRecord.deleteMany({
+        where: { tenantId, studentId, date, period: 1, status: 'PRESENT' },
+      });
+      await this.activity(
+        tx,
+        user,
+        studentId,
+        'Check-in corrected',
+        isToday
+          ? 'School staff cleared today’s check-in entry.'
+          : `School staff cleared the check-in entry for ${dateStr}.`,
+        'ATTENDANCE'
+      );
+      await this.audit(tx, user, 'PRESCHOOL_CHECK_IN_UNDONE', existing.id);
+      return { undone: true, id: existing.id, studentId, date: dateStr };
+    });
+  }
+  async undoCheckOut(user: Actor, studentId: string, dto: UndoDayActionDto = {}) {
+    this.access.allow(user);
+    await this.access.student(user, studentId);
+    const { date, dateStr, isToday } = await this.resolveServiceDate(dto?.date);
+    const tenantId = this.tenant();
+    const now = new Date();
+    return this.db.$transaction(async (tx) => {
+      await tx.student.update({
+        where: { id: studentId, tenantId },
+        data: { updatedAt: now },
+      });
+      const existing = await tx.preschoolDayRecord.findFirst({
+        where: { tenantId, studentId, date },
+      });
+      if (!existing?.checkOutAt) {
+        throw new ConflictException(
+          isToday
+            ? 'No checkout is recorded today'
+            : `No checkout is recorded for ${dateStr}`
+        );
+      }
+      const updated = await tx.preschoolDayRecord.updateMany({
+        where: { id: existing.id, tenantId, version: existing.version },
+        data: {
+          checkOutAt: null,
+          checkedOutBy: null,
+          pickupGuardianId: null,
+          pickupVerificationMethod: null,
+          pickupPassId: null,
+          version: { increment: 1 },
+        },
+      });
+      if (!updated.count) {
+        throw new ConflictException('Record changed. Refresh before trying again');
+      }
+      await this.activity(
+        tx,
+        user,
+        studentId,
+        'Checkout corrected',
+        isToday
+          ? 'School staff reopened today’s checkout entry.'
+          : `School staff reopened the checkout entry for ${dateStr}.`,
+        'ATTENDANCE'
+      );
+      await this.audit(tx, user, 'PRESCHOOL_CHECK_OUT_UNDONE', existing.id);
+      return { undone: true, id: existing.id, studentId, date: dateStr };
+    });
+  }
+  async undoAbsent(user: Actor, studentId: string, dto: UndoDayActionDto = {}) {
+    this.access.allow(user);
+    await this.access.student(user, studentId);
+    const { date, dateStr, isToday } = await this.resolveServiceDate(dto?.date);
+    const tenantId = this.tenant();
+    const now = new Date();
+    return this.db.$transaction(async (tx) => {
+      await tx.student.update({
+        where: { id: studentId, tenantId },
+        data: { updatedAt: now },
+      });
+      const existing = await tx.attendanceRecord.findFirst({
+        where: { tenantId, studentId, date, period: 1 },
+      });
+      if (existing?.status !== 'ABSENT') {
+        throw new ConflictException(
+          isToday
+            ? 'No absence is recorded today'
+            : `No absence is recorded for ${dateStr}`
+        );
+      }
+      await tx.attendanceRecord.deleteMany({
+        where: { tenantId, studentId, date, period: 1, status: 'ABSENT' },
+      });
+      await this.activity(
+        tx,
+        user,
+        studentId,
+        'Attendance corrected',
+        isToday
+          ? 'School staff cleared today’s absence entry.'
+          : `School staff cleared the absence entry for ${dateStr}.`,
+        'ATTENDANCE'
+      );
+      await this.audit(tx, user, 'PRESCHOOL_ABSENCE_UNDONE', existing.id);
+      return { undone: true, studentId, date: dateStr };
+    });
+  }
+  async correctDayTimes(user: Actor, studentId: string, dto: CorrectDayTimesDto) {
+    this.access.allow(user);
+    await this.access.student(user, studentId);
+    if (!dto.checkInTime && !dto.checkOutTime && !dto.pickupGuardianId) {
+      throw new BadRequestException(
+        'Choose a check-in time, checkout time or collecting guardian to update'
+      );
+    }
+    const ctx = await this.resolveServiceDate(dto.date);
+    const { date, dateStr, isToday, timezone } = ctx;
+    const tenantId = this.tenant();
+    const now = new Date();
+    return this.db.$transaction(async (tx) => {
+      await tx.student.update({
+        where: { id: studentId, tenantId },
+        data: { updatedAt: now },
+      });
+      const row = await tx.preschoolDayRecord.findFirst({
+        where: { tenantId, studentId, date },
+      });
+      if (!row) {
+        throw new NotFoundException('Daily attendance record not found for this date');
+      }
+      if (row.version !== dto.version) {
+        throw new ConflictException('Daily record changed. Refresh before saving');
+      }
+      let nextCheckInAt: Date | undefined;
+      if (dto.checkInTime) {
+        if (!row.checkInAt) {
+          throw new BadRequestException('Record a check-in before adjusting its time');
+        }
+        nextCheckInAt = preschoolTimestamp(dateStr, dto.checkInTime, timezone);
+        if (isToday && nextCheckInAt.getTime() > Date.now() + 60000) {
+          throw new BadRequestException('Check-in time cannot be in the future');
+        }
+      }
+      let nextCheckOutAt: Date | undefined;
+      if (dto.checkOutTime) {
+        if (!row.checkOutAt) {
+          throw new BadRequestException('Record a checkout before adjusting its time');
+        }
+        nextCheckOutAt = preschoolTimestamp(dateStr, dto.checkOutTime, timezone);
+        if (isToday && nextCheckOutAt.getTime() > Date.now() + 60000) {
+          throw new BadRequestException('Checkout time cannot be in the future');
+        }
+      }
+      const effectiveIn = nextCheckInAt || (row.checkInAt ? new Date(row.checkInAt) : null);
+      const effectiveOut = nextCheckOutAt || (row.checkOutAt ? new Date(row.checkOutAt) : null);
+      if (effectiveIn && effectiveOut && effectiveOut.getTime() < effectiveIn.getTime()) {
+        throw new BadRequestException('Checkout time cannot be earlier than check-in time');
+      }
+      let nextPickupGuardianId: string | undefined;
+      if (dto.pickupGuardianId) {
+        if (!row.checkOutAt) {
+          throw new BadRequestException('Record a checkout before updating the collecting guardian');
+        }
+        const authorized = await tx.guardianStudentLink.findFirst({
+          where: {
+            studentId,
+            guardianId: dto.pickupGuardianId,
+            canPickup: true,
+            guardian: { tenantId },
+            student: { tenantId },
+          },
+        });
+        if (!authorized) {
+          throw new BadRequestException(
+            'This person is not an authorized pickup guardian for this child'
+          );
+        }
+        nextPickupGuardianId = dto.pickupGuardianId;
+      }
+      const result = await tx.preschoolDayRecord.updateMany({
+        where: { id: row.id, tenantId, version: dto.version },
+        data: {
+          ...(nextCheckInAt ? { checkInAt: nextCheckInAt } : {}),
+          ...(nextCheckOutAt ? { checkOutAt: nextCheckOutAt } : {}),
+          ...(nextPickupGuardianId ? { pickupGuardianId: nextPickupGuardianId } : {}),
+          version: { increment: 1 },
+        },
+      });
+      if (!result.count) {
+        throw new ConflictException('Daily record changed. Refresh before saving');
+      }
+      if (nextCheckInAt) {
+        await tx.attendanceRecord.updateMany({
+          where: { tenantId, studentId, date, period: 1 },
+          data: { arrivalTime: nextCheckInAt, markedBy: user.userId },
+        });
+      }
+      await this.audit(tx, user, 'PRESCHOOL_ATTENDANCE_CORRECTED', row.id);
+      return {
+        id: row.id,
+        date: dateStr,
+        checkInAt: effectiveIn,
+        checkOutAt: effectiveOut,
+        pickupGuardianId: nextPickupGuardianId || row.pickupGuardianId || null,
+      };
+    });
+  }
   async care(user: Actor, studentId: string, dto: CareRecordDto) {
     this.access.allow(user);
     await this.access.student(user, studentId);
-    const date = preschoolDate((await this.clock()).today);
-    const { version, shareWithParents, ...details } = dto;
+    const { date, dateStr, isToday } = await this.resolveServiceDate(dto.date);
+    const { version, shareWithParents, date: _date, ...details } = dto;
     return this.db.$transaction(async (tx) => {
       await tx.student.update({
         where: { id: studentId, tenantId: this.tenant() },
@@ -741,7 +1333,9 @@ export class PreschoolService {
           user,
           studentId,
           'Daily care update',
-          'Today’s meals, rest and classroom notes are available in your preschool workspace.'
+          isToday
+            ? 'Today’s meals, rest and classroom notes are available in your preschool workspace.'
+            : `Care notes for ${dateStr} are available in your preschool workspace.`
         );
       await this.audit(
         tx,
@@ -772,8 +1366,7 @@ export class PreschoolService {
         'Choose at least one care detail to update or enable sharing with parents'
       );
     }
-    const { today } = await this.clock();
-    const date = preschoolDate(today);
+    const { date, dateStr, isToday } = await this.resolveServiceDate(dto.date);
     const now = new Date();
     const tenantId = this.tenant();
     const requestedIds = dto.studentIds?.length ? [...new Set(dto.studentIds)] : undefined;
@@ -796,7 +1389,7 @@ export class PreschoolService {
       if (!targetIds.length) {
         return {
           classId,
-          date: today,
+          date: dateStr,
           updatedCount: 0,
           skippedCount: 0,
           sharedWithParents: dto.shareWithParents,
@@ -850,8 +1443,9 @@ export class PreschoolService {
               tenantId,
               studentId,
               title: 'Daily care update',
-              description:
-                'Today’s meals, rest and classroom notes are available in your preschool workspace.',
+              description: isToday
+                ? 'Today’s meals, rest and classroom notes are available in your preschool workspace.'
+                : `Care notes for ${dateStr} are available in your preschool workspace.`,
               activityType: 'OTHER',
               createdBy: user.userId,
               isVisibleToParents: true,
@@ -867,7 +1461,7 @@ export class PreschoolService {
       }
       return {
         classId,
-        date: today,
+        date: dateStr,
         updatedCount: updatedStudentIds.length,
         skippedCount: skippedStudentIds.length,
         sharedWithParents: dto.shareWithParents,
@@ -907,14 +1501,84 @@ export class PreschoolService {
       return row;
     });
   }
+  async updateObservation(user: Actor, id: string, dto: UpdateObservationDto) {
+    this.access.allow(user);
+    const tenantId = this.tenant();
+    const existing = await this.db.developmentObservation.findFirst({
+      where: { id, tenantId },
+    });
+    if (!existing) throw new NotFoundException('Observation not found');
+    await this.access.student(user, existing.studentId);
+    const skill = dto.skill.trim();
+    const observation = dto.observation.trim();
+    if (skill.length < 2 || observation.length < 5)
+      throw new BadRequestException('Describe the observed skill and what happened');
+    const date = preschoolDate(dto.observedOn);
+    if (date > preschoolDate((await this.clock()).today))
+      throw new BadRequestException('Observation date cannot be in the future');
+    return this.db.$transaction(async (tx) => {
+      const updated = await tx.developmentObservation.updateMany({
+        where: { id, tenantId },
+        data: {
+          domain: dto.domain,
+          level: dto.level,
+          skill,
+          observation,
+          observedOn: date,
+          shared: dto.shared,
+        },
+      });
+      if (!updated.count) throw new NotFoundException('Observation not found');
+      if (!existing.shared && dto.shared) {
+        await this.activity(
+          tx,
+          user,
+          existing.studentId,
+          'New development observation',
+          `${skill}: ${observation}`
+        );
+      }
+      await this.audit(tx, user, 'PRESCHOOL_OBSERVATION_UPDATED', id);
+      return {
+        ...existing,
+        domain: dto.domain,
+        level: dto.level,
+        skill,
+        observation,
+        observedOn: date,
+        shared: dto.shared,
+      };
+    });
+  }
+  async deleteObservation(user: Actor, id: string) {
+    this.access.allow(user);
+    const tenantId = this.tenant();
+    const existing = await this.db.developmentObservation.findFirst({
+      where: { id, tenantId },
+    });
+    if (!existing) throw new NotFoundException('Observation not found');
+    await this.access.student(user, existing.studentId);
+    return this.db.$transaction(async (tx) => {
+      const result = await tx.developmentObservation.deleteMany({ where: { id, tenantId } });
+      if (!result.count) throw new NotFoundException('Observation not found');
+      await this.audit(tx, user, 'PRESCHOOL_OBSERVATION_DELETED', id);
+      return { deleted: true, id };
+    });
+  }
   async child(user: Actor, studentId: string, query: PreschoolQueryDto) {
     const student = await this.access.student(user, studentId);
     const range = await this.range(query),
       tenantId = this.tenant(),
       parent = user.role === 'PARENT';
-    const [days, observations, activities, content] = await Promise.all([
+    const [days, attendanceRecords, observations, activities, content] = await Promise.all([
       this.db.preschoolDayRecord.findMany({
         where: { tenantId, studentId, date: range },
+        orderBy: { date: 'desc' },
+        take: 93,
+      }),
+      this.db.attendanceRecord.findMany({
+        where: { tenantId, studentId, date: range, period: 1 },
+        select: { id: true, date: true, status: true, remarks: true },
         orderBy: { date: 'desc' },
         take: 93,
       }),
@@ -941,18 +1605,50 @@ export class PreschoolService {
         take: 100,
       }),
     ]);
-    const visibleDays = days.map((day) =>
-      parent && !day.sharedAt
+    const dayKey = (value: Date | string) =>
+      value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+    const attendanceByDate = new Map(
+      (attendanceRecords || []).map((rec) => [dayKey(rec.date), rec])
+    );
+    const seenDates = new Set<string>();
+    const visibleDays = days.map((day) => {
+      const key = dayKey(day.date);
+      seenDates.add(key);
+      const att = attendanceByDate.get(key);
+      const attendanceStatus = att?.status || (day.checkInAt ? 'PRESENT' : null);
+      const attendanceRemarks = att?.remarks || null;
+      return parent && !day.sharedAt
         ? {
           id: day.id,
           date: day.date,
           checkInAt: day.checkInAt,
           checkOutAt: day.checkOutAt,
           pickupVerificationMethod: day.pickupVerificationMethod,
+          attendanceStatus,
+          attendanceRemarks,
           sharedAt: null,
         }
-        : day
-    );
+        : {
+          ...day,
+          attendanceStatus,
+          attendanceRemarks,
+        };
+    });
+    for (const att of attendanceRecords || []) {
+      const key = dayKey(att.date);
+      if (seenDates.has(key) || att.status !== 'ABSENT') continue;
+      visibleDays.push({
+        id: 'att-' + att.id,
+        date: att.date,
+        checkInAt: null,
+        checkOutAt: null,
+        pickupVerificationMethod: null,
+        attendanceStatus: att.status,
+        attendanceRemarks: att.remarks || null,
+        sharedAt: null,
+      });
+    }
+    visibleDays.sort((a, b) => dayKey(b.date).localeCompare(dayKey(a.date)));
     return {
       student: {
         id: student.id,
@@ -1048,6 +1744,21 @@ export class PreschoolService {
       if (!result.count) throw new ConflictException('Content changed or is already published');
       await this.audit(tx, user, 'PRESCHOOL_CONTENT_PUBLISHED', id);
       return { id };
+    });
+  }
+  async deleteContent(user: Actor, id: string) {
+    this.access.allow(user);
+    const tenantId = this.tenant();
+    const row = await this.db.preschoolContent.findFirst({
+      where: { id, tenantId },
+    });
+    if (!row) throw new NotFoundException('Teaching content not found');
+    await this.access.classroom(user, row.classId);
+    return this.db.$transaction(async (tx) => {
+      const result = await tx.preschoolContent.deleteMany({ where: { id, tenantId } });
+      if (!result.count) throw new NotFoundException('Teaching content not found');
+      await this.audit(tx, user, 'PRESCHOOL_CONTENT_DELETED', id);
+      return { deleted: true, id };
     });
   }
   async report(user: Actor, query: PreschoolQueryDto) {

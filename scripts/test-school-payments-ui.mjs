@@ -64,10 +64,12 @@ await context.route('**/api/**', (route) => {
       events: [],
       attendanceSummary: { attendanceRate: 0, totalDays: 0 },
     });
-  if (path === '/payments-gateway/options')
+  if (path === '/payments-gateway/options') {
+    assert.equal(new URL(req.url()).searchParams.get('invoiceId'), 'invoice-1');
     return methodsFail
       ? route.fulfill({ status: 503, json: { message: 'Payment methods temporarily unavailable' } })
       : ok(methods);
+  }
   if (path === '/workspace/pay')
     return ok({
       gatewayOrderId: 'order_fixture',

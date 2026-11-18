@@ -26,6 +26,9 @@ import { ExaminationsService } from '../modules/examinations/examinations.servic
 import { TimetableService } from '../modules/timetable/timetable.service';
 import { TimetableController } from '../modules/timetable/timetable.controller';
 import { PaymentsGatewayService } from '../modules/payments-gateway/payments-gateway.service';
+import { SchoolPaymentAccountsService } from '../modules/payments-gateway/school-payment-accounts.service';
+import { EncryptionUtil } from '../common/utils/encryption.util';
+import { PaymentCallbackGuard } from '../common/guards/payment-callback.guard';
 import { PaymentsGatewayController } from '../modules/payments-gateway/payments-gateway.controller';
 import { StaffController } from '../modules/staff/staff.controller';
 import { StaffService } from '../modules/staff/staff.service';
@@ -193,6 +196,8 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         phone: '0000000000',
       },
     });
+    await db.schoolPaymentAccount.create({ data: { tenantId: tenant, schoolId: school, merchantName: 'Fixture school',
+      upiVpa: 'fixture-school@upi', configuredBy: principal } });
     await db.class.createMany({
       data: [cls, otherClass].map((id) => ({
         id,
@@ -385,6 +390,9 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         ActivityFeedService,
         BehaviorService,
         PaymentsGatewayService,
+        SchoolPaymentAccountsService,
+        EncryptionUtil,
+        PaymentCallbackGuard,
         StaffService,
         GuardiansService,
         StudentsService,
@@ -433,6 +441,7 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
           'paymentGatewayTransaction',
           'payment',
           'invoice',
+          'schoolPaymentAccount',
           'timetableEntry',
         ])
           await (db as any)[model].deleteMany({
@@ -963,6 +972,40 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     expect(status.body.status).toBe('PENDING');
     expect((await request('/fees/invoices/' + inv.body.id)).body.paidAmount).toBe(0);
   });
+  it('keeps billed school routing after a pupil transfers and blocks cross-school reconciliation', async () => {
+    const schoolB = await db.school.create({ data: { tenantId: tenant, name: 'Separate receiving school', schoolType: 'PRIVATE',
+      educationLevel: ['PRIMARY'], address: 'Test', city: 'Test', email: 'separate@example.test', phone: '0000000000' } });
+    const classB = await db.class.create({ data: { tenantId: tenant, schoolId: schoolB.id, name: 'Separate class',
+      level: 'Class 1', educationLevel: 'PRIMARY' } });
+    const settings = { expectedAccountId: '', merchantName: 'Separate school fees', razorpayEnabled: false, upiVpa: 'separate-school@upi' };
+    expect((await request('/payments-gateway/school-accounts/' + schoolB.id, parent, 'PUT', settings)).status).toBe(403);
+    const configured = await request('/payments-gateway/school-accounts/' + schoolB.id, principal, 'PUT', settings);
+    expect(configured.status).toBe(200);
+    expect(configured.body).not.toHaveProperty('razorpayKeySecret');
+    const oldTerm = await newTerm(), nextTerm = await newTerm();
+    const original = await db.student.findUniqueOrThrow({ where: { id: child } });
+    const oldInvoice = await createInvoice(child, oldTerm.id);
+    expect(oldInvoice.body.paymentSchoolId).toBe(school);
+    try {
+      await db.student.update({ where: { id: child }, data: { currentClassId: classB.id, currentStreamId: null } });
+      const nextInvoice = await createInvoice(child, nextTerm.id);
+      expect(nextInvoice.body.paymentSchoolId).toBe(schoolB.id);
+      const oldOrder = await request('/payments-gateway/initiate', parent, 'POST', { invoiceId: oldInvoice.body.id, gateway: 'UPI', amount: 10000 });
+      const newOrder = await request('/payments-gateway/initiate', parent, 'POST', { invoiceId: nextInvoice.body.id, gateway: 'UPI', amount: 10000 });
+      expect(oldOrder.status).toBe(201); expect(newOrder.status).toBe(201);
+      expect(oldOrder.body.upiIntentUri).toContain('pa=fixture-school%40upi');
+      expect(newOrder.body.upiIntentUri).toContain('pa=separate-school%40upi');
+      const stored = await db.paymentGatewayTransaction.findFirstOrThrow({ where: { gatewayOrderId: newOrder.body.gatewayOrderId } });
+      expect(stored.paymentAccountId).toBe(configured.body.id);
+      expect((await request('/payments-gateway/options?invoiceId=' + nextInvoice.body.id, otherParent)).status).toBe(403);
+      expect((await request('/payments-gateway/reconcile/manual', principal, 'POST', { transactionId: stored.id, invoiceId: oldInvoice.body.id })).status).toBe(400);
+      expect(await db.payment.count({ where: { invoiceId: oldInvoice.body.id } })).toBe(0);
+      expect(await db.payment.count({ where: { invoiceId: nextInvoice.body.id } })).toBe(0);
+      expect((await request('/payments-gateway/school-accounts/' + schoolB.id, principal, 'PUT', settings)).status).toBe(409);
+    } finally {
+      await db.student.update({ where: { id: child }, data: { currentClassId: original.currentClassId, currentStreamId: original.currentStreamId } });
+    }
+  });
   it('commits captured gateway settlement and fee allocation atomically, including webhook retries', async () => {
     const t = await newTerm();
     const inv = await createInvoice(child, t.id);
@@ -971,7 +1014,7 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         tenantId: tenant,
         gateway: 'RAZORPAY',
         transactionType: 'RAZORPAY_ORDER',
-        gatewayOrderId: 'order_' + id(),
+        gatewayOrderId: 'order_' + id().replace(/-/g, ''),
         amount: 10000,
         currency: 'INR',
         accountReference: inv.body.id,
@@ -1028,7 +1071,7 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         tenantId: tenant,
         gateway: 'RAZORPAY',
         transactionType: 'RAZORPAY_ORDER',
-        gatewayOrderId: 'order_' + id(),
+        gatewayOrderId: 'order_' + id().replace(/-/g, ''),
         amount: 10000,
         currency: 'INR',
         accountReference: inv.body.id,

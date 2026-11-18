@@ -1,4 +1,5 @@
 import { IsBoolean, IsString, Matches, MaxLength, MinLength, ValidateIf } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class SchoolPaymentAccountDto {
   @IsString() @MaxLength(100)
@@ -7,6 +8,7 @@ export class SchoolPaymentAccountDto {
   @IsString() @MinLength(2) @MaxLength(100)
   merchantName: string;
 
+  @Transform(({ obj, key }) => obj[key])
   @IsBoolean()
   razorpayEnabled: boolean;
 

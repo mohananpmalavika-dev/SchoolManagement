@@ -83,14 +83,17 @@ export interface PreschoolDay {
   date: string;
   checkInAt: string | null;
   checkOutAt: string | null;
+  pickupGuardianId?: string | null;
   pickupVerificationMethod?: 'MANUAL' | 'OTP' | 'QR' | null;
+  attendanceStatus?: string | null;
+  attendanceRemarks?: string | null;
   meals?: string;
   sleepMinutes?: number;
   toileting?: string;
   mood?: string;
   notes?: string;
   sharedAt: string | null;
-  version: number;
+  version?: number;
 }
 export interface PreschoolChild {
   id: string;
@@ -104,6 +107,10 @@ export interface PreschoolChild {
     guardian: { firstName: string; lastName: string };
   }[];
   day: PreschoolDay | null;
+  attendance?: {
+    status: string;
+    remarks?: string | null;
+  } | null;
   activePickupPass?: PreschoolPickupPassSummary | null;
 }
 export interface PreschoolContent {
@@ -201,6 +208,25 @@ export const timeLabel = (value: string | null | undefined, timezone: string) =>
       minute: '2-digit',
     })
     : '—';
+export const timeInputValue = (value: string | null | undefined, timezone: string): string => {
+  if (!value) return '';
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(value));
+  const hour = parts.find((p) => p.type === 'hour')?.value || '';
+  const minute = parts.find((p) => p.type === 'minute')?.value || '';
+  if (!hour || !minute) return '';
+  return `${hour === '24' ? '00' : hour}:${minute}`;
+};
+export const shiftIsoDate = (isoDate: string, daysDelta: number): string => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return isoDate;
+  return new Date(new Date(isoDate + 'T00:00:00Z').getTime() + daysDelta * 86400000)
+    .toISOString()
+    .slice(0, 10);
+};
 export interface PreschoolCopilotMessage {
   id: string;
   role: 'user' | 'assistant';

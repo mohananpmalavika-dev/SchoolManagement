@@ -1,36 +1,39 @@
 import { ExecutionContext, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { createHmac } from 'node:crypto';
 import { PaymentCallbackGuard } from './payment-callback.guard';
-
-describe('Payment webhook authentication', () => {
-  const secret = 'isolated-webhook-test-secret';
-  const raw = Buffer.from('{\n  "event": "payment.captured", "payload": {}\n}');
+describe('School-specific webhook authentication', () => {
+  const secret = 'school-a-webhook-secret';
+  const raw = Buffer.from('{\n "event":"payment.captured","payload":{"payment":{"entity":{"order_id":"order_SchoolA"}}}\n}');
   const signature = createHmac('sha256', secret).update(raw).digest('hex');
-  const guard = new PaymentCallbackGuard(new ConfigService({ RAZORPAY_WEBHOOK_SECRET: secret }));
-  const context = (request: any) => ({ switchToHttp: () => ({ getRequest: () => request }) }) as ExecutionContext;
-  const request = (changes: Record<string, unknown> = {}) => ({
-    headers: { 'x-razorpay-signature': signature }, rawBody: raw,
-    body: JSON.parse(raw.toString()), query: {}, ...changes,
+  const accounts = { webhookSecret: jest.fn() };
+  const guard = new PaymentCallbackGuard(accounts as any);
+  const context = (changes: any = {}) => ({ switchToHttp: () => ({ getRequest: () => ({
+    headers: { 'x-razorpay-signature': signature }, rawBody: raw, ...changes,
+  }) }) }) as ExecutionContext;
+  beforeEach(() => accounts.webhookSecret.mockReset().mockResolvedValue(secret));
+  it('uses exact bytes and the order?s school secret', async () => {
+    await expect(guard.canActivate(context())).resolves.toBe(true);
+    expect(accounts.webhookSecret).toHaveBeenCalledWith('order_SchoolA');
   });
-
-  it('accepts a signed body without normalizing whitespace or property order', () => {
-    expect(guard.canActivate(context(request()))).toBe(true);
+  it('rejects another school?s valid signature', async () => {
+    const other = createHmac('sha256', 'school-b').update(raw).digest('hex');
+    await expect(guard.canActivate(context({ headers: { 'x-razorpay-signature': other } }))).rejects.toThrow(UnauthorizedException);
   });
-  it('rejects body tampering even when the parsed event is unchanged', () => {
-    expect(() => guard.canActivate(context(request({ rawBody: Buffer.concat([raw, Buffer.from(' ')]) })))).toThrow(UnauthorizedException);
+  it('rejects tampering', async () => {
+    await expect(guard.canActivate(context({ rawBody: Buffer.concat([raw, Buffer.from(' ')]) }))).rejects.toThrow(UnauthorizedException);
   });
-  it('rejects the old query-string shared token', () => {
-    expect(() => guard.canActivate(context(request({ headers: {}, query: { token: secret } })))).toThrow(UnauthorizedException);
+  it.each([undefined, 'not-hex', 'a'.repeat(63), 'a'.repeat(64), ['a'.repeat(64)]])('rejects bad signatures %j', async value => {
+    await expect(guard.canActivate(context({ headers: { 'x-razorpay-signature': value } }))).rejects.toThrow(UnauthorizedException);
   });
-  it.each(['not-hex', 'a'.repeat(63), 'a'.repeat(64), ['a'.repeat(64)]])('rejects malformed or incorrect signatures (%j)', (value) => {
-    expect(() => guard.canActivate(context(request({ headers: { 'x-razorpay-signature': value } })))).toThrow(UnauthorizedException);
+  it('requires captured raw bytes', async () => {
+    await expect(guard.canActivate(context({ rawBody: undefined }))).rejects.toThrow(UnauthorizedException);
   });
-  it('refuses to authenticate reconstructed JSON when raw body capture is absent', () => {
-    expect(() => guard.canActivate(context(request({ rawBody: undefined })))).toThrow(UnauthorizedException);
+  it('rejects unknown orders', async () => {
+    accounts.webhookSecret.mockResolvedValue(null);
+    await expect(guard.canActivate(context())).rejects.toThrow(ServiceUnavailableException);
   });
-  it('fails closed when no webhook secret is configured', () => {
-    const disabled = new PaymentCallbackGuard(new ConfigService({}));
-    expect(() => disabled.canActivate(context(request()))).toThrow(ServiceUnavailableException);
+  it.each(['{', '{"payload":{}}'])('rejects invalid payload %s', async body => {
+    await expect(guard.canActivate(context({ rawBody: Buffer.from(body) }))).rejects.toThrow(UnauthorizedException);
+    expect(accounts.webhookSecret).not.toHaveBeenCalled();
   });
 });

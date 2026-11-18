@@ -116,4 +116,31 @@ export class PreschoolMediaService {
       responseContentDisposition: 'inline',
     });
   }
+  async remove(user: Actor, studentId: string, id: string) {
+    this.access.allow(user);
+    await this.access.student(user, studentId);
+    const tenantId = this.access.tenant();
+    const media = await this.db.mediaItem.findFirst({
+      where: {
+        id,
+        tenantId,
+        studentId,
+        fileType: 'PHOTO',
+      },
+    });
+    if (!media) throw new NotFoundException('Photo not found');
+    await this.db.$transaction(async (tx) => {
+      await tx.mediaItem.deleteMany({
+        where: { id: media.id, tenantId, studentId, fileType: 'PHOTO' },
+      });
+      await this.preschool.audit(tx, user, 'PRESCHOOL_PHOTO_DELETED', media.id);
+    });
+    const storageRemoved = this.storage.isConfigured()
+      ? await this.storage
+          .deleteFile(media.fileUrl, tenantId)
+          .then(() => true)
+          .catch(() => false)
+      : false;
+    return { deleted: true, id: media.id, storageRemoved };
+  }
 }
