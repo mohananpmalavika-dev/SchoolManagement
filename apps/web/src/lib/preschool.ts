@@ -30,22 +30,60 @@ export interface PreschoolClass {
   schoolId: string;
   educationLevel: string;
   preschoolStage: string | null;
-  school: { programme: string };
+  school: { programme: string; preschoolPickupVerification?: 'OPTIONAL' | 'REQUIRED' };
 }
 export interface PreschoolOptions {
   today: string;
   timezone: string;
-  schools: { id: string; name: string; programme: string }[];
+  schools: {
+    id: string;
+    name: string;
+    programme: string;
+    preschoolPickupVerification?: 'OPTIONAL' | 'REQUIRED';
+  }[];
   classes: PreschoolClass[];
   staff: { id: string; firstName: string; lastName: string }[];
   assignments: { classId: string; staffId: string }[];
   students: { id: string; firstName: string; lastName: string; currentClassId: string }[];
+}
+export interface PreschoolPickupPassSummary {
+  id: string;
+  guardianId: string;
+  guardianName: string;
+  relationship?: string | null;
+  issuedByRole: string;
+  deliveryChannels: string[];
+  failedAttempts?: number;
+  maxAttempts?: number;
+  expiresAt: string;
+  createdAt?: string;
+  otp?: string;
+  qrPayload?: string;
+}
+export interface PreschoolPickupPassStatus {
+  today: string;
+  pickupVerification: 'OPTIONAL' | 'REQUIRED';
+  checkedIn: boolean;
+  checkedOut: boolean;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+  pickupVerificationMethod: 'MANUAL' | 'OTP' | 'QR' | null;
+  collectedBy: string | null;
+  activePass: PreschoolPickupPassSummary | null;
+  selfGuardianId?: string | null;
+  authorizedGuardians?: {
+    guardianId: string;
+    name: string;
+    relationship: string;
+    isSelf: boolean;
+  }[];
 }
 export interface PreschoolDay {
   id: string;
   date: string;
   checkInAt: string | null;
   checkOutAt: string | null;
+  pickupVerificationMethod?: 'MANUAL' | 'OTP' | 'QR' | null;
   meals?: string;
   sleepMinutes?: number;
   toileting?: string;
@@ -66,6 +104,7 @@ export interface PreschoolChild {
     guardian: { firstName: string; lastName: string };
   }[];
   day: PreschoolDay | null;
+  activePickupPass?: PreschoolPickupPassSummary | null;
 }
 export interface PreschoolContent {
   id: string;
@@ -142,3 +181,11 @@ export const timeLabel = (value: string | null | undefined, timezone: string) =>
         minute: '2-digit',
       })
     : '—';
+export const pickupMethodLabel = (method: string | null | undefined) =>
+  method === 'OTP'
+    ? 'Verified with parent OTP'
+    : method === 'QR'
+      ? 'Verified with parent QR pass'
+      : method === 'MANUAL'
+        ? 'Verified by staff'
+        : null;

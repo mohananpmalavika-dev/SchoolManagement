@@ -40,6 +40,28 @@ export class PasswordResetService {
     private readonly config: ConfigService,
   ) {}
 
+  // Called only for accounts already linked by the admission transaction. The recipient
+  // may be the guardian's mailbox when the student has a generated login ID.
+  async sendAccountInvitation(user: {
+    id: string; email: string; firstName: string; lastName: string;
+    role: string; mustChangePassword: boolean;
+  }, recipient: string): Promise<boolean> {
+    try {
+      let token: string | undefined;
+      if (user.mustChangePassword) {
+        token = crypto.randomBytes(32).toString('hex');
+        await this.redis.set(`password-reset:token:${user.id}`, JSON.stringify({
+          tokenHash: await bcrypt.hash(token, 10), userId: user.id,
+          email: user.email, createdAt: new Date().toISOString(),
+        }), this.TOKEN_EXPIRY_HOURS * 3600);
+      }
+      return await this.email.sendAccountInvitation(recipient, user, token);
+    } catch {
+      this.logger.warn(`Account invitation delivery failed for user ${user.id}`);
+      return false;
+    }
+  }
+
   /**
    * Request password reset - sends email with reset link
    */

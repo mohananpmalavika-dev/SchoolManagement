@@ -10,6 +10,26 @@ export class AIProviderService {
 
   constructor(private readonly config: ConfigService) {}
 
+  private hasRealKey(value?: string): value is string {
+    const trimmed = value?.trim();
+    return Boolean(trimmed && !/your-|example|replace-/i.test(trimmed));
+  }
+
+  private parseJsonResponse(text: unknown): unknown {
+    if (typeof text !== 'string') return null;
+    const cleaned = text
+      .trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+    if (!cleaned) return null;
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      return null;
+    }
+  }
+
   status(): TeacherAIStatus {
     const enabled = String(this.config.get('AI_TEACHER_ENABLED', 'true')) === 'true';
     if (!enabled) {
@@ -28,31 +48,40 @@ export class AIProviderService {
     const preferredProvider = this.config.get<string>('AI_PROVIDER')?.trim()?.toLowerCase();
     const customModel = this.config.get<string>('AI_MODEL')?.trim();
 
+    const validGemini = this.hasRealKey(geminiKey);
+    const validGroq = this.hasRealKey(groqKey);
+    const validOpenAi = this.hasRealKey(openAiKey);
+
     let provider: TeacherAIProvider = 'FreeAI';
     let model = customModel || 'free-smart-engine';
 
-    if (preferredProvider === 'gemini' || (geminiKey && !preferredProvider)) {
+    if ((preferredProvider === 'gemini' || !preferredProvider) && validGemini) {
       provider = 'Gemini';
-      model = customModel || 'gemini-1.5-flash';
-    } else if (preferredProvider === 'groq' || (groqKey && !preferredProvider)) {
+      model = customModel || 'gemini-flash-latest';
+    } else if ((preferredProvider === 'groq' || !preferredProvider) && validGroq) {
       provider = 'Groq';
       model = customModel || 'llama-3.3-70b-versatile';
+    } else if ((preferredProvider === 'openai' || !preferredProvider) && validOpenAi) {
+      provider = 'OpenAI';
+      model = customModel || this.config.get<string>('OPENAI_MODEL')?.trim() || 'gpt-4.1-mini';
     } else if (preferredProvider === 'ollama' || (ollamaUrl && !preferredProvider)) {
       provider = 'Ollama';
       model = customModel || 'llama3';
     } else if (preferredProvider === 'pollinations') {
       provider = 'Pollinations';
       model = customModel || 'openai';
-    } else if (preferredProvider === 'openai' && openAiKey && !/your-|example|replace-/i.test(openAiKey)) {
-      provider = 'OpenAI';
-      model = customModel || this.config.get<string>('OPENAI_MODEL') || 'gpt-4.1-mini';
     }
+
+    const message =
+      provider === 'FreeAI'
+        ? 'Built-in template engine is active (no external AI API key configured). Set GEMINI_API_KEY, GROQ_API_KEY, or OPENAI_API_KEY for live AI generation.'
+        : `${provider} AI teaching tools are active (${model}). Review every draft before use.`;
 
     return {
       configured: true,
       provider,
       model,
-      message: 'Free AI teaching tools are active. Review every draft before use.',
+      message,
     };
   }
 
@@ -62,21 +91,21 @@ export class AIProviderService {
 
     // If an external provider is selected or configured, attempt generation with it first
     try {
+      let result: unknown = null;
       if (status.provider === 'Gemini') {
-        const result = await this.generateWithGemini(instructions, input, status.model);
-        if (result) return result;
+        result = await this.generateWithGemini(instructions, input, schema, status.model);
       } else if (status.provider === 'Groq') {
-        const result = await this.generateWithGroq(instructions, input, schema, status.model);
-        if (result) return result;
+        result = await this.generateWithGroq(instructions, input, schema, status.model);
       } else if (status.provider === 'Ollama') {
-        const result = await this.generateWithOllama(instructions, input, status.model);
-        if (result) return result;
+        result = await this.generateWithOllama(instructions, input, schema, status.model);
       } else if (status.provider === 'Pollinations') {
-        const result = await this.generateWithPollinations(instructions, input, schema);
-        if (result) return result;
+        result = await this.generateWithPollinations(instructions, input, schema);
       } else if (status.provider === 'OpenAI') {
-        const result = await this.generateWithOpenAI(name, instructions, input, schema, status.model);
-        if (result) return result;
+        result = await this.generateWithOpenAI(name, instructions, input, schema, status.model);
+      }
+      if (result) return result;
+      if (status.provider !== 'FreeAI') {
+        this.logger.warn(`External AI provider ${status.provider} returned no parseable JSON for ${name}. Falling back to built-in generator.`);
       }
     } catch (error) {
       if (error instanceof HttpException) throw error;
@@ -88,11 +117,10 @@ export class AIProviderService {
   }
 
   private async generateWithPollinations(instructions: string, input: unknown, schema: object): Promise<unknown> {
-    const prompt = `${instructions}\nRespond with JSON only matching schema: ${JSON.stringify(schema)}\nInput: ${JSON.stringify(input)}`;
     const response = await axios.post('https://text.pollinations.ai/openai/chat/completions', {
       model: 'openai',
       messages: [
-        { role: 'system', content: instructions + '\nReturn ONLY a valid JSON object matching the requested schema.' },
+        { role: 'system', content: `${instructions}\nReturn ONLY a valid JSON object matching this schema: ${JSON.stringify(schema)}` },
         { role: 'user', content: JSON.stringify(input) },
       ],
       jsonMode: true,
@@ -101,18 +129,14 @@ export class AIProviderService {
       headers: { 'Content-Type': 'application/json' },
       timeout: 30000,
     });
-    const text = response.data?.choices?.[0]?.message?.content;
-    if (typeof text === 'string') {
-      try { return JSON.parse(text); } catch { /* ignore */ }
-    }
-    return null;
+    return this.parseJsonResponse(response.data?.choices?.[0]?.message?.content);
   }
 
-  private async generateWithGemini(instructions: string, input: unknown, model: string): Promise<unknown> {
+  private async generateWithGemini(instructions: string, input: unknown, schema: object, model: string): Promise<unknown> {
     const key = this.config.get<string>('GEMINI_API_KEY')?.trim();
     if (!key) return null;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
-    const prompt = `${instructions}\n\nIMPORTANT: Return ONLY valid JSON matching instructions. No markdown fences.\nInput:\n${JSON.stringify(input)}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+    const prompt = `${instructions}\n\nIMPORTANT: Return ONLY a valid JSON object matching this exact JSON schema (no markdown fences):\n${JSON.stringify(schema)}\n\nInput:\n${JSON.stringify(input)}`;
     const response = await axios.post(url, {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { response_mime_type: 'application/json', temperature: 0.3 },
@@ -120,11 +144,7 @@ export class AIProviderService {
       headers: { 'Content-Type': 'application/json' },
       timeout: 45000,
     });
-    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (typeof text === 'string') {
-      try { return JSON.parse(text); } catch { /* ignore */ }
-    }
-    return null;
+    return this.parseJsonResponse(response.data?.candidates?.[0]?.content?.parts?.[0]?.text);
   }
 
   private async generateWithGroq(instructions: string, input: unknown, schema: object, model: string): Promise<unknown> {
@@ -142,29 +162,21 @@ export class AIProviderService {
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       timeout: 30000,
     });
-    const text = response.data?.choices?.[0]?.message?.content;
-    if (typeof text === 'string') {
-      try { return JSON.parse(text); } catch { /* ignore */ }
-    }
-    return null;
+    return this.parseJsonResponse(response.data?.choices?.[0]?.message?.content);
   }
 
-  private async generateWithOllama(instructions: string, input: unknown, model: string): Promise<unknown> {
+  private async generateWithOllama(instructions: string, input: unknown, schema: object, model: string): Promise<unknown> {
     const baseUrl = this.config.get<string>('OLLAMA_BASE_URL')?.trim() || 'http://localhost:11434';
     const response = await axios.post(`${baseUrl}/api/chat`, {
       model,
       messages: [
-        { role: 'system', content: instructions + '\nRespond with JSON only.' },
+        { role: 'system', content: `${instructions}\nRespond with JSON only matching this schema: ${JSON.stringify(schema)}` },
         { role: 'user', content: JSON.stringify(input) },
       ],
       format: 'json',
       stream: false,
     }, { timeout: 30000 });
-    const text = response.data?.message?.content;
-    if (typeof text === 'string') {
-      try { return JSON.parse(text); } catch { /* ignore */ }
-    }
-    return null;
+    return this.parseJsonResponse(response.data?.message?.content);
   }
 
   private async generateWithOpenAI(name: string, instructions: string, input: unknown, schema: object, model: string): Promise<unknown> {

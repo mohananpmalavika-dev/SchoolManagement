@@ -170,8 +170,9 @@ model School {
   country        String  @default("India")
 
   // Indian Board & Academic Configuration
-  schoolType        SchoolType
-  programme         SchoolProgramme @default(STANDARD)
+  schoolType                  SchoolType
+  programme                   SchoolProgramme @default(STANDARD)
+  preschoolPickupVerification String          @default("OPTIONAL") // OPTIONAL | REQUIRED
   boardAffiliation  String           @default("CBSE") // CBSE, ICSE, STATE_BOARD, IB, IGCSE
   udiseCode         String?
   affiliationNumber String?
@@ -308,6 +309,7 @@ enum UserRole {
 model Student {
   @@unique([id, tenantId])
   preschoolDays         PreschoolDayRecord[]
+  pickupPasses          PreschoolPickupPass[]
   developmentNotes      DevelopmentObservation[]
   cameraConsents        ClassroomCameraConsent[]
   transportAlerts       TransportAlert[]
@@ -407,8 +409,9 @@ enum StudentStatus {
 
 model Guardian {
   @@unique([id, tenantId])
-  cameraConsents ClassroomCameraConsent[]
+  cameraConsents   ClassroomCameraConsent[]
   preschoolPickups PreschoolDayRecord[]
+  pickupPasses     PreschoolPickupPass[]
   id       String @id @default(uuid())
   tenantId String
 
@@ -2542,6 +2545,7 @@ model AdmissionRecord {
   stage             String   @default("INQUIRY_RECEIVED")
   interview         Json?
   payment           Json?
+  portalAccess      Json? // Linked login IDs and invitation delivery status; never stores secrets
   notes             String?
   studentId         String?  @unique
   student           Student? @relation(fields: [studentId], references: [id])
@@ -2822,29 +2826,55 @@ model PreschoolStaffAssignment {
 }
 
 model PreschoolDayRecord {
-  id               String @id @default(uuid())
-  tenantId         String
-  studentId        String
-  date             DateTime @db.Date
-  checkInAt        DateTime?
-  checkOutAt       DateTime?
-  checkedInBy      String?
-  checkedOutBy     String?
-  pickupGuardianId String?
-  meals            String? @db.Text
-  sleepMinutes     Int?
-  toileting        String?
-  mood             String?
-  notes            String? @db.Text
-  sharedAt         DateTime?
-  version          Int @default(1)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                       String @id @default(uuid())
+  tenantId                 String
+  studentId                String
+  date                     DateTime @db.Date
+  checkInAt                DateTime?
+  checkOutAt               DateTime?
+  checkedInBy              String?
+  checkedOutBy             String?
+  pickupGuardianId         String?
+  pickupVerificationMethod String?
+  pickupPassId             String?
+  meals                    String? @db.Text
+  sleepMinutes             Int?
+  toileting                String?
+  mood                     String?
+  notes                    String? @db.Text
+  sharedAt                 DateTime?
+  version                  Int @default(1)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
   student Student @relation(fields: [studentId, tenantId], references: [id, tenantId], onDelete: Cascade)
   pickupGuardian Guardian? @relation(fields: [pickupGuardianId, tenantId], references: [id, tenantId], onDelete: Restrict)
   @@unique([tenantId, studentId, date])
   @@index([tenantId, date])
   @@map("preschool_day_records")
+}
+
+model PreschoolPickupPass {
+  id               String    @id @default(uuid())
+  tenantId         String
+  studentId        String
+  guardianId       String
+  date             DateTime  @db.Date
+  otpHash          String
+  qrTokenHash      String
+  encryptedPayload String    @db.Text
+  issuedByUserId   String
+  issuedByRole     String
+  deliveryChannels String[]  @default([])
+  failedAttempts   Int       @default(0)
+  expiresAt        DateTime
+  usedAt           DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  student  Student  @relation(fields: [studentId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  guardian Guardian @relation(fields: [guardianId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  @@index([tenantId, studentId, date])
+  @@index([tenantId, qrTokenHash])
+  @@map("preschool_pickup_passes")
 }
 
 enum DevelopmentDomain {

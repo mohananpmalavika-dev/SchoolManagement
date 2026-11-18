@@ -90,6 +90,58 @@ export class EmailService {
     return await this.sendEmail(to, subject, html, text);
   }
 
+  async sendAccountInvitation(to: string, user: {
+    email: string; firstName: string; lastName: string; role: string;
+  }, token?: string): Promise<boolean> {
+    const base = this.configService.get<string>('WEB_URL');
+    if (!base || !/^https?:\/\//i.test(base)) return false;
+    const url = token
+      ? `${base.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`
+      : `${base.replace(/\/$/, '')}/login`;
+    const name = `${user.firstName} ${user.lastName}`.trim();
+    const role = user.role === 'PARENT' ? 'parent' : 'student';
+    const instruction = token
+      ? 'Set your password using the link below. This single-use link expires in 24 hours.'
+      : 'Your existing account is now linked to this admission. Sign in with your current password.';
+    const escape = (value: string) => value.replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    })[char]!);
+    return this.sendEmail(to, `Your ${role} portal access - Krypton School ERP`,
+      `<h1>Your ${role} portal is ready</h1><p>Hi ${escape(name)},</p>` +
+      `<p>Admission is complete and your ${role} account is linked.</p>` +
+      `<p>Login ID: <strong>${escape(user.email)}</strong></p><p>${instruction}</p>` +
+      `<p><a href="${escape(url)}">${token ? 'Set your password' : 'Sign in'}</a></p>` +
+      '<p>Keep this link private. Contact your school if you need help.</p>',
+      `Hi ${name},\n\nAdmission is complete and your ${role} account is linked.\nLogin ID: ${user.email}\n\n${instruction}\n${url}\n\nKeep this link private.`);
+  }
+
+  async sendPickupOtp(
+    to: string,
+    payload: { guardianName: string; studentName: string; otp: string; expiresMinutes: number }
+  ): Promise<boolean> {
+    const escape = (value: string) =>
+      value.replace(/[&<>"']/g, (char) =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!
+      );
+    const guardian = escape(payload.guardianName);
+    const student = escape(payload.studentName);
+    const otp = escape(payload.otp);
+    const subject = `Safe Pickup OTP for ${payload.studentName} - Krypton School ERP`;
+    const html =
+      `<h1>Safe Pickup Verification Code</h1>` +
+      `<p>Hi ${guardian},</p>` +
+      `<p>Your single-use pickup OTP for <strong>${student}</strong> is:</p>` +
+      `<p style="font-size:28px;font-weight:700;letter-spacing:6px;margin:16px 0;">${otp}</p>` +
+      `<p>This code expires in ${payload.expiresMinutes} minutes and can also be shown as a QR pass in your Parent Portal.</p>` +
+      `<p>Share this code only with the authorized person collecting your child.</p>`;
+    const text =
+      `Hi ${payload.guardianName},\n\n` +
+      `Your single-use pickup OTP for ${payload.studentName} is: ${payload.otp}\n` +
+      `This code expires in ${payload.expiresMinutes} minutes and can also be shown as a QR pass in your Parent Portal.\n\n` +
+      `Share this code only with the authorized person collecting your child.`;
+    return this.sendEmail(to, subject, html, text);
+  }
+
   /**
    * Send password changed confirmation
    */

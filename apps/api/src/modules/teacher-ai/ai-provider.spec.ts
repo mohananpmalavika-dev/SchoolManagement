@@ -77,19 +77,48 @@ describe('Free AI provider boundary', () => {
     expect(result.students[0].supportPlan.length).toBeGreaterThan(0);
   });
 
-  it('routes to Gemini when GEMINI_API_KEY is configured', async () => {
+  it('routes to Gemini when GEMINI_API_KEY is configured and includes JSON schema in prompt', async () => {
     post.mockResolvedValue({
       data: {
-        candidates: [{ content: { parts: [{ text: JSON.stringify({ remarks: [{ key: 'S1', text: 'Good progress.', evidence: [] }] }) }] } }],
+        candidates: [{ content: { parts: [{ text: '```json\n' + JSON.stringify({ title: 'Rainy Day Song', body: 'Pitter patter', materials: 'Hands', learningGoals: 'Rhythm' }) + '\n```' }] } }],
       },
     });
     const service = new AIProviderService(config({ AI_TEACHER_ENABLED: 'true', GEMINI_API_KEY: 'test-gemini-free-key' }) as any);
     expect(service.status().provider).toBe('Gemini');
-    const result = await service.generate('student_remarks', 'Instructions', { students: [{ key: 'S1' }] }, {}) as any;
-    expect(result.remarks[0].key).toBe('S1');
+    expect(service.status().model).toBe('gemini-flash-latest');
+    const schema = { type: 'object', properties: { title: { type: 'string' }, body: { type: 'string' }, materials: { type: 'string' }, learningGoals: { type: 'string' } } };
+    const result = await service.generate('preschool_content', 'Create a rhyme', { theme: 'Rainy Day', kind: 'RHYME' }, schema) as any;
+    expect(result.title).toBe('Rainy Day Song');
+    expect(result._source).toBeUndefined();
+    expect(post).toHaveBeenCalled();
+    const [url, payload] = post.mock.calls[0];
+    expect(url).toContain('googleapis.com');
+    expect(url).toContain('gemini-flash-latest');
+    expect(payload.contents[0].parts[0].text).toContain('learningGoals');
+  });
+
+  it('auto-detects OpenAI when OPENAI_API_KEY is configured without AI_PROVIDER', async () => {
+    post.mockResolvedValue({
+      data: {
+        status: 'completed',
+        output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify({ answer: 'Try a puppet routine.', suggestedActivities: ['Puppet hello'] }) }] }],
+      },
+    });
+    const service = new AIProviderService(config({ AI_TEACHER_ENABLED: 'true', OPENAI_API_KEY: 'sk-live-test-key' }) as any);
+    expect(service.status().provider).toBe('OpenAI');
+    const result = await service.generate('preschool_guidance', 'Help teacher', { question: 'Circle time focus' }, {}) as any;
+    expect(result.answer).toBe('Try a puppet routine.');
     expect(post).toHaveBeenCalled();
     const [url] = post.mock.calls[0];
-    expect(url).toContain('googleapis.com');
+    expect(url).toContain('api.openai.com');
+  });
+
+  it('does not claim Gemini when AI_PROVIDER=Gemini has no GEMINI_API_KEY and respects explicit FreeAI', () => {
+    const missingKey = new AIProviderService(config({ AI_TEACHER_ENABLED: 'true', AI_PROVIDER: 'Gemini' }) as any);
+    expect(missingKey.status().provider).toBe('FreeAI');
+
+    const explicitFree = new AIProviderService(config({ AI_TEACHER_ENABLED: 'true', AI_PROVIDER: 'FreeAI', GEMINI_API_KEY: 'real-key' }) as any);
+    expect(explicitFree.status().provider).toBe('FreeAI');
   });
 
   it('routes to Groq when GROQ_API_KEY is configured', async () => {

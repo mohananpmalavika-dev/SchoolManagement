@@ -43,6 +43,9 @@ import { ChatService } from '../modules/chat/chat.service';
 import { ChatController } from '../modules/chat/chat.controller';
 import { ParentEngagementNotificationsService } from '../modules/parent-engagement-notifications/parent-engagement-notifications.service';
 import { OperationsService } from '../modules/operations/operations.service';
+import { AdmissionAccountsService } from '../modules/operations/admission-accounts.service';
+import { PasswordResetService } from '../modules/auth/services/password-reset.service';
+import { EmailService } from '../common/services/email.service';
 import { OperationsController } from '../modules/operations/operations.controller';
 import { StorageService } from '../common/services/storage.service';
 import { SavedTransportController } from '../modules/operations/transport.controller';
@@ -364,6 +367,9 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         WorkspaceService,
         SavedTransportService,
         OperationsService,
+        AdmissionAccountsService,
+        PasswordResetService,
+        { provide: EmailService, useValue: { sendAccountInvitation: jest.fn().mockResolvedValue(true), sendPasswordChanged: jest.fn().mockResolvedValue(true) } },
         FeesService,
         AttendanceService,
         QRAttendanceService,
@@ -1123,6 +1129,13 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     expect((await request('/operations/admissions/'+applicationId+'/admit',principal,'POST',{data:{classId:cls,admissionNumber:'FLOW-'+id()}})).status).toBe(201);
     const application=await db.admissionRecord.findUniqueOrThrow({where:{id:applicationId}});
     expect(application.stage).toBe('ADMITTED');
+    const access=application.portalAccess as any;
+    expect(access.parent.status).toBe('SENT');expect(access.student.status).toBe('SENT');
+    const admitted=await db.student.findUniqueOrThrow({where:{id:application.studentId!},include:{guardianLinks:{include:{guardian:true}}}});
+    expect(admitted.userId).toBe(access.student.userId);
+    expect(admitted.guardianLinks[0].guardian.userId).toBe(access.parent.userId);
+    expect((await request('/operations/options',access.parent.userId)).body.students.map((s:any)=>s.id)).toContain(admitted.id);
+    expect((await request('/operations/options',access.student.userId)).body.students.map((s:any)=>s.id)).toEqual([admitted.id]);
     expect(await db.enrollment.findMany({where:{studentId:application.studentId!}})).toEqual([expect.objectContaining({tenantId:tenant,classId:cls,academicYearId:year})]);
     expect((await request('/operations/admissions/'+applicationId+'/admit',principal,'POST',{data:{classId:cls,admissionNumber:'RETRY-'+id()}})).status).toBe(409);
     expect(await db.enrollment.count({where:{studentId:application.studentId!}})).toBe(1);

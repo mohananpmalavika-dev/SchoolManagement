@@ -3,11 +3,13 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Prisma } from '@krypton/database';
 import { PrismaService } from '../../database/prisma.service';
 import { Actor } from '../operations/operations.service';
 import { PreschoolAccessService, preschoolManagers } from './preschool-access.service';
+import { PreschoolPickupService } from './preschool-pickup.service';
 import {
   CareRecordDto,
   CheckOutDto,
@@ -15,6 +17,7 @@ import {
   PreschoolAssignmentDto,
   PreschoolQueryDto,
   SavePreschoolContentDto,
+  SchoolProgrammeDto,
   UpdatePreschoolContentDto,
 } from './preschool.dto';
 
@@ -32,7 +35,8 @@ export function preschoolDate(value: string) {
 export class PreschoolService {
   constructor(
     private db: PrismaService,
-    private access: PreschoolAccessService
+    private access: PreschoolAccessService,
+    @Optional() private pickup?: PreschoolPickupService
   ) {}
   private tenant() {
     return this.access.tenant();
@@ -149,7 +153,7 @@ export class PreschoolService {
       manager
         ? this.db.school.findMany({
             where: { tenantId, isActive: true },
-            select: { id: true, name: true, programme: true },
+            select: { id: true, name: true, programme: true, preschoolPickupVerification: true },
             orderBy: { name: 'asc' },
           })
         : [],
@@ -161,7 +165,7 @@ export class PreschoolService {
           schoolId: true,
           educationLevel: true,
           preschoolStage: true,
-          school: { select: { programme: true } },
+          school: { select: { programme: true, preschoolPickupVerification: true } },
         },
         orderBy: { sortOrder: 'asc' },
       }),
@@ -175,16 +179,36 @@ export class PreschoolService {
     ]);
     return { ...clock, schools, classes, staff, assignments, students: [] };
   }
-  async programme(user: Actor, schoolId: string, programme: 'STANDARD' | 'PRESCHOOL' | 'COMBINED') {
+  async programme(user: Actor, schoolId: string, dto: SchoolProgrammeDto) {
     this.access.allow(user, preschoolManagers);
+    if (!dto.programme && !dto.pickupVerification) {
+      throw new BadRequestException('Choose a school programme or safe pickup setting to update');
+    }
+    const data: Prisma.SchoolUpdateManyMutationInput = {};
+    if (dto.programme) data.programme = dto.programme;
+    if (dto.pickupVerification) data.preschoolPickupVerification = dto.pickupVerification;
     return this.db.$transaction(async (tx) => {
       const result = await tx.school.updateMany({
         where: { id: schoolId, tenantId: this.tenant() },
-        data: { programme },
+        data,
       });
       if (!result.count) throw new NotFoundException('School not found');
-      await this.audit(tx, user, 'PRESCHOOL_PROGRAMME_' + programme, schoolId);
-      return { id: schoolId, programme };
+      if (dto.programme) {
+        await this.audit(tx, user, 'PRESCHOOL_PROGRAMME_' + dto.programme, schoolId);
+      }
+      if (dto.pickupVerification) {
+        await this.audit(
+          tx,
+          user,
+          'PRESCHOOL_PICKUP_VERIFICATION_' + dto.pickupVerification,
+          schoolId
+        );
+      }
+      return {
+        id: schoolId,
+        ...(dto.programme ? { programme: dto.programme } : {}),
+        ...(dto.pickupVerification ? { pickupVerification: dto.pickupVerification } : {}),
+      };
     });
   }
   async stage(user: Actor, classId: string, stage: 'PLAYGROUP' | 'NURSERY' | 'LKG' | 'UKG') {
@@ -249,8 +273,10 @@ export class PreschoolService {
     return { gte: from, lte: to };
   }
   async roster(user: Actor, classId: string, offset = 0) {
-    await this.access.classroom(user, classId);
+    const classroom = await this.access.classroom(user, classId);
     const { today } = await this.clock();
+    const date = preschoolDate(today);
+    const now = new Date();
     const [students, total] = await Promise.all([
       this.db.student.findMany({
         where: {
@@ -274,7 +300,26 @@ export class PreschoolService {
             },
           },
           preschoolDays: {
-            where: { tenantId: this.tenant(), date: preschoolDate(today) },
+            where: { tenantId: this.tenant(), date },
+            take: 1,
+          },
+          pickupPasses: {
+            where: {
+              tenantId: this.tenant(),
+              date,
+              usedAt: null,
+              revokedAt: null,
+              expiresAt: { gt: now },
+            },
+            select: {
+              id: true,
+              guardianId: true,
+              issuedByRole: true,
+              deliveryChannels: true,
+              expiresAt: true,
+              guardian: { select: { firstName: true, lastName: true } },
+            },
+            orderBy: { createdAt: 'desc' },
             take: 1,
           },
         },
@@ -293,9 +338,22 @@ export class PreschoolService {
     ]);
     return {
       today,
-      students: students.map(({ preschoolDays, ...student }) => ({
+      pickupVerification:
+        (classroom.school?.preschoolPickupVerification as 'OPTIONAL' | 'REQUIRED') || 'OPTIONAL',
+      students: students.map(({ preschoolDays, pickupPasses, ...student }) => ({
         ...student,
         day: preschoolDays[0] || null,
+        activePickupPass: pickupPasses?.[0]
+          ? {
+              id: pickupPasses[0].id,
+              guardianId: pickupPasses[0].guardianId,
+              guardianName:
+                `${pickupPasses[0].guardian.firstName} ${pickupPasses[0].guardian.lastName}`.trim(),
+              issuedByRole: pickupPasses[0].issuedByRole,
+              deliveryChannels: pickupPasses[0].deliveryChannels,
+              expiresAt: pickupPasses[0].expiresAt,
+            }
+          : null,
       })),
       total,
       offset,
@@ -405,24 +463,62 @@ export class PreschoolService {
   }
   async checkOut(user: Actor, studentId: string, dto: CheckOutDto) {
     this.access.allow(user);
-    await this.access.student(user, studentId);
+    const student = await this.access.student(user, studentId);
     if (!dto.identityVerified)
       throw new BadRequestException('Verify the collecting guardian’s identity before checkout');
-    const date = preschoolDate((await this.clock()).today);
+    const pickupPolicy =
+      (student.currentClass?.school?.preschoolPickupVerification as 'OPTIONAL' | 'REQUIRED') ||
+      'OPTIONAL';
+    const usingPass = !!(dto.pickupOtp?.trim() || dto.pickupQrToken?.trim());
+    if (pickupPolicy === 'REQUIRED' && !usingPass) {
+      throw new BadRequestException('Parent pickup OTP or QR pass is required for checkout');
+    }
+    if (!usingPass && !dto.guardianId) {
+      throw new BadRequestException('Choose an authorized pickup guardian');
+    }
+    const { today } = await this.clock();
+    const date = preschoolDate(today);
+    const tenantId = this.tenant();
     return this.db.$transaction(async (tx) => {
       await tx.student.update({
-        where: { id: studentId, tenantId: this.tenant() },
+        where: { id: studentId, tenantId },
         data: { updatedAt: new Date() },
       });
+      let resolvedGuardianId = dto.guardianId;
+      let verificationMethod: 'MANUAL' | 'OTP' | 'QR' = 'MANUAL';
+      let pickupPassId: string | null = null;
+      let row = await tx.preschoolDayRecord.findFirst({
+        where: { tenantId, studentId, date },
+      });
+
+      if (usingPass) {
+        if (!row?.checkInAt || row.checkOutAt)
+          throw new ConflictException('Checkout requires an active check-in today');
+        if (!this.pickup) {
+          throw new BadRequestException('Safe pickup OTP/QR verification is unavailable');
+        }
+        const verified = await this.pickup.verifyForCheckout(
+          tx,
+          tenantId,
+          studentId,
+          today,
+          date,
+          dto
+        );
+        resolvedGuardianId = verified.guardianId;
+        verificationMethod = verified.method;
+        pickupPassId = verified.passId;
+      }
+
       // Lock the authorized link as well: legacy guardian unlink operations must
       // not remove pickup authorization between verification and commit.
       const authorized = await tx.guardianStudentLink.updateMany({
         where: {
           studentId,
-          guardianId: dto.guardianId,
+          guardianId: resolvedGuardianId!,
           canPickup: true,
-          guardian: { tenantId: this.tenant() },
-          student: { tenantId: this.tenant() },
+          guardian: { tenantId },
+          student: { tenantId },
         },
         data: { canPickup: true },
       });
@@ -433,10 +529,10 @@ export class PreschoolService {
       const link = await tx.guardianStudentLink.findFirst({
         where: {
           studentId,
-          guardianId: dto.guardianId,
+          guardianId: resolvedGuardianId!,
           canPickup: true,
-          guardian: { tenantId: this.tenant() },
-          student: { tenantId: this.tenant() },
+          guardian: { tenantId },
+          student: { tenantId },
         },
         include: { guardian: { select: { firstName: true, lastName: true } } },
       });
@@ -444,31 +540,42 @@ export class PreschoolService {
         throw new BadRequestException(
           'This person is not an authorized pickup guardian for this child'
         );
-      const row = await tx.preschoolDayRecord.findFirst({
-        where: { tenantId: this.tenant(), studentId, date },
-      });
       if (!row?.checkInAt || row.checkOutAt)
         throw new ConflictException('Checkout requires an active check-in today');
       const result = await tx.preschoolDayRecord.updateMany({
-        where: { id: row.id, tenantId: this.tenant(), checkOutAt: null, version: row.version },
+        where: { id: row.id, tenantId, checkOutAt: null, version: row.version },
         data: {
           checkOutAt: new Date(),
           checkedOutBy: user.userId,
-          pickupGuardianId: dto.guardianId,
+          pickupGuardianId: resolvedGuardianId!,
+          pickupVerificationMethod: verificationMethod,
+          ...(pickupPassId ? { pickupPassId } : {}),
           version: { increment: 1 },
         },
       });
       if (!result.count) throw new ConflictException('Record changed. Refresh before trying again');
+      const verificationSummary =
+        verificationMethod === 'OTP'
+          ? 'Verified with parent pickup OTP.'
+          : verificationMethod === 'QR'
+            ? 'Verified with parent pickup QR pass.'
+            : 'School staff verified the pickup.';
       await this.activity(
         tx,
         user,
         studentId,
         'Collected from preschool',
-        `Collected by ${link.guardian.firstName} ${link.guardian.lastName}. School staff verified the pickup.`,
+        `Collected by ${link.guardian.firstName} ${link.guardian.lastName}. ${verificationSummary}`,
         'ATTENDANCE'
       );
-      await this.audit(tx, user, 'PRESCHOOL_CHECK_OUT_IDENTITY_VERIFIED', row.id);
-      return { id: row.id };
+      const auditAction =
+        verificationMethod === 'OTP'
+          ? 'PRESCHOOL_CHECK_OUT_OTP_VERIFIED'
+          : verificationMethod === 'QR'
+            ? 'PRESCHOOL_CHECK_OUT_QR_VERIFIED'
+            : 'PRESCHOOL_CHECK_OUT_IDENTITY_VERIFIED';
+      await this.audit(tx, user, auditAction, row.id);
+      return { id: row.id, verificationMethod, guardianId: resolvedGuardianId };
     });
   }
   async care(user: Actor, studentId: string, dto: CareRecordDto) {
@@ -584,6 +691,7 @@ export class PreschoolService {
             date: day.date,
             checkInAt: day.checkInAt,
             checkOutAt: day.checkOutAt,
+            pickupVerificationMethod: day.pickupVerificationMethod,
             sharedAt: null,
           }
         : day

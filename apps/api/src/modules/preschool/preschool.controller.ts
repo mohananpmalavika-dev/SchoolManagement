@@ -20,6 +20,7 @@ import { CurrentUser, CurrentUserData } from '../../common/decorators/current-us
 import { PreschoolService } from './preschool.service';
 import { PreschoolContentService } from './preschool-content.service';
 import { ClassroomCameraService } from './classroom-camera.service';
+import { PreschoolPickupService } from './preschool-pickup.service';
 import {
   CameraConsentDto,
   CameraDto,
@@ -27,6 +28,7 @@ import {
   CheckOutDto,
   GeneratePreschoolDto,
   ObservationDto,
+  PickupPassDto,
   PreschoolAssignmentDto,
   PreschoolClassDto,
   PreschoolQueryDto,
@@ -46,7 +48,8 @@ export class PreschoolController {
     private service: PreschoolService,
     private contentService: PreschoolContentService,
     private cameras: ClassroomCameraService,
-    private media: PreschoolMediaService
+    private media: PreschoolMediaService,
+    private pickup: PreschoolPickupService
   ) {}
   @Post('students/:id/photos')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -101,7 +104,7 @@ export class PreschoolController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SchoolProgrammeDto
   ) {
-    return this.service.programme(user, id, dto.programme);
+    return this.service.programme(user, id, dto);
   }
   @Patch('classes/:id') stage(
     @CurrentUser() user: CurrentUserData,
@@ -142,6 +145,28 @@ export class PreschoolController {
     @Body() dto: CheckOutDto
   ) {
     return this.service.checkOut(user, id, dto);
+  }
+  @Get('students/:id/pickup-pass') pickupPassStatus(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
+    return this.pickup.status(user, id);
+  }
+  @Post('students/:id/pickup-pass')
+  @Throttle({ default: { limit: 6, ttl: 60000 } })
+  issuePickupPass(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PickupPassDto
+  ) {
+    return this.pickup.issue(user, id, dto);
+  }
+  @Post('students/:id/pickup-pass/revoke')
+  revokePickupPass(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
+    return this.pickup.revoke(user, id);
   }
   @Post('students/:id/care') care(
     @CurrentUser() user: CurrentUserData,

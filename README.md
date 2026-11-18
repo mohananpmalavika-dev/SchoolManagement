@@ -4,6 +4,8 @@
 
 The connected school and preschool workflows have been hardened and tested. See the current [school release readiness and deployment requirements](docs/SCHOOL_PRODUCTION_READINESS.md) before deploying. Live provider acceptance is still required; historical completion reports are not release certification.
 
+Completed admissions now provision linked parent and student logins and send portal invitations. See [admission portal setup and verification](docs/ADMISSION_PORTAL_ACCESS.md).
+
 ## Preschool support
 
 Regular schools, preschools and combined schools share this codebase. The preschool workspace includes daily care and authorized pickup, play-based teaching resources, INKY, development observations, private family photos, driver-phone tracking and configurable classroom camera access. See [preschool setup, verification and deployment](docs/PRESCHOOL_IMPLEMENTATION.md).

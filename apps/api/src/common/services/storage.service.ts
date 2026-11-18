@@ -1,6 +1,14 @@
-import { Injectable, Logger, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  HeadBucketCommand,
+  CreateBucketCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { TenantService } from '../../database/tenant.service';
 import { createHash } from 'crypto';
@@ -19,43 +27,114 @@ export interface PresignedUrlResult {
 }
 
 @Injectable()
-export class StorageService {
+export class StorageService implements OnModuleInit {
   isConfigured() { return this.s3Enabled; }
   private readonly logger = new Logger(StorageService.name);
   private readonly s3Client: S3Client;
+  private readonly s3PresignClient: S3Client;
   private readonly s3Bucket: string;
   private readonly s3Enabled: boolean;
   private readonly s3PublicUrl: string;
+  private bucketReady = false;
+  private bucketInitPromise: Promise<void> | null = null;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly tenantService: TenantService,
   ) {
     // S3 Configuration
-    const s3Endpoint = this.configService.get<string>('S3_ENDPOINT');
-    const s3AccessKey = this.configService.get<string>('S3_ACCESS_KEY');
-    const s3SecretKey = this.configService.get<string>('S3_SECRET_KEY');
-    const s3Region = this.configService.get<string>('S3_REGION', 'us-east-1');
+    const rawEndpoint = (this.configService.get<string>('S3_ENDPOINT') || '').trim().replace(/\/+$/, '');
+    const s3AccessKey = (this.configService.get<string>('S3_ACCESS_KEY') || '').trim();
+    const s3SecretKey = (this.configService.get<string>('S3_SECRET_KEY') || '').trim();
+    const s3Region = (this.configService.get<string>('S3_REGION', 'us-east-1') || 'us-east-1').trim();
     const s3UseSSL = this.configService.get<string>('S3_USE_SSL', 'true') === 'true';
-    
-    this.s3Bucket = this.configService.get<string>('S3_BUCKET', 'krypton-media');
-    this.s3PublicUrl = this.configService.get<string>('S3_PUBLIC_URL', s3Endpoint || '');
+
+    const s3Endpoint = rawEndpoint
+      ? /^https?:\/\//i.test(rawEndpoint)
+        ? rawEndpoint
+        : `${s3UseSSL ? 'https' : 'http'}://${rawEndpoint}`
+      : '';
+    const rawPublicUrl = (this.configService.get<string>('S3_PUBLIC_URL') || '').trim().replace(/\/+$/, '');
+
+    this.s3Bucket = (this.configService.get<string>('S3_BUCKET', 'krypton-media') || 'krypton-media').trim();
+    this.s3PublicUrl = rawPublicUrl || s3Endpoint;
     this.s3Enabled = !!s3Endpoint && !!s3AccessKey && !!s3SecretKey;
 
     if (this.s3Enabled) {
-      this.s3Client = new S3Client({
-        endpoint: s3Endpoint,
+      const baseConfig = {
         region: s3Region,
         credentials: {
-          accessKeyId: s3AccessKey || '',
-          secretAccessKey: s3SecretKey || '',
+          accessKeyId: s3AccessKey,
+          secretAccessKey: s3SecretKey,
         },
-        forcePathStyle: true, // Required for MinIO
+        forcePathStyle: true, // Required for MinIO and path-routed reverse proxies
+        requestChecksumCalculation: 'WHEN_REQUIRED' as const,
+        responseChecksumValidation: 'WHEN_REQUIRED' as const,
+      };
+      this.s3Client = new S3Client({
+        ...baseConfig,
+        endpoint: s3Endpoint,
       });
+      this.s3PresignClient =
+        this.s3PublicUrl && this.s3PublicUrl !== s3Endpoint
+          ? new S3Client({
+              ...baseConfig,
+              endpoint: this.s3PublicUrl,
+            })
+          : this.s3Client;
       this.logger.log('S3 storage service initialized');
     } else {
       this.logger.warn('S3 storage not configured - file uploads will fail');
     }
+  }
+
+  async onModuleInit(): Promise<void> {
+    if (!this.s3Enabled) return;
+    await this.ensureBucket().catch((error: any) => {
+      this.logger.warn(
+        `S3 bucket verification deferred for "${this.s3Bucket}": ${error?.message || error}`
+      );
+    });
+  }
+
+  private async ensureBucket(): Promise<void> {
+    if (!this.s3Enabled || this.bucketReady) return;
+    if (!this.bucketInitPromise) {
+      this.bucketInitPromise = (async () => {
+        try {
+          await this.s3Client.send(new HeadBucketCommand({ Bucket: this.s3Bucket }));
+          this.bucketReady = true;
+        } catch (error: any) {
+          const status = error?.$metadata?.httpStatusCode ?? error?.statusCode;
+          const name = error?.name || error?.Code || '';
+          if (status === 404 || name === 'NotFound' || name === 'NoSuchBucket') {
+            try {
+              await this.s3Client.send(new CreateBucketCommand({ Bucket: this.s3Bucket }));
+              this.logger.log(`Created private S3 bucket: ${this.s3Bucket}`);
+            } catch (createError: any) {
+              const createName = createError?.name || createError?.Code || '';
+              if (
+                createName !== 'BucketAlreadyOwnedByYou' &&
+                createName !== 'BucketAlreadyExists'
+              ) {
+                throw createError;
+              }
+            }
+            this.bucketReady = true;
+            return;
+          }
+          if (status === 403 || name === 'Forbidden' || name === 'AccessDenied') {
+            // Scoped IAM credentials on an existing external bucket may not permit HeadBucket
+            this.bucketReady = true;
+            return;
+          }
+          throw error;
+        }
+      })().finally(() => {
+        this.bucketInitPromise = null;
+      });
+    }
+    await this.bucketInitPromise;
   }
 
   /**
@@ -92,6 +171,9 @@ export class StorageService {
 
     // Calculate checksum
     const checksum = createHash('sha256').update(fileBuffer).digest('hex');
+
+    // Ensure target bucket exists before uploading
+    await this.ensureBucket();
 
     // Upload to S3
     const command = new PutObjectCommand({
@@ -155,14 +237,14 @@ export class StorageService {
     // Verify file exists and metadata matches
     await this.verifyFileOwnership(s3Key, currentTenantId);
 
-    // Generate pre-signed URL
+    // Generate pre-signed URL using public-facing endpoint so browser requests match the SigV4 Host header
     const command = new GetObjectCommand({
       Bucket: this.s3Bucket,
       Key: s3Key,
       ResponseContentDisposition: options?.responseContentDisposition,
     });
 
-    const url = await getSignedUrl(this.s3Client, command, { expiresIn });
+    const url = await getSignedUrl(this.s3PresignClient, command, { expiresIn });
 
     this.logger.log(`Pre-signed URL generated: ${s3Key} (expires in ${expiresIn}s, tenant: ${currentTenantId})`);
 

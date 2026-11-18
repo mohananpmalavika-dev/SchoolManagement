@@ -100,9 +100,9 @@ chmod +x deploy-oci.sh
 ### What `deploy-oci.sh` does automatically:
 * Installs Docker & Docker Compose.
 * Opens local OS `iptables` firewall for ports 80 & 443.
-* Generates cryptographically secure passwords and JWT/encryption secrets.
-* Builds and boots the PostgreSQL, Redis, API, Next.js, and Nginx containers.
-* Runs Prisma database migrations automatically.
+* Generates cryptographically secure passwords, S3/MinIO credentials, and JWT/encryption secrets.
+* Builds and boots the PostgreSQL, Redis, MinIO (S3 object storage for preschool photos & chat attachments), API, Next.js, MediaMTX CCTV Bridge, and Nginx containers.
+* Runs Prisma database migrations automatically and initializes the private `krypton-media` bucket on startup.
 
 ---
 
@@ -145,6 +145,30 @@ If you have a domain like `erp.yourschool.edu.in`:
 `docker-compose.oci.yml` includes **MediaMTX** (`krypton_oci_mediamtx`) and the **CCTV Security Bridge** (`krypton_oci_cctv_gateway`) pre-wired to Nginx and Krypton ERP.
 
 For complete Hikvision / Dahua / CP Plus RTSP setup, CGNAT School Edge Bridge instructions, HTTPS activation (`nginx/oci-nginx-ssl.conf`), and security verification, see [docs/OM_SYSTEM_CCTV_BRIDGE_GUIDE.md](./docs/OM_SYSTEM_CCTV_BRIDGE_GUIDE.md).
+
+---
+
+## Step 8: Enable Real INKY Preschool AI & Teacher AI Assistant
+
+Without an AI API key, INKY Preschool AI and Teacher AI Studio fall back to built-in static templates (`preschool-templates.ts`). To enable live AI generation for custom preschool stories, rhymes, activities, guidance, lesson plans, and report-card remarks:
+
+1. Obtain an API key from any supported provider:
+   * **Google Gemini (Free tier available):** [Google AI Studio API Keys](https://aistudio.google.com/apikey) (`GEMINI_API_KEY`)
+   * **Groq Cloud (Free tier available):** [Groq Console](https://console.groq.com/keys) (`GROQ_API_KEY`)
+   * **OpenAI:** [OpenAI API Keys](https://platform.openai.com/api-keys) (`OPENAI_API_KEY`)
+2. Edit `.env.oci` on your OCI server and set your key (leave `AI_PROVIDER=` empty to auto-detect, or set `Gemini` / `Groq` / `OpenAI` explicitly):
+   ```bash
+   nano .env.oci
+   # Example using Google Gemini:
+   GEMINI_API_KEY=your_real_gemini_key_here
+   # Optional model override (defaults to gemini-flash-latest / llama-3.3-70b-versatile / gpt-4.1-mini):
+   AI_MODEL=
+   ```
+3. Recreate the `api` container so the new environment variables take effect:
+   ```bash
+   sudo docker compose --env-file .env.oci -f docker-compose.oci.yml up -d api
+   ```
+4. Verify in INKY Assistant or Teacher AI Studio — responses will now show `Source: Gemini` (or `Groq` / `OpenAI`) instead of `Editable template library` / `Classroom guidance library`.
 
 ---
 

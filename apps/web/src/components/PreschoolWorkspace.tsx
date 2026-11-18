@@ -26,6 +26,7 @@ import {
   PreschoolObservationForm,
   PreschoolPhotos,
 } from './preschool/PreschoolDaily';
+import { PreschoolParentPickupPass } from './preschool/PreschoolPickupPass';
 import { PreschoolCameras } from './preschool/PreschoolCameras';
 import { PreschoolSettings } from './preschool/PreschoolSettings';
 import { PreschoolReports } from './preschool/PreschoolReports';
@@ -65,6 +66,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
     [classId, setClass] = useState(''),
     [studentId, setStudent] = useState(''),
     [roster, setRoster] = useState<PreschoolChild[]>([]),
+    [pickupVerification, setPickupVerification] = useState<'OPTIONAL' | 'REQUIRED'>('OPTIONAL'),
     [total, setTotal] = useState(0),
     [offset, setOffset] = useState(0),
     [view, setView] = useState<View>('daily'),
@@ -142,6 +144,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
       })
       .then(({ data }) => {
         setRoster(data.students);
+        setPickupVerification(data.pickupVerification === 'REQUIRED' ? 'REQUIRED' : 'OPTIONAL');
         setTotal(data.total);
         setStudent((current) =>
           data.students.some((s: PreschoolChild) => s.id === current)
@@ -477,6 +480,8 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                       child={selected}
                       busy={busy}
                       action={action}
+                      pickupVerification={pickupVerification}
+                      timezone={options.timezone}
                     />
                   )}
                   {manager && selected && (
@@ -525,6 +530,12 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                 ) : (
                   child && (
                     <>
+                      <PreschoolParentPickupPass
+                        studentId={child.student.id}
+                        studentName={child.student.firstName}
+                        timezone={options.timezone}
+                        refresh={refresh}
+                      />
                       <Panel
                         title={child.student.firstName + '’s school updates'}
                         subtitle={child.student.className}

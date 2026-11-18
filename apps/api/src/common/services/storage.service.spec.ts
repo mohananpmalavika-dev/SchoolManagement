@@ -349,4 +349,104 @@ describe('StorageService', () => {
       expect(service).toBeDefined();
     });
   });
+
+  describe('OCI / Docker Presigned URLs and Bucket Initialization', () => {
+    it('should sign presigned URLs against S3_PUBLIC_URL when S3_ENDPOINT is internal', async () => {
+      const ociConfig = {
+        get: jest.fn((key: string, defaultValue?: any) => {
+          const config: Record<string, any> = {
+            S3_ENDPOINT: 'http://minio:9000',
+            S3_PUBLIC_URL: 'https://erp.school.edu.in/',
+            S3_ACCESS_KEY: 'kryptonadmin',
+            S3_SECRET_KEY: 'super-secret-minio-key',
+            S3_BUCKET: 'krypton-media',
+            S3_REGION: 'us-east-1',
+            S3_USE_SSL: 'false',
+          };
+          return config[key] ?? defaultValue;
+        }),
+      };
+      mockTenantService.requireTenantContext.mockReturnValue('tenant-123');
+      const ociService = new StorageService(ociConfig as any, tenantService as any);
+      jest.spyOn((ociService as any).s3Client, 'send').mockResolvedValue({
+        Metadata: { tenantid: 'tenant-123' },
+      });
+
+      const result = await ociService.getPresignedUrl(
+        'tenant-123/photos/2026/11/sample.jpg',
+        120,
+        { tenantId: 'tenant-123', responseContentDisposition: 'inline' },
+      );
+
+      expect(result.expiresIn).toBe(120);
+      expect(result.url).toMatch(
+        /^https:\/\/erp\.school\.edu\.in\/krypton-media\/tenant-123\/photos\/2026\/11\/sample\.jpg\?/,
+      );
+      expect(result.url).not.toContain('minio:9000');
+      expect(result.url).toContain('X-Amz-Signature=');
+    });
+
+    it('should fall back to S3_ENDPOINT when S3_PUBLIC_URL is empty string', async () => {
+      const localConfig = {
+        get: jest.fn((key: string, defaultValue?: any) => {
+          const config: Record<string, any> = {
+            S3_ENDPOINT: 'http://localhost:9000',
+            S3_PUBLIC_URL: '',
+            S3_ACCESS_KEY: 'minioadmin',
+            S3_SECRET_KEY: 'minioadmin',
+            S3_BUCKET: 'krypton-media',
+            S3_REGION: 'us-east-1',
+          };
+          return config[key] ?? defaultValue;
+        }),
+      };
+      const localService = new StorageService(localConfig as any, tenantService as any);
+      jest.spyOn((localService as any).s3Client, 'send').mockResolvedValue({
+        Metadata: { tenantid: 'tenant-123' },
+      });
+
+      const result = await localService.getPresignedUrl(
+        'tenant-123/photos/2026/11/sample.jpg',
+        120,
+        { tenantId: 'tenant-123' },
+      );
+
+      expect(result.url).toMatch(/^http:\/\/localhost:9000\/krypton-media\/tenant-123\/photos\//);
+    });
+
+    it('should create the S3 bucket automatically when HeadBucket returns 404', async () => {
+      const ociConfig = {
+        get: jest.fn((key: string, defaultValue?: any) => {
+          const config: Record<string, any> = {
+            S3_ENDPOINT: 'http://minio:9000',
+            S3_PUBLIC_URL: 'https://erp.school.edu.in',
+            S3_ACCESS_KEY: 'kryptonadmin',
+            S3_SECRET_KEY: 'super-secret-minio-key',
+            S3_BUCKET: 'krypton-media',
+            S3_REGION: 'us-east-1',
+          };
+          return config[key] ?? defaultValue;
+        }),
+      };
+      const ociService = new StorageService(ociConfig as any, tenantService as any);
+      const sendSpy = jest
+        .spyOn((ociService as any).s3Client, 'send')
+        .mockRejectedValueOnce({ name: 'NotFound', $metadata: { httpStatusCode: 404 } })
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({});
+
+      const upload = await ociService.uploadFile(Buffer.from('fake-jpeg'), {
+        tenantId: 'tenant-123',
+        category: 'photos',
+        filename: 'child.jpg',
+        mimeType: 'image/jpeg',
+      });
+
+      expect(sendSpy).toHaveBeenCalledTimes(3);
+      expect((sendSpy.mock.calls[0][0] as { constructor: { name: string } }).constructor.name).toBe('HeadBucketCommand');
+      expect((sendSpy.mock.calls[1][0] as { constructor: { name: string } }).constructor.name).toBe('CreateBucketCommand');
+      expect((sendSpy.mock.calls[2][0] as { constructor: { name: string } }).constructor.name).toBe('PutObjectCommand');
+      expect(upload.url).toMatch(/^https:\/\/erp\.school\.edu\.in\/krypton-media\/tenant-123\/photos\//);
+    });
+  });
 });

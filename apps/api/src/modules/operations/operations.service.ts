@@ -3,6 +3,7 @@ import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { TenantService } from '../../database/tenant.service';
 import { parseRecord } from '../workspace/records';
+import { AdmissionAccountsService, AdmissionPortalAccess } from './admission-accounts.service';
 
 const managers=['SUPER_ADMIN','SCHOOL_OWNER','PRINCIPAL','DEPUTY_PRINCIPAL','SCHOOL_ADMIN'];
 const teachers=['TEACHER','CLASS_TEACHER','EXAM_OFFICER'];
@@ -10,7 +11,7 @@ const stages=['INQUIRY_RECEIVED','INTERVIEW_SCHEDULED','ACCEPTED','FEE_PAID','AD
 export interface Actor {userId:string;role:string;firstName?:string;lastName?:string}
 @Injectable()
 export class OperationsService {
- constructor(private db:PrismaService,private tenants:TenantService){}
+ constructor(private db:PrismaService,private tenants:TenantService,private accounts:AdmissionAccountsService){}
  tenant(){return this.tenants.requireTenantContext();}
  private allow(user:Actor,roles:string[]){if(!roles.includes(user.role))throw new ForbiddenException('This action is not available to your role');}
  private parse(fields:Record<string,string>,input:Record<string,unknown>){const data=parseRecord({model:'operation',fields},input);for(const [key,value] of Object.entries(data))if(value instanceof Date&&typeof input[key]==='string'&&String(input[key]).length===10&&value.toISOString().slice(0,10)!==input[key])throw new BadRequestException('Choose a valid '+key);return data;}
@@ -47,7 +48,7 @@ export class OperationsService {
  }
  async list(user:Actor,resource:string){
   const tenantId=this.tenant();
-  if(resource==='admissions'){this.allow(user,[...managers,'RECEPTIONIST','ACCOUNTANT']);return this.db.admissionRecord.findMany({where:{tenantId},orderBy:{createdAt:'desc'},take:1000,select:{id:true,applicationNumber:true,firstName:true,lastName:true,grade:true,guardianName:true,guardianEmail:true,guardianPhone:true,stage:true,createdAt:true,interview:true,studentId:true}});}
+  if(resource==='admissions'){this.allow(user,[...managers,'RECEPTIONIST','ACCOUNTANT']);return this.db.admissionRecord.findMany({where:{tenantId},orderBy:{createdAt:'desc'},take:1000,select:{id:true,applicationNumber:true,firstName:true,lastName:true,grade:true,guardianName:true,guardianEmail:true,guardianPhone:true,stage:true,createdAt:true,interview:true,studentId:true,portalAccess:true}});}
   if(resource==='absences'||resource==='portfolio'||resource==='certificates'){
    const options=await this.options(user);const studentIds=options.students.map(s=>s.id);const where={tenantId,studentId:{in:studentIds}};
    if(resource==='absences')return this.db.absenceRequest.findMany({where,include:{student:{select:{firstName:true,lastName:true}}},orderBy:{createdAt:'desc'}}).then(rows=>rows.map(r=>({...r,studentName:r.student.firstName+' '+r.student.lastName})));
@@ -88,20 +89,34 @@ export class OperationsService {
  }
  private async newAdmission(input:Record<string,unknown>,createdBy?:string){const data=this.parse({schoolId:'ref:school!',firstName:'text!',lastName:'text!',dateOfBirth:'date!',gender:'enum:MALE,FEMALE,OTHER!',grade:'text!',guardianName:'text!',guardianEmail:'email!',guardianPhone:'text!',address:'long',notes:'long'},input);if(data.dateOfBirth>new Date())throw new BadRequestException('Date of birth must be in the past');if(!await this.db.school.findFirst({where:{id:data.schoolId,tenantId:this.tenant()}}))throw new NotFoundException('School not found');const token=randomBytes(32).toString('hex');const row=await this.db.admissionRecord.create({data:{tenantId:this.tenant(),...data,createdBy,applicationNumber:'APP-'+new Date().getFullYear()+'-'+randomBytes(6).toString('hex').toUpperCase(),trackingHash:createHash('sha256').update(token).digest('hex')} as any});return {id:row.id,applicationNumber:row.applicationNumber,trackingToken:token};}
  private async admissionAction(user:Actor,id:string,action:string,input:Record<string,unknown>){
-  this.allow(user,[...managers,'RECEPTIONIST']);const tenantId=this.tenant();return this.db.$transaction(async tx=>{
-   if(!await tx.admissionRecord.findFirst({where:{id,tenantId}}))throw new NotFoundException('Application not found');await tx.admissionRecord.update({where:{id,tenantId},data:{version:{increment:1}}});const row=(await tx.admissionRecord.findFirst({where:{id,tenantId}}))!;if(row.stage==='ADMITTED')throw new ConflictException('Admission is already complete');
+  this.allow(user,[...managers,'RECEPTIONIST']);const tenantId=this.tenant();let portalAccess:AdmissionPortalAccess|undefined;
+  if(action==='admit'||action==='resend-invites')this.allow(user,managers);
+  const passwords=action==='admit'?await this.accounts.preparePasswords():undefined;
+  await this.db.$transaction(async tx=>{
+   if(!await tx.admissionRecord.findFirst({where:{id,tenantId}}))throw new NotFoundException('Application not found');await tx.admissionRecord.update({where:{id,tenantId},data:{version:{increment:1}}});const row=(await tx.admissionRecord.findFirst({where:{id,tenantId}}))!;
+   if(action==='resend-invites'){
+    this.allow(user,managers);this.parse({},input);
+    if(row.stage!=='ADMITTED'||!row.portalAccess)throw new BadRequestException('Complete admission before sending portal invitations');
+    const access=row.portalAccess as unknown as AdmissionPortalAccess;
+    if(Date.now()-Date.parse(access.attemptedAt)<60000)throw new ConflictException('Please wait one minute before resending invitations');
+    portalAccess={...access,attemptedAt:new Date().toISOString(),parent:{...access.parent,status:'PENDING'},student:{...access.student,status:'PENDING'}};
+    await tx.admissionRecord.update({where:{id,tenantId},data:{portalAccess:portalAccess as any}});
+    await this.audit(user,'ADMISSION_INVITES_RESENT',id,tx);return;
+   }
+   if(row.stage==='ADMITTED')throw new ConflictException('Admission is already complete');
    if(action==='interview'){const data=this.parse({date:'date!',time:'time!',venue:'text!',notes:'long'},input);if(!['INQUIRY_RECEIVED','INTERVIEW_SCHEDULED'].includes(row.stage))throw new BadRequestException('Application has advanced past interview scheduling');await tx.admissionRecord.update({where:{id,tenantId},data:{interview:{...data,date:data.date.toISOString().slice(0,10)},stage:'INTERVIEW_SCHEDULED'}});}
    else if(action==='accept'){if(!['INQUIRY_RECEIVED','INTERVIEW_SCHEDULED'].includes(row.stage))throw new BadRequestException('Application has already advanced');this.parse({},input);await tx.admissionRecord.update({where:{id,tenantId},data:{stage:'ACCEPTED'}});}
    else if(action==='payment'){this.allow(user,managers);if(row.stage!=='ACCEPTED')throw new BadRequestException('Accept the application before recording a payment');const data=this.parse({amount:'int:1:100000000!',method:'enum:CASH,BANK_TRANSFER,UPI,RAZORPAY!',reference:'text!'},input);await tx.admissionRecord.update({where:{id,tenantId},data:{stage:'FEE_PAID',payment:{...data,currency:'INR',recordedAt:new Date().toISOString(),recordedBy:user.userId}}});}
    else if(action==='admit'){
-    this.allow(user,managers);if(!['ACCEPTED','FEE_PAID'].includes(row.stage))throw new BadRequestException('Accept the application before enrolling');const data=this.parse({classId:'ref:class!',admissionNumber:'text!'},input);const cls=await tx.class.findFirst({where:{id:data.classId,tenantId,schoolId:row.schoolId}});if(!cls)throw new BadRequestException('Choose a class in the application school');
+    this.allow(user,managers);if(!['ACCEPTED','FEE_PAID'].includes(row.stage))throw new BadRequestException('Accept the application before enrolling');const data=this.parse({classId:'ref:class!',admissionNumber:'text!',studentEmail:'email'},input);const cls=await tx.class.findFirst({where:{id:data.classId,tenantId,schoolId:row.schoolId}});if(!cls)throw new BadRequestException('Choose a class in the application school');
     const student=await tx.student.create({data:{tenantId,firstName:row.firstName,lastName:row.lastName,dateOfBirth:row.dateOfBirth,gender:row.gender,currentClassId:cls.id,admissionNumber:data.admissionNumber,admissionDate:new Date(),address:row.address}});
     const currentYear=await tx.academicYear.findFirst({where:{tenantId,isCurrent:true}})||await tx.academicYear.findFirst({where:{tenantId},orderBy:{startDate:'desc'}});
     if(currentYear)await tx.enrollment.create({data:{tenantId,studentId:student.id,classId:cls.id,academicYearId:currentYear.id,enrollmentDate:student.admissionDate}});
-    const name=row.guardianName.trim().split(/\s+/);const guardian=await tx.guardian.create({data:{tenantId,firstName:name.shift()!,lastName:name.join(' '),email:row.guardianEmail,phone:row.guardianPhone,address:row.address}});
-    await tx.guardianStudentLink.create({data:{guardianId:guardian.id,studentId:student.id,relationship:'GUARDIAN'}});await tx.admissionRecord.update({where:{id,tenantId},data:{stage:'ADMITTED',studentId:student.id}});
+    portalAccess=await this.accounts.provision(tx,row,student,passwords!,data.studentEmail);
+    await tx.admissionRecord.update({where:{id,tenantId},data:{stage:'ADMITTED',studentId:student.id,portalAccess:portalAccess as any}});
    }else throw new NotFoundException('Unknown admission action');await this.audit(user,'ADMISSION_'+action.toUpperCase(),id,tx);return {id};
   });
+  return {id,...(portalAccess?{portalAccess:await this.accounts.deliver(id,portalAccess)}:{})};
  }
  async publicSchools(){return this.tenants.run(()=>this.db.school.findMany({where:{tenant:{status:{in:['ACTIVE','TRIAL']}}},select:{id:true,name:true,city:true,state:true,district:true,boardAffiliation:true},orderBy:{name:'asc'},take:100}));}
  async publicApply(input:Record<string,unknown>){return this.tenants.run(async()=>{const school=await this.db.school.findFirst({where:{id:String(input.schoolId),tenant:{status:{in:['ACTIVE','TRIAL']}}}});if(!school)throw new NotFoundException('School not found');this.tenants.setTenantId(school.tenantId);return this.newAdmission(input);});}

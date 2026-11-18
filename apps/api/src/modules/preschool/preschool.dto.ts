@@ -38,7 +38,8 @@ export const domains = [
   'CREATIVE',
 ] as const;
 export class SchoolProgrammeDto {
-  @IsIn(['STANDARD', 'PRESCHOOL', 'COMBINED']) programme: 'STANDARD' | 'PRESCHOOL' | 'COMBINED';
+  @IsOptional() @IsIn(['STANDARD', 'PRESCHOOL', 'COMBINED']) programme?: 'STANDARD' | 'PRESCHOOL' | 'COMBINED';
+  @IsOptional() @IsIn(['OPTIONAL', 'REQUIRED']) pickupVerification?: 'OPTIONAL' | 'REQUIRED';
 }
 export class PreschoolClassDto {
   @IsIn(['PLAYGROUP', 'NURSERY', 'LKG', 'UKG']) stage: 'PLAYGROUP' | 'NURSERY' | 'LKG' | 'UKG';
@@ -55,8 +56,14 @@ export class PreschoolQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(100000) offset?: number;
 }
 export class CheckOutDto {
-  @IsUUID() guardianId: string;
+  @IsOptional() @IsUUID() guardianId?: string;
   @Transform(({ obj, key }) => obj[key]) @IsBoolean() identityVerified: boolean;
+  @IsOptional() @IsString() @Matches(/^\d{6}$/) pickupOtp?: string;
+  @IsOptional() @IsString() @MinLength(16) @MaxLength(256) pickupQrToken?: string;
+}
+export class PickupPassDto {
+  @IsOptional() @IsUUID() guardianId?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(5) @Max(120) ttlMinutes?: number;
 }
 export class PickupPermissionDto {
   @Transform(({ obj, key }) => obj[key]) @IsBoolean() canPickup: boolean;

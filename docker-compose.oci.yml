@@ -36,6 +36,29 @@ services:
     networks:
       - krypton_net
 
+  # Private S3-compatible object storage (ARM64 + AMD64) for Preschool Photos, Chat Attachments & Backups.
+  # Stays strictly on krypton_net; browsers only read objects via short-lived SigV4 presigned URLs proxied by Nginx.
+  minio:
+    image: ${MINIO_IMAGE:-alpine/minio:RELEASE.2025-10-15T17-29-55Z}
+    container_name: krypton_oci_minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-kryptonadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env.oci or run ./deploy-oci.sh}
+    command: server /data --console-address ":9001"
+    volumes:
+      - oci_minio_data:/data
+    expose:
+      - "9000"
+      - "9001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9000/minio/health/live || curl -sf http://localhost:9000/minio/health/live || mc ready local"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks:
+      - krypton_net
+
   migrate:
     build:
       context: .
@@ -78,6 +101,14 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_SECURE: ${SMTP_SECURE:-false}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      # S3-Compatible Object Storage (Bundled MinIO by default; override in .env.oci for AWS S3 / OCI Object Storage)
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_BUCKET: ${S3_BUCKET:-krypton-media}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-${MINIO_ROOT_USER:-kryptonadmin}}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_USE_SSL: ${S3_USE_SSL:-false}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-${PUBLIC_DOMAIN:-http://localhost}}
       # Classroom CCTV Live Streaming Gateway (all three must be set together with HTTPS)
       CCTV_GATEWAY_URL: ${CCTV_GATEWAY_URL:-}
       CCTV_GATEWAY_KEY: ${CCTV_GATEWAY_KEY:-}
@@ -87,10 +118,23 @@ services:
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
       WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
       WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      # INKY Preschool AI & Teacher AI Assistant
+      # Leave AI_PROVIDER empty to auto-detect from configured keys (Gemini -> Groq -> OpenAI -> Ollama),
+      # or set explicitly: Gemini | Groq | OpenAI | Ollama | Pollinations | FreeAI.
+      AI_TEACHER_ENABLED: ${AI_TEACHER_ENABLED:-true}
+      AI_PROVIDER: ${AI_PROVIDER:-}
+      AI_MODEL: ${AI_MODEL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
       redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     expose:
       - "3001"
@@ -183,12 +227,14 @@ services:
       - web
       - api
       - cctv-gateway
+      - minio
     networks:
       - krypton_net
 
 volumes:
   oci_postgres_data:
   oci_redis_data:
+  oci_minio_data:
   oci_certbot_www:
   oci_certbot_conf:
 

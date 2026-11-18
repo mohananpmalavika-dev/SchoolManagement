@@ -34,20 +34,48 @@ export function PreschoolSettings({
             />
           )}
           {options.schools.map((school) => (
-            <div key={school.id} className="field">
-              <label htmlFor={'programme-' + school.id}>{school.name}</label>
-              <select
-                id={'programme-' + school.id}
-                value={school.programme}
-                disabled={busy}
-                onChange={(e) =>
-                  void action('/schools/' + school.id, { programme: e.target.value }, 'patch')
-                }
-              >
-                <option value="STANDARD">Regular school</option>
-                <option value="PRESCHOOL">Playschool / preschool</option>
-                <option value="COMBINED">Combined school</option>
-              </select>
+            <div key={school.id} className="border rounded-xl p-4 space-y-3">
+              <div className="field">
+                <label htmlFor={'programme-' + school.id}>{school.name}</label>
+                <select
+                  id={'programme-' + school.id}
+                  value={school.programme}
+                  disabled={busy}
+                  onChange={(e) =>
+                    void action('/schools/' + school.id, { programme: e.target.value }, 'patch')
+                  }
+                >
+                  <option value="STANDARD">Regular school</option>
+                  <option value="PRESCHOOL">Playschool / preschool</option>
+                  <option value="COMBINED">Combined school</option>
+                </select>
+              </div>
+              {school.programme !== 'STANDARD' && (
+                <div className="field">
+                  <label htmlFor={'pickup-verification-' + school.id}>
+                    Safe pickup verification ({school.name})
+                  </label>
+                  <select
+                    id={'pickup-verification-' + school.id}
+                    value={school.preschoolPickupVerification || 'OPTIONAL'}
+                    disabled={busy}
+                    onChange={(e) =>
+                      void action(
+                        '/schools/' + school.id,
+                        { pickupVerification: e.target.value },
+                        'patch'
+                      )
+                    }
+                  >
+                    <option value="OPTIONAL">
+                      Optional OTP / QR pass (staff manual check allowed)
+                    </option>
+                    <option value="REQUIRED">
+                      Require parent OTP or QR pass for checkout
+                    </option>
+                  </select>
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -18,6 +18,7 @@ import { TenantService } from '../../database/tenant.service';
 import { OperationsService } from '../operations/operations.service';
 import { SavedTransportService } from '../operations/transport.service';
 import { PreschoolAccessService } from './preschool-access.service';
+import { PreschoolPickupService } from './preschool-pickup.service';
 import { PreschoolService } from './preschool.service';
 
 // Explicit opt-in, disposable fixture tenants and a test-only database name.
@@ -85,8 +86,9 @@ integration('Preschool PostgreSQL integration', () => {
     await db.$connect();
     process.env.DATABASE_URL = original;
     access = new PreschoolAccessService(db, tenants);
-    service = new PreschoolService(db, access);
-    transport = new SavedTransportService(db, tenants, new OperationsService(db, tenants));
+    const pickup = new PreschoolPickupService(db, access, new ConfigService({ JWT_SECRET: secret }));
+    service = new PreschoolService(db, access, pickup);
+    transport = new SavedTransportService(db, tenants, new OperationsService(db, tenants, {} as any));
     await db.tenant.createMany({
       data: [tenantA, tenantB].map((id) => ({
         id,
@@ -196,6 +198,7 @@ integration('Preschool PostgreSQL integration', () => {
           useValue: new ConfigService({ JWT_SECRET: secret, AI_PROVIDER: 'FreeAI' }),
         },
         PreschoolAccessService,
+        PreschoolPickupService,
         PreschoolService,
         PreschoolContentService,
         PreschoolMediaService,

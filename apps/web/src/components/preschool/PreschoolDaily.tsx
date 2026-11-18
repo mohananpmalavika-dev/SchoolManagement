@@ -2,28 +2,36 @@
 /* Private signed photo links bypass the shared Next.js image-optimizer cache. */
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { QrCode, Send, ShieldCheck } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import {
   developmentDomains,
   friendly,
+  pickupMethodLabel,
   timeLabel,
   type PreschoolAction,
   type PreschoolChild,
   type PreschoolChildView,
+  type PreschoolPickupPassSummary,
 } from '@/lib/preschool';
 import { messageFor, dateLabel } from '@/lib/workspace';
 import { Button } from '../ui';
 import { EmptyState, Panel, StatusPill } from '../WorkspaceUI';
 import { Field, PreschoolArea, PreschoolText } from './PreschoolFields';
+import { PreschoolQrScanner } from './PreschoolPickupPass';
 
 export function PreschoolCareForm({
   child,
   busy,
   action,
+  pickupVerification = 'OPTIONAL',
+  timezone = 'Asia/Kolkata',
 }: {
   child: PreschoolChild;
   busy: boolean;
   action: PreschoolAction;
+  pickupVerification?: 'OPTIONAL' | 'REQUIRED';
+  timezone?: string;
 }) {
   const day = child.day;
   const [meals, setMeals] = useState(day?.meals || ''),
@@ -32,8 +40,65 @@ export function PreschoolCareForm({
     [mood, setMood] = useState(day?.mood || 'NOT_RECORDED'),
     [notes, setNotes] = useState(day?.notes || ''),
     [share, setShare] = useState(!!day?.sharedAt),
-    [guardian, setGuardian] = useState(''),
-    [verified, setVerified] = useState(false);
+    [guardian, setGuardian] = useState(child.activePickupPass?.guardianId || ''),
+    [verified, setVerified] = useState(false),
+    [otp, setOtp] = useState(''),
+    [qrToken, setQrToken] = useState(''),
+    [showScanner, setShowScanner] = useState(false),
+    [activePass, setActivePass] = useState<PreschoolPickupPassSummary | null>(
+      child.activePickupPass || null
+    ),
+    [passBusy, setPassBusy] = useState(false),
+    [passNotice, setPassNotice] = useState(''),
+    [passError, setPassError] = useState('');
+
+  async function requestParentOtp() {
+    if (!guardian) return;
+    setPassBusy(true);
+    setPassError('');
+    setPassNotice('');
+    try {
+      const { data } = await apiClient.post<PreschoolPickupPassSummary>(
+        '/preschool/students/' + child.id + '/pickup-pass',
+        { guardianId: guardian }
+      );
+      setActivePass(data);
+      const channels = (data.deliveryChannels || ['PORTAL'])
+        .map((c) => (c === 'PORTAL' ? 'Parent portal' : friendly(c)))
+        .join(', ');
+      setPassNotice(
+        `Pickup OTP & QR pass sent to ${data.guardianName} (${channels}). Ask the parent to share the 6-digit code or show the QR pass.`
+      );
+    } catch (err) {
+      setPassError(messageFor(err));
+    } finally {
+      setPassBusy(false);
+    }
+  }
+
+  async function revokeParentPass() {
+    setPassBusy(true);
+    setPassError('');
+    setPassNotice('');
+    try {
+      await apiClient.post('/preschool/students/' + child.id + '/pickup-pass/revoke');
+      setActivePass(null);
+      setOtp('');
+      setQrToken('');
+      setPassNotice('Previous pickup pass revoked.');
+    } catch (err) {
+      setPassError(messageFor(err));
+    } finally {
+      setPassBusy(false);
+    }
+  }
+
+  const trimmedOtp = otp.trim();
+  const trimmedQr = qrToken.trim();
+  const hasValidOtp = /^\d{6}$/.test(trimmedOtp);
+  const hasQr = trimmedQr.length >= 16;
+  const missingRequiredPass = pickupVerification === 'REQUIRED' && !hasValidOtp && !hasQr;
+  const canSubmitCheckout = verified && (!!guardian || hasQr) && !missingRequiredPass;
   function save(e: FormEvent) {
     e.preventDefault();
     void action('/students/' + child.id + '/care', {
@@ -105,15 +170,21 @@ export function PreschoolCareForm({
       {day?.checkInAt && !day.checkOutAt && (
         <Panel
           title="Authorized pickup"
-          subtitle="Confirm the collecting person’s identity before recording checkout."
+          subtitle={
+            pickupVerification === 'REQUIRED'
+              ? 'Verify the collecting guardian using the parent’s 6-digit OTP or QR pickup pass.'
+              : 'Confirm the collecting person’s identity before recording checkout. Optional parent OTP or QR pass verification is also available.'
+          }
         >
           <form
             className="panel-body space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
               void action('/students/' + child.id + '/check-out', {
-                guardianId: guardian,
+                ...(guardian ? { guardianId: guardian } : {}),
                 identityVerified: verified,
+                ...(trimmedOtp ? { pickupOtp: trimmedOtp } : {}),
+                ...(trimmedQr ? { pickupQrToken: trimmedQr } : {}),
               });
             }}
           >
@@ -121,7 +192,7 @@ export function PreschoolCareForm({
               {(id) => (
                 <select
                   id={id}
-                  required
+                  required={!hasQr}
                   value={guardian}
                   onChange={(e) => {
                     setGuardian(e.target.value);
@@ -146,6 +217,129 @@ export function PreschoolCareForm({
                 checked out.
               </p>
             )}
+            <div className="border rounded-xl p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold text-sm flex items-center gap-2">
+                  <ShieldCheck size={16} />
+                  Safe pickup OTP / QR verification
+                </p>
+                <StatusPill
+                  value={
+                    pickupVerification === 'REQUIRED' ? 'Required by school' : 'Optional'
+                  }
+                />
+              </div>
+
+              {passError && (
+                <p role="alert" className="state-box">
+                  {passError}
+                </p>
+              )}
+              {passNotice && (
+                <p role="status" className="state-box success">
+                  {passNotice}
+                </p>
+              )}
+
+              {activePass && (
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm muted">
+                  <span>
+                    Active pass for <strong>{activePass.guardianName}</strong> · expires at{' '}
+                    {timeLabel(activePass.expiresAt, timezone)}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy || passBusy}
+                    onClick={() => void revokeParentPass()}
+                  >
+                    Revoke pass
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Send size={14} />}
+                  disabled={!guardian || busy || passBusy}
+                  isLoading={passBusy}
+                  onClick={() => void requestParentOtp()}
+                >
+                  Send pickup OTP to parent
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<QrCode size={14} />}
+                  disabled={busy}
+                  onClick={() => setShowScanner((v) => !v)}
+                >
+                  {showScanner ? 'Hide QR scanner' : 'Scan parent QR pass'}
+                </Button>
+              </div>
+
+              {showScanner && (
+                <PreschoolQrScanner
+                  onDetected={(value) => {
+                    setQrToken(value);
+                    setShowScanner(false);
+                    setPassNotice('Parent QR pickup pass scanned. Confirm checkout to complete.');
+                  }}
+                  onClose={() => setShowScanner(false)}
+                />
+              )}
+
+              <div className="form-grid">
+                <Field
+                  label={
+                    pickupVerification === 'REQUIRED'
+                      ? 'Parent pickup OTP (6 digits)'
+                      : 'Parent pickup OTP (optional)'
+                  }
+                >
+                  {(id) => (
+                    <input
+                      id={id}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      placeholder="6-digit OTP from parent phone"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
+                    />
+                  )}
+                </Field>
+                <Field
+                  label={
+                    pickupVerification === 'REQUIRED'
+                      ? 'Parent QR pass code'
+                      : 'Parent QR pass code (optional)'
+                  }
+                >
+                  {(id) => (
+                    <input
+                      id={id}
+                      type="text"
+                      placeholder="Scan or paste KRYPTON-PICKUP-1:…"
+                      value={qrToken}
+                      onChange={(e) => setQrToken(e.target.value)}
+                    />
+                  )}
+                </Field>
+              </div>
+              {missingRequiredPass && (
+                <p className="text-xs muted">
+                  Enter the 6-digit OTP from the parent’s phone or scan their QR pickup pass to
+                  enable checkout.
+                </p>
+              )}
+            </div>
             <label className="flex items-start gap-3">
               <input
                 type="checkbox"
@@ -154,7 +348,7 @@ export function PreschoolCareForm({
               />
               I verified this person’s identity and pickup authorization
             </label>
-            <Button type="submit" disabled={!verified || !guardian} isLoading={busy}>
+            <Button type="submit" disabled={!canSubmitCheckout} isLoading={busy}>
               Confirm checkout
             </Button>
           </form>
@@ -276,9 +470,14 @@ export function PreschoolChildHistory({
             view.days.map((day) => (
               <article className="border rounded-xl p-4 space-y-2" key={day.id}>
                 <h3 className="font-semibold">{dateLabel(day.date)}</h3>
-                <p className="text-sm">
-                  Check-in {timeLabel(day.checkInAt, timezone)} · Checkout{' '}
-                  {timeLabel(day.checkOutAt, timezone)}
+                <p className="text-sm flex flex-wrap items-center gap-2">
+                  <span>
+                    Check-in {timeLabel(day.checkInAt, timezone)} · Checkout{' '}
+                    {timeLabel(day.checkOutAt, timezone)}
+                  </span>
+                  {day.checkOutAt && pickupMethodLabel(day.pickupVerificationMethod) && (
+                    <StatusPill value={pickupMethodLabel(day.pickupVerificationMethod)!} />
+                  )}
                 </p>
                 {day.sharedAt ? (
                   <>
