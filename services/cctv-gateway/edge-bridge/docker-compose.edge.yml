@@ -1,0 +1,15 @@
+# OM System School Site Edge Bridge (CGNAT / Zero Port-Forwarding Mode)
+# Run this on a mini-PC, Raspberry Pi, or reception PC on the school's local NVR LAN.
+# It pulls local Hikvision / Dahua / CP Plus RTSP sub-streams and relays them over
+# resilient SRT (UDP 8890) to your Oracle Cloud MediaMTX gateway with 0% CPU re-encoding.
+
+services:
+  om-edge-bridge:
+    image: alpine:3.20
+    container_name: om_system_edge_bridge
+    restart: always
+    env_file:
+      - .env.edge
+    volumes:
+      - ./edge-relay.sh:/usr/local/bin/edge-relay.sh:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/edge-relay.sh"]

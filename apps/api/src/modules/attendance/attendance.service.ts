@@ -62,7 +62,7 @@ export class AttendanceService {
     }
 
     const attendanceDate = new Date(dto.date);
-    attendanceDate.setHours(0, 0, 0, 0);
+    attendanceDate.setUTCHours(0, 0, 0, 0);
 
     // Validate all students exist and belong to the class
     const studentIds = dto.attendance.map((a) => a.studentId);
@@ -150,7 +150,7 @@ export class AttendanceService {
     }
 
     const attendanceDate = new Date(dto.date);
-    attendanceDate.setHours(0, 0, 0, 0);
+    attendanceDate.setUTCHours(0, 0, 0, 0);
 
     // Check for existing record
     const existing = await this.prisma.attendanceRecord.findFirst({
@@ -268,18 +268,18 @@ export class AttendanceService {
 
     if (date) {
       const specificDate = new Date(date);
-      specificDate.setHours(0, 0, 0, 0);
+      specificDate.setUTCHours(0, 0, 0, 0);
       where.date = specificDate;
     } else if (startDate || endDate) {
       where.date = {};
       if (startDate) {
         const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
+        start.setUTCHours(0, 0, 0, 0);
         where.date.gte = start;
       }
       if (endDate) {
         const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        end.setUTCHours(23, 59, 59, 999);
         where.date.lte = end;
       }
     }
@@ -353,12 +353,12 @@ export class AttendanceService {
       where.date = {};
       if (startDate) {
         const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
+        start.setUTCHours(0, 0, 0, 0);
         where.date.gte = start;
       }
       if (endDate) {
         const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        end.setUTCHours(23, 59, 59, 999);
         where.date.lte = end;
       }
     }
@@ -428,12 +428,12 @@ export class AttendanceService {
       where.date = {};
       if (startDate) {
         const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
+        start.setUTCHours(0, 0, 0, 0);
         where.date.gte = start;
       }
       if (endDate) {
         const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        end.setUTCHours(23, 59, 59, 999);
         where.date.lte = end;
       }
     }
@@ -489,8 +489,10 @@ export class AttendanceService {
   async getTodayAttendance(classId?: string, streamId?: string) {
     const tenantId = this.tenantService.requireTenantContext();
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // PostgreSQL DATE values use UTC midnight; the school day follows IST.
+    const today = new Date(new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date()));
 
     const where: any = {
       tenantId,
@@ -547,7 +549,7 @@ export class AttendanceService {
     const tenantId = this.tenantService.requireTenantContext();
 
     const attendanceDate = new Date(dto.date);
-    attendanceDate.setHours(0, 0, 0, 0);
+    attendanceDate.setUTCHours(0, 0, 0, 0);
 
     // Validate all staff exist
     const staffIds = dto.attendance.map((a) => a.staffId);
@@ -624,7 +626,7 @@ export class AttendanceService {
     }
 
     const attendanceDate = new Date(dto.date);
-    attendanceDate.setHours(0, 0, 0, 0);
+    attendanceDate.setUTCHours(0, 0, 0, 0);
 
     // Check for existing record
     const existing = await this.prisma.staffAttendance.findFirst({
@@ -679,18 +681,18 @@ export class AttendanceService {
 
     if (date) {
       const specificDate = new Date(date);
-      specificDate.setHours(0, 0, 0, 0);
+      specificDate.setUTCHours(0, 0, 0, 0);
       where.date = specificDate;
     } else if (startDate || endDate) {
       where.date = {};
       if (startDate) {
         const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
+        start.setUTCHours(0, 0, 0, 0);
         where.date.gte = start;
       }
       if (endDate) {
         const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        end.setUTCHours(23, 59, 59, 999);
         where.date.lte = end;
       }
     }

@@ -172,7 +172,9 @@ try {
   const transportTabs = transport.page.getByRole('navigation', { name: 'Current section', exact: true });
   await transportTabs.getByRole('link', { name: 'Vehicles & routes', exact: true }).waitFor();
   assert.equal(await transportTabs.getByRole('link', { name: 'Vehicles & routes', exact: true }).getAttribute('aria-current'), 'page');
-  assert.equal(await transportTabs.getByRole('link', { name: 'Driver workspace', exact: true }).getAttribute('aria-current'), null);
+  const trips = transportTabs.getByRole('link', { name: 'Trips & live GPS', exact: true });
+  assert.equal(await trips.getAttribute('href'), '/school/transport');
+  assert.equal(await trips.getAttribute('aria-current'), null);
   assert.equal(await transport.page.locator('a[aria-current=page]').count(), 1);
   await transport.context.close();
   checks.push('Nested module routes highlight the specific destination instead of also marking the parent page as current');

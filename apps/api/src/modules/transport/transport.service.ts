@@ -874,11 +874,11 @@ export class TransportService {
   ): Promise<Array<{ name: string; displayName: string; latitude: number; longitude: number; distanceFromSchoolKm: number; estimatedMinutes: number }>> {
     const lat = schoolLat || this.schoolLocation.latitude;
     const lng = schoolLng || this.schoolLocation.longitude;
-
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
       const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=8&countrycodes=in`;
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
+      timeout = setTimeout(() => controller.abort(), 4000);
 
       const response = await fetch(url, {
         headers: {
@@ -886,8 +886,6 @@ export class TransportService {
         },
         signal: controller.signal,
       });
-      clearTimeout(timeout);
-
       if (response.ok) {
         const data = (await response.json()) as any[];
         if (Array.isArray(data) && data.length > 0) {
@@ -915,6 +913,8 @@ export class TransportService {
       }
     } catch {
       // Fallback if offline or timeout
+    } finally {
+      if (timeout) clearTimeout(timeout);
     }
 
     // Fallback: Generate intelligent relative landmark based on school coordinates
@@ -956,8 +956,6 @@ export class TransportService {
         },
         signal: controller.signal,
       });
-      clearTimeout(timeout);
-
       if (response.ok) {
         const data = (await response.json()) as any[];
         if (Array.isArray(data) && data.length > 0) {

@@ -113,7 +113,7 @@ export class SubscriptionsService {
       where.planId = query.planId;
     }
 
-    if (!query.includeExpired) {
+    if (!query.status && !query.includeExpired) {
       where.status = { not: SubscriptionStatus.EXPIRED };
     }
 
@@ -535,11 +535,11 @@ export class SubscriptionsService {
         description: dto.description,
         price: dto.price,
         billingCycle: dto.billingCycle || 'ANNUAL',
-        trialDays: dto.trialDays || 14,
+        trialDays: dto.trialDays ?? 14,
         maxStudents: dto.maxStudents,
         maxStaff: dto.maxStaff,
-        maxStorageMB: dto.maxStorageMB || 10000,
-        smsCredits: dto.smsCredits || 1000,
+        maxStorageMB: dto.maxStorageMB ?? 10000,
+        smsCredits: dto.smsCredits ?? 1000,
         features: dto.features,
         sortOrder: dto.sortOrder || 0,
       },

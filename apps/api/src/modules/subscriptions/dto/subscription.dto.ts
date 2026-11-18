@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsString,
   IsEnum,
@@ -155,6 +156,7 @@ export class QuerySubscriptionsDto {
 
   @ApiPropertyOptional({ description: 'Include expired' })
   @IsOptional()
+  @Transform(({ obj, key }) => obj[key] === 'true' ? true : obj[key] === 'false' ? false : obj[key])
   @IsBoolean()
   includeExpired?: boolean;
 }

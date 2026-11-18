@@ -1,5 +1,7 @@
 # School flow audit — 17–18 November 2026
 
+Latest follow-up: [18 November functionality audit](FUNCTIONALITY_AUDIT_2026-11-18.md), including attendance date/class corrections, platform subscription repairs, all-suite browser automation and a real school browser/API/database/family workflow.
+
 This review covers the connected school, preschool, teaching, family, student and platform workspaces. Existing working-tree changes were preserved. No production records were changed or deployment performed.
 
 ## Fixes

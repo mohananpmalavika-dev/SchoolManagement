@@ -1,0 +1,61 @@
+{
+  "cameras": [
+    {
+      "tenantId": "REPLACE_WITH_SCHOOL_TENANT_UUID",
+      "cameraRef": "nursery_cam_1",
+      "label": "Nursery Room A (Hikvision NVR)",
+      "vendor": "hikvision",
+      "mode": "pull",
+      "host": "10.8.0.20",
+      "port": 554,
+      "channel": 1,
+      "stream": "sub",
+      "username": "krypton_view",
+      "password": "${NVR_SCHOOL1_PASSWORD}",
+      "rtspTransport": "tcp",
+      "sourceOnDemand": true,
+      "disabled": true
+    },
+    {
+      "tenantId": "REPLACE_WITH_SCHOOL_TENANT_UUID",
+      "cameraRef": "lkg_cam_1",
+      "label": "LKG Classroom (Dahua NVR)",
+      "vendor": "dahua",
+      "mode": "pull",
+      "host": "10.8.0.21",
+      "port": 554,
+      "channel": 2,
+      "stream": "sub",
+      "username": "krypton_view",
+      "password": "${NVR_SCHOOL1_PASSWORD}",
+      "rtspTransport": "tcp",
+      "sourceOnDemand": true,
+      "disabled": true
+    },
+    {
+      "tenantId": "REPLACE_WITH_SCHOOL_TENANT_UUID",
+      "cameraRef": "playgroup_cam_1",
+      "label": "Playgroup Hall (CP Plus NVR)",
+      "vendor": "cpplus",
+      "mode": "pull",
+      "host": "10.8.0.22",
+      "port": 554,
+      "channel": 1,
+      "stream": "sub",
+      "username": "krypton_view",
+      "password": "${NVR_SCHOOL1_PASSWORD}",
+      "rtspTransport": "tcp",
+      "sourceOnDemand": true,
+      "disabled": true
+    },
+    {
+      "tenantId": "REPLACE_WITH_SCHOOL_TENANT_UUID",
+      "cameraRef": "ukg_cam_1",
+      "label": "UKG Classroom (OM System Edge Bridge Push - CGNAT)",
+      "vendor": "push",
+      "mode": "push",
+      "publishSecret": "${CCTV_PUBLISH_TOKEN}",
+      "disabled": true
+    }
+  ]
+}

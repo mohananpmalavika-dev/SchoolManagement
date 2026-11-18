@@ -39,18 +39,18 @@ export class MarkStaffAttendanceItemDto {
 
   @ApiPropertyOptional({ description: 'Check-in time' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   checkInTime?: string;
 
   @ApiPropertyOptional({ description: 'Check-out time' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   checkOutTime?: string;
 }
 
 export class BulkMarkStaffAttendanceDto {
   @ApiProperty({ description: 'Date (YYYY-MM-DD)' })
-  @IsDateString()
+  @IsDateString({ strict: true })
   date: string;
 
   @ApiProperty({
@@ -69,7 +69,7 @@ export class MarkSingleStaffAttendanceDto {
   staffId: string;
 
   @ApiProperty({ description: 'Date (YYYY-MM-DD)' })
-  @IsDateString()
+  @IsDateString({ strict: true })
   date: string;
 
   @ApiProperty({
@@ -86,12 +86,12 @@ export class MarkSingleStaffAttendanceDto {
 
   @ApiPropertyOptional({ description: 'Check-in time' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   checkInTime?: string;
 
   @ApiPropertyOptional({ description: 'Check-out time' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   checkOutTime?: string;
 }
 
@@ -103,17 +103,17 @@ export class QueryStaffAttendanceDto {
 
   @ApiPropertyOptional({ description: 'Start date (YYYY-MM-DD)' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   startDate?: string;
 
   @ApiPropertyOptional({ description: 'End date (YYYY-MM-DD)' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   endDate?: string;
 
   @ApiPropertyOptional({ description: 'Specific date (YYYY-MM-DD)' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   date?: string;
 
   @ApiPropertyOptional({

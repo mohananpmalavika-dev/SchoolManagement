@@ -3,7 +3,7 @@ import { AdmissionsService } from '../modules/admissions/admissions.service';
 import { CertificatesService } from '../modules/certificates/certificates.service';
 import { createHash } from 'crypto';
 
-describe('Comprehensive End-to-End Enterprise Flow Verification', () => {
+describe('Legacy preview contracts (fixtures, not production end-to-end certification)', () => {
 
   describe('Workflow 1: School Identity & Multi-Branch Campus Governance', () => {
     it('should model a central institution with autonomous branch campuses', () => {
@@ -63,9 +63,41 @@ describe('Comprehensive End-to-End Enterprise Flow Verification', () => {
 
   describe('Workflow 2: Dynamic Campus Location-Based Bus Routing & Transit Engine', () => {
     let transportService: TransportService;
+    let provider: jest.SpyInstance;
 
     beforeEach(() => {
       transportService = new TransportService(null as any);
+      provider = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        json: async () => [{ name: 'Fixture bus stop', display_name: 'Fixture bus stop, Kollam', lat: '8.888', lon: '76.59' }],
+      } as any);
+    });
+    afterEach(() => { provider.mockRestore(); jest.useRealTimers(); });
+
+    it.each(['searchNearbyPlaces', 'getNearbySuggestedStops'] as const)('%s clears its timeout after provider failure', async method => {
+      jest.useFakeTimers();
+      provider.mockRejectedValue(new Error('Provider unavailable'));
+      const result = method === 'searchNearbyPlaces'
+        ? await transportService.searchNearbyPlaces('bus stop')
+        : await transportService.getNearbySuggestedStops();
+      expect(result.length).toBeGreaterThan(0);
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it.each(['searchNearbyPlaces', 'getNearbySuggestedStops'] as const)('%s aborts a stalled response body', async method => {
+      jest.useFakeTimers();
+      provider.mockImplementation(async (_url: string, options: any) => ({
+        ok: true,
+        json: () => new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => reject(new Error('Body aborted')), { once: true });
+        }),
+      }));
+      const result = method === 'searchNearbyPlaces'
+        ? transportService.searchNearbyPlaces('bus stop')
+        : transportService.getNearbySuggestedStops();
+      await jest.advanceTimersByTimeAsync(4001);
+      expect((await result).length).toBeGreaterThan(0);
+      expect(jest.getTimerCount()).toBe(0);
     });
 
     it('should retrieve and update school campus location', async () => {

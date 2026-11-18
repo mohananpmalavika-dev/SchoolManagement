@@ -41,6 +41,8 @@
     "db:seed:demo": "pnpm --filter @krypton/database db:seed:demo",
     "test:smoke": "node scripts/smoke-test.mjs",
     "test:ui": "node scripts/test-ui-redesign.mjs",
+    "test:ui:all": "node scripts/test-functional-ui.mjs",
+    "test:ui:navigation": "node scripts/test-navigation-ui.mjs",
     "test:ui:meetings": "node scripts/test-meetings-ui.mjs",
     "test:ui:chat": "node scripts/test-chat-ui.mjs",
     "test:ui:proxy": "node scripts/test-api-proxy.mjs",

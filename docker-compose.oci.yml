@@ -64,14 +64,24 @@ services:
       DATABASE_URL: postgresql://krypton:${DB_PASSWORD}@postgres:5432/krypton
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      CORS_ORIGIN: ${PUBLIC_DOMAIN:-http://localhost}
-      WEB_URL: ${PUBLIC_DOMAIN:-http://localhost}
+      CORS_ORIGIN: ${PUBLIC_DOMAIN:-https://localhost}
+      WEB_URL: ${PUBLIC_DOMAIN:-https://localhost}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      # Classroom CCTV Live Streaming Gateway (all three must be set together with HTTPS)
+      CCTV_GATEWAY_URL: ${CCTV_GATEWAY_URL:-}
+      CCTV_GATEWAY_KEY: ${CCTV_GATEWAY_KEY:-}
+      CCTV_PLAYBACK_ORIGINS: ${CCTV_PLAYBACK_ORIGINS:-}
       # Indian Gateway & WhatsApp Integrations
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
@@ -105,6 +115,59 @@ services:
     networks:
       - krypton_net
 
+  # Lightweight RTSP/SRT -> WebRTC (WHEP) & LL-HLS Streaming Engine (ARM64 + AMD64)
+  # Stays strictly behind cctv-gateway for HTTP/API auth; only ICE (8189) & SRT ingest (8890) are published.
+  mediamtx:
+    image: bluenviron/mediamtx:1.12.2
+    container_name: krypton_oci_mediamtx
+    restart: always
+    environment:
+      MTX_WEBRTCADDITIONALHOSTS: ${OCI_PUBLIC_IP:-}
+    volumes:
+      - ./services/cctv-gateway/mediamtx.oci.yml:/mediamtx.yml:ro
+    ports:
+      - "8189:8189/udp"
+      - "8189:8189/tcp"
+      - "8890:8890/udp"
+    expose:
+      - "8554"
+      - "8888"
+      - "8889"
+      - "9997"
+    networks:
+      - krypton_net
+
+  # OM System Hardware Bridge & Short-Lived Session Security Proxy
+  cctv-gateway:
+    build:
+      context: ./services/cctv-gateway
+      dockerfile: Dockerfile
+    container_name: krypton_oci_cctv_gateway
+    restart: always
+    environment:
+      PORT: 4010
+      CCTV_GATEWAY_KEY: ${CCTV_GATEWAY_KEY:-${CCTV_GATEWAY_SECRET:-}}
+      CCTV_SESSION_SECRET: ${CCTV_SESSION_SECRET:-}
+      CCTV_INTERNAL_SECRET: ${CCTV_INTERNAL_SECRET:-}
+      CCTV_PUBLISH_TOKEN: ${CCTV_PUBLISH_TOKEN:-}
+      CCTV_PUBLIC_ORIGIN: ${CCTV_PLAYBACK_ORIGINS:-${PUBLIC_DOMAIN:-}}
+      CCTV_FRAME_ANCESTORS: ${PUBLIC_DOMAIN:-}
+      WEBRTC_STUN_URLS: ${WEBRTC_STUN_URLS:-stun:stun.l.google.com:19302}
+      MEDIAMTX_API_URL: http://mediamtx:9997
+      MEDIAMTX_WEBRTC_URL: http://mediamtx:8889
+      MEDIAMTX_HLS_URL: http://mediamtx:8888
+      CAMERAS_CONFIG_PATH: /app/config/cameras.json
+      # Optional NVR password env vars referenced inside cameras.json via ${VAR_NAME}
+      NVR_SCHOOL1_PASSWORD: ${NVR_SCHOOL1_PASSWORD:-}
+    volumes:
+      - ./services/cctv-gateway/cameras.json:/app/config/cameras.json:ro
+    depends_on:
+      - mediamtx
+    expose:
+      - "4010"
+    networks:
+      - krypton_net
+
   nginx:
     image: nginx:alpine
     container_name: krypton_oci_nginx
@@ -113,12 +176,13 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/oci-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${NGINX_CONF_FILE:-./nginx/oci-nginx.conf}:/etc/nginx/conf.d/default.conf:ro
       - oci_certbot_www:/var/www/certbot:ro
       - oci_certbot_conf:/etc/letsencrypt:ro
     depends_on:
       - web
       - api
+      - cctv-gateway
     networks:
       - krypton_net
 
@@ -131,4 +195,3 @@ volumes:
 networks:
   krypton_net:
     driver: bridge
-

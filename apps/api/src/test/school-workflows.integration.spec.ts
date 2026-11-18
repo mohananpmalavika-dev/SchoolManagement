@@ -1,5 +1,7 @@
+/// <reference lib="dom" />
 import { createHmac, randomUUID } from 'node:crypto';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Request, INestApplication, ValidationPipe } from '@nestjs/common';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { Test } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
@@ -45,6 +47,17 @@ import { OperationsController } from '../modules/operations/operations.controlle
 import { StorageService } from '../common/services/storage.service';
 import { SavedTransportController } from '../modules/operations/transport.controller';
 import { SavedTransportService } from '../modules/operations/transport.service';
+import { PlatformController } from '../modules/platform/platform.controller';
+import { PlatformService } from '../modules/platform/platform.service';
+import { SubscriptionsController } from '../modules/subscriptions/subscriptions.controller';
+import { SubscriptionsService } from '../modules/subscriptions/subscriptions.service';
+import { SubscriptionsScopeInterceptor } from '../modules/subscriptions/subscriptions-scope.interceptor';
+
+@Controller()
+class SchoolBrowserSessionProbe {
+  @Get('auth/me') me(@Request() request: any) { return request.user; }
+  @Get('preschool/navigation') navigation() { return { programme: 'STANDARD' }; }
+}
 
 const url = process.env.SCHOOL_TEST_DATABASE_URL;
 jest.setTimeout(30000); // Authenticated multi-request database workflows also run on slower CI workers.
@@ -61,6 +74,7 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     term = id(),
     subject = id();
   const principal = id(),
+    platformAdmin = id(),
     teacher = id(),
     otherTeacher = id(),
     parent = id(),
@@ -144,6 +158,7 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     await db.user.createMany({
       data: [
         [principal, 'PRINCIPAL'],
+        [platformAdmin, 'SUPER_ADMIN'],
         [teacher, 'TEACHER'],
         [otherTeacher, 'TEACHER'],
         [parent, 'PARENT'],
@@ -298,6 +313,9 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     const module = await Test.createTestingModule({
       imports: [PassportModule],
       controllers: [
+        SchoolBrowserSessionProbe,
+        PlatformController,
+        SubscriptionsController,
         SavedTransportController,
         OperationsController,
         WorkspaceController,
@@ -315,6 +333,9 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         StudentsController,
       ],
       providers: [
+        PlatformService,
+        SubscriptionsService,
+        SubscriptionsScopeInterceptor,
         {provide:StorageService,useValue:{
           isConfigured:()=>true,
           uploadFile:async(bytes:Buffer,options:any)=>({key:tenant+'/documents/2026/11/'+options.filename}),
@@ -414,6 +435,65 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     }
   });
 
+  it('connects platform school, account and subscription administration across schools', async () => {
+    let planId: string | undefined;
+    let createdTenant: string | undefined;
+    try {
+      expect((await request('/admin/schools', principal)).status).toBe(403);
+      const school = await request('/admin/schools', platformAdmin, 'POST', { data: {
+        name: 'Provisioned school', subdomain: 'qa-' + id(), contactEmail: 'office@example.test', contactPhone: '0000000000',
+      } });
+      expect(school.status).toBe(201);
+      createdTenant = school.body.id;
+      expect(await db.school.count({ where: { tenantId: createdTenant } })).toBe(1);
+      const account = await request('/admin/users', platformAdmin, 'POST', { data: {
+        tenantId: createdTenant, email: id() + '@example.test', firstName: 'New', lastName: 'Principal', role: 'PRINCIPAL', password: 'Test-password-1234',
+      } });
+      expect(account.status).toBe(201);
+      expect((await request('/admin/users', platformAdmin)).body.find((u: any) => u.id === account.body.id)).not.toHaveProperty('passwordHash');
+      expect((await request('/admin/users/' + platformAdmin, platformAdmin, 'PATCH', { data: { status: 'SUSPENDED' } })).status).toBe(400);
+      const plan = await request('/subscriptions/plans', platformAdmin, 'POST', {
+        name: 'Test plan', slug: 'qa-' + id(), price: 120000, maxStudents: 100, maxStaff: 10,
+        features: [], trialDays: 0, smsCredits: 0, maxStorageMB: 0,
+      });
+      expect(plan.status).toBe(201);
+      planId = plan.body.id;
+      expect(plan.body).toMatchObject({ trialDays: 0, smsCredits: 0, maxStorageMB: 0 });
+      const subscription = await request('/subscriptions', platformAdmin, 'POST', { tenantId: createdTenant, planId });
+      expect(subscription.status).toBe(201);
+      const subscriptionId = subscription.body.id;
+      expect((await request('/subscriptions/' + subscriptionId, platformAdmin)).status).toBe(200);
+      expect((await request('/subscriptions?status=ACTIVE', platformAdmin)).body.every((s: any) => s.status === 'ACTIVE')).toBe(true);
+      expect((await request('/subscriptions?status=TRIAL', platformAdmin)).body.some((s: any) => s.id === subscriptionId)).toBe(true);
+      expect((await request('/subscriptions/' + subscriptionId + '/cancel', principal, 'POST', { reason: 'Cross-school attempt' })).status).toBe(404);
+      expect((await request('/subscriptions/' + subscriptionId, platformAdmin, 'PATCH', { autoRenew: false })).status).toBe(200);
+      expect((await request('/admin/subscriptions', platformAdmin)).body.some((s: any) => s.id === subscriptionId)).toBe(true);
+      await db.subscription.update({ where: { id: subscriptionId }, data: { status: 'EXPIRED' } });
+      expect((await request('/subscriptions?includeExpired=false', platformAdmin)).body.some((s: any) => s.id === subscriptionId)).toBe(false);
+      expect((await request('/subscriptions?includeExpired=true', platformAdmin)).body.some((s: any) => s.id === subscriptionId)).toBe(true);
+      expect((await request('/subscriptions?status=EXPIRED', platformAdmin)).body.some((s: any) => s.id === subscriptionId)).toBe(true);
+      expect((await request('/admin/users/' + account.body.id, platformAdmin, 'PATCH', { data: { status: 'SUSPENDED' } })).status).toBe(200);
+      expect((await request('/workspace/overview', account.body.id)).status).toBe(401);
+    } finally {
+      if (createdTenant) await db.tenant.delete({ where: { id: createdTenant } });
+      if (planId) await db.plan.deleteMany({ where: { id: planId } });
+    }
+  });
+
+  it('serves plan discovery before the subscription ID route', async () => {
+    const plan = await db.plan.create({ data: {
+      name: 'Inactive QA plan', slug: 'qa-' + id(), price: 0, maxStudents: 10, maxStaff: 2, features: [], isActive: false,
+    } });
+    try {
+    const result = await request('/subscriptions/plans?activeOnly=true', principal);
+    expect(result.status).toBe(200);
+    expect(Array.isArray(result.body)).toBe(true);
+    expect(result.body.some((row: any) => row.id === plan.id)).toBe(false);
+    expect((await request('/subscriptions/plans?activeOnly=false', principal)).body.some((row: any) => row.id === plan.id)).toBe(true);
+    expect((await request('/subscriptions/plans?activeOnly=invalid', principal)).status).toBe(400);
+    } finally { await db.plan.delete({ where: { id: plan.id } }); }
+  });
+
   it('requires authentication and denies cross-tenant records', async () => {
     expect((await request('/workspace/students', '')).status).toBe(401);
     expect((await request('/workspace/student/' + child, outsider)).status).toBe(404);
@@ -448,6 +528,51 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     ).toHaveLength(1);
     expect((await request('/workspace/notifications', otherParent)).body).toHaveLength(0);
   });
+  it('keeps original attendance writes and shared registers on the same calendar date', async () => {
+    const date = '2026-12-08';
+    const saved = await request('/attendance/students/single', teacher, 'POST', {
+      studentId: child, date, status: 'PRESENT',
+    });
+    expect(saved.status).toBe(201);
+    expect(saved.body.date).toBe(date + 'T00:00:00.000Z');
+    const register = await request(`/workspace/register?classId=${cls}&date=${date}`, teacher);
+    expect(register.body.find((row: any) => row.id === child).status).toBe('PRESENT');
+    await request('/workspace/register', teacher, 'POST', {
+      classId: cls, date, records: [{ studentId: child, status: 'LATE' }],
+    });
+    const original = await request(`/attendance/students?classId=${cls}&date=${date}`, teacher);
+    expect(original.body.data.filter((row: any) => row.studentId === child)).toHaveLength(1);
+    expect(original.body.data.find((row: any) => row.studentId === child).status).toBe('LATE');
+    const staffSaved = await request('/attendance/staff/single', principal, 'POST', {
+      staffId: staff, date, status: 'PRESENT',
+    });
+    expect(staffSaved.status).toBe(201);
+    expect(staffSaved.body.date).toBe(date + 'T00:00:00.000Z');
+    const staffRows = await request(`/attendance/staff?date=${date}`, principal);
+    expect(staffRows.status).toBe(200);
+    expect(staffRows.body.find((row: any) => row.staffId === staff).status).toBe('PRESENT');
+  });
+
+  it('updates attendance class allocation after a same-day student move', async () => {
+    const date = '2026-12-09';
+    try {
+      await request('/workspace/register', principal, 'POST', {
+        classId: cls, date, records: [{ studentId: child, status: 'PRESENT' }],
+      });
+      await db.student.update({ where: { id: child }, data: { currentClassId: otherClass } });
+      expect((await request('/workspace/register', principal, 'POST', {
+        classId: otherClass, date, records: [{ studentId: child, status: 'LATE' }],
+      })).status).toBe(201);
+      const register = await request(`/workspace/register?classId=${otherClass}&date=${date}`, principal);
+      expect(register.body.find((row: any) => row.id === child).status).toBe('LATE');
+      const rows = await db.attendanceRecord.findMany({ where: { tenantId: tenant, studentId: child, date: new Date(date) } });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].classId).toBe(otherClass);
+    } finally {
+      await db.student.update({ where: { id: child }, data: { currentClassId: cls } });
+    }
+  });
+
   it('binds homework guardian IDs to the signed-in parent and assignment to the child class', async () => {
     expect(
       (await request(`/homework/student/${otherChild}/guardian/${otherGuardian}`, parent)).status
@@ -768,6 +893,13 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     ).toBe(403);
   });
   it('rejects nonexistent calendar dates and cross-class student timetables', async () => {
+    expect((await request('/attendance/students/single', principal, 'POST', {
+      studentId: child, date: '2026-02-30', status: 'PRESENT',
+    })).status).toBe(400);
+    expect((await request('/attendance/students?date=2026-02-30', principal)).status).toBe(400);
+    expect((await request('/attendance/staff/single', principal, 'POST', {
+      staffId: staff, date: '2026-02-30', status: 'PRESENT',
+    })).status).toBe(400);
     expect(
       (
         await request('/workspace/events', principal, 'POST', {
@@ -1096,6 +1228,82 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     expect((await request('/workspace/inventory/'+item.body.id,principal,'PATCH',{data:{quantity:-1}})).status).toBe(400);
     expect(await db.inventoryItem.findUniqueOrThrow({where:{id:item.body.id}})).toMatchObject({quantity:0});
   });
+
+  const browserTest = process.env.SCHOOL_UI_BASE_URL ? it : it.skip;
+  browserTest('persists browser-created students and shares saved attendance with the family', async () => {
+    const { chromium } = await import('playwright');
+    const browser = await chromium.launch({ headless: true });
+    const errors: string[] = [];
+    const output = '../../qa/functionality-real-browser';
+    await mkdir(output, { recursive: true });
+    async function pageFor(user: string) {
+      const context = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1440, height: 1000 } });
+      await context.addInitScript(token => localStorage.setItem('accessToken', token),
+        jwt.sign({ sub: user, ver: 0, type: 'access' }, { expiresIn: '10m' }));
+      await context.route('**/api/v1/**', async route => {
+        const url = new URL(route.request().url());
+        const response = await route.fetch({ url: base + url.pathname.replace(/^\/api\/v1/, '') + url.search });
+        await route.fulfill({ response });
+      });
+      const page = await context.newPage();
+      page.on('pageerror', error => errors.push(error.message));
+      return page;
+    }
+    try {
+      await db.student.update({ where: { id: child }, data: { currentClassId: cls } });
+      const page = await pageFor(principal);
+      const admissionNumber = 'BROWSER-' + id();
+      await page.goto(process.env.SCHOOL_UI_BASE_URL + '/school/students');
+      await page.getByRole('button', { name: 'Add student', exact: true }).click();
+      const dialog = page.getByRole('dialog');
+      await dialog.getByLabel('Admission no.').fill(admissionNumber);
+      await dialog.getByLabel('First name').fill('Browser');
+      await dialog.getByLabel('Last name').fill('Learner');
+      await dialog.getByLabel('Date of birth').fill('2018-04-12');
+      await dialog.getByLabel('Admission date').fill('2026-11-18');
+      await dialog.getByLabel('Gender').selectOption('FEMALE');
+      await dialog.getByRole('button', { name: /More details/ }).click();
+      await dialog.getByLabel('Class', { exact: true }).selectOption(cls);
+      await dialog.getByRole('button', { name: 'Create record', exact: true }).click();
+      await dialog.waitFor({ state: 'hidden' });
+      const pupil = await db.student.findUniqueOrThrow({ where: { tenantId_admissionNumber: { tenantId: tenant, admissionNumber } } });
+      expect(pupil.currentClassId).toBe(cls);
+      expect(await db.enrollment.count({ where: { tenantId: tenant, studentId: pupil.id } })).toBe(1);
+      await page.reload();
+      await page.getByRole('searchbox', { name: 'Search Students' }).fill(admissionNumber);
+      await page.getByRole('button', { name: 'View Browser Learner', exact: true }).waitFor();
+      await page.screenshot({ path: output + '/saved-student.png', fullPage: true });
+
+      const date = '2026-12-11';
+      await page.goto(process.env.SCHOOL_UI_BASE_URL + '/school/attendance');
+      await page.getByLabel('Class', { exact: true }).selectOption(cls);
+      await page.getByLabel('Register date').fill(date);
+      await page.getByLabel('Attendance for Browser Learner', { exact: true }).waitFor();
+      await page.getByRole('button', { name: 'Mark all present', exact: true }).click();
+      await page.getByRole('button', { name: 'Save register', exact: true }).click();
+      await page.getByRole('status').filter({ hasText: 'records saved successfully' }).waitFor();
+      expect(await db.attendanceRecord.count({ where: { tenantId: tenant, studentId: { in: [child, pupil.id] }, date: new Date(date), status: 'PRESENT' } })).toBe(2);
+      await page.reload();
+      await page.getByLabel('Class', { exact: true }).selectOption(cls);
+      await page.getByLabel('Register date').fill(date);
+      await page.waitForFunction(() => {
+        const input = document.querySelector('select[aria-label="Attendance for Browser Learner"]') as HTMLSelectElement | null;
+        return input?.value === 'PRESENT';
+      });
+      const family = await pageFor(parent);
+      await family.goto(process.env.SCHOOL_UI_BASE_URL + '/dashboard/attendance');
+      await family.getByLabel('Viewing your child', { exact: true }).selectOption(child);
+      await family.getByRole('row').filter({ hasText: /11 Dec 2026|Dec 11, 2026|11 Dec, 2026/ }).filter({ hasText: /present/i }).waitFor();
+      await family.screenshot({ path: output + '/family-attendance.png', fullPage: true });
+      expect(errors).toEqual([]);
+      await writeFile(output + '/results.json', JSON.stringify({
+        checks: ['Browser record creation persists with enrollment history', 'Reload reads saved student',
+          'Attendance saves through real HTTP into PostgreSQL', 'Reload retains attendance', 'Family sees the same saved attendance'],
+        records: 'Real disposable PostgreSQL records; API requests forwarded to authenticated Nest controllers',
+        authentication: 'Test-issued JWTs; login-provider delivery is not exercised here', errors,
+      }, null, 2));
+    } finally { await browser.close(); }
+  }, 90000);
 
   it('grants shared school tools to explicitly assigned preschool teachers and revokes them when unassigned',async()=>{
     await db.timetableEntry.deleteMany({where:{teacherId:staff,tenantId:tenant}});

@@ -1,0 +1,68 @@
+###############################################################################
+# MediaMTX Streaming Engine Configuration for Oracle Cloud (OCI)
+# OM System Hardware Bridge — Hikvision / Dahua / CP Plus -> WebRTC & LL-HLS
+###############################################################################
+
+logLevel: info
+logDestinations: [stdout]
+
+# Zero-trust external HTTP authentication via cctv-gateway container.
+# Blocks unauthenticated reads, unauthorized school pushes, and Control API calls.
+authMethod: http
+authHTTPAddress: http://cctv-gateway:4010/internal/mediamtx/auth
+
+# Control API (internal Docker network only — NEVER expose port 9997 publicly!)
+api: yes
+apiAddress: 0.0.0.0:9997
+
+# Disable unused protocols to minimize attack surface & memory footprint
+rtmp: no
+metrics: no
+pprof: no
+
+# RTSP Server (used internally + optional WireGuard/VPN push from OM System bridges)
+rtsp: yes
+rtspAddress: :8554
+rtspTransports: [tcp]
+
+# SRT Ingest (recommended for OM System School Edge Bridges behind CGNAT / JioFiber / BSNL)
+# Encrypted, low-latency, packet-loss resilient over Indian broadband.
+srt: yes
+srtAddress: :8890
+
+# WebRTC (WHEP) — Primary sub-second live playback for Android Chrome, iOS Safari & Desktop
+# HTTP signaling (:8889) stays strictly internal behind cctv-gateway & Nginx HTTPS.
+# Media ICE port (:8189 UDP + TCP) is opened on OCI for direct browser media transport.
+webrtc: yes
+webrtcAddress: :8889
+webrtcAllowOrigin: ''
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189
+# Set MTX_WEBRTCADDITIONALHOSTS=<YOUR_OCI_PUBLIC_IP> in docker-compose.oci.yml
+webrtcAdditionalHosts: []
+
+# Low-Latency HLS — Automatic fallback for iOS Safari & restrictive firewalls
+# Stays strictly internal behind cctv-gateway (enforces 2-min session expiry on every segment!).
+hls: yes
+hlsAddress: :8888
+hlsAllowOrigin: ''
+hlsAlwaysRemux: no
+hlsVariant: lowLatency
+hlsSegmentCount: 4
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+hlsDirectory: ''
+
+# Global defaults for dynamically registered school classroom cameras
+pathDefaults:
+  # Pull RTSP from school NVR ONLY while a parent/staff member is actively watching.
+  # Stops pulling 15s after the last viewer disconnects to save school upload bandwidth.
+  sourceOnDemand: yes
+  sourceOnDemandStartTimeout: 10s
+  sourceOnDemandCloseAfter: 15s
+  # TCP transport avoids grey/corrupted H.264 frames from Hikvision/Dahua/CP Plus over WAN/VPN
+  rtspTransport: tcp
+  # Allow only one active publisher per push path
+  overridePublisher: yes
+
+paths: {}

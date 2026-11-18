@@ -1,0 +1,14 @@
+{
+  "name": "@krypton/cctv-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Lightweight secure CCTV live streaming bridge (MediaMTX + OM System NVR hardware bridge) for Krypton School ERP",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

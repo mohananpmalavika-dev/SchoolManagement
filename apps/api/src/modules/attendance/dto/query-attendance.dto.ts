@@ -28,17 +28,17 @@ export class QueryAttendanceDto {
 
   @ApiPropertyOptional({ description: 'Start date (YYYY-MM-DD)' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   startDate?: string;
 
   @ApiPropertyOptional({ description: 'End date (YYYY-MM-DD)' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   endDate?: string;
 
   @ApiPropertyOptional({ description: 'Specific date (YYYY-MM-DD)' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   date?: string;
 
   @ApiPropertyOptional({ description: 'Filter by status', enum: AttendanceStatus })
@@ -80,12 +80,12 @@ export class AttendanceSummaryDto {
 
   @ApiPropertyOptional({ description: 'Start date (YYYY-MM-DD)' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   startDate?: string;
 
   @ApiPropertyOptional({ description: 'End date (YYYY-MM-DD)' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   endDate?: string;
 }
 
@@ -96,11 +96,11 @@ export class StudentAttendanceReportDto {
 
   @ApiPropertyOptional({ description: 'Start date (YYYY-MM-DD)' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   startDate?: string;
 
   @ApiPropertyOptional({ description: 'End date (YYYY-MM-DD)' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   endDate?: string;
 }

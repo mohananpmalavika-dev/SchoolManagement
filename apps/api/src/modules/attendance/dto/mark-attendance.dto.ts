@@ -34,7 +34,7 @@ export class MarkStudentAttendanceDto {
 
   @ApiPropertyOptional({ description: 'Time of arrival (for late students)' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   arrivalTime?: string;
 }
 
@@ -49,7 +49,7 @@ export class BulkMarkAttendanceDto {
   streamId?: string;
 
   @ApiProperty({ description: 'Date (YYYY-MM-DD)' })
-  @IsDateString()
+  @IsDateString({ strict: true })
   date: string;
 
   @ApiPropertyOptional({ description: 'Academic period/session' })
@@ -75,7 +75,7 @@ export class MarkSingleAttendanceDto {
   studentId: string;
 
   @ApiProperty({ description: 'Date (YYYY-MM-DD)' })
-  @IsDateString()
+  @IsDateString({ strict: true })
   date: string;
 
   @ApiPropertyOptional({ description: 'Academic period/session (1-10)' })
@@ -99,7 +99,7 @@ export class MarkSingleAttendanceDto {
 
   @ApiPropertyOptional({ description: 'Time of arrival (for late students)' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   arrivalTime?: string;
 }
 
@@ -119,6 +119,6 @@ export class UpdateAttendanceDto {
 
   @ApiPropertyOptional({ description: 'Updated arrival time' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   arrivalTime?: string;
 }

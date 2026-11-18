@@ -17,19 +17,19 @@ Internet (Parents, Teachers, Admins)
    │   │       Nginx Reverse Proxy            │   │
    │   └───────────────┬──────────────────────┘   │
    │                   │                          │
-   │         ┌─────────┴─────────┐                │
-   │         ▼                   ▼                │
-   │  ┌──────────────┐    ┌──────────────┐        │
-   │  │   Next.js    │    │  NestJS API  │        │
-   │  │   Frontend   │    │   Backend    │        │
-   │  │  (Port 3000) │    │  (Port 3001) │        │
-   │  └──────────────┘    └──────┬───────┘        │
-   │                             │                │
-   │                   ┌─────────┴─────────┐      │
-   │                   ▼                   ▼      │
-   │            ┌──────────────┐    ┌──────────┐  │
-   │            │ PostgreSQL 16│    │ Redis 7  │  │
-   │            └──────────────┘    └──────────┘  │
+   │         ┌─────────┴─────────┬──────────────────────┐   │
+   │         ▼                   ▼                      ▼   │
+   │  ┌──────────────┐    ┌──────────────┐      ┌───────────────┐
+   │  │   Next.js    │    │  NestJS API  │─────▶│ CCTV Security │
+   │  │   Frontend   │    │   Backend    │      │ Bridge (:4010)│
+   │  │  (Port 3000) │    │  (Port 3001) │      └───────┬───────┘
+   │  └──────────────┘    └──────┬───────┘              ▼       │
+   │                             │              ┌───────────────┐
+   │                   ┌─────────┴─────────┐    │   MediaMTX    │
+   │                   ▼                   ▼    │ WebRTC / HLS  │
+   │            ┌──────────────┐    ┌──────────┐│ (:8189 / 8890)│
+   │            │ PostgreSQL 16│    │ Redis 7  │└───────────────┘
+   │            └──────────────┘    └──────────┘                │
    └──────────────────────────────────────────────┘
 ```
 
@@ -59,10 +59,10 @@ By default, Oracle Cloud VCN blocks all inbound traffic except SSH (port 22). Yo
 1. On your Instance Details page, click your **Subnet** link (under **Primary VNIC**).
 2. Click the **Default Security List for...**
 3. Click **Add Ingress Rules**:
-   * **Source CIDR:** `0.0.0.0/0`
-   * **IP Protocol:** `TCP`
-   * **Destination Port Range:** `80,443`
-   * **Description:** `Allow Web HTTP & HTTPS traffic`
+   * **Source CIDR:** `0.0.0.0/0` | **IP Protocol:** `TCP` | **Destination Port Range:** `80,443` | **Description:** `Allow Web HTTP & HTTPS traffic`
+   * *(For Live Classroom CCTV)* **Source CIDR:** `0.0.0.0/0` | **IP Protocol:** `UDP` | **Destination Port Range:** `8189` | **Description:** `MediaMTX WebRTC live video (UDP)`
+   * *(For Live Classroom CCTV)* **Source CIDR:** `0.0.0.0/0` | **IP Protocol:** `TCP` | **Destination Port Range:** `8189` | **Description:** `MediaMTX WebRTC ICE-TCP fallback`
+   * *(For OM System CGNAT School Bridge)* **Source CIDR:** `0.0.0.0/0` | **IP Protocol:** `UDP` | **Destination Port Range:** `8890` | **Description:** `MediaMTX SRT ingest from school NVR bridge`
 4. Click **Add Ingress Rules**.
 
 ---
@@ -137,6 +137,14 @@ If you have a domain like `erp.yourschool.edu.in`:
    ```bash
    sudo docker compose --env-file .env.oci -f docker-compose.oci.yml up -d
    ```
+
+---
+
+## Step 7: Live Classroom CCTV (OM System Hardware Bridge — Hikvision / Dahua / CP Plus)
+
+`docker-compose.oci.yml` includes **MediaMTX** (`krypton_oci_mediamtx`) and the **CCTV Security Bridge** (`krypton_oci_cctv_gateway`) pre-wired to Nginx and Krypton ERP.
+
+For complete Hikvision / Dahua / CP Plus RTSP setup, CGNAT School Edge Bridge instructions, HTTPS activation (`nginx/oci-nginx-ssl.conf`), and security verification, see [docs/OM_SYSTEM_CCTV_BRIDGE_GUIDE.md](./docs/OM_SYSTEM_CCTV_BRIDGE_GUIDE.md).
 
 ---
 

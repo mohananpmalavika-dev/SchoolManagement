@@ -166,13 +166,13 @@ export class WorkspaceService {
   await this.authorizeClass(user,classId);if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date)throw new BadRequestException('Choose a valid date');
   const tenantId=this.tenant();const [students,records]=await Promise.all([this.prisma.student.findMany({where:{tenantId,currentClassId:classId,status:'ACTIVE',deletedAt:null},orderBy:{firstName:'asc'}}),this.prisma.attendanceRecord.findMany({where:{tenantId,classId,date:new Date(date),period:1}})]);
   const approved=await this.prisma.absenceRequest.findMany({where:{tenantId,studentId:{in:students.map(s=>s.id)},status:'APPROVED',startDate:{lte:new Date(date)},endDate:{gte:new Date(date)}},select:{studentId:true}});
-  return students.map(s=>({id:s.id,name:s.firstName+' '+s.lastName,admissionNumber:s.admissionNumber,status:records.find(r=>r.studentId===s.id)?.status||(approved.some(a=>a.studentId===s.id)?'EXCUSED':'')}));
+  return students.map(s=>({id:s.id,name:s.firstName+' '+s.lastName,admissionNumber:s.admissionNumber,streamId:s.currentStreamId,status:records.find(r=>r.studentId===s.id)?.status||(approved.some(a=>a.studentId===s.id)?'EXCUSED':'')}));
  }
  async saveRegister(user:any,dto:any){
   if(![...managers,...teacherRoles].includes(user.role))throw new ForbiddenException('Cannot save attendance');
   await this.authorizeClass(user,dto.classId);const roster=await this.register(user,dto.classId,dto.date);const ids=new Set(dto.records.map((r:any)=>r.studentId));
   if(ids.size!==dto.records.length||dto.records.some((r:any)=>!roster.some(s=>s.id===r.studentId)))throw new BadRequestException('Invalid or duplicate students');
-  const tenantId=this.tenant();await this.prisma.$transaction(dto.records.map((r:any)=>this.prisma.attendanceRecord.upsert({where:{tenantId_studentId_date_period:{tenantId,studentId:r.studentId,date:new Date(dto.date),period:1}},create:{tenantId,studentId:r.studentId,classId:dto.classId,date:new Date(dto.date),period:1,status:r.status,markedBy:user.userId},update:{status:r.status,markedBy:user.userId}})));
+  const tenantId=this.tenant();await this.prisma.$transaction(dto.records.map((r:any)=>this.prisma.attendanceRecord.upsert({where:{tenantId_studentId_date_period:{tenantId,studentId:r.studentId,date:new Date(dto.date),period:1}},create:{tenantId,studentId:r.studentId,classId:dto.classId,streamId:roster.find(s=>s.id===r.studentId)?.streamId,date:new Date(dto.date),period:1,status:r.status,markedBy:user.userId},update:{classId:dto.classId,streamId:roster.find(s=>s.id===r.studentId)?.streamId,status:r.status,markedBy:user.userId}})));
   const absent=await this.prisma.attendanceRecord.findMany({where:{tenantId,classId:dto.classId,date:new Date(dto.date),studentId:{in:dto.records.map((r:any)=>r.studentId)},status:'ABSENT'},select:{id:true}});for(const record of absent)await this.familyNotifications.sendAttendanceAlert(record.id);
   await this.audit(user,'ATTENDANCE_SAVED','class',dto.classId);return {saved:dto.records.length};
  }

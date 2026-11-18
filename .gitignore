@@ -26,6 +26,11 @@ logs
 .env
 .env*.local
 .env.production
+.env.oci
+
+# CCTV Gateway live school NVR credentials (never commit)
+services/cctv-gateway/cameras.json
+services/cctv-gateway/edge-bridge/.env.edge
 
 # IDE
 .vscode/*

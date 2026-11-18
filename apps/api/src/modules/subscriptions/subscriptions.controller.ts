@@ -8,6 +8,9 @@ import {
   Delete,
   Query,
   UseGuards,
+  UseInterceptors,
+  DefaultValuePipe,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -32,10 +35,12 @@ import {
   QuerySubscriptionsDto,
 } from './dto/subscription.dto';
 import { CreatePlanDto, UpdatePlanDto } from './dto/plan.dto';
+import { SubscriptionsScopeInterceptor } from './subscriptions-scope.interceptor';
 
 @ApiTags('Subscriptions & Plans')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, TenantGuard)
+@UseInterceptors(SubscriptionsScopeInterceptor)
 @Controller('subscriptions')
 export class SubscriptionsController {
   constructor(
@@ -137,18 +142,6 @@ export class SubscriptionsController {
     return this.subscriptionsService.checkLimits(tenantId);
   }
 
-  @Get(':id')
-  @Roles(Role.SUPER_ADMIN)
-  @SkipTenantCheck()
-  @ApiOperation({ summary: 'Get a single subscription by ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Subscription retrieved successfully',
-  })
-  async findOne(@Param('id') id: string) {
-    return this.subscriptionsService.findOne(id);
-  }
-
   @Patch(':id')
   @Roles(Role.SUPER_ADMIN)
   @SkipTenantCheck()
@@ -234,8 +227,10 @@ export class SubscriptionsController {
     status: 200,
     description: 'Plans retrieved successfully',
   })
-  async findAllPlans(@Query('activeOnly') activeOnly?: boolean) {
-    return this.subscriptionsService.findAllPlans(activeOnly);
+  async findAllPlans(@Query('activeOnly', new DefaultValuePipe(false), ParseBoolPipe) activeOnly: unknown) {
+    // Preserve the raw query through global implicit conversion; ParseBoolPipe
+    // must reject invalid strings instead of receiving Boolean('invalid').
+    return this.subscriptionsService.findAllPlans(activeOnly === true);
   }
 
   @Get('plans/:id')
@@ -273,5 +268,13 @@ export class SubscriptionsController {
   })
   async deletePlan(@Param('id') id: string) {
     return this.subscriptionsService.deletePlan(id);
+  }
+
+  @Get(':id')
+  @Roles(Role.SUPER_ADMIN)
+  @SkipTenantCheck()
+  @ApiOperation({ summary: 'Get a single subscription by ID' })
+  async findOne(@Param('id') id: string) {
+    return this.subscriptionsService.findOne(id);
   }
 }
