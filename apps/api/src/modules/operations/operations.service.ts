@@ -93,6 +93,7 @@ export class OperationsService {
   if(action==='admit'||action==='resend-invites')this.allow(user,managers);
   const passwords=action==='admit'?await this.accounts.preparePasswords():undefined;
   await this.db.$transaction(async tx=>{
+   if(action==='admit')await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});
    if(!await tx.admissionRecord.findFirst({where:{id,tenantId}}))throw new NotFoundException('Application not found');await tx.admissionRecord.update({where:{id,tenantId},data:{version:{increment:1}}});const row=(await tx.admissionRecord.findFirst({where:{id,tenantId}}))!;
    if(action==='resend-invites'){
     this.allow(user,managers);this.parse({},input);

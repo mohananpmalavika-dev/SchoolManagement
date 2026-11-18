@@ -17,6 +17,7 @@ const childId = '00000000-0000-4000-8000-000000000001',
   classId = '00000000-0000-4000-8000-000000000002',
   guardianId = '00000000-0000-4000-8000-000000000003';
 let day = null,
+  pickupPass = null,
   content = [],
   observations = [],
   consent = false;
@@ -66,12 +67,22 @@ async function session(role, width = 1440) {
         tenantId: 'tenant-a',
       });
     if (path === '/api/preschool/navigation') return ok({ programme: 'PRESCHOOL' });
-    if (path === '/api/preschool/copilot')
-      return ok({
-        answer: 'Model a short supported turn and offer a quiet alternative.',
-        suggestedActivities: ['Picture circle'],
-        source: 'Classroom guidance library',
-      });
+    if (path === '/api/preschool/copilot') {
+      const body = route.request().postDataJSON();
+      return ok(
+        body?.history?.length
+          ? {
+              answer: 'Offer a calm sensory basket for younger children while peers take turns.',
+              suggestedActivities: ['Calm sensory basket'],
+              source: 'Classroom guidance library',
+            }
+          : {
+              answer: 'Model a short supported turn and offer a quiet alternative.',
+              suggestedActivities: ['Picture circle'],
+              source: 'Classroom guidance library',
+            }
+      );
+    }
     if (path === '/api/preschool/options')
       return ok({
         today: '2026-11-17',
@@ -132,8 +143,77 @@ async function session(role, width = 1440) {
       };
       return ok(day);
     }
+    if (path.endsWith('/pickup-pass/revoke')) {
+      pickupPass = null;
+      return ok({ revoked: 1 });
+    }
+    if (path.endsWith('/pickup-pass') && method === 'POST') {
+      pickupPass = {
+        id: 'pass-1',
+        guardianId,
+        guardianName: 'Anu M',
+        relationship: 'MOTHER',
+        issuedByRole: role,
+        deliveryChannels: ['PORTAL'],
+        expiresAt: new Date(Date.now() + 1800000).toISOString(),
+        otp: '482915',
+        qrPayload: 'KRYPTON-PICKUP-1:qa-fixture-token-00000001',
+      };
+      return ok(
+        role === 'PARENT'
+          ? pickupPass
+          : {
+              id: pickupPass.id,
+              guardianId: pickupPass.guardianId,
+              guardianName: pickupPass.guardianName,
+              relationship: pickupPass.relationship,
+              issuedByRole: pickupPass.issuedByRole,
+              deliveryChannels: pickupPass.deliveryChannels,
+              expiresAt: pickupPass.expiresAt,
+            }
+      );
+    }
+    if (path.endsWith('/pickup-pass')) {
+      return ok({
+        today: '2026-11-17',
+        pickupVerification: 'OPTIONAL',
+        checkedIn: !!day?.checkInAt,
+        checkedOut: !!day?.checkOutAt,
+        checkInAt: day?.checkInAt || null,
+        checkOutAt: day?.checkOutAt || null,
+        pickupVerificationMethod: day?.pickupVerificationMethod || null,
+        collectedBy: day?.checkOutAt ? 'Anu M' : null,
+        activePass: pickupPass
+          ? role === 'PARENT'
+            ? pickupPass
+            : {
+                id: pickupPass.id,
+                guardianId: pickupPass.guardianId,
+                guardianName: pickupPass.guardianName,
+                issuedByRole: pickupPass.issuedByRole,
+                deliveryChannels: pickupPass.deliveryChannels,
+                expiresAt: pickupPass.expiresAt,
+              }
+          : null,
+        selfGuardianId: guardianId,
+        authorizedGuardians: [
+          { guardianId, name: 'Anu M', relationship: 'MOTHER', isSelf: true },
+        ],
+      });
+    }
     if (path.endsWith('/check-out')) {
-      day = { ...day, checkOutAt: '2026-11-17T06:30:00Z', version: day.version + 1 };
+      const body = route.request().postDataJSON();
+      day = {
+        ...day,
+        checkOutAt: '2026-11-17T06:30:00Z',
+        pickupVerificationMethod: body?.pickupQrToken
+          ? 'QR'
+          : body?.pickupOtp
+            ? 'OTP'
+            : 'MANUAL',
+        version: day.version + 1,
+      };
+      pickupPass = null;
       return ok(day);
     }
     if (path === '/api/preschool/students/' + childId)
@@ -154,8 +234,15 @@ async function session(role, width = 1440) {
     if (path === '/api/preschool/content/generate')
       return ok({ ...plan, source: 'Editable template library', reviewRequired: true });
     if (path === '/api/preschool/content' && method === 'POST') {
-      content = [{ ...plan, ...route.request().postDataJSON() }];
-      return ok(content[0]);
+      const created = {
+        ...plan,
+        id: 'content-' + (content.length + 1),
+        status: 'DRAFT',
+        version: 1,
+        ...route.request().postDataJSON(),
+      };
+      content = [created, ...content];
+      return ok(created);
     }
     if (path === '/api/preschool/content') return ok({ items: content, hasMore: false });
     if (path.endsWith('/publish')) {
@@ -248,12 +335,15 @@ try {
     await page.getByRole('button', { name: 'Confirm checkout', exact: true }).isEnabled(),
     false
   );
+  await page.getByRole('button', { name: 'Send pickup OTP to parent', exact: true }).click();
+  await page.getByText('Pickup OTP & QR pass sent', { exact: false }).waitFor();
+  await page.getByLabel('Parent pickup OTP (optional)').fill('482915');
   await page.getByLabel('I verified this person’s identity and pickup authorization').check();
   await page.getByRole('button', { name: 'Confirm checkout', exact: true }).click();
   await page
     .getByRole('heading', { name: 'Authorized pickup', exact: true })
     .waitFor({ state: 'hidden' });
-  checks.push('Check-in, reviewed care sharing and identity-confirmed authorized pickup');
+  checks.push('Check-in, reviewed care sharing and OTP/identity-confirmed authorized pickup');
   await page.screenshot({
     path: new URL('staff-desktop.png', out).pathname.replace(/^\/(.:)/, '$1'),
     fullPage: true,
@@ -287,7 +377,35 @@ try {
   await page
     .getByText('Model a short supported turn and offer a quiet alternative.', { exact: true })
     .waitFor();
-  checks.push('INKY classroom guidance with a labelled template source');
+  await page
+    .getByLabel('Ask a follow-up question')
+    .fill('How can I adapt this for younger toddlers?');
+  await page.getByRole('button', { name: 'Ask follow-up', exact: true }).click();
+  await page
+    .getByText('Offer a calm sensory basket for younger children while peers take turns.', {
+      exact: true,
+    })
+    .waitFor();
+  assert.equal(
+    await page
+      .getByText('Model a short supported turn and offer a quiet alternative.', { exact: true })
+      .isVisible(),
+    true
+  );
+  await page.getByRole('button', { name: 'Draft in Activities & plans', exact: true }).first().click();
+  await page.getByRole('heading', { name: 'Edit teaching content', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Picture circle', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'INKY assistant', exact: true }).click();
+  assert.equal(
+    await page
+      .getByText('Model a short supported turn and offer a quiet alternative.', { exact: true })
+      .isVisible(),
+    true
+  );
+  await page.getByRole('button', { name: 'Open draft', exact: true }).waitFor();
+  checks.push(
+    'INKY multi-turn chat history, persistent session thread and one-click conversion into Activities & plans drafts'
+  );
   await page.getByRole('button', { name: 'Child development', exact: true }).click();
   await page.getByLabel('Skill observed').fill('Takes a supported turn');
   await page
@@ -322,6 +440,7 @@ try {
   checks.push('Teacher workspace without school-configuration controls');
   const family = await session('PARENT', 390);
   await family.page.goto(base + '/dashboard/preschool');
+  await family.page.getByRole('heading', { name: 'Safe pickup recorded', exact: true }).waitFor();
   await family.page.getByRole('heading', { name: 'Maya’s school updates', exact: true }).waitFor();
   await family.page.getByText('Enjoyed shared drawing.', { exact: true }).waitFor();
   assert.equal(
@@ -363,8 +482,32 @@ try {
   );
   await family.context.close();
   assert.deepEqual(errors, []);
-  assert.ok(writes.some((w) => w.path.endsWith('/check-out') && w.body?.identityVerified === true));
+  assert.ok(
+    writes.some(
+      (w) =>
+        w.path.endsWith('/check-out') &&
+        w.body?.identityVerified === true &&
+        w.body?.pickupOtp === '482915'
+    )
+  );
   assert.ok(writes.some((w) => w.path.endsWith('/care') && w.body?.shareWithParents === true));
+  assert.ok(
+    writes.some(
+      (w) =>
+        w.path === '/api/preschool/copilot' &&
+        Array.isArray(w.body?.history) &&
+        w.body.history.length >= 2
+    )
+  );
+  assert.ok(
+    writes.some(
+      (w) =>
+        w.path === '/api/preschool/content' &&
+        w.method === 'POST' &&
+        w.body?.title === 'Picture circle' &&
+        w.body?.kind === 'ACTIVITY'
+    )
+  );
   await writeFile(
     new URL('results.json', out),
     JSON.stringify({ checks, errors, writes }, null, 2)

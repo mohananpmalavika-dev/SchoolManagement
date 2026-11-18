@@ -13,5 +13,7 @@ import { WhatsAppService } from '../communications/whatsapp/whatsapp.service';
 import { SchoolMessagingController } from './school-messaging.controller';
 import { AuthModule } from '../auth/auth.module';
 import { AdmissionAccountsService } from './admission-accounts.service';
-@Module({imports:[DatabaseModule,AuthModule],controllers:[OperationsController,SchoolPublicController,SavedTransportController,CheckInController,SchedulePlannerController,SchoolMessagingController],providers:[OperationsService,AdmissionAccountsService,SavedTransportService,CheckInService,RedisService,SchedulePlannerService,WhatsAppService],exports:[OperationsService]})
+import { AcademicRolloverController } from './academic-rollover.controller';
+import { AcademicRolloverService } from './academic-rollover.service';
+@Module({imports:[DatabaseModule,AuthModule],controllers:[OperationsController,SchoolPublicController,SavedTransportController,CheckInController,SchedulePlannerController,SchoolMessagingController,AcademicRolloverController],providers:[OperationsService,AdmissionAccountsService,SavedTransportService,CheckInService,RedisService,SchedulePlannerService,WhatsAppService,AcademicRolloverService],exports:[OperationsService]})
 export class OperationsModule {}

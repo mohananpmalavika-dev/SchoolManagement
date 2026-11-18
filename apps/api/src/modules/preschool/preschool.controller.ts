@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -22,6 +23,8 @@ import { PreschoolContentService } from './preschool-content.service';
 import { ClassroomCameraService } from './classroom-camera.service';
 import { PreschoolPickupService } from './preschool-pickup.service';
 import {
+  BulkCareRecordDto,
+  BulkCheckInDto,
   CameraConsentDto,
   CameraDto,
   CareRecordDto,
@@ -126,6 +129,20 @@ export class PreschoolController {
   ) {
     return this.service.roster(user, id, query.offset);
   }
+  @Post('classes/:id/check-in/bulk') bulkCheckIn(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: BulkCheckInDto
+  ) {
+    return this.service.bulkCheckIn(user, id, dto);
+  }
+  @Post('classes/:id/care/bulk') bulkCare(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: BulkCareRecordDto
+  ) {
+    return this.service.bulkCare(user, id, dto);
+  }
   @Get('students/:id') child(
     @CurrentUser() user: CurrentUserData,
     @Param('id', ParseUUIDPipe) id: string,
@@ -225,6 +242,12 @@ export class PreschoolController {
     @Body() dto: CameraDto
   ) {
     return this.cameras.save(user, dto, id);
+  }
+  @Delete('cameras/:id') cameraDelete(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
+    return this.cameras.remove(user, id);
   }
   @Get('students/:id/cameras') cameraParentList(
     @CurrentUser() user: CurrentUserData,

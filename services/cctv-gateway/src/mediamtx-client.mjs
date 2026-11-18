@@ -75,6 +75,17 @@ export class MediaMtxClient {
     throw new Error(`MediaMTX patch path failed (${patchRes.status}): ${patchRes.text}`);
   }
 
+  async removePath(streamPath) {
+    if (!streamPath) return true;
+    const encodedPath = encodeURIComponent(streamPath);
+    try {
+      const res = await this.request('DELETE', `/v3/config/paths/delete/${encodedPath}`);
+      return res.ok || res.status === 404;
+    } catch {
+      return false;
+    }
+  }
+
   async syncAllPaths(cameras) {
     const results = { synced: 0, failed: 0 };
     for (const camera of cameras) {

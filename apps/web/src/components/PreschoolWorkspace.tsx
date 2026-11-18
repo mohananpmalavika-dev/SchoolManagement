@@ -2,7 +2,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Baby, ClipboardCheck, Flower2, RefreshCw, Sparkles } from 'lucide-react';
+import { Baby, CheckCheck, ClipboardCheck, Flower2, RefreshCw, Sparkles } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguageContext } from '@/contexts/LanguageContext';
@@ -14,13 +14,15 @@ import {
   type PreschoolChild,
   type PreschoolChildView,
   type PreschoolContent as Content,
+  type PreschoolCopilotMessage,
   type PreschoolOptions,
 } from '@/lib/preschool';
 import { messageFor, dateLabel } from '@/lib/workspace';
 import { Button } from './ui';
-import { EmptyState, PageHeading, Panel, StatCard } from './WorkspaceUI';
+import { EmptyState, PageHeading, Panel, StatCard, StatusPill } from './WorkspaceUI';
 import { PreschoolContent, PreschoolPrint } from './preschool/PreschoolContent';
 import {
+  PreschoolBulkCareForm,
   PreschoolCareForm,
   PreschoolChildHistory,
   PreschoolObservationForm,
@@ -80,8 +82,52 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
     [busy, setBusy] = useState(false),
     [from, setFrom] = useState(''),
     [to, setTo] = useState(''),
-    [print, setPrint] = useState<Content | null>(null);
+    [print, setPrint] = useState<Content | null>(null),
+    [selectedIds, setSelectedIds] = useState<string[]>([]),
+    [copilotHistoryByClass, setCopilotHistoryByClass] = useState<
+      Record<string, PreschoolCopilotMessage[]>
+    >({}),
+    [pendingContentEdit, setPendingContentEdit] = useState<{
+      content: Content;
+      sourceLabel?: string;
+    } | null>(null);
   const working = useRef(false);
+  const consumePendingContentEdit = useCallback(() => setPendingContentEdit(null), []);
+  const copilotStorageKey =
+    !family && user?.id && classId ? `krypton.preschool.inky.${user.id}.${classId}` : '';
+  useEffect(() => {
+    if (!copilotStorageKey) return;
+    setCopilotHistoryByClass((current) => {
+      if (current[classId] !== undefined) return current;
+      try {
+        const raw = window.sessionStorage.getItem(copilotStorageKey);
+        if (!raw) return { ...current, [classId]: [] };
+        const parsed = JSON.parse(raw);
+        return { ...current, [classId]: Array.isArray(parsed) ? parsed.slice(-40) : [] };
+      } catch {
+        return { ...current, [classId]: [] };
+      }
+    });
+  }, [classId, copilotStorageKey]);
+  const updateCopilotMessages = useCallback(
+    (updater: (prev: PreschoolCopilotMessage[]) => PreschoolCopilotMessage[]) => {
+      if (!classId) return;
+      setCopilotHistoryByClass((current) => {
+        const prev = current[classId] ?? [];
+        const next = updater(prev).slice(-40);
+        if (copilotStorageKey) {
+          try {
+            if (next.length === 0) window.sessionStorage.removeItem(copilotStorageKey);
+            else window.sessionStorage.setItem(copilotStorageKey, JSON.stringify(next));
+          } catch {
+            // Ignore storage quota or private browsing errors
+          }
+        }
+        return { ...current, [classId]: next };
+      });
+    },
+    [classId, copilotStorageKey]
+  );
   useEffect(() => {
     if (!family) return;
     const timer = setInterval(() => {
@@ -146,6 +192,8 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
         setRoster(data.students);
         setPickupVerification(data.pickupVerification === 'REQUIRED' ? 'REQUIRED' : 'OPTIONAL');
         setTotal(data.total);
+        const visibleIds = new Set(data.students.map((s: PreschoolChild) => s.id));
+        setSelectedIds((current) => current.filter((id) => visibleIds.has(id)));
         setStudent((current) =>
           data.students.some((s: PreschoolChild) => s.id === current)
             ? current
@@ -192,14 +240,45 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
     setError('');
     setNotice('');
     try {
-      await apiClient[method]('/preschool' + path, data);
+      const response =
+        method === 'delete'
+          ? await apiClient.delete('/preschool' + path)
+          : await apiClient[method]('/preschool' + path, data);
       if (
         path.startsWith('/schools/') ||
-        path.startsWith('/classes/') ||
+        (method === 'patch' && path.startsWith('/classes/')) ||
         path === '/staff-assignments'
       )
         window.dispatchEvent(new Event('preschool-configuration-changed'));
-      setNotice('Saved successfully.');
+      const result = response?.data as
+        | {
+          checkedInCount?: number;
+          updatedCount?: number;
+          skippedCount?: number;
+          sharedWithParents?: boolean;
+        }
+        | undefined;
+      if (path.endsWith('/check-in/bulk') && typeof result?.checkedInCount === 'number') {
+        const count = result.checkedInCount;
+        const skipped = result.skippedCount || 0;
+        setNotice(
+          count === 0
+            ? 'All selected children were already checked in today.'
+            : `Checked in ${count} ${count === 1 ? 'child' : 'children'}${skipped ? ` (${skipped} already checked in)` : ''
+            }.`
+        );
+      } else if (path.endsWith('/care/bulk') && typeof result?.updatedCount === 'number') {
+        const count = result.updatedCount;
+        const skipped = result.skippedCount || 0;
+        setNotice(
+          count === 0
+            ? 'No children matched the bulk update selection.'
+            : `Updated daily care for ${count} ${count === 1 ? 'child' : 'children'}${result.sharedWithParents ? ' and shared with parents' : ''
+            }${skipped ? ` (${skipped} skipped)` : ''}.`
+        );
+      } else {
+        setNotice('Saved successfully.');
+      }
       setRefresh((v) => v + 1);
       return true;
     } catch (err) {
@@ -211,6 +290,17 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
     }
   }, []);
   const selected = roster.find((s) => s.id === studentId);
+  const uncheckedOnPage = roster.filter((s) => !s.day?.checkInAt && !s.day?.checkOutAt);
+  const checkedInOnPage = roster.filter((s) => !!s.day?.checkInAt);
+  const selectedUncheckedIds = selectedIds.filter((id) =>
+    uncheckedOnPage.some((s) => s.id === id)
+  );
+  const allSelectedOnPage =
+    roster.length > 0 && roster.every((s) => selectedIds.includes(s.id));
+  const toggleSelected = (id: string) =>
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    );
   const eligible = options.classes.filter(
     (c) => c.educationLevel === 'PRE_PRIMARY' && c.school.programme !== 'STANDARD'
   );
@@ -298,6 +388,8 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                           onChange={(e) => {
                             setClass(e.target.value);
                             setStudent('');
+                            setSelectedIds([]);
+                            setPendingContentEdit(null);
                             setOffset(0);
                             setError('');
                             setNotice('');
@@ -414,9 +506,9 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                   </div>
                   <Panel
                     title="Today’s attendance"
-                    subtitle="Check in each child when they arrive. Checkout requires an authorized guardian."
+                    subtitle="Check in individual children or the entire class in one click. Checkout requires an authorized guardian."
                   >
-                    <div className="panel-body">
+                    <div className="panel-body space-y-4">
                       {rosterLoading ? (
                         <p role="status">Loading class register…</p>
                       ) : !roster.length ? (
@@ -425,55 +517,192 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                           description="Add students to this class in the student directory."
                         />
                       ) : (
-                        <div className="table-wrap">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Child</th>
-                                <th>Check-in</th>
-                                <th>Checkout</th>
-                                <th>Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {roster.map((s) => (
-                                <tr key={s.id}>
-                                  <td>
-                                    {s.firstName} {s.lastName}
-                                  </td>
-                                  <td>{timeLabel(s.day?.checkInAt, options.timezone)}</td>
-                                  <td>{timeLabel(s.day?.checkOutAt, options.timezone)}</td>
-                                  <td>
-                                    <div className="flex flex-wrap gap-2">
-                                      {!s.day?.checkInAt && (
+                        <>
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy}
+                                onClick={() =>
+                                  setSelectedIds(
+                                    allSelectedOnPage ? [] : roster.map((s) => s.id)
+                                  )
+                                }
+                              >
+                                {allSelectedOnPage
+                                  ? 'Clear selection'
+                                  : `Select all (${roster.length})`}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy || !uncheckedOnPage.length}
+                                onClick={() =>
+                                  setSelectedIds(uncheckedOnPage.map((s) => s.id))
+                                }
+                              >
+                                Not checked in ({uncheckedOnPage.length})
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy || !checkedInOnPage.length}
+                                onClick={() =>
+                                  setSelectedIds(checkedInOnPage.map((s) => s.id))
+                                }
+                              >
+                                Checked in ({checkedInOnPage.length})
+                              </Button>
+                              {selectedIds.length > 0 && (
+                                <span className="text-sm muted">
+                                  {selectedIds.length} selected
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedUncheckedIds.length > 0 && (
+                                <Button
+                                  size="sm"
+                                  leftIcon={<CheckCheck size={15} />}
+                                  disabled={busy}
+                                  onClick={async () => {
+                                    if (
+                                      await action('/classes/' + classId + '/check-in/bulk', {
+                                        studentIds: selectedUncheckedIds,
+                                      })
+                                    )
+                                      setSelectedIds([]);
+                                  }}
+                                >
+                                  Check in selected ({selectedUncheckedIds.length})
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant={selectedUncheckedIds.length > 0 ? 'outline' : 'primary'}
+                                leftIcon={<CheckCheck size={15} />}
+                                disabled={busy || (total <= roster.length && !uncheckedOnPage.length)}
+                                onClick={async () => {
+                                  if (await action('/classes/' + classId + '/check-in/bulk', {}))
+                                    setSelectedIds([]);
+                                }}
+                              >
+                                Check in all remaining
+                                {total <= roster.length ? ` (${uncheckedOnPage.length})` : ''}
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="table-wrap">
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th className="w-10">
+                                    <input
+                                      type="checkbox"
+                                      aria-label="Select all children on this page"
+                                      checked={allSelectedOnPage}
+                                      disabled={busy}
+                                      onChange={() =>
+                                        setSelectedIds(
+                                          allSelectedOnPage ? [] : roster.map((s) => s.id)
+                                        )
+                                      }
+                                    />
+                                  </th>
+                                  <th>Child</th>
+                                  <th>Check-in</th>
+                                  <th>Checkout</th>
+                                  <th>Today’s care</th>
+                                  <th>Action</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {roster.map((s) => (
+                                  <tr key={s.id}>
+                                    <td>
+                                      <input
+                                        type="checkbox"
+                                        aria-label={`Select ${s.firstName} ${s.lastName}`}
+                                        checked={selectedIds.includes(s.id)}
+                                        disabled={busy}
+                                        onChange={() => toggleSelected(s.id)}
+                                      />
+                                    </td>
+                                    <td>
+                                      {s.firstName} {s.lastName}
+                                    </td>
+                                    <td>{timeLabel(s.day?.checkInAt, options.timezone)}</td>
+                                    <td>{timeLabel(s.day?.checkOutAt, options.timezone)}</td>
+                                    <td>
+                                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                                        {s.day?.mood && s.day.mood !== 'NOT_RECORDED' && (
+                                          <StatusPill value={s.day.mood} />
+                                        )}
+                                        {s.day?.sharedAt ? (
+                                          <StatusPill value="Shared" />
+                                        ) : s.day?.meals ||
+                                          s.day?.sleepMinutes != null ||
+                                          (s.day?.mood && s.day.mood !== 'NOT_RECORDED') ||
+                                          s.day?.notes ? (
+                                          <StatusPill value="Draft" />
+                                        ) : (
+                                          <span className="muted">—</span>
+                                        )}
+                                        {s.day?.meals && (
+                                          <span
+                                            className="muted max-w-44 truncate"
+                                            title={s.day.meals}
+                                          >
+                                            {s.day.meals}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td>
+                                      <div className="flex flex-wrap gap-2">
+                                        {!s.day?.checkInAt && (
+                                          <Button
+                                            size="sm"
+                                            disabled={busy}
+                                            onClick={() =>
+                                              void action('/students/' + s.id + '/check-in')
+                                            }
+                                          >
+                                            Check in {s.firstName}
+                                          </Button>
+                                        )}
                                         <Button
+                                          variant="outline"
                                           size="sm"
                                           disabled={busy}
-                                          onClick={() =>
-                                            void action('/students/' + s.id + '/check-in')
-                                          }
+                                          onClick={() => setStudent(s.id)}
                                         >
-                                          Check in {s.firstName}
+                                          Care & pickup for {s.firstName}
                                         </Button>
-                                      )}
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={busy}
-                                        onClick={() => setStudent(s.id)}
-                                      >
-                                        Care & pickup for {s.firstName}
-                                      </Button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
                       )}
                     </div>
                   </Panel>
+                  {roster.length > 0 && (
+                    <PreschoolBulkCareForm
+                      key={'bulk-' + classId}
+                      classId={classId}
+                      roster={roster}
+                      total={total}
+                      selectedIds={selectedIds}
+                      busy={busy}
+                      action={action}
+                      onClearSelection={() => setSelectedIds([])}
+                    />
+                  )}
                   {selected && (
                     <PreschoolCareForm
                       key={selected.id + '-' + (selected.day?.version || 0)}
@@ -499,10 +728,10 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                               onChange={(event) =>
                                 void action(
                                   '/students/' +
-                                    selected.id +
-                                    '/guardians/' +
-                                    link.guardianId +
-                                    '/pickup',
+                                  selected.id +
+                                  '/guardians/' +
+                                  link.guardianId +
+                                  '/pickup',
                                   { canPickup: event.target.checked },
                                   'patch'
                                 )
@@ -579,15 +808,37 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                   refresh={refresh}
                   busy={busy}
                   action={action}
+                  initialEdit={pendingContentEdit}
+                  onConsumeInitialEdit={consumePendingContentEdit}
                 />
               )}
               {view === 'copilot' && !family && (
                 <PreschoolCopilot
                   key={classId}
                   classId={classId}
+                  className={eligible.find((c) => c.id === classId)?.name}
+                  stage={eligible.find((c) => c.id === classId)?.preschoolStage}
+                  today={options.today}
+                  timezone={options.timezone}
                   language={
                     language === 'ml' ? 'Malayalam' : language === 'hi' ? 'Hindi' : 'English'
                   }
+                  messages={copilotHistoryByClass[classId] ?? []}
+                  onMessagesChange={updateCopilotMessages}
+                  onDraftCreated={(created, sourceLabel) => {
+                    setError('');
+                    setNotice(
+                      'Saved INKY suggestion as a draft in Activities & plans. Review and adapt before publishing to families.'
+                    );
+                    setPendingContentEdit({ content: created, sourceLabel });
+                    setRefresh((v) => v + 1);
+                    selectView('learning');
+                  }}
+                  onOpenDraft={(existing, sourceLabel) => {
+                    setError('');
+                    setPendingContentEdit({ content: existing, sourceLabel });
+                    selectView('learning');
+                  }}
                 />
               )}
               {view === 'learning' && family && child && (

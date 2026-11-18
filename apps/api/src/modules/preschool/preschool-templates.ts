@@ -110,11 +110,26 @@ export function preschoolTemplate(input: GeneratePreschoolDto) {
   };
 }
 
-export function preschoolGuidance(input: { question: string; language: string }) {
+export function preschoolGuidance(input: {
+  question: string;
+  language: string;
+  history?: { role: 'user' | 'assistant'; content: string }[];
+}) {
   const t = (en: string, ml: string, hi: string) =>
     input.language === 'Malayalam' ? ml : input.language === 'Hindi' ? hi : en;
-  const settling = /cry|settle|separat|കര|അമ്മ|रो|अलग/i.test(input.question);
-  const sharing = /shar|turn|fight|ഊഴ|പങ്ക|बारी|बाँट|लड़/i.test(input.question);
+  const settlingPattern = /cr(y|ies|ying)|settle|separat|drop[\s-]?off|കര|അമ്മ|रो|अलग/i;
+  const sharingPattern = /shar|turn|fight|ഊഴ|പങ്ക|बारी|बाँट|लड़/i;
+  const recentUserHistory = (input.history ?? [])
+    .filter((item) => item.role === 'user')
+    .slice(-4)
+    .map((item) => item.content)
+    .join(' ');
+  const directSettling = settlingPattern.test(input.question);
+  const directSharing = sharingPattern.test(input.question);
+  const settling =
+    directSettling || (!directSharing && settlingPattern.test(recentUserHistory));
+  const sharing =
+    directSharing || (!directSettling && sharingPattern.test(recentUserHistory));
   return {
     answer: settling
       ? t(

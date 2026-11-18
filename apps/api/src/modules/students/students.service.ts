@@ -54,6 +54,7 @@ export class StudentsService {
 
     // Create student with guardians in a transaction
     const student = await this.prisma.$transaction(async (tx) => {
+      await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});
       // Create student
       const newStudent = await tx.student.create({
         data: {
@@ -306,6 +307,7 @@ export class StudentsService {
     }
 
     const student = await this.prisma.$transaction(async tx => {
+      await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});
       const current = await tx.student.update({where:{id,tenantId},data:{updatedAt:new Date()}});
       if(updateStudentDto.currentStreamId){
         const stream=await tx.stream.findFirst({where:{id:updateStudentDto.currentStreamId,tenantId}});
@@ -338,12 +340,15 @@ export class StudentsService {
     await this.findOne(id);
 
     // Soft delete
-    await this.prisma.student.update({
-      where: { id },
-      data: {
-        deletedAt: new Date(),
-        status: 'WITHDRAWN',
-      },
+    await this.prisma.$transaction(async tx => {
+      await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});
+      await tx.student.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          status: 'WITHDRAWN',
+        },
+      });
     });
 
     return { message: 'Student deleted successfully' };
@@ -373,6 +378,7 @@ export class StudentsService {
     }
 
     return this.prisma.$transaction(async tx => {
+      await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});
       await tx.student.update({ where: { id, tenantId }, data: { currentClassId: assignClassDto.classId, currentStreamId: assignClassDto.streamId || null } });
       const currentYear = await tx.academicYear.findFirst({ where: { tenantId, isCurrent: true } }) || await tx.academicYear.findFirst({ where: { tenantId }, orderBy: { startDate: 'desc' } });
       if (currentYear && !await tx.enrollment.findFirst({ where: { tenantId, studentId: id, academicYearId: currentYear.id, classId: assignClassDto.classId, streamId: assignClassDto.streamId || null } })) await tx.enrollment.create({ data: { tenantId, studentId: id, academicYearId: currentYear.id, classId: assignClassDto.classId, streamId: assignClassDto.streamId, enrollmentDate: new Date() } });

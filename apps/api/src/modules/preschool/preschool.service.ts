@@ -11,6 +11,8 @@ import { Actor } from '../operations/operations.service';
 import { PreschoolAccessService, preschoolManagers } from './preschool-access.service';
 import { PreschoolPickupService } from './preschool-pickup.service';
 import {
+  BulkCareRecordDto,
+  BulkCheckInDto,
   CareRecordDto,
   CheckOutDto,
   ObservationDto,
@@ -37,7 +39,7 @@ export class PreschoolService {
     private db: PrismaService,
     private access: PreschoolAccessService,
     @Optional() private pickup?: PreschoolPickupService
-  ) {}
+  ) { }
   private tenant() {
     return this.access.tenant();
   }
@@ -152,10 +154,10 @@ export class PreschoolService {
     const [schools, classes, staff, assignments] = await Promise.all([
       manager
         ? this.db.school.findMany({
-            where: { tenantId, isActive: true },
-            select: { id: true, name: true, programme: true, preschoolPickupVerification: true },
-            orderBy: { name: 'asc' },
-          })
+          where: { tenantId, isActive: true },
+          select: { id: true, name: true, programme: true, preschoolPickupVerification: true },
+          orderBy: { name: 'asc' },
+        })
         : [],
       this.db.class.findMany({
         where: { tenantId, ...(ids ? { id: { in: ids } } : {}) },
@@ -171,9 +173,9 @@ export class PreschoolService {
       }),
       manager
         ? this.db.staff.findMany({
-            where: { tenantId, status: 'ACTIVE', isTeacher: true, userId: { not: null } },
-            select: { id: true, firstName: true, lastName: true },
-          })
+          where: { tenantId, status: 'ACTIVE', isTeacher: true, userId: { not: null } },
+          select: { id: true, firstName: true, lastName: true },
+        })
         : [],
       manager ? this.db.preschoolStaffAssignment.findMany({ where: { tenantId } }) : [],
     ]);
@@ -345,14 +347,14 @@ export class PreschoolService {
         day: preschoolDays[0] || null,
         activePickupPass: pickupPasses?.[0]
           ? {
-              id: pickupPasses[0].id,
-              guardianId: pickupPasses[0].guardianId,
-              guardianName:
-                `${pickupPasses[0].guardian.firstName} ${pickupPasses[0].guardian.lastName}`.trim(),
-              issuedByRole: pickupPasses[0].issuedByRole,
-              deliveryChannels: pickupPasses[0].deliveryChannels,
-              expiresAt: pickupPasses[0].expiresAt,
-            }
+            id: pickupPasses[0].id,
+            guardianId: pickupPasses[0].guardianId,
+            guardianName:
+              `${pickupPasses[0].guardian.firstName} ${pickupPasses[0].guardian.lastName}`.trim(),
+            issuedByRole: pickupPasses[0].issuedByRole,
+            deliveryChannels: pickupPasses[0].deliveryChannels,
+            expiresAt: pickupPasses[0].expiresAt,
+          }
           : null,
       })),
       total,
@@ -432,6 +434,137 @@ export class PreschoolService {
       );
       await this.audit(tx, user, 'PRESCHOOL_CHECK_IN', day.id);
       return day;
+    });
+  }
+  async bulkCheckIn(user: Actor, classId: string, dto: BulkCheckInDto) {
+    this.access.allow(user);
+    await this.access.classroom(user, classId);
+    const { today } = await this.clock();
+    const date = preschoolDate(today);
+    const now = new Date();
+    const tenantId = this.tenant();
+    const requestedIds = dto.studentIds?.length ? [...new Set(dto.studentIds)] : undefined;
+    return this.db.$transaction(async (tx) => {
+      const students = await tx.student.findMany({
+        where: {
+          tenantId,
+          currentClassId: classId,
+          status: 'ACTIVE',
+          deletedAt: null,
+          ...(requestedIds ? { id: { in: requestedIds } } : {}),
+        },
+        select: { id: true },
+        orderBy: { id: 'asc' },
+      });
+      if (requestedIds && students.length !== requestedIds.length) {
+        throw new BadRequestException('All selected children must belong to this preschool class');
+      }
+      const targetIds = students.map((student) => student.id);
+      if (!targetIds.length) {
+        return {
+          classId,
+          date: today,
+          checkedInCount: 0,
+          skippedCount: 0,
+          checkedInStudentIds: [],
+          skippedStudentIds: [],
+        };
+      }
+      // Serialize concurrent attendance and care writes for these students.
+      await tx.student.updateMany({
+        where: { tenantId, id: { in: targetIds } },
+        data: { updatedAt: now },
+      });
+      const existingDays = await tx.preschoolDayRecord.findMany({
+        where: { tenantId, date, studentId: { in: targetIds } },
+        select: { id: true, studentId: true, checkInAt: true, checkOutAt: true },
+      });
+      const existingByStudent = new Map(existingDays.map((row) => [row.studentId, row]));
+      const skippedStudentIds: string[] = [];
+      const checkedInStudentIds: string[] = [];
+      for (const sid of targetIds) {
+        const existing = existingByStudent.get(sid);
+        if (existing?.checkInAt || existing?.checkOutAt) skippedStudentIds.push(sid);
+        else checkedInStudentIds.push(sid);
+      }
+      if (checkedInStudentIds.length) {
+        const newDayIds = checkedInStudentIds.filter((sid) => !existingByStudent.has(sid));
+        const existingDayIds = checkedInStudentIds.filter((sid) => existingByStudent.has(sid));
+        if (newDayIds.length) {
+          await tx.preschoolDayRecord.createMany({
+            data: newDayIds.map((studentId) => ({
+              tenantId,
+              studentId,
+              date,
+              checkInAt: now,
+              checkedInBy: user.userId,
+            })),
+          });
+        }
+        if (existingDayIds.length) {
+          await tx.preschoolDayRecord.updateMany({
+            where: {
+              tenantId,
+              date,
+              studentId: { in: existingDayIds },
+              checkInAt: null,
+              checkOutAt: null,
+            },
+            data: { checkInAt: now, checkedInBy: user.userId, version: { increment: 1 } },
+          });
+        }
+        const existingAttendance = await tx.attendanceRecord.findMany({
+          where: { tenantId, date, period: 1, studentId: { in: checkedInStudentIds } },
+          select: { studentId: true },
+        });
+        const existingAttendanceSet = new Set(existingAttendance.map((row) => row.studentId));
+        const newAttendanceIds = checkedInStudentIds.filter(
+          (sid) => !existingAttendanceSet.has(sid)
+        );
+        const updateAttendanceIds = checkedInStudentIds.filter((sid) =>
+          existingAttendanceSet.has(sid)
+        );
+        if (newAttendanceIds.length) {
+          await tx.attendanceRecord.createMany({
+            data: newAttendanceIds.map((studentId) => ({
+              tenantId,
+              studentId,
+              classId,
+              date,
+              period: 1,
+              status: 'PRESENT',
+              arrivalTime: now,
+              markedBy: user.userId,
+            })),
+          });
+        }
+        if (updateAttendanceIds.length) {
+          await tx.attendanceRecord.updateMany({
+            where: { tenantId, date, period: 1, studentId: { in: updateAttendanceIds } },
+            data: { status: 'PRESENT', arrivalTime: now, markedBy: user.userId },
+          });
+        }
+        await tx.activityFeed.createMany({
+          data: checkedInStudentIds.map((studentId) => ({
+            tenantId,
+            studentId,
+            title: 'Checked in at preschool',
+            description: 'Your child has arrived. The school recorded their check-in.',
+            activityType: 'ATTENDANCE',
+            createdBy: user.userId,
+            isVisibleToParents: true,
+          })),
+        });
+        await this.audit(tx, user, 'PRESCHOOL_BULK_CHECK_IN', classId);
+      }
+      return {
+        classId,
+        date: today,
+        checkedInCount: checkedInStudentIds.length,
+        skippedCount: skippedStudentIds.length,
+        checkedInStudentIds,
+        skippedStudentIds,
+      };
     });
   }
   async pickupPermission(user: Actor, studentId: string, guardianId: string, canPickup: boolean) {
@@ -596,12 +729,12 @@ export class PreschoolService {
       const data = { ...details, sharedAt: shareWithParents ? new Date() : null };
       const saved = row
         ? await tx.preschoolDayRecord.update({
-            where: { id: row.id, tenantId: this.tenant() },
-            data: { ...data, version: { increment: 1 } },
-          })
+          where: { id: row.id, tenantId: this.tenant() },
+          data: { ...data, version: { increment: 1 } },
+        })
         : await tx.preschoolDayRecord.create({
-            data: { tenantId: this.tenant(), studentId, date, ...data },
-          });
+          data: { tenantId: this.tenant(), studentId, date, ...data },
+        });
       if (shareWithParents)
         await this.activity(
           tx,
@@ -617,6 +750,130 @@ export class PreschoolService {
         saved.id
       );
       return saved;
+    });
+  }
+  async bulkCare(user: Actor, classId: string, dto: BulkCareRecordDto) {
+    this.access.allow(user);
+    await this.access.classroom(user, classId);
+    const patch: {
+      meals?: string;
+      sleepMinutes?: number | null;
+      toileting?: string;
+      mood?: string;
+      notes?: string;
+    } = {};
+    if (dto.meals !== undefined) patch.meals = dto.meals;
+    if (dto.sleepMinutes !== undefined) patch.sleepMinutes = dto.sleepMinutes;
+    if (dto.toileting !== undefined) patch.toileting = dto.toileting;
+    if (dto.mood !== undefined) patch.mood = dto.mood;
+    if (dto.notes !== undefined) patch.notes = dto.notes;
+    if (!Object.keys(patch).length && !dto.shareWithParents) {
+      throw new BadRequestException(
+        'Choose at least one care detail to update or enable sharing with parents'
+      );
+    }
+    const { today } = await this.clock();
+    const date = preschoolDate(today);
+    const now = new Date();
+    const tenantId = this.tenant();
+    const requestedIds = dto.studentIds?.length ? [...new Set(dto.studentIds)] : undefined;
+    return this.db.$transaction(async (tx) => {
+      const students = await tx.student.findMany({
+        where: {
+          tenantId,
+          currentClassId: classId,
+          status: 'ACTIVE',
+          deletedAt: null,
+          ...(requestedIds ? { id: { in: requestedIds } } : {}),
+        },
+        select: { id: true },
+        orderBy: { id: 'asc' },
+      });
+      if (requestedIds && students.length !== requestedIds.length) {
+        throw new BadRequestException('All selected children must belong to this preschool class');
+      }
+      const targetIds = students.map((student) => student.id);
+      if (!targetIds.length) {
+        return {
+          classId,
+          date: today,
+          updatedCount: 0,
+          skippedCount: 0,
+          sharedWithParents: dto.shareWithParents,
+          updatedStudentIds: [],
+          skippedStudentIds: [],
+        };
+      }
+      await tx.student.updateMany({
+        where: { tenantId, id: { in: targetIds } },
+        data: { updatedAt: now },
+      });
+      const existingDays = await tx.preschoolDayRecord.findMany({
+        where: { tenantId, date, studentId: { in: targetIds } },
+        select: { id: true, studentId: true, checkInAt: true },
+      });
+      const existingByStudent = new Map(existingDays.map((row) => [row.studentId, row]));
+      const updatedStudentIds: string[] = [];
+      const skippedStudentIds: string[] = [];
+      for (const sid of targetIds) {
+        const existing = existingByStudent.get(sid);
+        if (dto.checkedInOnly && !existing?.checkInAt) skippedStudentIds.push(sid);
+        else updatedStudentIds.push(sid);
+      }
+      if (updatedStudentIds.length) {
+        const newDayIds = updatedStudentIds.filter((sid) => !existingByStudent.has(sid));
+        const existingDayIds = updatedStudentIds.filter((sid) => existingByStudent.has(sid));
+        if (newDayIds.length) {
+          await tx.preschoolDayRecord.createMany({
+            data: newDayIds.map((studentId) => ({
+              tenantId,
+              studentId,
+              date,
+              ...patch,
+              sharedAt: dto.shareWithParents ? now : null,
+            })),
+          });
+        }
+        if (existingDayIds.length) {
+          await tx.preschoolDayRecord.updateMany({
+            where: { tenantId, date, studentId: { in: existingDayIds } },
+            data: {
+              ...patch,
+              ...(dto.shareWithParents ? { sharedAt: now } : {}),
+              version: { increment: 1 },
+            },
+          });
+        }
+        if (dto.shareWithParents) {
+          await tx.activityFeed.createMany({
+            data: updatedStudentIds.map((studentId) => ({
+              tenantId,
+              studentId,
+              title: 'Daily care update',
+              description:
+                'Today’s meals, rest and classroom notes are available in your preschool workspace.',
+              activityType: 'OTHER',
+              createdBy: user.userId,
+              isVisibleToParents: true,
+            })),
+          });
+        }
+        await this.audit(
+          tx,
+          user,
+          dto.shareWithParents ? 'PRESCHOOL_BULK_CARE_SHARED' : 'PRESCHOOL_BULK_CARE_SAVED',
+          classId
+        );
+      }
+      return {
+        classId,
+        date: today,
+        updatedCount: updatedStudentIds.length,
+        skippedCount: skippedStudentIds.length,
+        sharedWithParents: dto.shareWithParents,
+        updatedStudentIds,
+        skippedStudentIds,
+      };
     });
   }
   async observe(user: Actor, dto: ObservationDto) {
@@ -687,13 +944,13 @@ export class PreschoolService {
     const visibleDays = days.map((day) =>
       parent && !day.sharedAt
         ? {
-            id: day.id,
-            date: day.date,
-            checkInAt: day.checkInAt,
-            checkOutAt: day.checkOutAt,
-            pickupVerificationMethod: day.pickupVerificationMethod,
-            sharedAt: null,
-          }
+          id: day.id,
+          date: day.date,
+          checkInAt: day.checkInAt,
+          checkOutAt: day.checkOutAt,
+          pickupVerificationMethod: day.pickupVerificationMethod,
+          sharedAt: null,
+        }
         : day
     );
     return {
@@ -816,10 +1073,10 @@ export class PreschoolService {
       }),
       preschoolManagers.includes(user.role)
         ? this.db.invoice.groupBy({
-            by: ['studentId'],
-            where: { tenantId, studentId: { in: ids }, status: { not: 'CANCELLED' } },
-            _sum: { balanceAmount: true },
-          })
+          by: ['studentId'],
+          where: { tenantId, studentId: { in: ids }, status: { not: 'CANCELLED' } },
+          _sum: { balanceAmount: true },
+        })
         : [],
       this.db.attendanceRecord.groupBy({
         by: ['studentId', 'status'],
@@ -838,9 +1095,9 @@ export class PreschoolService {
         attendance: attendance.filter((a) => a.studentId === s.id),
         ...(preschoolManagers.includes(user.role)
           ? {
-              outstandingBalance:
-                invoices.find((i) => i.studentId === s.id)?._sum.balanceAmount || 0,
-            }
+            outstandingBalance:
+              invoices.find((i) => i.studentId === s.id)?._sum.balanceAmount || 0,
+          }
           : {}),
       })),
       admissionsInRange: students.filter(

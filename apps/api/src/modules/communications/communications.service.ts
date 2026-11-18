@@ -56,7 +56,11 @@ export class CommunicationsService {
     const tenantId = this.tenantService.requireTenantContext();
 
     if(dto.scheduledAt) throw new BadRequestException('Scheduled delivery requires a configured job queue');
-    if((dto.channel as string)==='PUSH') throw new BadRequestException('Push delivery is not configured');
+    if(dto.channel===MessageChannel.PUSH&&(!this.configService.get('WEB_PUSH_PUBLIC_KEY')||!this.configService.get('WEB_PUSH_PRIVATE_KEY')||!this.configService.get('WEB_PUSH_SUBJECT'))) throw new BadRequestException('Background push is not configured');
+    if([MessageChannel.PUSH,MessageChannel.IN_APP].includes(dto.channel)){
+      const users=await this.prisma.user.findMany({where:{tenantId,id:{in:dto.recipients},isActive:true},select:{id:true}});
+      if(new Set(users.map(user=>user.id)).size!==new Set(dto.recipients).size)throw new BadRequestException('Choose active user accounts in this school for app notifications');
+    }
     if(!dto.recipients.length||dto.recipients.length>500) throw new BadRequestException('Select between 1 and 500 recipients');
     // Create communication record
     const communication = await this.prisma.communication.create({
@@ -117,6 +121,8 @@ export class CommunicationsService {
             recipients.push(link.guardian.phone);
           } else if (dto.channel === MessageChannel.EMAIL && link.guardian.email) {
             recipients.push(link.guardian.email);
+          } else if ([MessageChannel.IN_APP,MessageChannel.PUSH].includes(dto.channel) && link.guardian.userId && link.receiveUpdates) {
+            recipients.push(link.guardian.userId);
           }
         });
       });
@@ -128,6 +134,8 @@ export class CommunicationsService {
           recipients.push(student.phone);
         } else if (dto.channel === MessageChannel.EMAIL && student.email) {
           recipients.push(student.email);
+        } else if ([MessageChannel.IN_APP,MessageChannel.PUSH].includes(dto.channel) && student.userId) {
+          recipients.push(student.userId);
         }
       });
     }
@@ -382,6 +390,7 @@ export class CommunicationsService {
       case MessageChannel.EMAIL:
         await this.sendEmail(communication, recipients, results);
         break;
+      case MessageChannel.PUSH:
       case MessageChannel.IN_APP:
         await this.sendInApp(communication, recipients, results);
         break;

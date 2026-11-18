@@ -43,6 +43,8 @@ import { ChatService } from '../modules/chat/chat.service';
 import { ChatController } from '../modules/chat/chat.controller';
 import { ParentEngagementNotificationsService } from '../modules/parent-engagement-notifications/parent-engagement-notifications.service';
 import { OperationsService } from '../modules/operations/operations.service';
+import { AcademicRolloverService } from '../modules/operations/academic-rollover.service';
+import { AcademicRolloverController } from '../modules/operations/academic-rollover.controller';
 import { AdmissionAccountsService } from '../modules/operations/admission-accounts.service';
 import { PasswordResetService } from '../modules/auth/services/password-reset.service';
 import { EmailService } from '../common/services/email.service';
@@ -321,6 +323,7 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         SubscriptionsController,
         SavedTransportController,
         OperationsController,
+        AcademicRolloverController,
         WorkspaceController,
         FeesController,
         AttendanceController,
@@ -367,6 +370,7 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         WorkspaceService,
         SavedTransportService,
         OperationsService,
+        AcademicRolloverService,
         AdmissionAccountsService,
         PasswordResetService,
         { provide: EmailService, useValue: { sendAccountInvitation: jest.fn().mockResolvedValue(true), sendPasswordChanged: jest.fn().mockResolvedValue(true) } },
@@ -1329,5 +1333,35 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
     expect((await request('/workspace/classes',teacher)).body).toEqual([]);
     expect((await request('/operations/options',teacher)).body.classes).toEqual([]);
     expect((await request('/operations/portfolio',teacher,'POST',{data:{studentId:child,title:'Unassigned class',category:'OTHER',achievedOn:'2026-11-17'}})).status).toBe(403);
+  });
+
+  it('previews and completes one authenticated school-wide rollover with durable history and safe retries', async () => {
+    // This is intentionally last: rollover changes the fixture school's current year.
+    await db.academicYear.updateMany({where:{tenantId:tenant},data:{isCurrent:false}});
+    await db.academicYear.update({where:{id:year},data:{isCurrent:true,startDate:new Date('2026-01-01'),endDate:new Date('2026-12-31')}});
+    await db.student.updateMany({where:{tenantId:tenant,status:'ACTIVE',deletedAt:null},data:{currentClassId:cls,currentStreamId:null}});
+    const next=await db.academicYear.create({data:{tenantId:tenant,name:'Rollover target '+id(),startDate:new Date('2027-01-01'),endDate:new Date('2027-12-31')}});
+    expect((await request('/academic-rollover/options',parent)).status).toBe(403);
+    const options=await request('/academic-rollover/options');expect(options.status).toBe(200);
+    expect(options.body.students.length).toBeGreaterThan(1);
+    const decisions=options.body.students.map((student:any,index:number)=>({studentId:student.id,action:index===0?'PROMOTE':index===1?'GRADUATE':'RETAIN',...(index!==1?{classId:index===0?otherClass:cls}:{})}));
+    const plan={sourceYearId:year,targetYearId:next.id,decisions};
+    const preview=await request('/academic-rollover/preview',principal,'POST',plan);expect(preview.status).toBe(201);
+    expect(await db.academicYearRollover.count({where:{tenantId:tenant}})).toBe(0);
+    const firstStudent=decisions[0].studentId;
+    await db.student.update({where:{id:firstStudent},data:{updatedAt:new Date(Date.now()+5000)}});
+    expect((await request('/academic-rollover/complete',principal,'POST',{...plan,previewToken:preview.body.previewToken})).status).toBe(409);
+    const fresh=await request('/academic-rollover/preview',principal,'POST',plan);expect(fresh.status).toBe(201);
+    const approved={...plan,previewToken:fresh.body.previewToken};
+    const complete=await request('/academic-rollover/complete',principal,'POST',approved);expect(complete.status).toBe(201);
+    expect(complete.body.summary.total).toBe(decisions.length);
+    const repeat=await request('/academic-rollover/complete',principal,'POST',approved);
+    expect(repeat.status).toBe(201);expect(repeat.body.alreadyCompleted).toBe(true);expect(repeat.body.id).toBe(complete.body.id);
+    expect(await db.enrollment.count({where:{tenantId:tenant,academicYearId:next.id}})).toBe(decisions.length-1);
+    expect(await db.enrollment.count({where:{tenantId:tenant,academicYearId:year,studentId:firstStudent}})).toBeGreaterThan(0);
+    expect((await db.student.findUniqueOrThrow({where:{id:decisions[1].studentId}})).status).toBe('GRADUATED');
+    expect((await db.academicYear.findUniqueOrThrow({where:{id:next.id}})).isCurrent).toBe(true);
+    expect(await db.term.count({where:{tenantId:tenant,isCurrent:true}})).toBe(0);
+    expect(await db.academicYearRollover.count({where:{tenantId:tenant,sourceYearId:year}})).toBe(1);
   });
 });

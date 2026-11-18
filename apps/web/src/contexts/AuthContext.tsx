@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { useRouter } from 'next/navigation';
 import { api, apiClient } from '@/lib/api-client';
 import { clearSession, homeForRole } from '@/lib/session';
+import { disableBackgroundPush, syncBackgroundPush } from '@/lib/push-notifications';
 export interface User { id: string; email: string; firstName: string; lastName: string; role: string; tenantId: string }
 interface AuthState { user: User | null; isLoading: boolean; isAuthenticated: boolean; login: (email: string, password: string) => Promise<string | null>; verifyMfa: (session: string, code: string) => Promise<void>; logout: () => Promise<void>; refreshUser: () => Promise<void> }
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -19,6 +20,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if ('serviceWorker' in navigator) void navigator.serviceWorker.register('/sw.js').catch(() => undefined);
     refreshUser().catch(() => { clearSession(); setUser(null); }).finally(() => setLoading(false));
   }, []);
+  useEffect(() => {
+    if (!user) return;
+    const sync = () => { void syncBackgroundPush().catch(() => undefined); };
+    sync();
+    const changed = (event: MessageEvent) => { if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGED') sync(); };
+    navigator.serviceWorker?.addEventListener('message', changed);
+    return () => navigator.serviceWorker?.removeEventListener('message', changed);
+  }, [user?.id, user?.tenantId]);
   const finishLogin = (response: { accessToken: string; refreshToken: string; user: User }) => {
     if (!response.accessToken || !response.refreshToken || !response.user?.role) throw new Error('Invalid sign-in response. Please try again.');
     localStorage.setItem('accessToken', response.accessToken);
@@ -36,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     finishLogin((await apiClient.post('/auth/mfa/verify-login', { mfaSessionToken, code: code.trim() })).data);
   };
   const logout = async () => {
+    await disableBackgroundPush().catch(() => undefined);
     try { await api.logout(); } finally { clearSession(); setUser(null); router.replace('/login'); }
   };
   return <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, verifyMfa, logout, refreshUser }}>{children}</AuthContext.Provider>;

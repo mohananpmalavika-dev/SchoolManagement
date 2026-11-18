@@ -13,6 +13,7 @@ describe('Admission portal accounts', () => {
   let db: any, service: AdmissionAccountsService, invitations: any;
   beforeEach(() => {
     db = {
+      tenant: { update: jest.fn() },
       user: {
         upsert: jest.fn(async ({create}: any) => ({...create, id: 'parent-user', isActive: true})),
         findFirst: jest.fn().mockResolvedValue(null),

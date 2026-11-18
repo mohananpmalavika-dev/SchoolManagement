@@ -65,12 +65,26 @@ function parseIceServers(stunUrlsEnv) {
   return urls.map((u) => ({ urls: u }));
 }
 
-function buildFrameAncestors(originsEnv) {
+function buildFrameAncestors(originsEnv, allowInsecureHttp = false) {
+  const pattern = allowInsecureHttp ? /^https?:\/\/[^\s;]+$/i : /^https:\/\/[^\s;]+$/i;
   const origins = String(originsEnv || '')
     .split(',')
     .map((v) => v.trim())
-    .filter((v) => /^https:\/\/[^\s;]+$/i.test(v));
+    .filter((v) => pattern.test(v));
   return ["'self'", ...origins].join(' ');
+}
+
+function isAllowedPublicOrigin(origin, allowInsecureHttp = false) {
+  if (!origin) return false;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) {
+      return false;
+    }
+    return parsed.protocol === 'https:' || (allowInsecureHttp && parsed.protocol === 'http:');
+  } catch {
+    return false;
+  }
 }
 
 function sanitizeHlsSubpath(rawSubpath) {
@@ -96,8 +110,17 @@ export function createGatewayServer(options = {}) {
   const internalSecret = String(options.internalSecret ?? env.CCTV_INTERNAL_SECRET ?? '');
   const internalUser = String(options.internalUser ?? env.CCTV_INTERNAL_USER ?? 'krypton-gw');
   const publishToken = String(options.publishToken ?? env.CCTV_PUBLISH_TOKEN ?? '');
-  const publicOrigin = String(options.publicOrigin ?? env.CCTV_PUBLIC_ORIGIN ?? '').replace(/\/+$/, '');
-  const frameAncestors = buildFrameAncestors(options.frameAncestors ?? env.CCTV_FRAME_ANCESTORS ?? publicOrigin);
+  const allowInsecureHttp =
+    options.allowInsecureHttp === true ||
+    String(options.allowInsecureHttp ?? env.CCTV_ALLOW_INSECURE_HTTP ?? '').toLowerCase() === 'true';
+  const rawPublicOrigin = String(options.publicOrigin ?? env.CCTV_PUBLIC_ORIGIN ?? '')
+    .split(',')[0]
+    .trim();
+  const publicOrigin = rawPublicOrigin.replace(/\/+$/, '');
+  const frameAncestors = buildFrameAncestors(
+    options.frameAncestors ?? env.CCTV_FRAME_ANCESTORS ?? publicOrigin,
+    allowInsecureHttp
+  );
   const iceServers = parseIceServers(options.stunUrls ?? env.WEBRTC_STUN_URLS ?? '');
   const mediamtxWebrtcUrl = String(options.mediamtxWebrtcUrl ?? env.MEDIAMTX_WEBRTC_URL ?? 'http://mediamtx:8889').replace(/\/+$/, '');
   const mediamtxHlsUrl = String(options.mediamtxHlsUrl ?? env.MEDIAMTX_HLS_URL ?? 'http://mediamtx:8888').replace(/\/+$/, '');
@@ -137,6 +160,17 @@ export function createGatewayServer(options = {}) {
     sweeperInterval.unref();
   }
 
+  function isAuthorizedGatewayRequest(req) {
+    const authHeader = String(req.headers.authorization || '');
+    const bearerPrefix = 'Bearer ';
+    return Boolean(
+      gatewayKey &&
+        gatewayKey.length >= 32 &&
+        authHeader.startsWith(bearerPrefix) &&
+        timingSafeStringEqual(authHeader.slice(bearerPrefix.length), gatewayKey)
+    );
+  }
+
   function mediaMtxAuthHeader() {
     if (!internalSecret) return {};
     return {
@@ -172,25 +206,135 @@ export function createGatewayServer(options = {}) {
           status: mtxHealthy ? 'ok' : 'degraded',
           mediamtx: mtxHealthy ? 'reachable' : 'unreachable',
           camerasConfigured: reg.count,
+          registryWritable: reg.writable,
+          httpsEnforced: !allowInsecureHttp,
           registryError: reg.loadError,
         });
       }
 
+      // 1b. Authenticated Gateway Status: GET /api/status (or /status)
+      if (method === 'GET' && (pathname === '/api/status' || pathname === '/status')) {
+        if (!isAuthorizedGatewayRequest(req)) {
+          return sendJson(res, 401, { error: 'Unauthorized gateway request' });
+        }
+        const mtxHealthy = await mediamtx.checkHealth();
+        const reg = registry.summary();
+        return sendJson(res, 200, {
+          status: mtxHealthy ? 'ok' : 'degraded',
+          mediamtx: mtxHealthy ? 'reachable' : 'unreachable',
+          camerasConfigured: reg.count,
+          registryWritable: reg.writable,
+          publicOrigin,
+          httpsEnforced: !allowInsecureHttp,
+          publicOriginValid: isAllowedPublicOrigin(publicOrigin, allowInsecureHttp),
+          registryError: reg.loadError,
+        });
+      }
+
+      // 1c. Authenticated Camera Registry Admin API:
+      //     GET /api/cameras?tenantId=<tid> — list tenant cameras (secrets redacted)
+      if (method === 'GET' && (pathname === '/api/cameras' || pathname === '/cameras')) {
+        if (!isAuthorizedGatewayRequest(req)) {
+          return sendJson(res, 401, { error: 'Unauthorized gateway request' });
+        }
+        const tenantId = String(reqUrl.searchParams.get('tenantId') || '').trim();
+        if (!isSafeTenantId(tenantId)) {
+          return sendJson(res, 400, { error: 'Valid tenantId query parameter is required' });
+        }
+        const mtxHealthy = await mediamtx.checkHealth();
+        const reg = registry.summary();
+        return sendJson(res, 200, {
+          cameras: registry.listByTenant(tenantId),
+          gateway: {
+            mediamtx: mtxHealthy ? 'reachable' : 'unreachable',
+            registryWritable: reg.writable,
+            httpsEnforced: !allowInsecureHttp,
+            publicOrigin,
+            publicOriginValid: isAllowedPublicOrigin(publicOrigin, allowInsecureHttp),
+          },
+        });
+      }
+
+      //     PUT|POST /api/cameras — register or update a tenant camera in cameras.json & sync MediaMTX
+      if ((method === 'PUT' || method === 'POST') && (pathname === '/api/cameras' || pathname === '/cameras')) {
+        if (!isAuthorizedGatewayRequest(req)) {
+          return sendJson(res, 401, { error: 'Unauthorized gateway request' });
+        }
+        let body;
+        try {
+          body = JSON.parse(await readBody(req, MAX_JSON_BODY_BYTES));
+        } catch (err) {
+          return sendJson(res, err.statusCode || 400, { error: 'Invalid JSON request body' });
+        }
+        let result;
+        try {
+          result = registry.upsert(body);
+        } catch (err) {
+          return sendJson(res, err.statusCode || 400, {
+            error: err.message || 'Failed to save camera configuration',
+          });
+        }
+
+        let mediamtxSynced = false;
+        let mediamtxWarning = null;
+        try {
+          await mediamtx.ensurePath(result.record);
+          mediamtxSynced = true;
+        } catch (err) {
+          mediamtxWarning =
+            'Camera saved to gateway registry; MediaMTX path sync will retry on next viewing session';
+        }
+
+        return sendJson(res, 200, {
+          camera: result.sanitized,
+          mediamtxSynced,
+          ...(mediamtxWarning ? { mediamtxWarning } : {}),
+        });
+      }
+
+      //     DELETE /api/cameras/:tenantId/:cameraRef — unregister camera & remove MediaMTX path
+      const deleteCamMatch = pathname.match(/^\/(?:api\/)?cameras\/([^/]+)\/([^/]+)$/);
+      if (method === 'DELETE' && deleteCamMatch) {
+        if (!isAuthorizedGatewayRequest(req)) {
+          return sendJson(res, 401, { error: 'Unauthorized gateway request' });
+        }
+        let tenantId;
+        let cameraRef;
+        try {
+          tenantId = decodeURIComponent(deleteCamMatch[1]).trim();
+          cameraRef = decodeURIComponent(deleteCamMatch[2]).trim();
+        } catch {
+          return sendJson(res, 400, { error: 'Invalid path encoding' });
+        }
+        if (!isSafeTenantId(tenantId) || !isSafeCameraRef(cameraRef)) {
+          return sendJson(res, 400, { error: 'Invalid tenantId or cameraRef' });
+        }
+        let removed;
+        try {
+          removed = registry.remove(tenantId, cameraRef);
+        } catch (err) {
+          return sendJson(res, err.statusCode || 500, {
+            error: err.message || 'Failed to remove camera configuration',
+          });
+        }
+        if (removed.streamPath) {
+          await mediamtx.removePath(removed.streamPath);
+        }
+        return sendJson(res, 200, { removed: removed.removed, cameraRef });
+      }
+
       // 2. Krypton ERP Session Creation Contract: POST /api/sessions (or /sessions)
       if (method === 'POST' && (pathname === '/api/sessions' || pathname === '/sessions')) {
-        const authHeader = String(req.headers.authorization || '');
-        const bearerPrefix = 'Bearer ';
-        if (
-          !gatewayKey ||
-          gatewayKey.length < 32 ||
-          !authHeader.startsWith(bearerPrefix) ||
-          !timingSafeStringEqual(authHeader.slice(bearerPrefix.length), gatewayKey)
-        ) {
+        if (!isAuthorizedGatewayRequest(req)) {
           return sendJson(res, 401, { error: 'Unauthorized gateway request' });
         }
 
-        if (!publicOrigin || !publicOrigin.startsWith('https://')) {
-          return sendJson(res, 503, { error: 'CCTV_PUBLIC_ORIGIN must be configured with HTTPS' });
+        if (!isAllowedPublicOrigin(publicOrigin, allowInsecureHttp)) {
+          return sendJson(res, 503, {
+            error: allowInsecureHttp
+              ? 'CCTV_PUBLIC_ORIGIN must be configured with an HTTP or HTTPS origin'
+              : 'CCTV_PUBLIC_ORIGIN must be configured with HTTPS (or set CCTV_ALLOW_INSECURE_HTTP=true for HTTP testing)',
+          });
         }
 
         let body;

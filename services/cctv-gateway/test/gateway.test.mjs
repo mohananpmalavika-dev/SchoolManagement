@@ -359,3 +359,210 @@ test('Full gateway flow: ERP session contract, viewer CSP, WHEP/HLS expiry, Medi
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('Gateway Admin API syncs cameras to cameras.json & MediaMTX with tenant isolation and secret redaction', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'krypton-cctv-admin-'));
+  const camerasFile = path.join(tmpDir, 'cameras.json');
+  fs.writeFileSync(
+    camerasFile,
+    JSON.stringify({
+      cameras: [
+        {
+          tenantId: 'template-tenant',
+          cameraRef: 'disabled_example',
+          vendor: 'push',
+          mode: 'push',
+          disabled: true,
+        },
+      ],
+    })
+  );
+
+  const mtxPaths = new Map();
+  const deletedPaths = [];
+  const mockMtx = http.createServer(async (req, res) => {
+    const chunks = [];
+    for await (const c of req) chunks.push(c);
+    const body = Buffer.concat(chunks).toString('utf8');
+    const url = new URL(req.url, 'http://localhost');
+
+    if (url.pathname === '/v3/paths/list') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ items: [] }));
+      return;
+    }
+    const patchMatch = url.pathname.match(/^\/v3\/config\/paths\/patch\/(.+)$/);
+    if (req.method === 'PATCH' && patchMatch) {
+      const name = decodeURIComponent(patchMatch[1]);
+      if (!mtxPaths.has(name)) {
+        res.writeHead(404);
+        res.end('not found');
+        return;
+      }
+      mtxPaths.set(name, JSON.parse(body));
+      res.writeHead(200);
+      res.end('ok');
+      return;
+    }
+    const addMatch = url.pathname.match(/^\/v3\/config\/paths\/add\/(.+)$/);
+    if (req.method === 'POST' && addMatch) {
+      const name = decodeURIComponent(addMatch[1]);
+      mtxPaths.set(name, JSON.parse(body));
+      res.writeHead(200);
+      res.end('ok');
+      return;
+    }
+    const delMatch = url.pathname.match(/^\/v3\/config\/paths\/delete\/(.+)$/);
+    if (req.method === 'DELETE' && delMatch) {
+      const name = decodeURIComponent(delMatch[1]);
+      mtxPaths.delete(name);
+      deletedPaths.push(name);
+      res.writeHead(200);
+      res.end('ok');
+      return;
+    }
+    res.writeHead(404);
+    res.end('not found');
+  });
+
+  await new Promise((resolve) => mockMtx.listen(0, '127.0.0.1', resolve));
+  const mtxBase = `http://127.0.0.1:${mockMtx.address().port}`;
+  const gatewayKey = 'a'.repeat(40);
+  const sessionSecret = 'b'.repeat(48);
+
+  const gw = createGatewayServer({
+    gatewayKey,
+    sessionSecret,
+    internalSecret: 'c'.repeat(40),
+    publicOrigin: 'http://198.51.100.10',
+    allowInsecureHttp: true,
+    mediamtxApiUrl: mtxBase,
+    mediamtxWebrtcUrl: mtxBase,
+    mediamtxHlsUrl: mtxBase,
+    camerasConfigPath: camerasFile,
+    sweepIntervalMs: 60_000,
+  });
+
+  await new Promise((resolve) => gw.server.listen(0, '127.0.0.1', resolve));
+  const gwBase = `http://127.0.0.1:${gw.server.address().port}`;
+
+  try {
+    // 1. Unauthenticated admin calls rejected
+    assert.equal((await fetch(`${gwBase}/api/cameras?tenantId=tenant-a`)).status, 401);
+    assert.equal(
+      (
+        await fetch(`${gwBase}/api/cameras`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenantId: 'tenant-a', cameraRef: 'cam1', vendor: 'push' }),
+        })
+      ).status,
+      401
+    );
+
+    // 2. Register Hikvision NVR camera via Admin API
+    const putRes = await fetch(`${gwBase}/api/cameras`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${gatewayKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tenantId: 'tenant-a',
+        cameraRef: 'nursery_cam_1',
+        label: 'Nursery Room A',
+        vendor: 'hikvision',
+        host: '10.8.0.50',
+        port: 554,
+        channel: 2,
+        stream: 'sub',
+        username: 'krypton_view',
+        password: 'TopSecretPassword!',
+        rtspTransport: 'tcp',
+      }),
+    });
+    assert.equal(putRes.status, 200);
+    const putData = await putRes.json();
+    assert.equal(putData.mediamtxSynced, true);
+    assert.equal(putData.camera.cameraRef, 'nursery_cam_1');
+    assert.equal(putData.camera.hasPassword, true);
+    assert.equal(putData.camera.password, undefined);
+    assert.ok(!JSON.stringify(putData).includes('TopSecretPassword!'));
+    assert.equal(
+      mtxPaths.get('school_tenant-a__nursery_cam_1')?.source,
+      'rtsp://krypton_view:TopSecretPassword!@10.8.0.50:554/Streaming/Channels/202'
+    );
+
+    // 3. Updating camera without sending password preserves existing stored password
+    const updateRes = await fetch(`${gwBase}/api/cameras`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${gatewayKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tenantId: 'tenant-a',
+        cameraRef: 'nursery_cam_1',
+        label: 'Nursery Room A (Renamed)',
+        vendor: 'hikvision',
+        host: '10.8.0.50',
+        channel: 3,
+      }),
+    });
+    assert.equal(updateRes.status, 200);
+    assert.equal(
+      mtxPaths.get('school_tenant-a__nursery_cam_1')?.source,
+      'rtsp://krypton_view:TopSecretPassword!@10.8.0.50:554/Streaming/Channels/302'
+    );
+
+    // 4. Tenant-scoped listing never leaks secrets or other tenants
+    const listA = await (
+      await fetch(`${gwBase}/api/cameras?tenantId=tenant-a`, {
+        headers: { Authorization: `Bearer ${gatewayKey}` },
+      })
+    ).json();
+    assert.equal(listA.cameras.length, 1);
+    assert.equal(listA.cameras[0].channel, 3);
+    assert.ok(!JSON.stringify(listA).includes('TopSecretPassword!'));
+
+    const listB = await (
+      await fetch(`${gwBase}/api/cameras?tenantId=tenant-b`, {
+        headers: { Authorization: `Bearer ${gatewayKey}` },
+      })
+    ).json();
+    assert.equal(listB.cameras.length, 0);
+
+    // 5. HTTP session creation works when allowInsecureHttp is explicitly enabled
+    const sessRes = await fetch(`${gwBase}/api/sessions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${gatewayKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tenantId: 'tenant-a',
+        cameraRef: 'nursery_cam_1',
+        viewerId: 'parent-1',
+      }),
+    });
+    assert.equal(sessRes.status, 200);
+    const sessData = await sessRes.json();
+    assert.ok(sessData.url.startsWith('http://198.51.100.10/cctv/viewer/'));
+
+    // 6. Deleting camera removes from cameras.json (preserving disabled templates) and MediaMTX
+    const delRes = await fetch(`${gwBase}/api/cameras/tenant-a/nursery_cam_1`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${gatewayKey}` },
+    });
+    assert.equal(delRes.status, 200);
+    assert.deepEqual(deletedPaths, ['school_tenant-a__nursery_cam_1']);
+
+    const savedJson = JSON.parse(fs.readFileSync(camerasFile, 'utf8'));
+    assert.equal(savedJson.cameras.length, 1);
+    assert.equal(savedJson.cameras[0].cameraRef, 'disabled_example');
+  } finally {
+    gw.server.close();
+    mockMtx.close();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});

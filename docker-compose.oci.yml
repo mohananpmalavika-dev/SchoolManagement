@@ -89,6 +89,9 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       CORS_ORIGIN: ${PUBLIC_DOMAIN:-https://localhost}
       WEB_URL: ${PUBLIC_DOMAIN:-https://localhost}
+      WEB_PUSH_PUBLIC_KEY: ${WEB_PUSH_PUBLIC_KEY:-}
+      WEB_PUSH_PRIVATE_KEY: ${WEB_PUSH_PRIVATE_KEY:-}
+      WEB_PUSH_SUBJECT: ${WEB_PUSH_SUBJECT:-}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -109,10 +112,11 @@ services:
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_USE_SSL: ${S3_USE_SSL:-false}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL:-${PUBLIC_DOMAIN:-http://localhost}}
-      # Classroom CCTV Live Streaming Gateway (all three must be set together with HTTPS)
+      # Classroom CCTV Live Streaming Gateway (set all three together; internal http://cctv-gateway:4010/api is supported)
       CCTV_GATEWAY_URL: ${CCTV_GATEWAY_URL:-}
       CCTV_GATEWAY_KEY: ${CCTV_GATEWAY_KEY:-}
       CCTV_PLAYBACK_ORIGINS: ${CCTV_PLAYBACK_ORIGINS:-}
+      CCTV_ALLOW_INSECURE_HTTP: ${CCTV_ALLOW_INSECURE_HTTP:-false}
       # Indian Gateway & WhatsApp Integrations
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
@@ -196,6 +200,7 @@ services:
       CCTV_PUBLISH_TOKEN: ${CCTV_PUBLISH_TOKEN:-}
       CCTV_PUBLIC_ORIGIN: ${CCTV_PLAYBACK_ORIGINS:-${PUBLIC_DOMAIN:-}}
       CCTV_FRAME_ANCESTORS: ${PUBLIC_DOMAIN:-}
+      CCTV_ALLOW_INSECURE_HTTP: ${CCTV_ALLOW_INSECURE_HTTP:-false}
       WEBRTC_STUN_URLS: ${WEBRTC_STUN_URLS:-stun:stun.l.google.com:19302}
       MEDIAMTX_API_URL: http://mediamtx:9997
       MEDIAMTX_WEBRTC_URL: http://mediamtx:8889
@@ -204,7 +209,8 @@ services:
       # Optional NVR password env vars referenced inside cameras.json via ${VAR_NAME}
       NVR_SCHOOL1_PASSWORD: ${NVR_SCHOOL1_PASSWORD:-}
     volumes:
-      - ./services/cctv-gateway/cameras.json:/app/config/cameras.json:ro
+      # Writable bind mount so UI/Admin API camera registrations persist directly to cameras.json
+      - ./services/cctv-gateway/cameras.json:/app/config/cameras.json
     depends_on:
       - mediamtx
     expose:
@@ -228,6 +234,18 @@ services:
       - api
       - cctv-gateway
       - minio
+    networks:
+      - krypton_net
+
+  # On-demand Let's Encrypt certificate issuer/renewer sharing Nginx's ACME & cert volumes.
+  # Invoked by: ./deploy-oci.sh --domain erp.yourschool.edu.in --email admin@yourschool.edu.in
+  certbot:
+    image: certbot/certbot:latest
+    container_name: krypton_oci_certbot
+    profiles: ["ssl"]
+    volumes:
+      - oci_certbot_www:/var/www/certbot
+      - oci_certbot_conf:/etc/letsencrypt
     networks:
       - krypton_net
 

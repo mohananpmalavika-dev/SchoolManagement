@@ -179,7 +179,8 @@ export class FeesService {
     return this.prisma.$transaction(async tx => {
     // Serialize billing for a pupil. Concurrent generation must not create two
     // active invoices for the same term, even on separate application instances.
-    await tx.student.update({ where: { id: dto.studentId, tenantId }, data: { updatedAt: new Date() } });
+    const billedStudent = await tx.student.update({ where: { id: dto.studentId, tenantId }, data: { updatedAt: new Date() }, include: { currentClass: true } });
+    const paymentSchoolId = billedStudent.currentClass?.tenantId === tenantId ? billedStudent.currentClass.schoolId : null;
     const existing = await tx.invoice.findFirst({
       where: {
         tenantId,
@@ -206,6 +207,7 @@ export class FeesService {
       data: {
         tenantId,
         invoiceNumber,
+        paymentSchoolId,
         studentId: dto.studentId,
         termId: dto.termId,
         totalAmount,

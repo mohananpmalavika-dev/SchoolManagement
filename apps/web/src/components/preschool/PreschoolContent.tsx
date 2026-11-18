@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { apiClient } from '@/lib/api-client';
 import {
   friendly,
@@ -22,10 +22,10 @@ export function PreschoolPrint({ content, close }: { content: Content; close: ()
   const cards =
     content.kind === 'FLASHCARDS'
       ? content.body
-          .split('\n')
-          .filter((line) => /^\d+[.)]\s/.test(line))
-          .slice(0, 4)
-          .map((line) => line.replace(/^\d+[.)]\s*/, ''))
+        .split('\n')
+        .filter((line) => /^\d+[.)]\s/.test(line))
+        .slice(0, 4)
+        .map((line) => line.replace(/^\d+[.)]\s*/, ''))
       : [];
   return (
     <dialog
@@ -105,6 +105,8 @@ export function PreschoolContent({
   refresh,
   action,
   busy,
+  initialEdit,
+  onConsumeInitialEdit,
 }: {
   classId: string;
   today: string;
@@ -112,6 +114,8 @@ export function PreschoolContent({
   refresh: number;
   action: PreschoolAction;
   busy: boolean;
+  initialEdit?: { content: Content; sourceLabel?: string } | null;
+  onConsumeInitialEdit?: () => void;
 }) {
   const initial = {
     classId,
@@ -138,6 +142,45 @@ export function PreschoolContent({
     [source, setSource] = useState(''),
     [reviewed, setReviewed] = useState(false),
     [print, setPrint] = useState<Content | null>(null);
+  const dirtyRef = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const edit = useCallback(
+    (item: Content, sourceLabel = '') => {
+      dirtyRef.current = false;
+      setEditing(item);
+      const {
+        classId: itemClassId,
+        kind,
+        theme,
+        language: itemLanguage,
+        ageMinMonths,
+        ageMaxMonths,
+        durationMinutes,
+        title,
+        body,
+        materials,
+        learningGoals,
+        scheduledOn,
+      } = item;
+      setDraft({
+        classId: itemClassId,
+        kind,
+        theme,
+        language: itemLanguage,
+        ageMinMonths,
+        ageMaxMonths,
+        durationMinutes,
+        title,
+        body,
+        materials,
+        learningGoals,
+        scheduledOn: scheduledOn?.slice(0, 10) || today,
+      });
+      setReviewed(false);
+      setSource(sourceLabel);
+    },
+    [today]
+  );
   useEffect(() => {
     setDraft({
       classId,
@@ -157,7 +200,14 @@ export function PreschoolContent({
     setReviewed(false);
     setSource('');
     setOffset(0);
+    dirtyRef.current = false;
   }, [classId, today, language]);
+  useEffect(() => {
+    if (!initialEdit || initialEdit.content.classId !== classId) return;
+    edit(initialEdit.content, initialEdit.sourceLabel || '');
+    onConsumeInitialEdit?.();
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [initialEdit, classId, edit, onConsumeInitialEdit]);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
@@ -169,6 +219,28 @@ export function PreschoolContent({
       .then(({ data }) => {
         setItems(data.items);
         setMore(data.hasMore);
+        setEditing((current) => {
+          if (!current) return current;
+          const fresh = (data.items as Content[]).find((item) => item.id === current.id);
+          if (!fresh || fresh.version <= current.version) return current;
+          if (!dirtyRef.current) {
+            setDraft({
+              classId: fresh.classId,
+              kind: fresh.kind,
+              theme: fresh.theme,
+              language: fresh.language,
+              ageMinMonths: fresh.ageMinMonths,
+              ageMaxMonths: fresh.ageMaxMonths,
+              durationMinutes: fresh.durationMinutes,
+              title: fresh.title,
+              body: fresh.body,
+              materials: fresh.materials,
+              learningGoals: fresh.learningGoals,
+              scheduledOn: fresh.scheduledOn?.slice(0, 10) || today,
+            });
+          }
+          return fresh;
+        });
       })
       .catch((err) => {
         if (!controller.signal.aborted) setError(messageFor(err));
@@ -177,8 +249,9 @@ export function PreschoolContent({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [classId, offset, refresh]);
+  }, [classId, offset, refresh, today]);
   function update(key: string, value: string | number) {
+    dirtyRef.current = true;
     setDraft((current) => ({ ...current, [key]: value }));
     setReviewed(false);
   }
@@ -192,6 +265,7 @@ export function PreschoolContent({
         { classId, kind, theme, language, ageMinMonths, ageMaxMonths, durationMinutes },
         { timeout: 75000 }
       );
+      dirtyRef.current = true;
       setDraft((current) => ({
         ...current,
         title: data.title,
@@ -215,44 +289,12 @@ export function PreschoolContent({
       editing ? 'patch' : 'post'
     );
     if (saved) {
+      dirtyRef.current = false;
       setEditing(null);
       setDraft(initial);
       setReviewed(false);
       setSource('');
     }
-  }
-  function edit(item: Content) {
-    setEditing(item);
-    const {
-      classId,
-      kind,
-      theme,
-      language,
-      ageMinMonths,
-      ageMaxMonths,
-      durationMinutes,
-      title,
-      body,
-      materials,
-      learningGoals,
-      scheduledOn,
-    } = item;
-    setDraft({
-      classId,
-      kind,
-      theme,
-      language,
-      ageMinMonths,
-      ageMaxMonths,
-      durationMinutes,
-      title,
-      body,
-      materials,
-      learningGoals,
-      scheduledOn: scheduledOn?.slice(0, 10) || today,
-    });
-    setReviewed(false);
-    setSource('');
   }
   return (
     <div className="content-stack">
@@ -265,7 +307,7 @@ export function PreschoolContent({
         title={editing ? 'Edit teaching content' : 'Plan a playful learning activity'}
         subtitle="Create a draft, review it, then share the scheduled plan with families."
       >
-        <form className="panel-body space-y-4" onSubmit={save}>
+        <form ref={formRef} className="panel-body space-y-4" onSubmit={save}>
           <fieldset disabled={busy || generating} className="space-y-4">
             <div className="form-grid">
               <Field label="Content type">

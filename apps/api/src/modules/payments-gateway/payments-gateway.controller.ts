@@ -2,6 +2,9 @@ import { SchoolRecordAccessGuard } from '../../common/guards/school-record-acces
 import {
   Controller,
   Get,
+  Put,
+  Param,
+  ParseUUIDPipe,
   Post,
   Body,
   Query,
@@ -27,15 +30,37 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole } from '@krypton/types';
+import { SchoolPaymentAccountsService } from './school-payment-accounts.service';
+import { AssignInvoiceSchoolDto, PaymentOptionsQueryDto, SchoolPaymentAccountDto } from './dto/school-payment-account.dto';
 
 @ApiTags('payments-gateway')
 @Controller('payments-gateway')
 export class PaymentsGatewayController {
-  constructor(private readonly gatewayService: PaymentsGatewayService) {}
+  constructor(private readonly gatewayService: PaymentsGatewayService, private readonly accounts: SchoolPaymentAccountsService) {}
 
   @Get('options')
+  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, SchoolRecordAccessGuard)
   @Roles(UserRole.PARENT, UserRole.SUPER_ADMIN, UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT)
-  options() { return this.gatewayService.options(); }
+  options(@Query() query: PaymentOptionsQueryDto) { return this.gatewayService.options(query.invoiceId); }
+
+  @Get('school-accounts')
+  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+  @Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT)
+  schoolAccounts() { return this.accounts.list(); }
+
+  @Put('school-accounts/:schoolId')
+  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+  @Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
+  saveSchoolAccount(@Param('schoolId', ParseUUIDPipe) schoolId: string, @Body() dto: SchoolPaymentAccountDto, @CurrentUser() user: any) {
+    return this.accounts.save(schoolId, dto, user.userId);
+  }
+
+  @Post('school-accounts/:schoolId/assign-invoice')
+  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+  @Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
+  assignInvoiceSchool(@Param('schoolId', ParseUUIDPipe) schoolId: string, @Body() dto: AssignInvoiceSchoolDto) {
+    return this.accounts.assignInvoice(schoolId, dto.invoiceNumber);
+  }
 
   @Post('initiate')
   @ApiBearerAuth()

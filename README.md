@@ -6,6 +6,10 @@ The connected school and preschool workflows have been hardened and tested. See 
 
 Completed admissions now provision linked parent and student logins and send portal invitations. See [admission portal setup and verification](docs/ADMISSION_PORTAL_ACCESS.md).
 
+School managers can review and complete bulk promotion, retention and graduation in one academic-year rollover. See [year-end promotion setup and verification](docs/ACADEMIC_YEAR_ROLLOVER.md).
+
+Background Web Push can deliver new inbox alerts while the app is closed. See [push setup, device opt-in and verification](docs/BACKGROUND_PUSH_NOTIFICATIONS.md).
+
 ## Preschool support
 
 Regular schools, preschools and combined schools share this codebase. The preschool workspace includes daily care and authorized pickup, play-based teaching resources, INKY, development observations, private family photos, driver-phone tracking and configurable classroom camera access. See [preschool setup, verification and deployment](docs/PRESCHOOL_IMPLEMENTATION.md).

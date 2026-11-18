@@ -28,9 +28,10 @@ logs
 .env.production
 .env.oci
 
-# CCTV Gateway live school NVR credentials (never commit)
+# CCTV Gateway live school NVR credentials & generated SSL vhost (never commit)
 services/cctv-gateway/cameras.json
 services/cctv-gateway/edge-bridge/.env.edge
+nginx/oci-nginx-ssl.live.conf
 
 # IDE
 .vscode/*

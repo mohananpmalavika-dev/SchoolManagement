@@ -90,11 +90,48 @@ Mobile browsers **cannot** play H.265/HEVC over WebRTC. Configure each classroom
 
 ---
 
-## Step 3: Register Cameras on Oracle Cloud
+## Step 3: Enable HTTPS & Activate Gateway in Krypton ERP
 
-Edit `services/cctv-gateway/cameras.json` on your OCI VM (created automatically from `cameras.example.json` by `deploy-oci.sh`; hot-reloaded automatically without rebuilding):
+### Option A (Recommended — Production HTTPS in One Command)
+1. Point your school domain DNS **A record** (e.g. `erp.yourschool.edu.in`) to your OCI Public IP.
+2. Run:
+   ```bash
+   ./deploy-oci.sh --domain erp.yourschool.edu.in --email admin@yourschool.edu.in
+   ```
+   This automatically:
+   - Issues a Let's Encrypt certificate directly into the shared `oci_certbot_conf` volume using the bundled `certbot` Docker profile (zero downtime, no manual volume copying).
+   - Generates `nginx/oci-nginx-ssl.live.conf` from `nginx/oci-nginx-ssl.conf`.
+   - Configures `.env.oci` with `PUBLIC_DOMAIN=https://erp.yourschool.edu.in`, direct internal Docker gateway URL `CCTV_GATEWAY_URL=http://cctv-gateway:4010/api`, `CCTV_PLAYBACK_ORIGINS=https://erp.yourschool.edu.in`, `CCTV_GATEWAY_KEY`, and `CCTV_ALLOW_INSECURE_HTTP=false`.
+   - Restarts Nginx, Web, API, and CCTV Gateway with HTTPS live.
 
-### Example A: CGNAT School using OM System Edge Bridge (Recommended for Indian ISPs)
+### Option B (Staging / IP-Only Testing without a Domain Yet)
+If you want to register and test cameras on an OCI Public IP before attaching a domain & SSL certificate, run:
+```bash
+./deploy-oci.sh --enable-http-cctv
+```
+This sets `CCTV_ALLOW_INSECURE_HTTP=true`, `CCTV_GATEWAY_URL=http://cctv-gateway:4010/api`, and `CCTV_PLAYBACK_ORIGINS=http://<OCI_PUBLIC_IP>`. Switch to Option A (`--domain ...`) before enabling parent mobile access in production.
+
+---
+
+## Step 4: Register & Sync Cameras Directly from Krypton School ERP UI (Zero SSH)
+
+You no longer need to SSH into OCI to edit `services/cctv-gateway/cameras.json` manually!
+
+1. Log in as **School Admin / Principal** → open **Preschool → Classroom Camera Access**.
+2. Click **Add classroom camera**:
+   - **Camera label**: e.g., `Nursery Room A`
+   - **Gateway camera reference**: e.g., `nursery_cam_1`
+   - **Viewing days & hours**: e.g., Mon–Fri, `09:30`–`12:30` (`Asia/Kolkata`)
+   - Keep **Automatically sync NVR / stream settings to `cctv-gateway` & MediaMTX** checked:
+     - Select **Hikvision NVR**, **Dahua NVR**, **CP Plus NVR**, **Custom RTSP / ONVIF URL**, or **OM Edge Bridge (SRT Push — CGNAT)**.
+     - Enter NVR host, port (`554`), channel, sub-stream profile, and read-only credentials (sent directly to `cctv-gateway` over the authenticated Bearer Admin API and persisted to `cameras.json` — **never stored in Postgres**).
+   - Check **Enable this camera** and **Allow parents of children in this classroom to request viewing sessions**.
+3. Save — the ERP creates the classroom camera record, registers it in `services/cctv-gateway/cameras.json`, and immediately syncs the stream path into MediaMTX. Deleting a camera in the UI also unregisters it from `cameras.json` and removes the MediaMTX path.
+
+*(Advanced / Manual Override: `services/cctv-gateway/cameras.json` still supports manual editing and `${ENV_VAR}` placeholders with automatic hot-reload if preferred.)*
+
+### Example Manual `cameras.json` Reference (Optional)
+#### CGNAT School using OM System Edge Bridge
 ```json
 {
   "cameras": [
@@ -111,7 +148,7 @@ Edit `services/cctv-gateway/cameras.json` on your OCI VM (created automatically 
 ```
 Then deploy `services/cctv-gateway/edge-bridge/` on a mini-PC/Raspberry Pi/office PC inside the school LAN (see [edge-bridge/README.md](../services/cctv-gateway/edge-bridge/README.md)).
 
-### Example B: Direct On-Demand Pull (WireGuard VPN or Static IP)
+#### Direct On-Demand Pull (WireGuard VPN or Static IP)
 ```json
 {
   "cameras": [
@@ -134,49 +171,6 @@ Then deploy `services/cctv-gateway/edge-bridge/` on a mini-PC/Raspberry Pi/offic
 }
 ```
 > Because `sourceOnDemand: true` is enabled, MediaMTX **only** pulls from the school NVR while a parent/staff viewer is actively watching and disconnects 15 seconds after the last viewer leaves.
-
----
-
-## Step 4: Enable HTTPS & Activate Gateway in Krypton ERP
-
-Krypton ERP and mobile WebRTC **both require HTTPS**.
-
-1. Point your school domain DNS **A record** (e.g. `erp.yourschool.edu.in`) to your OCI Public IP.
-2. Issue a Let's Encrypt certificate on OCI:
-   ```bash
-   sudo docker compose --env-file .env.oci -f docker-compose.oci.yml stop nginx
-   sudo apt-get install -y certbot
-   sudo certbot certonly --standalone -d erp.yourschool.edu.in
-   ```
-   Copy or mount `/etc/letsencrypt` into the `oci_certbot_conf` Docker volume (or bind `/etc/letsencrypt:/etc/letsencrypt:ro` in `docker-compose.oci.yml`).
-3. Replace `YOUR_SCHOOL_DOMAIN` in `nginx/oci-nginx-ssl.conf` with `erp.yourschool.edu.in`.
-4. Update `.env.oci`:
-   ```dotenv
-   OCI_PUBLIC_IP=<YOUR_OCI_PUBLIC_IP>
-   PUBLIC_DOMAIN=https://erp.yourschool.edu.in
-   NGINX_CONF_FILE=./nginx/oci-nginx-ssl.conf
-
-   # Activate all three CCTV settings together (copy value of CCTV_GATEWAY_SECRET to CCTV_GATEWAY_KEY)
-   CCTV_GATEWAY_URL=https://erp.yourschool.edu.in/cctv-gateway/api
-   CCTV_PLAYBACK_ORIGINS=https://erp.yourschool.edu.in
-   CCTV_GATEWAY_KEY=<SAME_VALUE_AS_CCTV_GATEWAY_SECRET>
-   ```
-5. Restart the stack:
-   ```bash
-   sudo docker compose --env-file .env.oci -f docker-compose.oci.yml up -d --build
-   ```
-
----
-
-## Step 5: Link Camera in Krypton School ERP UI
-
-1. Log in as **School Admin / Principal** → open **Preschool → Classroom Camera Access**.
-2. Click **Add classroom camera**:
-   - **Camera label**: e.g., `Nursery Room A`
-   - **Gateway camera reference**: `nursery_cam_1` (must match `cameraRef` in `cameras.json`!)
-   - **Viewing days & hours**: e.g., Mon–Fri, `09:30`–`12:30` (Asia/Kolkata)
-   - Check **Enable this camera** and **Allow parents of children in this classroom to request viewing sessions**.
-3. Save.
 
 ---
 

@@ -154,7 +154,8 @@ export class SchoolRecordAccessGuard implements CanActivate {
       )
         throw new NotFoundException('Assignment not found');
     } else if (controller === 'PaymentsGatewayController') {
-      if (handler === 'initiate') await record('invoice', b.invoiceId);
+      if (handler === 'options') await record('invoice', q.invoiceId);
+      else if (handler === 'initiate') await record('invoice', b.invoiceId);
       else if (['verify', 'queryStatus'].includes(handler)) {
         const transaction = await this.db.paymentGatewayTransaction.findFirst({
           where: { tenantId, gatewayOrderId: b.razorpayOrderId || b.gatewayOrderId },

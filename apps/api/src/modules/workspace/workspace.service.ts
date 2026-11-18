@@ -114,6 +114,7 @@ export class WorkspaceService {
   let result:any;
   if(resource==='students'){
    result=await this.prisma.$transaction(async tx=>{
+    await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});
     const old=id?await tx.student.update({where:{id,tenantId},data:{updatedAt:new Date()}}):null;
     if(data.currentClassId!==undefined&&data.currentClassId!==old?.currentClassId)data.currentStreamId=null;
     const student=id?await tx.student.update({where:{id,tenantId},data}):await tx.student.create({data:{...data,tenantId} as any});
@@ -123,6 +124,10 @@ export class WorkspaceService {
     return student;
    });
   }
+  else if(['years','terms','classes','streams'].includes(resource))result=await this.prisma.$transaction(async tx=>{
+   await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});
+   const model=(tx as any)[spec.model];return id?model.update({where:{id,tenantId},data}):model.create({data:{...data,tenantId}});
+  });
   else if(resource==='report-cards')result=await this.exams.generateReportCard(data as any,user.userId);
   else if(resource==='invoices'){const {studentId,termId,description,amount,dueDate}=data;result=await this.fees.createInvoice({studentId,termId,items:[{description,amount,feeCategory:FeeCategory.TUITION}],dueDate:dueDate?.toISOString()});}
   else if(resource==='payments')result=await this.fees.recordPayment({...data,paymentDate:data.paymentDate?.toISOString()} as any,user.userId);

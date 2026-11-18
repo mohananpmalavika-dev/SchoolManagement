@@ -17,6 +17,7 @@ export function PreschoolText({
   required = true,
   min,
   max,
+  placeholder,
 }: {
   label: string;
   value: string;
@@ -26,6 +27,7 @@ export function PreschoolText({
   required?: boolean;
   min?: number;
   max?: number;
+  placeholder?: string;
 }) {
   return (
     <Field label={label}>
@@ -39,6 +41,7 @@ export function PreschoolText({
           required={required}
           min={min}
           max={max}
+          placeholder={placeholder}
         />
       )}
     </Field>
@@ -51,6 +54,7 @@ export function PreschoolArea({
   maxLength = 5000,
   required = false,
   rows = 4,
+  placeholder,
 }: {
   label: string;
   value: string;
@@ -58,6 +62,7 @@ export function PreschoolArea({
   maxLength?: number;
   required?: boolean;
   rows?: number;
+  placeholder?: string;
 }) {
   return (
     <Field label={label}>
@@ -69,6 +74,7 @@ export function PreschoolArea({
           maxLength={maxLength}
           required={required}
           rows={rows}
+          placeholder={placeholder}
         />
       )}
     </Field>

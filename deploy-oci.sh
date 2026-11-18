@@ -1,6 +1,49 @@
 #!/usr/bin/env bash
 set -e
 
+SSL_DOMAIN="${SSL_DOMAIN:-}"
+SSL_EMAIL="${SSL_EMAIL:-}"
+ENABLE_HTTP_CCTV="false"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --domain)
+            SSL_DOMAIN="$2"
+            shift 2
+            ;;
+        --email)
+            SSL_EMAIL="$2"
+            shift 2
+            ;;
+        --enable-http-cctv)
+            ENABLE_HTTP_CCTV="true"
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: ./deploy-oci.sh [--domain erp.yourschool.edu.in --email admin@yourschool.edu.in] [--enable-http-cctv]"
+            echo "  --domain <host>       Provision Let's Encrypt HTTPS SSL & activate live CCTV over HTTPS"
+            echo "  --email <email>       Contact email for Let's Encrypt SSL certificate notifications"
+            echo "  --enable-http-cctv    Activate CCTV over HTTP IP (staging/testing only before SSL domain is ready)"
+            exit 0
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            exit 1
+            ;;
+    esac
+done
+
+upsert_env() {
+    local file="$1"
+    local key="$2"
+    local value="$3"
+    if grep -q "^${key}=" "$file"; then
+        sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+    else
+        echo "${key}=${value}" >> "$file"
+    fi
+}
+
 echo "=========================================================="
 echo "🚀 Krypton School ERP + OM System CCTV Bridge (OCI Deploy)"
 echo "=========================================================="
@@ -28,12 +71,13 @@ if ! command -v docker &> /dev/null; then
     rm get-docker.sh
 fi
 
-# 4. Initialize cameras.json for OM System CCTV Hardware Bridge if missing
+# 4. Initialize cameras.json for OM System CCTV Hardware Bridge if missing (writable by node UID 1000 for UI sync)
 if [ ! -f services/cctv-gateway/cameras.json ]; then
     echo "📹 Initializing services/cctv-gateway/cameras.json from template..."
     cp services/cctv-gateway/cameras.example.json services/cctv-gateway/cameras.json
-    chmod 600 services/cctv-gateway/cameras.json
 fi
+sudo chown 1000:1000 services/cctv-gateway/cameras.json 2>/dev/null || true
+chmod 600 services/cctv-gateway/cameras.json
 
 # 5. Generate secure environment variables if .env.oci does not exist
 if [ ! -f .env.oci ]; then
@@ -93,15 +137,14 @@ SMTP_SECURE=false
 EMAIL_FROM=
 
 # Classroom CCTV Streaming Gateway (OM System Hardware Bridge - MediaMTX)
-# NOTE: Krypton ERP requires ALL THREE (CCTV_GATEWAY_URL, CCTV_PLAYBACK_ORIGINS, CCTV_GATEWAY_KEY)
-# to be set together with HTTPS (or all three empty until SSL is configured).
-# Once your HTTPS domain is active, set these three lines to activate live CCTV in the ERP:
-# CCTV_GATEWAY_URL=https://erp.yourschool.edu.in/cctv-gateway/api
-# CCTV_PLAYBACK_ORIGINS=https://erp.yourschool.edu.in
-# CCTV_GATEWAY_KEY=${CCTV_GW_KEY}
+# Recommended (HTTPS production): run ./deploy-oci.sh --domain erp.yourschool.edu.in --email admin@yourschool.edu.in
+# Staging/IP-only testing:        run ./deploy-oci.sh --enable-http-cctv
+# Note: api connects directly to cctv-gateway over the internal Docker bridge (http://cctv-gateway:4010/api),
+# while CCTV_PLAYBACK_ORIGINS uses your public HTTPS origin (or HTTP origin when CCTV_ALLOW_INSECURE_HTTP=true).
 CCTV_GATEWAY_URL=
 CCTV_PLAYBACK_ORIGINS=
 CCTV_GATEWAY_KEY=
+CCTV_ALLOW_INSECURE_HTTP=false
 CCTV_GATEWAY_SECRET=${CCTV_GW_KEY}
 CCTV_SESSION_SECRET=${CCTV_SESS_SEC}
 CCTV_INTERNAL_SECRET=${CCTV_INT_SEC}
@@ -174,25 +217,96 @@ EOF
     echo "✅ Updated .env.oci with INKY AI environment variables!"
 fi
 
+# 5d. Ensure CCTV_ALLOW_INSECURE_HTTP placeholder exists in upgraded .env.oci files
+if ! grep -q '^CCTV_ALLOW_INSECURE_HTTP=' .env.oci; then
+    echo "CCTV_ALLOW_INSECURE_HTTP=false" >> .env.oci
+fi
+
+# 5e. Optional: Enable HTTP IP-only CCTV mode for staging/testing before a domain is attached
+if [ "$ENABLE_HTTP_CCTV" = "true" ] && [ -z "$SSL_DOMAIN" ]; then
+    echo "⚠️ Enabling CCTV gateway in HTTP testing mode (internal Docker bridge + IP origin)..."
+    EXISTING_GW_KEY=$(grep '^CCTV_GATEWAY_SECRET=' .env.oci | cut -d'=' -f2-)
+    if [ -z "$EXISTING_GW_KEY" ]; then
+        EXISTING_GW_KEY=$(openssl rand -hex 32)
+        upsert_env .env.oci CCTV_GATEWAY_SECRET "$EXISTING_GW_KEY"
+    fi
+    CURRENT_PUBLIC_DOMAIN=$(grep '^PUBLIC_DOMAIN=' .env.oci | cut -d'=' -f2-)
+    if [ -z "$CURRENT_PUBLIC_DOMAIN" ]; then
+        PUBLIC_IP=$(curl -s https://api.ipify.org || echo "localhost")
+        CURRENT_PUBLIC_DOMAIN="http://${PUBLIC_IP}"
+        upsert_env .env.oci PUBLIC_DOMAIN "$CURRENT_PUBLIC_DOMAIN"
+    fi
+    upsert_env .env.oci CCTV_GATEWAY_URL "http://cctv-gateway:4010/api"
+    upsert_env .env.oci CCTV_PLAYBACK_ORIGINS "$CURRENT_PUBLIC_DOMAIN"
+    upsert_env .env.oci CCTV_GATEWAY_KEY "$EXISTING_GW_KEY"
+    upsert_env .env.oci CCTV_ALLOW_INSECURE_HTTP "true"
+    echo "✅ HTTP CCTV mode configured for ${CURRENT_PUBLIC_DOMAIN}!"
+fi
+
 # 6. Build and launch containers
 echo "🚀 Building and launching Krypton School ERP + MediaMTX CCTV Bridge containers..."
 sudo docker compose --env-file .env.oci -f docker-compose.oci.yml up -d --build
 
+# 6b. Optional: Automated Let's Encrypt HTTPS SSL provisioning + live HTTPS CCTV activation
+if [ -n "$SSL_DOMAIN" ]; then
+    echo "🔒 Issuing Let's Encrypt HTTPS certificate for ${SSL_DOMAIN}..."
+    CERTBOT_EMAIL_ARGS=(--register-unsafely-without-email)
+    if [ -n "$SSL_EMAIL" ]; then
+        CERTBOT_EMAIL_ARGS=(--email "$SSL_EMAIL")
+    fi
+
+    sudo docker compose --env-file .env.oci -f docker-compose.oci.yml --profile ssl run --rm certbot \
+        certonly --webroot -w /var/www/certbot \
+        -d "$SSL_DOMAIN" \
+        "${CERTBOT_EMAIL_ARGS[@]}" \
+        --agree-tos --non-interactive --keep-until-expiring
+
+    echo "📝 Generating nginx/oci-nginx-ssl.live.conf for ${SSL_DOMAIN}..."
+    sed "s/YOUR_SCHOOL_DOMAIN/${SSL_DOMAIN}/g" nginx/oci-nginx-ssl.conf > nginx/oci-nginx-ssl.live.conf
+
+    EXISTING_GW_KEY=$(grep '^CCTV_GATEWAY_SECRET=' .env.oci | cut -d'=' -f2-)
+    if [ -z "$EXISTING_GW_KEY" ]; then
+        EXISTING_GW_KEY=$(openssl rand -hex 32)
+        upsert_env .env.oci CCTV_GATEWAY_SECRET "$EXISTING_GW_KEY"
+    fi
+
+    upsert_env .env.oci PUBLIC_DOMAIN "https://${SSL_DOMAIN}"
+    upsert_env .env.oci NGINX_CONF_FILE "./nginx/oci-nginx-ssl.live.conf"
+    upsert_env .env.oci CCTV_GATEWAY_URL "http://cctv-gateway:4010/api"
+    upsert_env .env.oci CCTV_PLAYBACK_ORIGINS "https://${SSL_DOMAIN}"
+    upsert_env .env.oci CCTV_GATEWAY_KEY "$EXISTING_GW_KEY"
+    upsert_env .env.oci CCTV_ALLOW_INSECURE_HTTP "false"
+
+    echo "🔄 Reloading API, Web, CCTV Gateway, and Nginx with HTTPS SSL..."
+    sudo docker compose --env-file .env.oci -f docker-compose.oci.yml up -d --build api web cctv-gateway nginx
+    echo "✅ HTTPS SSL & Secure CCTV Gateway active at https://${SSL_DOMAIN}!"
+fi
+
 # 7. Success Output
 PUBLIC_IP=$(curl -s https://api.ipify.org || echo "YOUR_OCI_IP")
+ACTIVE_PUBLIC_URL=$(grep '^PUBLIC_DOMAIN=' .env.oci | cut -d'=' -f2-)
+ACTIVE_PUBLIC_URL="${ACTIVE_PUBLIC_URL:-http://${PUBLIC_IP}}"
 echo "=========================================================="
 echo "🎉 DEPLOYMENT COMPLETE ON ORACLE CLOUD INFRASTRUCTURE!"
 echo "=========================================================="
-echo "🌐 Web Application URL: http://${PUBLIC_IP}"
-echo "📡 Backend API URL:    http://${PUBLIC_IP}/api"
+echo "🌐 Web Application URL: ${ACTIVE_PUBLIC_URL}"
+echo "📡 Backend API URL:    ${ACTIVE_PUBLIC_URL}/api"
 echo "🖼️ Photo Storage:      Private MinIO S3 (presigned URLs via /krypton-media/)"
-echo "📹 CCTV Gateway Ready: MediaMTX (WebRTC 8189, SRT 8890) + Security Bridge"
+echo "📹 CCTV Gateway Ready: MediaMTX (WebRTC 8189, SRT 8890) + Writable Admin Sync API"
 echo ""
-echo "Next steps to enable live INKY AI & classroom CCTV:"
-echo "  1. For real INKY AI generation (instead of static templates), set GEMINI_API_KEY, GROQ_API_KEY, or OPENAI_API_KEY in .env.oci and run:"
+echo "Important OCI VCN Security List Ingress Rules (open in Oracle Cloud Console):"
+echo "  • TCP 80, TCP 443         — HTTP / HTTPS Web App, API, CCTV Viewer & LL-HLS"
+echo "  • UDP 8189, TCP 8189      — WebRTC live camera video media"
+echo "  • UDP 8890                — SRT ingest from OM System School Edge Bridges"
+echo ""
+echo "Next steps:"
+echo "  1. Enable HTTPS SSL & production CCTV in one command (after DNS A-record points to ${PUBLIC_IP}):"
+echo "       ./deploy-oci.sh --domain erp.yourschool.edu.in --email admin@yourschool.edu.in"
+echo "     (Or for temporary IP-only HTTP testing without a domain yet: ./deploy-oci.sh --enable-http-cctv)"
+echo "  2. Register classroom NVR / RTSP / Edge Bridge cameras directly in the UI:"
+echo "       Preschool → Classroom Camera Access → Add classroom camera (auto-syncs to cameras.json & MediaMTX)"
+echo "  3. For real INKY AI generation, set GEMINI_API_KEY, GROQ_API_KEY, or OPENAI_API_KEY in .env.oci and run:"
 echo "       sudo docker compose --env-file .env.oci -f docker-compose.oci.yml up -d api"
-echo "  2. Configure HTTPS SSL (nginx/oci-nginx-ssl.conf) & uncomment CCTV_GATEWAY_URL in .env.oci"
-echo "  3. Register Hikvision/Dahua/CP Plus cameras in services/cctv-gateway/cameras.json"
 echo "  4. See docs/OM_SYSTEM_CCTV_BRIDGE_GUIDE.md for OM System technician instructions"
 echo ""
 echo "To view live container logs:"

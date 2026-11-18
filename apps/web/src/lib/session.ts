@@ -9,5 +9,7 @@ export function homeForRole(role: string) {
   return '/dashboard';
 }
 export function clearSession() {
+  if ('serviceWorker' in navigator) void navigator.serviceWorker.getRegistration('/').then(registration =>
+    registration?.active?.postMessage({ type: 'PUSH_LOGOUT' })).catch(() => undefined);
   for (const key of ['user', 'accessToken', 'refreshToken', 'adminToken', 'adminUser']) localStorage.removeItem(key);
 }

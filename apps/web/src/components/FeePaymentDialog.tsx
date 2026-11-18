@@ -90,7 +90,7 @@ export function FeePaymentDialog({
     setError('');
     setOptions(null);
     apiClient
-      .get<PaymentOptions>('/payments-gateway/options', { signal: controller.signal })
+      .get<PaymentOptions>('/payments-gateway/options', { params: { invoiceId: invoice.id }, signal: controller.signal })
       .then(({ data }) => {
         if (controller.signal.aborted) return;
         setOptions(data);
@@ -100,7 +100,7 @@ export function FeePaymentDialog({
         if (!controller.signal.aborted) setError(messageFor(err));
       });
     return () => controller.abort();
-  }, [retry]);
+  }, [retry, invoice.id]);
 
   async function verify(receipt: Receipt) {
     setBusy(true);

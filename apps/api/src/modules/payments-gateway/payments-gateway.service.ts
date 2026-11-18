@@ -14,6 +14,7 @@ import axios from 'axios';
 import { PrismaService } from '../../database/prisma.service';
 import { TenantService } from '../../database/tenant.service';
 import { FeesService } from '../fees/fees.service';
+import { SchoolPaymentAccountsService } from './school-payment-accounts.service';
 import {
   GatewayChoice,
   InitiatePaymentDto,
@@ -29,35 +30,24 @@ import {
 export class PaymentsGatewayService {
   private readonly logger = new Logger(PaymentsGatewayService.name);
   private readonly razorpayBaseUrl: string;
-  private readonly razorpayKeyId: string;
-  private readonly razorpayKeySecret: string;
-  private readonly webhookSecret: string;
-  private readonly defaultUpiVpa: string;
-  private readonly schoolMerchantName: string;
 
   constructor(
     private prisma: PrismaService,
     private tenantService: TenantService,
     private feesService: FeesService,
     private configService: ConfigService,
+    private accounts: SchoolPaymentAccountsService,
   ) {
     this.razorpayBaseUrl =
       this.configService.get('RAZORPAY_BASE_URL', '') || 'https://api.razorpay.com/v1';
-    this.razorpayKeyId = this.configService.get('RAZORPAY_KEY_ID', '');
-    this.razorpayKeySecret = this.configService.get('RAZORPAY_KEY_SECRET', '');
-    this.webhookSecret =
-      this.configService.get('RAZORPAY_WEBHOOK_SECRET', '') ||
-      this.configService.get('PAYMENT_WEBHOOK_SECRET', '');
-    this.defaultUpiVpa =
-      this.configService.get('SCHOOL_UPI_VPA', '');
-    this.schoolMerchantName =
-      this.configService.get('SCHOOL_MERCHANT_NAME', '') || 'School fees';
   }
 
   // ==================== INITIATE ORDER / UPI INTENT ====================
 
-  options() {
-    return { razorpay: !!this.razorpayKeyId && !!this.razorpayKeySecret, upi: /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/.test(this.defaultUpiVpa), merchantName: this.schoolMerchantName };
+  async options(invoiceId: string) {
+    const account = await this.accounts.forInvoice(invoiceId);
+    return { razorpay: account.razorpayEnabled && !!account.razorpayKeyId && !!account.razorpayKeySecret && !!account.razorpayWebhookSecret,
+      upi: !!account.upiVpa, merchantName: account.merchantName };
   }
 
   async initiatePayment(
@@ -83,18 +73,20 @@ export class PaymentsGatewayService {
       throw new BadRequestException('Minimum payment amount is INR 1.00');
     }
 
+    const account = await this.accounts.forInvoice(dto.invoiceId);
+
     const accountReference =
       dto.accountReference || invoice.invoiceNumber || 'SCHOOL_FEE';
     const transactionDesc = dto.transactionDesc || 'School Fee Payment';
 
     if (gateway === GatewayChoice.UPI) {
-      if (!/^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/.test(this.defaultUpiVpa)) throw new ServiceUnavailableException('School UPI payments are not configured');
+      if (!account.upiVpa) throw new ServiceUnavailableException('School UPI payments are not configured');
       const gatewayOrderId = `upi_${Date.now()}_${randomUUID().slice(0, 8)}`;
       const amountInRupees = (dto.amount / 100).toFixed(2);
-      const payeeVpa = this.defaultUpiVpa;
+      const payeeVpa = account.upiVpa;
       const upiIntentUri =
         `upi://pay?pa=${encodeURIComponent(payeeVpa)}` +
-        `&pn=${encodeURIComponent(this.schoolMerchantName)}` +
+        `&pn=${encodeURIComponent(account.merchantName)}` +
         `&tr=${encodeURIComponent(gatewayOrderId)}` +
         `&tn=${encodeURIComponent(`${accountReference} - ${transactionDesc}`)}` +
         `&am=${amountInRupees}&cu=INR`;
@@ -102,6 +94,7 @@ export class PaymentsGatewayService {
       const tx = await this.prisma.paymentGatewayTransaction.create({
         data: {
           tenantId,
+          paymentAccountId: account.id,
           gateway: 'UPI',
           transactionType: 'UPI_INTENT',
           gatewayOrderId,
@@ -133,12 +126,14 @@ export class PaymentsGatewayService {
     }
 
     // Razorpay Order creation
-    if (!this.razorpayKeyId || !this.razorpayKeySecret) {
+    if (!account.razorpayEnabled || !account.razorpayWebhookSecret) {
       throw new BadRequestException('Razorpay is not configured. Contact your school office.');
     }
 
+    const credentials = await this.accounts.credentials(account);
+
     try {
-      const auth = Buffer.from(`${this.razorpayKeyId}:${this.razorpayKeySecret}`).toString('base64');
+      const auth = Buffer.from(`${credentials.keyId}:${credentials.keySecret}`).toString('base64');
       const response = await axios.post(
         `${this.razorpayBaseUrl}/orders`,
         {
@@ -147,6 +142,7 @@ export class PaymentsGatewayService {
           receipt: 'fee_' + randomUUID().replace(/-/g, ''),
           notes: {
             tenantId,
+            schoolId: account.schoolId,
             invoiceId: dto.invoiceId,
             description: transactionDesc,
           },
@@ -161,9 +157,13 @@ export class PaymentsGatewayService {
       );
 
       const gatewayOrderId: string = response.data.id;
+      if (typeof gatewayOrderId !== 'string' || !/^order_[a-zA-Z0-9]+$/.test(gatewayOrderId) || response.data.amount !== dto.amount || response.data.currency !== 'INR') {
+        throw new Error('Invalid payment provider order response');
+      }
       const tx = await this.prisma.paymentGatewayTransaction.create({
         data: {
           tenantId,
+          paymentAccountId: account.id,
           gateway: 'RAZORPAY',
           transactionType: 'RAZORPAY_ORDER',
           gatewayOrderId,
@@ -189,12 +189,12 @@ export class PaymentsGatewayService {
         gateway: 'RAZORPAY',
         amount: dto.amount,
         currency: 'INR',
-        razorpayKeyId: this.razorpayKeyId,
+        razorpayKeyId: credentials.keyId,
         invoiceId: dto.invoiceId,
         customerMessage: 'Complete payment via Razorpay Checkout (UPI, Cards, NetBanking).',
       };
     } catch (error: any) {
-      this.logger.error('Razorpay order creation failed', error);
+      this.logger.error('School Razorpay order creation failed');
       if (error.response?.data?.error?.description) {
         throw new BadRequestException(error.response.data.error.description);
       }
@@ -206,12 +206,14 @@ export class PaymentsGatewayService {
 
   async verifyRazorpayCheckout(dto: VerifyPaymentDto): Promise<any> {
     const tenantId = this.tenantService.requireTenantContext();
-    if (!this.razorpayKeySecret) {
-      throw new BadRequestException('Razorpay secret not configured');
-    }
+    const transaction = await this.prisma.paymentGatewayTransaction.findFirst({
+      where: { tenantId, gatewayOrderId: dto.razorpayOrderId, gateway: 'RAZORPAY' },
+    });
+    if (!transaction) throw new NotFoundException('Payment order not found');
+    const credentials = await this.accounts.forTransaction(transaction);
 
-    const expectedSig = createHmac('sha256', this.razorpayKeySecret)
-      .update(`${dto.razorpayOrderId}|${dto.razorpayPaymentId}`)
+    const expectedSig = createHmac('sha256', credentials.keySecret)
+      .update(`${transaction.gatewayOrderId}|${dto.razorpayPaymentId}`)
       .digest('hex');
 
     const providedBuf = Buffer.from(dto.razorpaySignature || '', 'utf8');
@@ -223,19 +225,12 @@ export class PaymentsGatewayService {
       throw new BadRequestException('Invalid Razorpay payment signature');
     }
 
-    const transaction = await this.prisma.paymentGatewayTransaction.findFirst({
-      where: { tenantId, gatewayOrderId: dto.razorpayOrderId },
-    });
-    if (!transaction) {
-      throw new NotFoundException('Payment order not found');
-    }
-
     // A valid checkout signature can still refer to an authorized payment.
     // Credit fees only after the provider confirms capture and exact order value.
     let captured: any;
     try {
       const response = await axios.get(`${this.razorpayBaseUrl}/payments/${encodeURIComponent(dto.razorpayPaymentId)}`, {
-        auth: { username: this.razorpayKeyId, password: this.razorpayKeySecret }, timeout: 15000,
+        auth: { username: credentials.keyId, password: credentials.keySecret }, timeout: 15000,
       });
       captured = response.data;
     } catch { throw new ServiceUnavailableException('Payment confirmation is temporarily unavailable. Your school can reconcile the payment after confirmation.'); }
@@ -264,7 +259,7 @@ export class PaymentsGatewayService {
 
     const transaction = await this.prisma.executeWithoutTenantFilter(() =>
       this.prisma.paymentGatewayTransaction.findFirst({
-        where: { gatewayOrderId: orderId },
+        where: { gatewayOrderId: orderId, gateway: 'RAZORPAY' },
       }),
     );
 
@@ -280,16 +275,13 @@ export class PaymentsGatewayService {
       return { received: true };
     }
 
-    const isSuccess =
-      payload.event === 'payment.captured' ||
-      payload.event === 'order.paid' ||
-      entity?.status === 'captured';
+    const isSuccess = ['payment.captured', 'order.paid'].includes(payload.event) && entity?.status === 'captured';
 
     if (isSuccess) {
-      if (typeof entity?.amount === 'number' && entity.amount !== transaction.amount) {
+      if (!paymentId || entity?.amount !== transaction.amount) {
         throw new BadRequestException('Payment callback amount does not match original order');
       }
-      if (entity?.currency && entity.currency !== transaction.currency) {
+      if (entity?.currency !== transaction.currency) {
         throw new BadRequestException('Payment callback currency mismatch');
       }
 
@@ -411,6 +403,11 @@ export class PaymentsGatewayService {
       const transaction = await client.paymentGatewayTransaction.findFirstOrThrow({ where: { id: dto.transactionId, tenantId } });
       if (transaction.paymentId) throw new ConflictException('Transaction already linked to a payment');
       if (transaction.gateway !== 'UPI' && transaction.status !== 'COMPLETED') throw new BadRequestException('Only captured gateway payments can be reconciled');
+      if (transaction.paymentAccountId) {
+        const account = await client.schoolPaymentAccount.findFirst({ where: { id: transaction.paymentAccountId, tenantId }, select: { schoolId: true } });
+        const target = await client.invoice.findFirst({ where: { id: dto.invoiceId, tenantId }, select: { paymentSchoolId: true } });
+        if (!account || !target || target.paymentSchoolId !== account.schoolId) throw new BadRequestException('A payment can only be reconciled to an invoice from the receiving school');
+      }
       const reference = transaction.gatewayPaymentId || transaction.receiptNumber || transaction.utrNumber || transaction.gatewayOrderId || transaction.id;
       const payment = await this.feesService.recordPayment({ invoiceId: dto.invoiceId, amount: transaction.amount, paymentMethod: transaction.gateway === 'UPI' ? PaymentMethod.UPI : PaymentMethod.RAZORPAY, reference, paymentDate: (transaction.transactionDate || transaction.createdAt).toISOString(), notes: dto.notes || `Manual bank reconciliation (${reference})` }, userId, client);
       return client.paymentGatewayTransaction.update({ where: { id: transaction.id }, data: { invoiceId: dto.invoiceId, paymentId: payment.id, status: 'COMPLETED', callbackReceived: true, callbackReceivedAt: new Date(), isReconciled: true, reconciledAt: new Date(), reconciliationStatus: 'MATCHED' } });

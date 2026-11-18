@@ -2,7 +2,7 @@
 /* Private signed photo links bypass the shared Next.js image-optimizer cache. */
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { QrCode, Send, ShieldCheck } from 'lucide-react';
+import { CheckCheck, QrCode, Send, ShieldCheck } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import {
   developmentDomains,
@@ -19,6 +19,284 @@ import { Button } from '../ui';
 import { EmptyState, Panel, StatusPill } from '../WorkspaceUI';
 import { Field, PreschoolArea, PreschoolText } from './PreschoolFields';
 import { PreschoolQrScanner } from './PreschoolPickupPass';
+
+const bulkMealPresets = [
+  'Finished meal well',
+  'Ate half portion',
+  'Had snacks & water',
+  'Refused meal',
+] as const;
+
+const bulkMoodOptions = ['HAPPY', 'SETTLED', 'TIRED', 'UPSET', 'NOT_RECORDED'] as const;
+const bulkSleepPresets = [30, 60, 90] as const;
+
+export function PreschoolBulkCareForm({
+  classId,
+  roster,
+  total,
+  selectedIds,
+  busy,
+  action,
+  onClearSelection,
+}: {
+  classId: string;
+  roster: PreschoolChild[];
+  total: number;
+  selectedIds: string[];
+  busy: boolean;
+  action: PreschoolAction;
+  onClearSelection?: () => void;
+}) {
+  const checkedInCount = roster.filter((s) => !!s.day?.checkInAt).length;
+  const [scope, setScope] = useState<'CHECKED_IN' | 'ALL' | 'SELECTED'>(() =>
+    selectedIds.length > 0 ? 'SELECTED' : checkedInCount > 0 ? 'CHECKED_IN' : 'ALL'
+  );
+  const [meals, setMeals] = useState('');
+  const [sleep, setSleep] = useState('');
+  const [toileting, setToileting] = useState('');
+  const [mood, setMood] = useState('');
+  const [notes, setNotes] = useState('');
+  const [share, setShare] = useState(true);
+  const prevSelectedCount = useRef(selectedIds.length);
+
+  useEffect(() => {
+    if (selectedIds.length > 0 && prevSelectedCount.current === 0) {
+      setScope('SELECTED');
+    } else if (selectedIds.length === 0 && scope === 'SELECTED') {
+      setScope(checkedInCount > 0 ? 'CHECKED_IN' : 'ALL');
+    }
+    prevSelectedCount.current = selectedIds.length;
+  }, [selectedIds.length, scope, checkedInCount]);
+
+  const hasCareField = Boolean(
+    meals.trim() || sleep !== '' || toileting || mood || notes.trim()
+  );
+  const canApplyChanges = hasCareField || share;
+  const isPaginated = total > roster.length;
+  const targetUnavailable =
+    (scope === 'SELECTED' && selectedIds.length === 0) ||
+    (scope === 'CHECKED_IN' && !isPaginated && checkedInCount === 0) ||
+    (scope === 'ALL' && total === 0);
+
+  const targetSummary =
+    scope === 'SELECTED'
+      ? `${selectedIds.length} selected ${selectedIds.length === 1 ? 'child' : 'children'}`
+      : scope === 'CHECKED_IN'
+        ? isPaginated
+          ? 'all checked-in children'
+          : `${checkedInCount} checked-in ${checkedInCount === 1 ? 'child' : 'children'}`
+        : `all ${total} ${total === 1 ? 'child' : 'children'} in class`;
+
+  async function submitBulkCare(e: FormEvent) {
+    e.preventDefault();
+    if (!canApplyChanges || targetUnavailable) return;
+    const payload: Record<string, unknown> = { shareWithParents: share };
+    if (scope === 'SELECTED') payload.studentIds = selectedIds;
+    if (scope === 'CHECKED_IN') payload.checkedInOnly = true;
+    if (meals.trim()) payload.meals = meals.trim();
+    if (sleep !== '') payload.sleepMinutes = Number(sleep);
+    if (toileting) payload.toileting = toileting;
+    if (mood) payload.mood = mood;
+    if (notes.trim()) payload.notes = notes.trim();
+    const ok = await action('/classes/' + classId + '/care/bulk', payload);
+    if (ok) {
+      setMeals('');
+      setSleep('');
+      setToileting('');
+      setMood('');
+      setNotes('');
+      if (scope === 'SELECTED') onClearSelection?.();
+    }
+  }
+
+  return (
+    <Panel
+      title="Bulk daily care update"
+      subtitle="Update meals, nap, mood or notes for the whole class in one click. Blank fields keep each child’s existing record."
+    >
+      <form className="panel-body space-y-4" onSubmit={submitBulkCare}>
+        <div className="space-y-2">
+          <span className="text-sm font-medium block">Apply to</span>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={scope === 'CHECKED_IN' ? 'primary' : 'outline'}
+              aria-pressed={scope === 'CHECKED_IN'}
+              disabled={busy || (!isPaginated && checkedInCount === 0)}
+              onClick={() => setScope('CHECKED_IN')}
+            >
+              Checked-in today ({checkedInCount}
+              {isPaginated ? '+' : ''})
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={scope === 'ALL' ? 'primary' : 'outline'}
+              aria-pressed={scope === 'ALL'}
+              disabled={busy || total === 0}
+              onClick={() => setScope('ALL')}
+            >
+              Whole class ({total})
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={scope === 'SELECTED' ? 'primary' : 'outline'}
+              aria-pressed={scope === 'SELECTED'}
+              disabled={busy || selectedIds.length === 0}
+              onClick={() => setScope('SELECTED')}
+            >
+              Selected children ({selectedIds.length})
+            </Button>
+          </div>
+          {!isPaginated && checkedInCount === 0 && scope !== 'ALL' && (
+            <p className="text-xs muted">
+              No children are checked in yet. Use Bulk Check-in above or switch to Whole class.
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-sm font-medium block">Quick mood</span>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={mood === '' ? 'primary' : 'outline'}
+              aria-pressed={mood === ''}
+              disabled={busy}
+              onClick={() => setMood('')}
+            >
+              Keep existing
+            </Button>
+            {bulkMoodOptions.map((option) => (
+              <Button
+                key={option}
+                type="button"
+                size="sm"
+                variant={mood === option ? 'primary' : 'outline'}
+                aria-pressed={mood === option}
+                disabled={busy}
+                onClick={() => setMood(option)}
+              >
+                {friendly(option)}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="form-grid">
+          <div className="space-y-2">
+            <PreschoolArea
+              label="Meals / snacks (optional)"
+              value={meals}
+              onChange={setMeals}
+              maxLength={2000}
+              rows={2}
+              placeholder="Leave blank to keep each child’s existing meal note"
+            />
+            <div className="flex flex-wrap gap-2">
+              {bulkMealPresets.map((preset) => (
+                <Button
+                  key={preset}
+                  type="button"
+                  size="sm"
+                  variant={meals === preset ? 'primary' : 'outline'}
+                  disabled={busy}
+                  onClick={() => setMeals((current) => (current === preset ? '' : preset))}
+                >
+                  {preset}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <PreschoolText
+              label="Rest / sleep (minutes, optional)"
+              type="number"
+              value={sleep}
+              onChange={setSleep}
+              min={0}
+              max={720}
+              required={false}
+              placeholder="Leave blank to keep existing"
+            />
+            <div className="flex flex-wrap gap-2">
+              {bulkSleepPresets.map((mins) => (
+                <Button
+                  key={mins}
+                  type="button"
+                  size="sm"
+                  variant={sleep === String(mins) ? 'primary' : 'outline'}
+                  disabled={busy}
+                  onClick={() =>
+                    setSleep((current) => (current === String(mins) ? '' : String(mins)))
+                  }
+                >
+                  {mins} min
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <Field label="Toileting (optional)">
+            {(id) => (
+              <select
+                id={id}
+                value={toileting}
+                disabled={busy}
+                onChange={(e) => setToileting(e.target.value)}
+              >
+                <option value="">Keep existing (no change)</option>
+                {['INDEPENDENT', 'ASSISTED', 'CHANGED', 'NOT_RECORDED'].map((v) => (
+                  <option key={v} value={v}>
+                    {friendly(v)}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+
+          <PreschoolArea
+            label="Shared classroom note (optional)"
+            value={notes}
+            onChange={setNotes}
+            rows={2}
+            placeholder="Leave blank to keep each child’s existing notes"
+          />
+        </div>
+
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={share}
+            disabled={busy}
+            onChange={(e) => setShare(e.target.checked)}
+          />
+          Share these care updates with linked parents immediately
+        </label>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="submit"
+            leftIcon={<CheckCheck size={16} />}
+            disabled={busy || !canApplyChanges || targetUnavailable}
+            isLoading={busy}
+          >
+            Update care for {targetSummary}
+          </Button>
+          {!canApplyChanges && (
+            <span className="text-xs muted">
+              Pick a meal, mood, sleep, toileting, note, or enable parent sharing to submit.
+            </span>
+          )}
+        </div>
+      </form>
+    </Panel>
+  );
+}
 
 export function PreschoolCareForm({
   child,

@@ -16,6 +16,9 @@ datasource db {
 // ===================================
 
 model Tenant {
+  schoolPaymentAccounts SchoolPaymentAccount[]
+  pushSubscriptions PushSubscription[]
+  academicRollovers AcademicYearRollover[]
   id             String       @id @default(uuid())
   name           String
   subdomain      String       @unique
@@ -149,6 +152,8 @@ enum BillingCycle {
 // ===================================
 
 model School {
+  paymentAccounts SchoolPaymentAccount[]
+  feeInvoices Invoice[] @relation("InvoiceSchool")
   id                 String  @id @default(uuid())
   tenantId           String
   name               String
@@ -242,6 +247,7 @@ enum AcademicCalendar {
 // ===================================
 
 model User {
+  pushSubscriptions PushSubscription[]
   tokenVersion Int     @default(0)
   id           String  @id @default(uuid())
   tenantId     String
@@ -720,6 +726,27 @@ model Subject {
   @@map("subjects")
 }
 
+model AcademicYearRollover {
+  id             String   @id @default(uuid())
+  tenantId       String
+  sourceYearId   String
+  targetYearId   String
+  sourceYearName String
+  targetYearName String
+  requestHash    String
+  previewToken   String
+  decisions      Json
+  summary        Json
+  completedBy    String
+  completedAt    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, sourceYearId])
+  @@unique([tenantId, targetYearId])
+  @@map("academic_year_rollovers")
+}
+
 model Enrollment {
   id             String   @id @default(uuid())
   tenantId       String
@@ -976,6 +1003,8 @@ enum FeeCategory {
 }
 
 model Invoice {
+  paymentSchoolId String?
+  paymentSchool School? @relation("InvoiceSchool", fields: [paymentSchoolId], references: [id], onDelete: Restrict)
   feeStructureId             String?
   feeStructure               FeeStructure?               @relation(fields: [feeStructureId], references: [id])
   paymentGatewayTransactions PaymentGatewayTransaction[]
@@ -1094,6 +1123,8 @@ enum PaymentStatus {
 // ===================================
 
 model PaymentGatewayTransaction {
+  paymentAccountId String?
+  paymentAccount SchoolPaymentAccount? @relation(fields: [paymentAccountId], references: [id], onDelete: Restrict)
   payment              Payment?  @relation("AllocatedPayment", fields: [paymentId], references: [id])
   invoiceId            String?
   paymentId            String?
@@ -1154,6 +1185,27 @@ model PaymentGatewayTransaction {
   @@index([status])
   @@index([isReconciled])
   @@map("payment_gateway_transactions")
+}
+
+// Immutable credential versions; retired versions remain available for outstanding orders.
+model SchoolPaymentAccount {
+  id String @id @default(uuid())
+  tenantId String
+  schoolId String
+  merchantName String
+  razorpayEnabled Boolean @default(false)
+  razorpayKeyId String?
+  razorpayKeySecret String?
+  razorpayWebhookSecret String?
+  upiVpa String?
+  isCurrent Boolean @default(true)
+  configuredBy String
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  transactions PaymentGatewayTransaction[]
+  @@index([tenantId, schoolId, isCurrent])
+  @@map("school_payment_accounts")
 }
 
 enum PaymentGatewayProvider {
@@ -1249,6 +1301,35 @@ model SchoolEvent {
 // COMMUNICATIONS
 // ===================================
 
+model PushSubscription {
+  id              String   @id @default(uuid())
+  tenantId        String
+  userId          String
+  tokenVersion    Int
+  endpointHash    String   @unique
+  endpoint        String   @db.Text
+  p256dh          String
+  auth            String
+  expirationAt    DateTime?
+  cursorAt        DateTime @default(now())
+  cursorId        String   @default("")
+  retryCount      Int      @default(0)
+  nextAttemptAt   DateTime @default(now())
+  leaseUntil      DateTime?
+  leaseToken      String?
+  lastPushAt      DateTime?
+  lastError       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@index([nextAttemptAt, leaseUntil])
+  @@map("push_subscriptions")
+}
+
 model Communication {
   id       String @id @default(uuid())
   tenantId String
@@ -1308,6 +1389,7 @@ model CommunicationLog {
 
   @@index([communicationId])
   @@index([recipient])
+  @@index([recipient, channel, createdAt])
   @@index([status])
   @@map("communication_logs")
 }

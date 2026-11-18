@@ -15,6 +15,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 
 export const contentKinds = [
@@ -77,6 +78,31 @@ export class CareRecordDto {
   @IsOptional() @IsString() @MaxLength(5000) notes?: string;
   @Transform(({ obj, key }) => obj[key]) @IsBoolean() shareWithParents: boolean;
 }
+export class BulkCheckInDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  studentIds?: string[];
+}
+export class BulkCareRecordDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  studentIds?: string[];
+  @IsOptional() @Transform(({ obj, key }) => obj[key]) @IsBoolean() checkedInOnly?: boolean;
+  @IsOptional() @IsString() @MaxLength(2000) meals?: string;
+  @IsOptional() @IsInt() @Min(0) @Max(720) sleepMinutes?: number | null;
+  @IsOptional() @IsIn(['NOT_RECORDED', 'INDEPENDENT', 'ASSISTED', 'CHANGED']) toileting?: string;
+  @IsOptional() @IsIn(['HAPPY', 'SETTLED', 'TIRED', 'UPSET', 'NOT_RECORDED']) mood?: string;
+  @IsOptional() @IsString() @MaxLength(5000) notes?: string;
+  @Transform(({ obj, key }) => obj[key]) @IsBoolean() shareWithParents: boolean;
+}
 export class ObservationDto {
   @IsUUID() studentId: string;
   @IsIn(domains) domain: (typeof domains)[number];
@@ -109,6 +135,23 @@ export class PublishPreschoolContentDto {
   @IsInt() @Min(1) version: number;
   @Transform(({ obj, key }) => obj[key]) @IsBoolean() reviewed: boolean;
 }
+export class CameraGatewayStreamDto {
+  @IsIn(['hikvision', 'dahua', 'cpplus', 'rtsp', 'push'])
+  vendor: 'hikvision' | 'dahua' | 'cpplus' | 'rtsp' | 'push';
+  @IsOptional() @IsIn(['pull', 'push']) mode?: 'pull' | 'push';
+  @IsOptional() @IsString() @MaxLength(255) host?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(65535) port?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(256) channel?: number;
+  @IsOptional() @IsIn(['sub', 'main']) stream?: 'sub' | 'main';
+  @IsOptional() @IsString() @MaxLength(120) username?: string;
+  @IsOptional() @IsString() @MaxLength(200) password?: string;
+  @IsOptional() @IsString() @MaxLength(500) rtspUrl?: string;
+  @IsOptional() @IsString() @MaxLength(200) rtspPath?: string;
+  @IsOptional() @IsIn(['tcp', 'udp']) rtspTransport?: 'tcp' | 'udp';
+  @IsOptional() @Transform(({ obj, key }) => obj[key]) @IsBoolean() tls?: boolean;
+  @IsOptional() @Transform(({ obj, key }) => obj[key]) @IsBoolean() sourceOnDemand?: boolean;
+  @IsOptional() @IsString() @MaxLength(200) publishSecret?: string;
+}
 export class CameraDto {
   @IsUUID() classId: string;
   @IsString() @MinLength(2) @MaxLength(120) label: string;
@@ -125,6 +168,10 @@ export class CameraDto {
   weekdays: number[];
   @IsInt() @Min(0) @Max(1439) startMinute: number;
   @IsInt() @Min(1) @Max(1440) endMinute: number;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CameraGatewayStreamDto)
+  gatewayStream?: CameraGatewayStreamDto;
 }
 export class CameraConsentDto {
   @Transform(({ obj, key }) => obj[key]) @IsBoolean() consent: boolean;
@@ -132,8 +179,18 @@ export class CameraConsentDto {
 export class PreschoolPhotoDto {
   @IsString() @MaxLength(1000) caption: string;
 }
+export class PreschoolCopilotHistoryItemDto {
+  @IsIn(['user', 'assistant']) role: 'user' | 'assistant';
+  @IsString() @MinLength(1) @MaxLength(3000) content: string;
+}
 export class PreschoolCopilotDto {
   @IsUUID() classId: string;
   @IsIn(['English', 'Malayalam', 'Hindi']) language: string;
   @IsString() @MinLength(5) @MaxLength(1000) question: string;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @ValidateNested({ each: true })
+  @Type(() => PreschoolCopilotHistoryItemDto)
+  history?: PreschoolCopilotHistoryItemDto[];
 }

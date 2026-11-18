@@ -47,6 +47,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { RedisService } from './common/services/redis.service';
 import { OperationsModule } from './modules/operations/operations.module';
 import { PreschoolModule } from './modules/preschool/preschool.module';
+import { PushModule } from './modules/push/push.module';
 
 @Module({
   imports: [
@@ -89,6 +90,7 @@ import { PreschoolModule } from './modules/preschool/preschool.module';
     WorkspaceModule,
     OperationsModule,
     PreschoolModule,
+    PushModule,
     PlatformModule,
     StudentsModule,
     GuardiansModule,
