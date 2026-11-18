@@ -11,6 +11,7 @@ let unavailable = true,
   failSend = true,
   failUpload = false,
   failReaction = false;
+let boardVersion=0, boardState={actions:[],theme:'chalkboard'};
 let channels = [],
   messages = [];
 const channel = (id) => ({
@@ -30,6 +31,8 @@ const context = await browser.newContext({
 await context.addInitScript(() => {
   localStorage.setItem('accessToken', 'chat-fixture');
   window.captureCancelled = true;
+  window.cameraRequests=0;
+  Object.defineProperty(navigator.mediaDevices,'getUserMedia',{configurable:true,value:async()=>{window.cameraRequests++;throw new DOMException('Camera permission denied','NotAllowedError');}});
   window.stoppedCaptures = 0;
   Object.defineProperty(navigator.mediaDevices, 'getDisplayMedia', {
     configurable: true,
@@ -61,6 +64,10 @@ await context.route('**/api/**', async (route) => {
     : null;
   requests.push({ path, method: req.method(), body });
   const ok = (data) => route.fulfill({ json: { success: true, data } });
+  if(path.endsWith('/live/join'))return ok({roomId:'11111111-1111-4111-8111-111111111111',participantId:'22222222-2222-4222-8222-222222222222',members:[{id:'22222222-2222-4222-8222-222222222222',userId:'teacher-user',name:'Saved Teacher',role:'TEACHER'}],version:boardVersion,board:boardState});
+  if(path.endsWith('/poll'))return ok({members:[{id:'22222222-2222-4222-8222-222222222222',userId:'teacher-user',name:'Saved Teacher',role:'TEACHER'}],version:boardVersion,board:body.data.boardVersion===boardVersion?null:boardState,signals:[],cursor:0});
+  if(path.endsWith('/board')){const op=body.data.operation;if(op.type==='stroke')boardState.actions.push({...op.stroke,authorId:'teacher-user'});if(op.type==='undo')boardState.actions.pop();if(op.type==='theme')boardState.theme=op.theme;if(op.type==='clear')boardState.actions=[];boardVersion++;return ok({board:boardState,version:boardVersion});}
+  if(path.endsWith('/leave'))return ok({left:true});
   if (path === '/auth/me')
     return ok({
       id: 'teacher-user',
@@ -126,7 +133,7 @@ const page = await context.newPage();
 page.on('pageerror', (err) => errors.push(err.message));
 try {
   await mkdir('qa/chat', { recursive: true });
-  await page.goto(base + '/teacher/chat');
+  await page.goto(base + '/teacher/chat',{timeout:120000});
   await page.getByRole('alert').filter({ hasText: 'Chat is temporarily unavailable' }).waitFor();
   assert.equal(await page.getByText('Official Announcements', { exact: true }).count(), 0);
   unavailable = false;
@@ -169,9 +176,33 @@ try {
   assert(attachmentRequest.body.attachments[0].storageKey);
   assert.equal(attachmentRequest.body.attachments[0].url, '');
   checks.push('Attachment picker uploads the selected file and sends its private storage key');
-  await page.getByTitle('Collaborative Classroom Board for Teacher & Children').click();
-  await page.getByText('Personal board', { exact: true }).waitFor();
+  await page.getByTitle('Shared classroom board').click();
+  await page.getByText('Shared board', { exact: true }).waitFor();
   assert.equal(await page.getByText('Live Co-Drawing Active', { exact: true }).count(), 0);
+  const canvas=page.getByLabel('Shared drawing board',{exact:true});
+  const drawPoint=async(x,y)=>{
+    const rect=await canvas.boundingBox(),scale=Math.min(rect.width/1200,rect.height/700);
+    return {x:rect.x+(rect.width-1200*scale)/2+x*scale,y:rect.y+(rect.height-700*scale)/2+y*scale};
+  };
+  const start=await drawPoint(100,100),end=await drawPoint(220,160);
+  await page.mouse.move(start.x,start.y);await page.mouse.down();await page.mouse.move(end.x,end.y,{steps:6});await page.mouse.up();
+  await page.waitForFunction(()=>!document.querySelector('button[title="Undo"]').disabled);
+  const dot=await drawPoint(300,200);await page.mouse.click(dot.x,dot.y);
+  await page.waitForFunction(()=>!document.querySelector('button[title="Undo"]').disabled);
+  assert.deepEqual(await canvas.evaluate(c=>Array.from(c.getContext('2d').getImageData(300,200,1,1).data)),[255,255,255,255]);
+  const beforeResize=await canvas.evaluate(c=>c.toDataURL());
+  await page.getByTitle('Toggle Fullscreen').click();
+  await page.setViewportSize({width:1200,height:850});
+  assert.equal(await canvas.evaluate(c=>c.toDataURL()),beforeResize);
+  await page.getByTitle('Toggle Fullscreen').click();
+  await page.setViewportSize({width:1440,height:1000});
+  await page.getByTitle('Switch Theme').click();
+  await page.getByTitle('Switch Theme').filter({hasText:'Chalkboard'}).waitFor();
+  await page.waitForFunction(()=>!document.querySelector('button[title="Undo"]').disabled);
+  const darkDot=await drawPoint(500,350);await page.mouse.click(darkDot.x,darkDot.y);
+  await page.waitForFunction(()=>!document.querySelector('button[title="Undo"]').disabled);
+  assert.deepEqual(await canvas.evaluate(c=>Array.from(c.getContext('2d').getImageData(500,350,1,1).data)),[30,41,59,255]);
+  checks.push('Board retains a fixed drawing space across fullscreen/resize, paints single clicks, and switches to a visible pen colour');
   failUpload = true;
   await page.getByTitle('Post Board Snapshot to Chat').click();
   await page.getByRole('alert').filter({ hasText: 'snapshot could not be saved' }).waitFor();
@@ -180,7 +211,7 @@ try {
   await page.getByTitle('Post Board Snapshot to Chat').click();
   await page.getByTitle('Close Board').waitFor({ state: 'hidden' });
   checks.push('Board retains work on upload failure and posts only after upload and message save');
-  await page.getByTitle('Live Screen Sharing & Lesson Presentation').click();
+  await page.getByTitle('Screen preview and snapshot').click();
   await page.getByRole('button', { name: 'Choose screen' }).click();
   await page.getByRole('alert').filter({ hasText: 'Screen permission cancelled' }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Snapshot to Chat' }).isDisabled(), true);
@@ -198,15 +229,14 @@ try {
   checks.push(
     'Cancelled screen permission stays inactive; actual capture attaches to video and stops on close'
   );
-  await page.getByTitle('HD Video Call').click();
-  await page.getByLabel('School meeting link', { exact: true }).fill('javascript:alert(1)');
-  assert.equal(await page.getByRole('link', { name: 'Open meeting', exact: true }).count(), 0);
-  await page
-    .getByLabel('School meeting link', { exact: true })
-    .fill('https://meeting.example.test/room');
-  await page.getByRole('link', { name: 'Open meeting', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Close meeting', exact: true }).click();
-  checks.push('Meeting action uses a real HTTPS provider link without simulated participants');
+  await page.getByTitle('Video call').click();
+  assert.equal(await page.evaluate(()=>window.cameraRequests),0);
+  await page.getByRole('button',{name:'Join call',exact:true}).click();
+  await page.getByRole('alert').filter({hasText:'Camera permission denied'}).waitFor();
+  assert.equal(await page.evaluate(()=>window.cameraRequests),1);
+  assert.equal(await page.getByRole('button',{name:'Join call',exact:true}).isEnabled(),true);
+  await page.getByRole('button',{name:'Close call',exact:true}).click();
+  checks.push('Built-in calling waits for explicit Join; denied camera permission stays inactive and permits retry');
   await page.getByTitle('Start New Chat or Channel').click();
   await page.getByPlaceholder('Channel name (e.g. Grade 5 Mathematics)').fill('New staff group');
   await page.getByPlaceholder('Description (optional)').fill('Saved group description');

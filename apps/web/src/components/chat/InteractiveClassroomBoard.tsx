@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import type {BoardState,LiveMember} from '@/lib/collaboration-client';
 import {
   Pen,
   Highlighter,
@@ -27,12 +28,15 @@ export interface BoardProps {
   userName?: string;
   onClose: () => void;
   onShareToChat?: (snapshotDataUrl: string) => Promise<void>;
+  shared?: {board:BoardState;members:LiveMember[];ready:boolean;canManage:boolean;onOperation:(operation:Record<string,unknown>)=>Promise<void>};
 }
 
 type ToolType = 'pen' | 'highlighter' | 'eraser' | 'rect' | 'circle' | 'arrow' | 'text';
 type BoardTheme = 'chalkboard' | 'whiteboard';
+const BOARD_WIDTH=1200, BOARD_HEIGHT=700;
 
 interface DrawAction {
+  id:string;
   tool: ToolType;
   color: string;
   size: number;
@@ -48,20 +52,32 @@ export function InteractiveClassroomBoard({
   userName = 'You',
   onClose,
   onShareToChat,
+  shared,
 }: BoardProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [theme, setTheme] = useState<BoardTheme>('chalkboard');
+  const [localTheme, setTheme] = useState<BoardTheme>('chalkboard');
+  const theme=shared?.board.theme||localTheme;
   const [tool, setTool] = useState<ToolType>('pen');
   const [color, setColor] = useState<string>('#ffffff');
-  const [size, setSize] = useState<number>(3);
+  const [size, setSize] = useState<number>(4);
+  // Remote theme changes must also keep the next stroke visible on each participant's board.
+  useEffect(() => {
+    setColor((current) => theme === 'whiteboard' && current === '#ffffff'
+      ? '#1e293b' : theme === 'chalkboard' && current === '#1e293b' ? '#ffffff' : current);
+  }, [theme]);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [history, setHistory] = useState<DrawAction[]>([]);
-  const activeUsers=[{name:userName,role:userRole,color:'#10b981'}];
+  const [localHistory, setHistory] = useState<DrawAction[]>([]);
+  const [draft,setDraft]=useState<DrawAction|null>(null);
+  const draftRef=useRef<DrawAction|null>(null);
+  const [syncing,setSyncing]=useState(false);
+  const [syncError,setSyncError]=useState('');
+  const history:DrawAction[]=shared?[...shared.board.actions as DrawAction[],...(draft&&!shared.board.actions.some(a=>a.id===draft.id)?[draft]:[])]:localHistory;
+  const activeUsers=shared?shared.members.map(m=>({...m,color:'#10b981'})):[{name:userName,role:userRole,color:'#10b981'}];
   const [sharing,setSharing]=useState(false);
   const [shareError,setShareError]=useState('');
   const [fullScreen, setFullScreen] = useState(false);
   const [currentText, setCurrentText] = useState('');
-  const [textInputPos, setTextInputPos] = useState<{ x: number; y: number } | null>(null);
+  const [textInputPos, setTextInputPos] = useState<{ x: number; y: number; displayX:number; displayY:number } | null>(null);
 
   const colors = theme === 'chalkboard'
     ? ['#ffffff', '#fde047', '#34d399', '#60a5fa', '#f472b6', '#fb923c']
@@ -97,7 +113,7 @@ export function InteractiveClassroomBoard({
 
     // Replay history
     for (const action of history) {
-      if (action.points.length < 2 && action.tool !== 'text') continue;
+      if (!action.points.length || action.points.length < 2 && ['rect','circle','arrow'].includes(action.tool)) continue;
       ctx.save();
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -122,6 +138,7 @@ export function InteractiveClassroomBoard({
         for (let i = 1; i < action.points.length; i++) {
           ctx.lineTo(action.points[i].x, action.points[i].y);
         }
+        if(action.points.length===1)ctx.lineTo(action.points[0].x+0.01,action.points[0].y+0.01);
         ctx.stroke();
       } else if (action.tool === 'rect') {
         const start = action.points[0];
@@ -140,6 +157,10 @@ export function InteractiveClassroomBoard({
         ctx.beginPath();
         ctx.moveTo(start.x, start.y);
         ctx.lineTo(end.x, end.y);
+        const angle=Math.atan2(end.y-start.y,end.x-start.x), head=Math.max(12,action.size*3);
+        ctx.moveTo(end.x-head*Math.cos(angle-Math.PI/6),end.y-head*Math.sin(angle-Math.PI/6));
+        ctx.lineTo(end.x,end.y);
+        ctx.lineTo(end.x-head*Math.cos(angle+Math.PI/6),end.y-head*Math.sin(angle+Math.PI/6));
         ctx.stroke();
       } else if (action.tool === 'text' && action.text) {
         ctx.font = `${action.size * 6}px sans-serif`;
@@ -151,105 +172,81 @@ export function InteractiveClassroomBoard({
     }
   }, [history, theme]);
 
-  // Resize canvas to display dimensions
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const parent = canvas.parentElement;
-    if (!parent) return;
-
-    const width = parent.clientWidth;
-    const height = parent.clientHeight;
-
-    canvas.width = width;
-    canvas.height = height;
-    redrawCanvas();
-  }, [redrawCanvas, fullScreen]);
-
   useEffect(() => {
     redrawCanvas();
   }, [redrawCanvas]);
 
   const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
+    if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
+    const scale=Math.min(rect.width/BOARD_WIDTH,rect.height/BOARD_HEIGHT);
+    const displayX=e.clientX-rect.left,displayY=e.clientY-rect.top;
+    const x=(displayX-(rect.width-BOARD_WIDTH*scale)/2)/scale;
+    const y=(displayY-(rect.height-BOARD_HEIGHT*scale)/2)/scale;
+    return scale>0&&x>=0&&x<=BOARD_WIDTH&&y>=0&&y<=BOARD_HEIGHT?{x,y,displayX,displayY}:null;
   };
 
+  function makeAction(points:{x:number;y:number}[],text?:string):DrawAction {
+    return {id:crypto.randomUUID(),tool:text?'text':tool,color,size,points,...(text?{text}:{}),author:userName,authorRole:userRole};
+  }
+  function updateDraft(action:DrawAction|null){draftRef.current=action;setDraft(action);}
+  async function sendDraft(){
+    const action=draftRef.current;
+    if(!shared||!action||syncing)return;
+    setSyncing(true);setSyncError('');
+    try{await shared.onOperation({type:'stroke',stroke:action});updateDraft(null);}
+    catch(error){setSyncError(error instanceof Error?error.message:'Drawing could not be saved. Retry your stroke.');}
+    finally{setSyncing(false);}
+  }
+  async function operation(value:Record<string,unknown>){
+    if(!shared||syncing||draftRef.current)return;
+    setSyncing(true);setSyncError('');
+    try{await shared.onOperation(value);}catch(error){setSyncError(error instanceof Error?error.message:'Board update failed.');}finally{setSyncing(false);}
+  }
   const handleMouseDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if(!e.isPrimary||e.button!==0||shared&&(!shared.ready||syncing||draftRef.current))return;
+    const coords=getCanvasCoords(e);if(!coords)return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    const coords = getCanvasCoords(e);
-    if (tool === 'text') {
-      setTextInputPos(coords);
-      return;
-    }
-
+    if(tool==='text'){setTextInputPos(coords);return;}
     setIsDrawing(true);
-    setHistory((prev) => [
-      ...prev,
-      {
-        tool,
-        color,
-        size,
-        points: [coords],
-        author: userName,
-        authorRole: userRole,
-      },
-    ]);
+    const action=makeAction([{x:coords.x,y:coords.y}]);
+    if(shared)updateDraft(action);else setHistory(prev=>[...prev,action]);
   };
-
   const handleMouseMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    const coords = getCanvasCoords(e);
-
-    setHistory((prev) => {
-      if (prev.length === 0) return prev;
-      const last = prev[prev.length - 1];
-      const updated = {
-        ...last,
-        points: [...last.points, coords],
-      };
-      return [...prev.slice(0, -1), updated];
-    });
+    if(!isDrawing||!e.isPrimary)return;
+    const coords=getCanvasCoords(e);if(!coords)return;
+    const append=(last:DrawAction)=>{
+      const points=last.points.length>=255?last.points.filter((_,i)=>i%2===0):last.points;
+      return {...last,points:[...points,{x:coords.x,y:coords.y}]};
+    };
+    if(shared){if(draftRef.current)updateDraft(append(draftRef.current));}
+    else setHistory(prev=>prev.length?[...prev.slice(0,-1),append(prev[prev.length-1])]:prev);
   };
-
   const handleMouseUp = () => {
+    if(!isDrawing)return;
     setIsDrawing(false);
+    if(shared)void sendDraft();
   };
-
   const handleTextSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentText.trim() || !textInputPos) return;
-
-    setHistory((prev) => [
-      ...prev,
-      {
-        tool: 'text',
-        color,
-        size,
-        points: [textInputPos],
-        text: currentText.trim(),
-        author: userName,
-        authorRole: userRole,
-      },
-    ]);
-
-    setCurrentText('');
-    setTextInputPos(null);
+    e.preventDefault();if(!currentText.trim()||!textInputPos)return;
+    const action=makeAction([{x:textInputPos.x,y:textInputPos.y}],currentText.trim());
+    if(shared){if(!shared.ready||syncing||draftRef.current)return;updateDraft(action);void sendDraft();}
+    else setHistory(prev=>[...prev,action]);
+    setCurrentText('');setTextInputPos(null);
   };
-
   const handleUndo = () => {
-    setHistory((prev) => prev.slice(0, -1));
+    if(shared)void operation({type:'undo'});else setHistory(prev=>prev.slice(0,-1));
   };
-
   const handleClear = () => {
-    if (confirm('Clear your board? Download it first if you need a copy.')) {
-      setHistory([]);
+    if(confirm(shared?'Clear the shared board for everyone? Save a snapshot first.':'Clear your board? Download it first if you need a copy.')){
+      if(shared)void operation({type:'clear'});else setHistory([]);
     }
+  };
+  const changeTheme=()=>{
+    const next=theme==='chalkboard'?'whiteboard':'chalkboard';
+    if(shared)void operation({type:'theme',theme:next});else setTheme(next);
+    setColor(next==='whiteboard'?'#1e293b':'#ffffff');
   };
 
   const handleDownload = () => {
@@ -287,17 +284,17 @@ export function InteractiveClassroomBoard({
               </h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Personal board
+                {shared?'Shared board':'Personal board'}
               </span>
             </div>
             <p className="text-[10px] text-slate-400">
-              Draw locally and post a snapshot to this conversation.
+              {shared?'Draw together with members of this conversation. Strokes save when you lift your pointer.':'Draw locally and post a snapshot to this conversation.'}
             </p>
           </div>
         </div>
 
         {/* Active Participants Pills */}
-        <div className="hidden lg:flex items-center gap-1.5">
+        <div className="hidden lg:flex flex-wrap items-center gap-1.5">
           {activeUsers.map((user, idx) => (
             <div
               key={idx}
@@ -312,7 +309,8 @@ export function InteractiveClassroomBoard({
         {/* Window controls */}
         <div className="flex items-center gap-1.5">
           <button
-            onClick={() => setTheme(theme === 'chalkboard' ? 'whiteboard' : 'chalkboard')}
+            onClick={changeTheme}
+            disabled={!!shared&&(!shared.canManage||!shared.ready||syncing||!!draft)}
             className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 border border-slate-700"
             title="Switch Theme"
           >
@@ -451,7 +449,7 @@ export function InteractiveClassroomBoard({
           {/* Undo & Clear */}
           <button
             onClick={handleUndo}
-            disabled={history.length === 0}
+            disabled={history.length === 0||isDrawing||!!shared&&(!shared.ready||syncing||!!draft)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-40"
             title="Undo"
           >
@@ -459,6 +457,7 @@ export function InteractiveClassroomBoard({
           </button>
           <button
             onClick={handleClear}
+            disabled={isDrawing||!!shared&&(!shared.canManage||!shared.ready||syncing||!!draft)}
             className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-950/40"
             title="Clear Board"
           >
@@ -468,27 +467,33 @@ export function InteractiveClassroomBoard({
       </div>
 
       {/* Canvas Area */}
+      {syncError&&<div role="alert" className="p-3 text-red-300">{syncError}{draft&&<><button className="underline ml-3" disabled={syncing||!shared?.ready} onClick={()=>void sendDraft()}>Retry stroke</button><button className="underline ml-3" disabled={syncing} onClick={()=>{updateDraft(null);setSyncError('');}}>Discard unsaved stroke</button></>}</div>}
+      {syncing&&<p role="status" className="p-2 text-xs text-emerald-300">Saving board change?</p>}
       {shareError&&<p role="alert" className="p-3 text-red-300">{shareError}</p>}
       <div className="flex-1 relative overflow-hidden bg-slate-950 select-none">
         <canvas
           ref={canvasRef}
+          width={BOARD_WIDTH}
+          height={BOARD_HEIGHT}
+          aria-label={shared?'Shared drawing board':'Personal drawing board'}
           onPointerDown={handleMouseDown}
           onPointerMove={handleMouseMove}
           onPointerUp={handleMouseUp}
           onPointerCancel={handleMouseUp}
-          className="w-full h-full cursor-crosshair block touch-none"
+          className="w-full h-full object-contain cursor-crosshair block touch-none"
         />
 
         {/* Text Annotation Input Modal Prompt */}
         {textInputPos && (
           <form
             onSubmit={handleTextSubmit}
-            style={{ left: textInputPos.x, top: textInputPos.y }}
+            style={{ left: `min(${textInputPos.displayX}px, max(0px, calc(100% - 320px)))`, top: textInputPos.displayY, maxWidth:'100%' }}
             className="absolute z-20 bg-slate-900 border border-emerald-500 p-2 rounded-xl shadow-2xl flex items-center gap-2"
           >
             <input
               type="text"
               autoFocus
+              maxLength={500}
               placeholder="Type notation / lesson notes..."
               value={currentText}
               onChange={(e) => setCurrentText(e.target.value)}

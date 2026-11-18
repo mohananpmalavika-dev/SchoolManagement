@@ -30,7 +30,7 @@ import {
   ChatContact,
   ChatAttachment,
 } from '@/lib/chat-client';
-import { InteractiveClassroomBoard } from './InteractiveClassroomBoard';
+import { SharedClassroomBoard } from './SharedClassroomBoard';
 import { ChatCallModal } from './ChatCallModal';
 import { ScreenShareModal } from './ScreenShareModal';
 import { messageFor } from '@/lib/workspace';
@@ -114,6 +114,7 @@ export function SchoolChatHub() {
 
   useEffect(() => {
     setMessages([]);setReplyingTo(null);setAttachedFiles([]);setInputText('');setError('');
+    setActiveCall(null);setShowWhiteboard(false);setShowScreenShare(false);
     if (activeChannelId) {
       void loadMessages(activeChannelId);
       const timer = setInterval(() => {
@@ -403,34 +404,34 @@ export function SchoolChatHub() {
                 <button
                   onClick={() => setActiveCall('audio')}
                   className="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                  title="Voice Call"
+                  title="Voice call"
                 >
                   <Phone size={13} />
-                  <span className="hidden sm:inline">Voice Call</span>
+                  <span className="hidden sm:inline">Voice call</span>
                 </button>
 
                 <button
                   onClick={() => setActiveCall('video')}
                   className="px-2.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                  title="HD Video Call"
+                  title="Video call"
                 >
                   <Video size={13} />
-                  <span className="hidden sm:inline">Video Call</span>
+                  <span className="hidden sm:inline">Video call</span>
                 </button>
 
                 <button
                   onClick={() => setShowScreenShare(true)}
                   className="px-2.5 py-1.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                  title="Live Screen Sharing & Lesson Presentation"
+                  title="Screen preview and snapshot"
                 >
                   <ScreenShare size={13} />
-                  <span className="hidden sm:inline">Screen Share</span>
+                  <span className="hidden sm:inline">Screen preview</span>
                 </button>
 
                 <button
                   onClick={() => setShowWhiteboard(true)}
                   className="px-2.5 py-1.5 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                  title="Collaborative Classroom Board for Teacher & Children"
+                  title="Shared classroom board"
                 >
                   <span>🎨</span>
                   <span className="hidden sm:inline">Board</span>
@@ -788,10 +789,10 @@ export function SchoolChatHub() {
       {showWhiteboard && activeChannel && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6">
           <div className="w-full max-w-5xl">
-            <InteractiveClassroomBoard
+            <SharedClassroomBoard
+              key={activeChannel.id}
               channelName={activeChannel.name}
-              userName={[user?.firstName,user?.lastName].filter(Boolean).join(' ')}
-              userRole={user?.role}
+              channelId={activeChannel.id}
               onClose={() => setShowWhiteboard(false)}
               onShareToChat={handleShareSnapshot}
             />
@@ -815,11 +816,11 @@ export function SchoolChatHub() {
       {/* Voice & HD Video Call Suite Modal */}
       {activeCall && activeChannel && (
         <ChatCallModal
+          channelId={activeChannel.id}
+          onShareToChat={handleShareSnapshot}
           channelName={activeChannel.name}
           callType={activeCall}
           onEndCall={() => setActiveCall(null)}
-          onOpenWhiteboard={() => setShowWhiteboard(true)}
-          onOpenScreenShare={() => setShowScreenShare(true)}
         />
       )}
     </div></>

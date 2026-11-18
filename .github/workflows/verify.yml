@@ -67,6 +67,13 @@ jobs:
         run: pnpm test:db:school
         env:
           SCHOOL_TEST_DATABASE_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_qa
+      - name: Verify real two-browser video and shared board
+        # The optimized web server started above remains available to two isolated browsers.
+        run: |
+          pnpm test:db:live
+        env:
+          SCHOOL_TEST_DATABASE_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_qa
+          LIVE_UI_BASE_URL: http://127.0.0.1:3102
       - name: Replay migrations and verify historical data preservation
         run: |
           createdb -h 127.0.0.1 -p 15432 -U krypton_qa krypton_migrations_test

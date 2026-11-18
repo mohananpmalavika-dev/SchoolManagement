@@ -1,4 +1,10 @@
 export function validateEnvironment(env:Record<string,unknown>){
+ const turnUrls=String(env.WEBRTC_TURN_URLS||'').trim(),turnSecret=String(env.WEBRTC_TURN_SECRET||'');
+ if(turnUrls||turnSecret){
+  if(!turnUrls||turnSecret.length<32)throw new Error('Configure WEBRTC_TURN_URLS and a WEBRTC_TURN_SECRET of at least 32 characters together');
+  if(turnUrls.split(',').some(value=>!/^turns?:[^\s/@?#]+(?:\?transport=(?:udp|tcp))?$/i.test(value.trim())))throw new Error('WEBRTC_TURN_URLS must contain TURN or TURNS server URLs without embedded credentials');
+ }
+ if(env.WEBRTC_STUN_URLS&&String(env.WEBRTC_STUN_URLS).split(',').some(value=>!/^stuns?:[^\s/@?#]+$/i.test(value.trim())))throw new Error('WEBRTC_STUN_URLS must contain STUN server URLs');
  const cameraKeys=['CCTV_GATEWAY_URL','CCTV_GATEWAY_KEY','CCTV_PLAYBACK_ORIGINS'];
  if(cameraKeys.some(key=>!!env[key])){
   if(!cameraKeys.every(key=>typeof env[key]==='string'&&String(env[key]).trim()))throw new Error('Configure all CCTV gateway settings together');

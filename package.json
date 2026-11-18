@@ -53,6 +53,7 @@
     "test:ui:school-payments": "node scripts/test-school-payments-ui.mjs",
     "test:ui:school-records": "node scripts/test-school-records-ui.mjs",
     "test:db:school": "node scripts/test-school-workflows.mjs",
+    "test:db:live": "node scripts/test-live-collaboration.mjs",
     "test:db:school-backup": "node scripts/test-school-backup.mjs",
     "test:db:preschool-migrations": "node scripts/test-preschool-migrations.mjs"
   },

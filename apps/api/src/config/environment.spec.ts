@@ -1,5 +1,11 @@
 import {validateEnvironment} from './environment';
 describe('production environment',()=>{
+ it('validates the TURN relay configuration without accepting embedded secrets',()=>{
+  const base={DATABASE_URL:'postgresql://test',JWT_SECRET:'a',JWT_REFRESH_SECRET:'b'};
+  expect(()=>validateEnvironment({...base,WEBRTC_TURN_URLS:'turn:relay.example.test:3478'})).toThrow('together');
+  expect(()=>validateEnvironment({...base,WEBRTC_TURN_URLS:'https://relay.example.test',WEBRTC_TURN_SECRET:'x'.repeat(40)})).toThrow('TURN');
+  expect(()=>validateEnvironment({...base,WEBRTC_TURN_URLS:'turn:relay.example.test:3478?transport=udp,turns:relay.example.test:5349?transport=tcp',WEBRTC_TURN_SECRET:'x'.repeat(40)})).not.toThrow();
+ });
  it('requires a complete HTTPS camera configuration',()=>{
   const base={DATABASE_URL:'postgresql://test',JWT_SECRET:'a',JWT_REFRESH_SECRET:'b'};
   expect(()=>validateEnvironment({...base,CCTV_GATEWAY_URL:'https://gateway.example.test'})).toThrow('all CCTV');

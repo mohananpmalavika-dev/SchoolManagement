@@ -2723,6 +2723,8 @@ model IssuedCertificate {
 // ===================================
 
 model ChatChannel {
+  @@unique([id, tenantId])
+  liveRooms CollaborationRoom[]
   id          String   @id @default(uuid())
   tenantId    String
   name        String
@@ -2743,6 +2745,25 @@ model ChatChannel {
   @@index([type])
   @@index([classId])
   @@map("chat_channels")
+}
+
+// Bounded, expiring live sessions. State changes lock the room row before updating JSON.
+model CollaborationRoom {
+  id             String @id @default(uuid())
+  tenantId       String
+  channelId      String
+  kind           String
+  createdBy      String
+  state          Json
+  version        Int @default(0)
+  signalSequence Int @default(0)
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  channel ChatChannel @relation(fields:[channelId,tenantId],references:[id,tenantId],onDelete:Cascade)
+  @@index([tenantId,channelId,kind,expiresAt])
+  @@index([expiresAt])
+  @@map("collaboration_rooms")
 }
 
 model ChatChannelMember {

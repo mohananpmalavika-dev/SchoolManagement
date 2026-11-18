@@ -19,6 +19,7 @@ The connected school workflows have been hardened and tested locally. This repos
 - Published report cards save an assessment snapshot and recompute their aggregate from published results. Later assessments cannot rewrite an issued report. Published assessments and report cards are locked against ordinary edits. Older published cards without snapshots retain their historical stored aggregates.
 - Absent counts are no longer doubled. In-app absence, shared activity, wellbeing and meeting notifications are durable and retry-safe. Notification flags are set after an inbox message is saved. External SMS/email delivery is a separate operation.
 - Chat checks membership before private reads, sends and reactions, validates same-school participants and reply targets, serializes reactions and direct-conversation creation, and returns recent bounded history. Class conversations use current student/guardian/staff assignments; stale membership does not retain access after a transfer. AI lesson shares can only target their selected class conversation.
+- Built-in chat video/voice calls and screen sharing use authenticated WebRTC sessions (four participants). The shared board supports twenty members, ordered finished strokes and own-only undo. [Setup, limits and test evidence](LIVE_COLLABORATION.md) include the mandatory production TURN relay. Saved PTM appointments still use their configured provider link.
 - Legacy QR tokens sign successfully, use server scan time, and bind student scans and session metadata to the authenticated actor. The primary classroom check-in workspace continues to use its rotating code workflow.
 - New database backups use authenticated AES-256-GCM. Existing CBC archives remain readable for recovery. Verification and restore remove temporary plaintext files, including on failure.
 - Government API samples no longer invent APAAR/PEN numbers, candidate numbers, board results or datesheets. Unsupported official operations return HTTP 501 and are not auto-scheduled. Integration responses omit encrypted credentials. Reviewed compliance reports and exports remain available for manual submission.
@@ -31,6 +32,7 @@ This release adds:
 
 1. `202611170003_school_delivery_keys`: optional unique tenant/event keys for family inbox retry protection.
 2. `202611170004_school_report_snapshots`: optional assessment snapshot on report cards.
+3. `202611180001_live_collaboration`: expiring, tenant/channel-scoped call signaling and shared board state.
 
 The preceding preschool and additive India-alignment migrations must also be present. All migrations are replayed in order by the disposable migration test. Installations originally created with `db:push` need an inspected baseline before `migrate deploy`; do not mark migrations applied without checking their objects. No production database was changed during this work.
 
@@ -91,6 +93,7 @@ The configured CI workflow was not executed in this local session. A full applic
 | Driver-phone GPS | HTTPS and real phone permission/location testing. The driver keeps the trip page open; mobile operating systems may suspend background browser GPS. ETA is a labelled straight-line estimate, not traffic routing. |
 | CCTV | Provider is undecided. Connect and validate the secure gateway contract in [PRESCHOOL_IMPLEMENTATION.md](PRESCHOOL_IMPLEMENTATION.md), including class mapping, consent, expiry and failure behavior. |
 | Government submissions | No authorized official API adapter is configured. Use reviewed exports and the official portal. Any records created by earlier preview versions must be checked against official records; this release does not delete historical data or turn sample identifiers into verified identifiers. |
+| Built-in calls and shared board | Apply the live collaboration migration, configure HTTPS and a coturn-compatible TURN shared secret/URLs, then verify calling and screen sharing across separate networks and supported mobile browsers. The local two-browser test uses synthetic devices with real media transport; it does not certify a deployed relay. [Operational details](LIVE_COLLABORATION.md). |
 | AI assistance | Built-in templates are labelled and teacher-reviewed. External generation needs a configured provider and school acceptance. AI suggestions do not automatically publish official assessment decisions. |
 | Disaster recovery | Rehearse the real production backup and restore to an isolated environment, retain encryption keys separately, configure off-site storage and monitor failures. The local fixture restore does not replace that rehearsal. |
 

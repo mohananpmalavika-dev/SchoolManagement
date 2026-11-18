@@ -6,7 +6,7 @@ const compoundSelectors = new Map(Prisma.dmmf.datamodel.models.map(model => [mod
 const directModels = new Set([
   'PreschoolStaffAssignment', 'PreschoolDayRecord', 'DevelopmentObservation', 'PreschoolContent',
   'ClassroomCamera', 'ClassroomCameraConsent', 'TransportAlert',
-  'ChatChannel', 'Subscription', 'School', 'User', 'Student', 'Guardian', 'Staff', 'StaffAttendance',
+  'ChatChannel', 'CollaborationRoom', 'Subscription', 'School', 'User', 'Student', 'Guardian', 'Staff', 'StaffAttendance',
   'AcademicYear', 'Term', 'Class', 'Stream', 'Subject', 'Enrollment', 'AttendanceRecord',
   'Examination', 'Grade', 'ReportCard', 'FeeStructure', 'Invoice', 'Payment', 'PaymentGatewayTransaction',
   'TimetableEntry', 'SchoolEvent', 'Communication', 'MessageTemplate', 'Book', 'BookBorrowing',

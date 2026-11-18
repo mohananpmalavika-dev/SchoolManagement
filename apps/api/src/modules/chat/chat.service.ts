@@ -97,7 +97,7 @@ export class ChatService {
     return [];
   }
 
-  private async authorizeChannel(channelId: string, tenantId: string, userId: string) {
+  async authorizeChannel(channelId: string, tenantId: string, userId: string) {
     const channel = await this.prisma.chatChannel.findFirst({ where: { id: channelId, tenantId, isArchived: false } });
     if (!channel) throw new NotFoundException('Channel not found');
     const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId, isActive: true } });
