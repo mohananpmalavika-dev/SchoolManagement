@@ -2391,6 +2391,8 @@ td:first-child {
     width: 100%;
     max-width: none;
     padding: 12mm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   body:has(.preschool-print-sheet) .preschool-print-controls {

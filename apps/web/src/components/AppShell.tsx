@@ -52,7 +52,11 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
   const selected = (href: string) => active?.href === href;
   const activeGroup = groups.find(group => group.items.some(item => selected(item.href)));
   const visibleGroup = expandedGroup ?? activeGroup?.label;
-  const contextLinks = activeGroup?.items || groups[0]?.items || [];
+  const studentShortcuts = ['dashboard', 'assignments', 'timetable', 'quizzes', 'materials', 'grades'].map(slug => '/student/' + slug);
+  if (active && !studentShortcuts.includes(active.href)) studentShortcuts.push(active.href);
+  const contextLinks = portal === 'student'
+    ? studentShortcuts.map(href => links.find(link => link.href === href)).filter((link): link is typeof links[number] => !!link)
+    : activeGroup?.items || groups[0]?.items || [];
   const results = links.filter(link => link.label.toLowerCase().includes(search.trim().toLowerCase()));
   const roles = portal === 'admin' ? ['SUPER_ADMIN'] : portal === 'teacher' ? teacherRoles : portal === 'school' ? schoolRoles : portal === 'student' ? ['STUDENT'] : ['PARENT'];
   const openSearch = () => { setSearch(''); dialog.current?.showModal(); };
@@ -116,7 +120,7 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
         <nav className="module-navigation" aria-label="Workspace modules">{groups.map(group => <button key={group.label} className={activeGroup?.label === group.label ? 'selected' : ''} aria-label={'Browse ' + group.label.toLowerCase()} aria-haspopup="dialog" aria-controls="workspace-navigation" aria-expanded={open && visibleGroup === group.label} onClick={event => browse(group.label, event.currentTarget)}>{group.label.toLowerCase()}<ChevronDown size={12}/></button>)}</nav>
         <div className="topbar-actions"><button className="command-trigger" onClick={openSearch} aria-label="Find a page"><Search size={17}/><span>Find anything</span><kbd>Ctrl K</kbd></button><Link href="/account" className="profile-link" aria-label="Account settings"><span className="avatar">{user?.firstName?.[0]}{user?.lastName?.[0]}</span><span className="hidden xl:block"><strong>{user?.firstName} {user?.lastName}</strong><small>{user?.role.replaceAll('_',' ').toLowerCase()}</small></span></Link><button ref={menu} className="module-launcher" onClick={() => browse()} aria-controls="workspace-navigation" aria-expanded={open} aria-label="Open navigation"><LayoutGrid size={19}/><span>Modules</span></button></div>
       </header>
-      <div className="workspace-subnav"><span className="workspace-context"><PortalIcon size={16}/>{portalLabels[portal]}</span><nav aria-label="Current section">{contextLinks.map(({href, label}) => <Link key={href} href={href} className={selected(href) ? 'active' : ''} aria-current={!open && selected(href) ? 'page' : undefined}>{label}</Link>)}</nav></div>
+      <div className="workspace-subnav"><span className="workspace-context"><PortalIcon size={16}/>{portal === 'student' ? 'My learning space' : portalLabels[portal]}</span><nav aria-label="Current section">{contextLinks.map(({href, label}) => <Link key={href} href={href} className={selected(href) ? 'active' : ''} aria-current={!open && selected(href) ? 'page' : undefined}>{label}</Link>)}</nav></div>
       <main ref={main} id="main-content" tabIndex={-1} className="page-content"><FeatureBoundary inWorkspace>{children}</FeatureBoundary></main>
       <footer className="workspace-footer"><span>&copy; {new Date().getFullYear()} Krypton School ERP</span><span>One connected school community</span></footer>
     </div>

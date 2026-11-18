@@ -221,7 +221,7 @@ export class CameraConsentDto {
   @Transform(({ obj, key }) => obj[key]) @IsBoolean() consent: boolean;
 }
 export class PreschoolPhotoDto {
-  @IsString() @MaxLength(1000) caption: string;
+  @IsOptional() @IsString() @MaxLength(1000) caption?: string;
 }
 export class PreschoolCopilotHistoryItemDto {
   @IsIn(['user', 'assistant']) role: 'user' | 'assistant';

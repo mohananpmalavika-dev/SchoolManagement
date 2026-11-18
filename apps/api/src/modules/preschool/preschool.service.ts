@@ -1570,41 +1570,55 @@ export class PreschoolService {
     const range = await this.range(query),
       tenantId = this.tenant(),
       parent = user.role === 'PARENT';
-    const [days, attendanceRecords, observations, activities, content] = await Promise.all([
-      this.db.preschoolDayRecord.findMany({
-        where: { tenantId, studentId, date: range },
-        orderBy: { date: 'desc' },
-        take: 93,
-      }),
-      this.db.attendanceRecord.findMany({
-        where: { tenantId, studentId, date: range, period: 1 },
-        select: { id: true, date: true, status: true, remarks: true },
-        orderBy: { date: 'desc' },
-        take: 93,
-      }),
-      this.db.developmentObservation.findMany({
-        where: { tenantId, studentId, observedOn: range, ...(parent ? { shared: true } : {}) },
-        orderBy: [{ observedOn: 'desc' }, { createdAt: 'desc' }],
-        take: 101,
-        skip: query.offset || 0,
-      }),
-      this.db.activityFeed.findMany({
-        where: { tenantId, studentId, isVisibleToParents: true },
-        select: { id: true, title: true, description: true, createdAt: true, activityType: true },
-        orderBy: { createdAt: 'desc' },
-        take: 30,
-      }),
-      this.db.preschoolContent.findMany({
-        where: {
-          tenantId,
-          classId: student.currentClassId!,
-          status: 'PUBLISHED',
-          scheduledOn: range,
-        },
-        orderBy: { scheduledOn: 'desc' },
-        take: 100,
-      }),
-    ]);
+    const observationWhere = {
+      tenantId,
+      studentId,
+      observedOn: range,
+      ...(parent ? { shared: true } : {}),
+    };
+    const [days, attendanceRecords, observations, groupedObservations, activities, content] =
+      await Promise.all([
+        this.db.preschoolDayRecord.findMany({
+          where: { tenantId, studentId, date: range },
+          orderBy: { date: 'desc' },
+          take: 93,
+        }),
+        this.db.attendanceRecord.findMany({
+          where: { tenantId, studentId, date: range, period: 1 },
+          select: { id: true, date: true, status: true, remarks: true },
+          orderBy: { date: 'desc' },
+          take: 93,
+        }),
+        this.db.developmentObservation.findMany({
+          where: observationWhere,
+          orderBy: [{ observedOn: 'desc' }, { createdAt: 'desc' }],
+          take: 101,
+          skip: query.offset || 0,
+        }),
+        typeof this.db.developmentObservation.groupBy === 'function'
+          ? this.db.developmentObservation.groupBy({
+              by: ['domain', 'level'],
+              where: observationWhere,
+              _count: { _all: true },
+            })
+          : Promise.resolve(null),
+        this.db.activityFeed.findMany({
+          where: { tenantId, studentId, isVisibleToParents: true },
+          select: { id: true, title: true, description: true, createdAt: true, activityType: true },
+          orderBy: { createdAt: 'desc' },
+          take: 30,
+        }),
+        this.db.preschoolContent.findMany({
+          where: {
+            tenantId,
+            classId: student.currentClassId!,
+            status: 'PUBLISHED',
+            scheduledOn: range,
+          },
+          orderBy: { scheduledOn: 'desc' },
+          take: 100,
+        }),
+      ]);
     const dayKey = (value: Date | string) =>
       value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
     const attendanceByDate = new Map(
@@ -1649,16 +1663,38 @@ export class PreschoolService {
       });
     }
     visibleDays.sort((a, b) => dayKey(b.date).localeCompare(dayKey(a.date)));
+    const domainSummary = Array.isArray(groupedObservations)
+      ? groupedObservations.map((row) => ({
+          domain: row.domain,
+          level: row.level,
+          _count: { _all: row._count._all },
+        }))
+      : Object.values(
+          observations.reduce<
+            Record<string, { domain: string; level: string; _count: { _all: number } }>
+          >((acc, obs) => {
+            const key = `${obs.domain}::${obs.level}`;
+            if (!acc[key]) {
+              acc[key] = { domain: obs.domain, level: obs.level, _count: { _all: 0 } };
+            }
+            acc[key]._count._all += 1;
+            return acc;
+          }, {})
+        );
     return {
       student: {
         id: student.id,
         firstName: student.firstName,
         lastName: student.lastName,
         className: student.currentClass!.name,
+        preschoolStage: student.currentClass!.preschoolStage || null,
+        schoolName: student.currentClass!.school?.name || '',
+        dateOfBirth: student.dateOfBirth || null,
       },
       days: visibleDays,
       observations: observations.slice(0, 100),
       hasMoreObservations: observations.length > 100,
+      domainSummary,
       activities,
       content,
     };
@@ -1763,7 +1799,7 @@ export class PreschoolService {
   }
   async report(user: Actor, query: PreschoolQueryDto) {
     if (!query.classId) throw new BadRequestException('Choose a class');
-    await this.access.classroom(user, query.classId);
+    const classroom = await this.access.classroom(user, query.classId);
     const range = await this.range(query),
       tenantId = this.tenant();
     const students = await this.db.student.findMany({
@@ -1797,6 +1833,12 @@ export class PreschoolService {
     ]);
     return {
       range,
+      classroom: {
+        id: classroom.id,
+        name: classroom.name,
+        preschoolStage: classroom.preschoolStage || null,
+        schoolName: classroom.school?.name || '',
+      },
       students: students.map((s) => ({
         ...s,
         checkIns: days.filter((d) => d.studentId === s.id && d.checkInAt).length,

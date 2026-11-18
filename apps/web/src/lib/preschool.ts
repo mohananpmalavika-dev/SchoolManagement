@@ -19,6 +19,197 @@ export const developmentDomains = [
   'SELF_CARE',
   'CREATIVE',
 ] as const;
+export type DevelopmentDomain = (typeof developmentDomains)[number];
+export const developmentLevels = ['EMERGING', 'DEVELOPING', 'CONSISTENT'] as const;
+export type DevelopmentLevel = (typeof developmentLevels)[number];
+export interface PreschoolDomainMeta {
+  id: DevelopmentDomain;
+  label: string;
+  shortLabel: string;
+  description: string;
+  accentHex: string;
+}
+export const PRESCHOOL_DOMAIN_META: Record<DevelopmentDomain, PreschoolDomainMeta> = {
+  LANGUAGE: {
+    id: 'LANGUAGE',
+    label: 'Language & Communication',
+    shortLabel: 'Language',
+    description: 'Listening, vocabulary, storytelling, rhymes and expressing needs',
+    accentHex: '#2563eb',
+  },
+  COGNITIVE: {
+    id: 'COGNITIVE',
+    label: 'Cognitive & Early Numeracy',
+    shortLabel: 'Cognitive',
+    description: 'Curiosity, sorting, shapes, patterns, counting and problem-solving',
+    accentHex: '#7c3aed',
+  },
+  FINE_MOTOR: {
+    id: 'FINE_MOTOR',
+    label: 'Fine Motor Skills',
+    shortLabel: 'Fine Motor',
+    description: 'Grip, scribbling, clay, threading, puzzles and hand–eye coordination',
+    accentHex: '#db2777',
+  },
+  GROSS_MOTOR: {
+    id: 'GROSS_MOTOR',
+    label: 'Gross Motor Skills',
+    shortLabel: 'Gross Motor',
+    description: 'Balance, running, jumping, climbing and active outdoor play',
+    accentHex: '#ea580c',
+  },
+  SOCIAL_EMOTIONAL: {
+    id: 'SOCIAL_EMOTIONAL',
+    label: 'Social & Emotional',
+    shortLabel: 'Social-Emotional',
+    description: 'Sharing, turn-taking, empathy, confidence and managing feelings',
+    accentHex: '#0d9488',
+  },
+  SELF_CARE: {
+    id: 'SELF_CARE',
+    label: 'Self-Care & Independence',
+    shortLabel: 'Self-Care',
+    description: 'Handwashing, eating habits, tidying up and personal routines',
+    accentHex: '#059669',
+  },
+  CREATIVE: {
+    id: 'CREATIVE',
+    label: 'Creative Expression',
+    shortLabel: 'Creative',
+    description: 'Drawing, painting, music, movement and imaginative pretend play',
+    accentHex: '#d97706',
+  },
+};
+export interface PreschoolDomainObservationGroup {
+  domain: string;
+  level: string;
+  _count: { _all: number };
+}
+export interface PreschoolPhotoItem {
+  id: string;
+  caption: string;
+  createdAt: string;
+  scope?: 'CLASS' | 'CHILD';
+}
+export interface DomainProgressBucket {
+  domain: DevelopmentDomain;
+  meta: PreschoolDomainMeta;
+  emerging: number;
+  developing: number;
+  consistent: number;
+  total: number;
+  primaryLevel: DevelopmentLevel | 'UNOBSERVED';
+  progressScore: number;
+  recentSkills: string[];
+  observations: PreschoolObservation[];
+}
+export interface PreschoolMilestoneSummary {
+  domains: DomainProgressBucket[];
+  totalObservations: number;
+  domainsObserved: number;
+  levels: Record<DevelopmentLevel, number>;
+}
+export function summarizePreschoolDomains(
+  groups: PreschoolDomainObservationGroup[] | undefined,
+  detailedObservations: PreschoolObservation[] = []
+): PreschoolMilestoneSummary {
+  const counts = new Map<DevelopmentDomain, Record<DevelopmentLevel, number>>();
+  for (const domain of developmentDomains) {
+    counts.set(domain, { EMERGING: 0, DEVELOPING: 0, CONSISTENT: 0 });
+  }
+  const sourceGroups: PreschoolDomainObservationGroup[] =
+    groups && groups.length > 0
+      ? groups
+      : detailedObservations.map((obs) => ({
+        domain: obs.domain,
+        level: obs.level,
+        _count: { _all: 1 },
+      }));
+
+  for (const row of sourceGroups) {
+    const bucket = counts.get(row.domain as DevelopmentDomain);
+    if (!bucket) continue;
+    if (
+      row.level === 'EMERGING' ||
+      row.level === 'DEVELOPING' ||
+      row.level === 'CONSISTENT'
+    ) {
+      bucket[row.level] += row._count?._all || 0;
+    }
+  }
+
+  const levels: Record<DevelopmentLevel, number> = {
+    EMERGING: 0,
+    DEVELOPING: 0,
+    CONSISTENT: 0,
+  };
+  let totalObservations = 0;
+  let domainsObserved = 0;
+
+  const domains: DomainProgressBucket[] = developmentDomains.map((domain) => {
+    const bucket = counts.get(domain)!;
+    const emerging = bucket.EMERGING;
+    const developing = bucket.DEVELOPING;
+    const consistent = bucket.CONSISTENT;
+    const total = emerging + developing + consistent;
+    levels.EMERGING += emerging;
+    levels.DEVELOPING += developing;
+    levels.CONSISTENT += consistent;
+    totalObservations += total;
+    if (total > 0) domainsObserved += 1;
+
+    const primaryLevel: DevelopmentLevel | 'UNOBSERVED' =
+      total === 0
+        ? 'UNOBSERVED'
+        : consistent > 0 && consistent >= developing && consistent >= emerging
+          ? 'CONSISTENT'
+          : developing > 0 && developing >= emerging
+            ? 'DEVELOPING'
+            : consistent > 0
+              ? 'CONSISTENT'
+              : developing > 0
+                ? 'DEVELOPING'
+                : 'EMERGING';
+
+    const progressScore =
+      total === 0
+        ? 0
+        : Math.round(((emerging * 34 + developing * 67 + consistent * 100) / (total * 100)) * 100);
+
+    const domainObs = detailedObservations.filter((obs) => obs.domain === domain);
+    const seen = new Set<string>();
+    const recentSkills: string[] = [];
+    for (const obs of domainObs) {
+      const skill = obs.skill.trim();
+      const key = skill.toLowerCase();
+      if (skill && !seen.has(key)) {
+        seen.add(key);
+        recentSkills.push(skill);
+        if (recentSkills.length >= 3) break;
+      }
+    }
+
+    return {
+      domain,
+      meta: PRESCHOOL_DOMAIN_META[domain],
+      emerging,
+      developing,
+      consistent,
+      total,
+      primaryLevel,
+      progressScore,
+      recentSkills,
+      observations: domainObs,
+    };
+  });
+
+  return {
+    domains,
+    totalObservations,
+    domainsObserved,
+    levels,
+  };
+}
 export const friendly = (value: string) =>
   value
     .toLowerCase()
@@ -141,10 +332,19 @@ export interface PreschoolObservation {
   shared: boolean;
 }
 export interface PreschoolChildView {
-  student: { id: string; firstName: string; lastName: string; className: string };
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    className: string;
+    preschoolStage?: string | null;
+    schoolName?: string;
+    dateOfBirth?: string | null;
+  };
   days: PreschoolDay[];
   observations: PreschoolObservation[];
   hasMoreObservations: boolean;
+  domainSummary?: PreschoolDomainObservationGroup[];
   activities: {
     id: string;
     title: string;
@@ -295,20 +495,20 @@ export function buildDraftFromInkySuggestion(params: {
   const fallbackTopic = t('Playful classroom routine', 'ക്ലാസ്റൂം പ്രവർത്തനം', 'कक्षा गतिविधि');
   const title = isFullPlan
     ? cleanSnippet(
-        question,
-        200,
-        t('INKY classroom guidance plan', 'INKY ക്ലാസ്റൂം പ്ലാൻ', 'INKY कक्षा योजना')
-      )
+      question,
+      200,
+      t('INKY classroom guidance plan', 'INKY ക്ലാസ്റൂം പ്ലാൻ', 'INKY कक्षा योजना')
+    )
     : cleanSnippet(activity, 200, fallbackTopic);
   const theme = cleanSnippet(activity || question, 120, fallbackTopic);
   const learningGoals = cleanSnippet(
     question
       ? `${t('Support classroom situation', 'ക്ലാസ്റൂം ലക്ഷ്യം', 'कक्षा लक्ष्य')}: ${question}`
       : t(
-          'Encourage safe, inclusive participation and playful learning.',
-          'സുരക്ഷിതവും ഉൾക്കൊള്ളുന്നതുമായ പങ്കാളിത്തവും കളിയിലൂടെയുള്ള പഠനവും പ്രോത്സാഹിപ്പിക്കുക.',
-          'सुरक्षित, समावेशी भागीदारी और खेल-आधारित सीखने को बढ़ावा देना।'
-        ),
+        'Encourage safe, inclusive participation and playful learning.',
+        'സുരക്ഷിതവും ഉൾക്കൊള്ളുന്നതുമായ പങ്കാളിത്തവും കളിയിലൂടെയുള്ള പഠനവും പ്രോത്സാഹിപ്പിക്കുക.',
+        'सुरक्षित, समावेशी भागीदारी और खेल-आधारित सीखने को बढ़ावा देना।'
+      ),
     3000,
     t(
       'Encourage safe, inclusive participation through play.',
@@ -324,8 +524,8 @@ export function buildDraftFromInkySuggestion(params: {
   const activitySection = isFullPlan
     ? allActivities.length
       ? `${t('Suggested activities', 'നിർദ്ദേശിച്ച പ്രവർത്തനങ്ങൾ', 'सुझाई गई गतिविधियाँ')}:\n${allActivities
-          .map((item, idx) => `${idx + 1}. ${item}`)
-          .join('\n')}`
+        .map((item, idx) => `${idx + 1}. ${item}`)
+        .join('\n')}`
       : ''
     : `${t('Activity idea', 'പ്രവർത്തന ആശയം', 'गतिविधि विचार')}:\n${activity.trim()}`;
   const guidanceSection = answer.trim()

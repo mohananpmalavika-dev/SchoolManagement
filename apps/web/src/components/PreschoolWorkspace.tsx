@@ -44,6 +44,11 @@ import { PreschoolParentPickupPass } from './preschool/PreschoolPickupPass';
 import { PreschoolCameras } from './preschool/PreschoolCameras';
 import { PreschoolSettings } from './preschool/PreschoolSettings';
 import { PreschoolReports } from './preschool/PreschoolReports';
+import {
+  PreschoolMilestoneProgressCard,
+  PreschoolTermReportPrint,
+  type PreschoolTermReportData,
+} from './preschool/PreschoolMilestoneReport';
 import { Field } from './preschool/PreschoolFields';
 import { PreschoolCopilot } from './preschool/PreschoolCopilot';
 import { PreschoolSectionLocation } from './PreschoolSectionLocation';
@@ -96,6 +101,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
     [to, setTo] = useState(''),
     [dailyDate, setDailyDate] = useState(''),
     [print, setPrint] = useState<Content | null>(null),
+    [termPrint, setTermPrint] = useState<PreschoolTermReportData | null>(null),
     [selectedIds, setSelectedIds] = useState<string[]>([]),
     [editingObservation, setEditingObservation] = useState<PreschoolObservation | null>(null),
     [confirmRowUndo, setConfirmRowUndo] = useState<{
@@ -1293,39 +1299,79 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                       onCancelEdit={() => setEditingObservation(null)}
                     />
                   )}
-                  <div>
+                  <div className="content-stack">
                     {childLoading ? (
                       <p role="status">Loading observations…</p>
                     ) : (
                       child && (
-                        <PreschoolChildHistory
-                          view={{ ...child, days: [] }}
-                          timezone={options.timezone}
-                          canManageObservations={!family}
-                          busy={busy}
-                          onEditObservation={(obs) => setEditingObservation(obs)}
-                          onDeleteObservation={async (id) => {
-                            const ok = await action('/observations/' + id, undefined, 'delete');
-                            if (ok && editingObservation?.id === id) setEditingObservation(null);
-                            return ok;
-                          }}
-                        />
+                        <>
+                          <PreschoolMilestoneProgressCard
+                            title={`7-Domain progress summary · ${child.student.firstName} ${child.student.lastName}`}
+                            subtitle={`${child.student.className} · ${dateLabel(from)} – ${dateLabel(to)}`}
+                            groups={child.domainSummary}
+                            observations={child.observations}
+                            from={from}
+                            to={to}
+                            onOpenPrint={() => {
+                              const checkIns = child.days.filter((d) => Boolean(d.checkInAt)).length;
+                              const checkOuts = child.days.filter((d) => Boolean(d.checkOutAt)).length;
+                              const absentDays = child.days.filter(
+                                (d) => !d.checkInAt && d.attendanceStatus === 'ABSENT'
+                              ).length;
+                              const careUpdates = child.days.filter((d) => Boolean(d.sharedAt)).length;
+                              setTermPrint({
+                                studentName: `${child.student.firstName} ${child.student.lastName}`,
+                                className: child.student.className,
+                                preschoolStage: child.student.preschoolStage || null,
+                                schoolName: child.student.schoolName || '',
+                                dateOfBirth: child.student.dateOfBirth || null,
+                                from,
+                                to,
+                                generatedOn: options.today || to,
+                                checkIns,
+                                checkOuts,
+                                absentDays,
+                                careUpdates,
+                                groups: child.domainSummary || [],
+                                observations: child.observations,
+                              });
+                            }}
+                          />
+                          <PreschoolChildHistory
+                            view={{ ...child, days: [] }}
+                            timezone={options.timezone}
+                            canManageObservations={!family}
+                            busy={busy}
+                            onEditObservation={(obs) => setEditingObservation(obs)}
+                            onDeleteObservation={async (id) => {
+                              const ok = await action('/observations/' + id, undefined, 'delete');
+                              if (ok && editingObservation?.id === id) setEditingObservation(null);
+                              return ok;
+                            }}
+                          />
+                        </>
                       )
                     )}
                   </div>
                 </>
               )}
-              {view === 'photos' && studentId && (
+              {view === 'photos' && (family ? Boolean(studentId) : Boolean(classId)) && (
                 <PreschoolPhotos
-                  key={studentId}
-                  studentId={studentId}
+                  key={family ? studentId : classId}
+                  classId={!family ? classId : undefined}
+                  className={!family ? eligible.find((c) => c.id === classId)?.name : undefined}
+                  totalInClass={!family ? total : undefined}
+                  studentId={studentId || undefined}
+                  studentName={
+                    selected ? `${selected.firstName} ${selected.lastName}` : undefined
+                  }
                   family={family}
                   refresh={refresh}
                   busy={busy}
                   action={action}
-                  notify={() => {
+                  notify={(msg) => {
                     setRefresh((v) => v + 1);
-                    setNotice('Photo shared with the family.');
+                    setNotice(msg || 'Photo shared with families.');
                   }}
                 />
               )}
@@ -1347,13 +1393,26 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                 />
               )}
               {view === 'reports' && !family && (
-                <PreschoolReports classId={classId} from={from} to={to} refresh={refresh} />
+                <PreschoolReports
+                  classId={classId}
+                  from={from}
+                  to={to}
+                  today={options.today}
+                  refresh={refresh}
+                />
               )}
             </div>
           )}
         </>
       )}
       {print && <PreschoolPrint content={print} close={() => setPrint(null)} />}
+      {termPrint && (
+        <PreschoolTermReportPrint
+          report={termPrint}
+          canEditRemarks={!family}
+          close={() => setTermPrint(null)}
+        />
+      )}
     </>
   );
 }

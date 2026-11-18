@@ -76,6 +76,7 @@ dependency-audit*.json
 
 # Isolated redesign verification build
 .next-redesign/
+.next-design*/
 
 # Isolated modern workspace previews and checks
 .next-modern*/

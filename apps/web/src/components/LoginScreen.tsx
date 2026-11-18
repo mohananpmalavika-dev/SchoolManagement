@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button, Input, Alert, PageLoader } from './ui';
 import { useTranslation } from '@/hooks/useTranslation';
 import LanguageSwitcher from './LanguageSwitcher';
-import { WorkspaceScene } from './WorkspaceScene';
+import { CampusArtwork } from './CampusArtwork';
 import { homeForRole } from '@/lib/session';
 export function LoginScreen() {
   const { login, verifyMfa, user, isLoading } = useAuth();
@@ -145,7 +145,7 @@ export function LoginScreen() {
               <span>{t('common.accessProtected')}</span>
             </div>
           </div>
-          <WorkspaceScene />
+          <CampusArtwork />
           <small>{t('common.oneCommunity')}</small>
         </div>
       </section></div>

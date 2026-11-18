@@ -58,9 +58,9 @@ export class BoardExamService {
       });
 
       this.logger.log(`Board Exam (${boardName}) integration initialized for tenant: ${tenantId}`);
-      const safe = { ...integration };
-      delete safe.apiKey;
-      delete safe.apiSecret;
+      const { apiKey: storedKey, apiSecret: storedSecret, ...safe } = integration;
+      void storedKey;
+      void storedSecret;
       return { ...safe, externalApiAvailable: false };
     } catch (error: any) {
       this.logger.error(`Failed to initialize Board integration: ${error.message}`);
@@ -76,9 +76,9 @@ export class BoardExamService {
       where: { tenantId },
     });
     if (!integration) return null;
-    const safe = { ...integration };
-    delete safe.apiKey;
-    delete safe.apiSecret;
+    const { apiKey: storedKey, apiSecret: storedSecret, ...safe } = integration;
+    void storedKey;
+    void storedSecret;
     return { ...safe, externalApiAvailable: false };
   }
 

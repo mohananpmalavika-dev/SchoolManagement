@@ -99,6 +99,7 @@ function setup() {
       create: fn({ id: 'obs' }),
       findMany: fn([]),
       findFirst: fn(null),
+      groupBy: fn([]),
       updateMany: fn({ count: 1 }),
       deleteMany: fn({ count: 1 }),
     },
@@ -539,7 +540,54 @@ describe('Preschool authorization and daily care', () => {
       tenantId: 'tenant-a',
       shared: true,
     });
+    expect(db.developmentObservation.groupBy.mock.calls[0][0].where).toMatchObject({
+      tenantId: 'tenant-a',
+      shared: true,
+    });
     expect(db.preschoolContent.findMany.mock.calls[0][0].where.status).toBe('PUBLISHED');
+  });
+  it('returns 7-domain grouped milestone summary for child views and classroom metadata for reports', async () => {
+    const { db, service } = setup();
+    db.developmentObservation.groupBy.mockResolvedValue([
+      { domain: 'LANGUAGE', level: 'CONSISTENT', _count: { _all: 3 } },
+      { domain: 'FINE_MOTOR', level: 'DEVELOPING', _count: { _all: 2 } },
+    ]);
+    const view = await service.child(teacher, 'child', {});
+    expect(view.domainSummary).toEqual([
+      { domain: 'LANGUAGE', level: 'CONSISTENT', _count: { _all: 3 } },
+      { domain: 'FINE_MOTOR', level: 'DEVELOPING', _count: { _all: 2 } },
+    ]);
+    expect(view.student.className).toBe('Nursery');
+
+    db.class.findFirst.mockResolvedValue({
+      id: 'class',
+      name: 'Nursery A',
+      preschoolStage: 'NURSERY',
+      school: { name: 'Little Sprouts Preschool', programme: 'PRESCHOOL', isActive: true },
+    });
+    db.student.findMany.mockResolvedValue([
+      {
+        id: 'child',
+        firstName: 'Maya',
+        lastName: 'Nair',
+        admissionDate: new Date('2026-06-01'),
+        status: 'ACTIVE',
+      },
+    ]);
+    db.developmentObservation.groupBy.mockResolvedValue([
+      { studentId: 'child', domain: 'LANGUAGE', level: 'CONSISTENT', _count: { _all: 3 } },
+      { studentId: 'child', domain: 'CREATIVE', level: 'EMERGING', _count: { _all: 1 } },
+    ]);
+    db.attendanceRecord.groupBy = fn([]);
+    db.invoice = { groupBy: fn([]) };
+    const report = await service.report(manager, { classId: 'class' });
+    expect(report.classroom).toEqual({
+      id: 'class',
+      name: 'Nursery A',
+      preschoolStage: 'NURSERY',
+      schoolName: 'Little Sprouts Preschool',
+    });
+    expect(report.students[0].observations).toHaveLength(2);
   });
   it('uses the school timezone and rejects impossible or oversized date ranges', async () => {
     const { service } = setup();

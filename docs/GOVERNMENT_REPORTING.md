@@ -99,3 +99,13 @@ node scripts/test-compliance-ui.mjs
 For the real browser/database test, start the web server with `API_URL=http://127.0.0.1:15437`, set `COMPLIANCE_UI_BASE_URL` to that web server and run the database suite. The suite temporarily serves an authenticated API on loopback port 15437. It uses uniquely scoped fixture tenants and retains append-only test evidence in the disposable database. Never point the suite at production.
 
 Automated checks do not exercise a live government portal, actual receipt issuance by an authority or a production Redis scheduling deployment.
+
+## Verification completed on 18 November 2026
+
+- API and web production builds passed. The government API module and changed web files passed focused ESLint checks.
+- The three API/security suites passed 46 tests, including independent review, period calculations, tenant boundaries, retry behavior and unavailable-adapter behavior.
+- A disposable UTF-8 PostgreSQL database accepted the full migration history. Thirteen integration tests passed, including concurrent writes, database immutability triggers and authenticated downloads. One test drove the browser through generation, separate-manager approval, CSV download, manual receipt and acceptance against the actual API/database.
+- Eleven additional browser checks passed with isolated API fixtures, covering supporting tabs, rejected replacement reports, corrections, family-role restrictions and mobile layout. These checks complement the database suite; they do not represent official portal testing.
+- A generated XLSX was independently opened with openpyxl, in addition to ZIP and workbook tests. Browser result files and screenshots are under the ignored local `qa/compliance/` directory.
+
+The original findings are retained in [the historical audit](GOVERNMENT_MODULE_FLOW_AUDIT.md). The supported manual workflow is implemented; official portal field mapping/upload remains an external step. Production migration, application deployment and production scheduler operation must follow the deployment process above.

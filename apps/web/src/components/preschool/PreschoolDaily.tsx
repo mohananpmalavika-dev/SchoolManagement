@@ -2,7 +2,22 @@
 /* Private signed photo links bypass the shared Next.js image-optimizer cache. */
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { CheckCheck, Clock, Pencil, QrCode, RotateCcw, Send, ShieldCheck, Trash2 } from 'lucide-react';
+import {
+  CheckCheck,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  ImagePlus,
+  Pencil,
+  QrCode,
+  RotateCcw,
+  Send,
+  ShieldCheck,
+  Trash2,
+  User,
+  Users,
+  X,
+} from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import {
   developmentDomains,
@@ -14,6 +29,7 @@ import {
   type PreschoolChild,
   type PreschoolChildView,
   type PreschoolObservation,
+  type PreschoolPhotoItem,
   type PreschoolPickupPassSummary,
 } from '@/lib/preschool';
 import { messageFor, dateLabel } from '@/lib/workspace';
@@ -1215,187 +1231,545 @@ export function PreschoolChildHistory({
   );
 }
 
+const MAX_PHOTOS_PER_UPLOAD = 10;
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+interface PendingPhotoFile {
+  id: string;
+  file: File;
+  previewUrl: string;
+}
+
 export function PreschoolPhotos({
+  classId,
+  className,
+  totalInClass,
   studentId,
+  studentName,
   family,
   refresh,
   busy,
   notify,
   action,
 }: {
-  studentId: string;
+  classId?: string;
+  className?: string;
+  totalInClass?: number;
+  studentId?: string;
+  studentName?: string;
   family: boolean;
   refresh: number;
   busy: boolean;
-  notify: () => void;
+  notify: (message?: string) => void;
   action?: PreschoolAction;
 }) {
-  const [items, setItems] = useState<{ id: string; caption: string; createdAt: string }[]>([]),
+  const [items, setItems] = useState<PreschoolPhotoItem[]>([]),
     [offset, setOffset] = useState(0),
     [more, setMore] = useState(false),
     [caption, setCaption] = useState(''),
     [error, setError] = useState(''),
     [uploading, setUploading] = useState(false),
     [confirmDeleteId, setConfirmDeleteId] = useState(''),
-    [preview, setPreview] = useState<{ id: string; url: string; caption: string } | null>(null);
+    [preview, setPreview] = useState<{
+      id: string;
+      url: string;
+      caption: string;
+      scope?: 'CLASS' | 'CHILD';
+    } | null>(null),
+    [uploadTarget, setUploadTarget] = useState<'CLASS' | 'CHILD'>(() =>
+      !family && classId ? 'CLASS' : 'CHILD'
+    ),
+    [galleryFilter, setGalleryFilter] = useState<'ALL' | 'CLASS' | 'CHILD'>('ALL'),
+    [pendingFiles, setPendingFiles] = useState<PendingPhotoFile[]>([]);
   const input = useRef<HTMLInputElement>(null);
+  const pendingRef = useRef<PendingPhotoFile[]>([]);
+
   useEffect(() => {
+    pendingRef.current = pendingFiles;
+  }, [pendingFiles]);
+
+  useEffect(() => {
+    return () => {
+      pendingRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!family && !studentId && classId) {
+      setUploadTarget('CLASS');
+    }
+  }, [family, studentId, classId]);
+
+  const useClassAlbumEndpoint = !family && (!studentId || galleryFilter === 'CLASS') && Boolean(classId);
+
+  useEffect(() => {
+    setOffset(0);
+  }, [studentId, classId, useClassAlbumEndpoint]);
+
+  useEffect(() => {
+    const endpoint = useClassAlbumEndpoint
+      ? '/preschool/classes/' + classId + '/photos'
+      : studentId
+        ? '/preschool/students/' + studentId + '/photos'
+        : '';
+    if (!endpoint) {
+      setItems([]);
+      setMore(false);
+      return;
+    }
     const controller = new AbortController();
     setItems([]);
     setError('');
     setConfirmDeleteId('');
     apiClient
-      .get('/preschool/students/' + studentId + '/photos', {
+      .get(endpoint, {
         params: { offset },
         signal: controller.signal,
       })
       .then(({ data }) => {
-        setItems(data.items);
-        setMore(data.hasMore);
+        setItems(data.items || []);
+        setMore(Boolean(data.hasMore));
       })
       .catch((err) => {
         if (!controller.signal.aborted) setError(messageFor(err));
       });
     return () => controller.abort();
-  }, [studentId, offset, refresh]);
+  }, [classId, studentId, useClassAlbumEndpoint, offset, refresh]);
+
   useEffect(() => {
     if (!preview) return;
     const timer = setTimeout(() => setPreview(null), 115000);
     return () => clearTimeout(timer);
   }, [preview]);
+
+  function handleSelectFiles(fileList: FileList | null) {
+    if (!fileList || !fileList.length) return;
+    setError('');
+    const incoming = Array.from(fileList);
+    const errors: string[] = [];
+    const next: PendingPhotoFile[] = [];
+    const remainingSlots = MAX_PHOTOS_PER_UPLOAD - pendingFiles.length;
+    if (remainingSlots <= 0) {
+      setError(`You can upload up to ${MAX_PHOTOS_PER_UPLOAD} photos at a time.`);
+      if (input.current) input.current.value = '';
+      return;
+    }
+    for (const file of incoming) {
+      if (next.length >= remainingSlots) {
+        errors.push(`Only the first ${MAX_PHOTOS_PER_UPLOAD} photos were kept.`);
+        break;
+      }
+      if (!['image/jpeg', 'image/png'].includes(file.type)) {
+        errors.push(`${file.name} is not a JPEG or PNG photo.`);
+        continue;
+      }
+      if (file.size > MAX_PHOTO_BYTES) {
+        errors.push(`${file.name} is larger than 5 MB.`);
+        continue;
+      }
+      next.push({
+        id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      });
+    }
+    if (errors.length) setError(errors.join(' '));
+    if (next.length) setPendingFiles((current) => [...current, ...next]);
+    if (input.current) input.current.value = '';
+  }
+
+  function removePendingFile(id: string) {
+    setPendingFiles((current) => {
+      const target = current.find((item) => item.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return current.filter((item) => item.id !== id);
+    });
+  }
+
+  function clearPendingFiles() {
+    setPendingFiles((current) => {
+      current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
+    if (input.current) input.current.value = '';
+  }
+
   async function upload(e: FormEvent) {
     e.preventDefault();
-    const photo = input.current?.files?.[0];
-    if (!photo) return;
+    if (!pendingFiles.length) return;
+    const isClassUpload = uploadTarget === 'CLASS' && Boolean(classId);
+    if (!isClassUpload && !studentId) {
+      setError('Choose a child or switch to Whole class sharing.');
+      return;
+    }
     setUploading(true);
     setError('');
     try {
       const data = new FormData();
-      data.set('file', photo);
+      for (const item of pendingFiles) {
+        data.append('files', item.file);
+      }
       data.set('caption', caption);
-      await apiClient.post('/preschool/students/' + studentId + '/photos', data, {
+      const endpoint = isClassUpload
+        ? '/preschool/classes/' + classId + '/photos'
+        : '/preschool/students/' + studentId + '/photos';
+      const count = pendingFiles.length;
+      await apiClient.post(endpoint, data, {
         headers: { 'Content-Type': undefined },
       });
       setCaption('');
-      if (input.current) input.current.value = '';
-      notify();
+      clearPendingFiles();
+      const photoWord = count === 1 ? 'photo' : 'photos';
+      notify(
+        isClassUpload
+          ? `Shared ${count} ${photoWord} with all families in ${className || 'the class'}.`
+          : `Shared ${count} ${photoWord} with ${studentName ? `${studentName}’s family` : 'the family'}.`
+      );
     } catch (err) {
       setError(messageFor(err));
     } finally {
       setUploading(false);
     }
   }
-  async function view(id: string, caption: string) {
+
+  async function view(item: PreschoolPhotoItem) {
     setError('');
     try {
-      const { data } = await apiClient.get(
-        '/preschool/students/' + studentId + '/photos/' + id + '/view'
-      );
-      setPreview({ id, url: data.url, caption });
+      const endpoint = useClassAlbumEndpoint
+        ? '/preschool/classes/' + classId + '/photos/' + item.id + '/view'
+        : '/preschool/students/' + studentId + '/photos/' + item.id + '/view';
+      const { data } = await apiClient.get(endpoint);
+      setPreview({ id: item.id, url: data.url, caption: item.caption, scope: item.scope });
     } catch (err) {
       setError(messageFor(err));
     }
   }
-  async function removePhoto(id: string) {
+
+  async function removePhoto(item: PreschoolPhotoItem) {
     if (!action) return;
     setError('');
-    if (await action('/students/' + studentId + '/photos/' + id, undefined, 'delete')) {
+    const deletePath =
+      useClassAlbumEndpoint || (item.scope === 'CLASS' && classId && !studentId)
+        ? '/classes/' + classId + '/photos/' + item.id
+        : '/students/' + studentId + '/photos/' + item.id;
+    if (await action(deletePath, undefined, 'delete')) {
       setConfirmDeleteId('');
-      setPreview((current) => (current?.id === id ? null : current));
+      setPreview((current) => (current?.id === item.id ? null : current));
     }
   }
+
+  const visibleItems = items.filter((item) => {
+    if (galleryFilter === 'CLASS') return item.scope === 'CLASS';
+    if (galleryFilter === 'CHILD') return item.scope !== 'CLASS';
+    return true;
+  });
+
+  const previewIndex = preview ? visibleItems.findIndex((i) => i.id === preview.id) : -1;
+  const uploadCount = pendingFiles.length;
+  const targetLabel =
+    uploadTarget === 'CLASS'
+      ? `whole class${className ? ` (${className})` : ''}`
+      : studentName
+        ? `${studentName}’s family`
+        : 'this child’s family';
+
   return (
     <Panel
       title="Classroom photos"
-      subtitle="Photos are shared with this child’s linked family using private, expiring access."
+      subtitle={
+        family
+          ? 'Individual and whole-class activity photos shared with your family using private, expiring links.'
+          : 'Upload one or multiple photos at once and share with the whole class or an individual child’s family.'
+      }
     >
-      <div className="panel-body space-y-4">
+      <div className="panel-body space-y-5">
         {error && (
           <p role="alert" className="state-box">
             {error}
           </p>
         )}
         {!family && (
-          <form className="space-y-4" onSubmit={upload}>
-            <Field label="Photo (JPEG or PNG, up to 5 MB)">
+          <form className="rounded-xl border p-4 space-y-4 bg-slate-50/50" onSubmit={upload}>
+            <div className="space-y-2">
+              <span className="text-sm font-medium block">Share photos with</span>
+              <div className="flex flex-wrap gap-2">
+                {classId && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={uploadTarget === 'CLASS' ? 'primary' : 'outline'}
+                    leftIcon={<Users size={14} />}
+                    aria-pressed={uploadTarget === 'CLASS'}
+                    disabled={busy || uploading}
+                    onClick={() => setUploadTarget('CLASS')}
+                  >
+                    Whole class{className ? ` · ${className}` : ''}
+                    {typeof totalInClass === 'number' ? ` (${totalInClass})` : ''}
+                  </Button>
+                )}
+                {studentId && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={uploadTarget === 'CHILD' ? 'primary' : 'outline'}
+                    leftIcon={<User size={14} />}
+                    aria-pressed={uploadTarget === 'CHILD'}
+                    disabled={busy || uploading}
+                    onClick={() => setUploadTarget('CHILD')}
+                  >
+                    Only {studentName || 'selected child'}
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs muted">
+                {uploadTarget === 'CLASS'
+                  ? 'Every linked parent in this class will see these classroom activity photos in their family workspace.'
+                  : 'Only this child’s linked parents will see these photos.'}
+              </p>
+            </div>
+
+            <Field
+              label={`Photos (JPEG or PNG, up to ${MAX_PHOTOS_PER_UPLOAD} photos · max 5 MB each)`}
+            >
               {(id) => (
-                <input ref={input} id={id} type="file" accept="image/jpeg,image/png" required />
+                <input
+                  ref={input}
+                  id={id}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  multiple
+                  disabled={busy || uploading}
+                  onChange={(e) => handleSelectFiles(e.target.files)}
+                />
               )}
             </Field>
+
+            {pendingFiles.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="font-medium">
+                    {pendingFiles.length} of {MAX_PHOTOS_PER_UPLOAD} photos selected
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={uploading}
+                    onClick={clearPendingFiles}
+                  >
+                    Clear selection
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                  {pendingFiles.map((item) => (
+                    <div
+                      key={item.id}
+                      className="relative rounded-lg border bg-white p-1.5 space-y-1"
+                    >
+                      <img
+                        src={item.previewUrl}
+                        alt={item.file.name}
+                        className="h-24 w-full rounded object-cover"
+                      />
+                      <p className="text-[11px] truncate" title={item.file.name}>
+                        {item.file.name}
+                      </p>
+                      <p className="text-[10px] muted">
+                        {(item.file.size / (1024 * 1024)).toFixed(2)} MB
+                      </p>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${item.file.name}`}
+                        disabled={uploading}
+                        onClick={() => removePendingFile(item.id)}
+                        className="absolute top-1 right-1 rounded-full bg-slate-900/80 text-white p-1 hover:bg-slate-900"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <PreschoolText
-              label="Photo caption"
+              label="Photo caption (applies to all selected photos)"
               value={caption}
               onChange={setCaption}
               maxLength={1000}
               required={false}
+              placeholder="e.g., Finger painting & nature collage during morning circle"
             />
-            <Button type="submit" disabled={busy} isLoading={uploading}>
-              Share photo with family
+            <Button
+              type="submit"
+              leftIcon={<ImagePlus size={16} />}
+              disabled={busy || !pendingFiles.length}
+              isLoading={uploading}
+            >
+              {uploadCount > 1
+                ? `Share ${uploadCount} photos with ${targetLabel}`
+                : uploadCount === 1
+                  ? `Share photo with ${targetLabel}`
+                  : `Select photos to share with ${targetLabel}`}
             </Button>
           </form>
         )}
-        {!items.length ? (
-          <p className="muted">No shared photos yet.</p>
-        ) : (
-          items.map((item) => (
-            <div
-              key={item.id}
-              className="flex flex-wrap justify-between items-center border rounded-xl p-4 gap-3"
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            {(family || studentId) && (
+              <Button
+                type="button"
+                size="sm"
+                variant={galleryFilter === 'ALL' ? 'primary' : 'outline'}
+                onClick={() => setGalleryFilter('ALL')}
+              >
+                All photos
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              variant={
+                galleryFilter === 'CLASS' || (!family && !studentId) ? 'primary' : 'outline'
+              }
+              leftIcon={<Users size={14} />}
+              onClick={() => setGalleryFilter('CLASS')}
             >
-              <p>
-                {item.caption || 'Classroom photo'}
-                <span className="block text-sm muted">{dateLabel(item.createdAt)}</span>
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => void view(item.id, item.caption)}>
-                  View photo
-                </Button>
-                {!family && action && (
-                  confirmDeleteId === item.id ? (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        disabled={busy || uploading}
-                        onClick={() => void removePhoto(item.id)}
+              Whole class
+            </Button>
+            {(family || studentId) && (
+              <Button
+                type="button"
+                size="sm"
+                variant={galleryFilter === 'CHILD' ? 'primary' : 'outline'}
+                leftIcon={<User size={14} />}
+                onClick={() => setGalleryFilter('CHILD')}
+              >
+                Individual
+              </Button>
+            )}
+          </div>
+          <span className="text-xs muted">
+            Showing {visibleItems.length} {visibleItems.length === 1 ? 'photo' : 'photos'}
+          </span>
+        </div>
+
+        {!visibleItems.length ? (
+          <p className="muted">No shared photos in this view yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {visibleItems.map((item) => {
+              const isClassScope = item.scope === 'CLASS';
+              return (
+                <div
+                  key={item.id}
+                  className="flex flex-wrap justify-between items-center border rounded-xl p-4 gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium">
+                        {item.caption ||
+                          (isClassScope ? 'Classroom activity photo' : 'Classroom photo')}
+                      </p>
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                          isClassScope
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
                       >
-                        Confirm delete
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => setConfirmDeleteId('')}
-                      >
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      leftIcon={<Trash2 size={14} />}
-                      disabled={busy || uploading}
-                      onClick={() => setConfirmDeleteId(item.id)}
-                    >
-                      Delete
+                        {isClassScope ? 'Whole class' : 'Individual'}
+                      </span>
+                    </div>
+                    <span className="block text-sm muted">{dateLabel(item.createdAt)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => void view(item)}>
+                      View photo
                     </Button>
-                  )
-                )}
-              </div>
-            </div>
-          ))
+                    {!family &&
+                      action &&
+                      (confirmDeleteId === item.id ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            disabled={busy || uploading}
+                            onClick={() => void removePhoto(item)}
+                          >
+                            {isClassScope ? 'Confirm delete for whole class' : 'Confirm delete'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() => setConfirmDeleteId('')}
+                          >
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          leftIcon={<Trash2 size={14} />}
+                          disabled={busy || uploading}
+                          onClick={() => setConfirmDeleteId(item.id)}
+                        >
+                          Delete
+                        </Button>
+                      ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
         {preview && (
-          <div>
+          <div className="rounded-xl border p-4 space-y-3 bg-slate-50/70">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-medium text-sm">
+                  {preview.caption || 'Photo shared by the class teacher'}
+                </p>
+                {preview.scope && (
+                  <span className="text-xs rounded-full border px-2 py-0.5 bg-white">
+                    {preview.scope === 'CLASS' ? 'Whole class' : 'Individual'}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {previewIndex > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<ChevronLeft size={14} />}
+                    onClick={() => void view(visibleItems[previewIndex - 1])}
+                  >
+                    Prev
+                  </Button>
+                )}
+                {previewIndex >= 0 && previewIndex < visibleItems.length - 1 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    rightIcon={<ChevronRight size={14} />}
+                    onClick={() => void view(visibleItems[previewIndex + 1])}
+                  >
+                    Next
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={() => setPreview(null)}>
+                  Close photo
+                </Button>
+              </div>
+            </div>
             <img
               src={preview.url}
               alt={preview.caption || 'Photo shared by the class teacher'}
-              className="max-h-96 rounded-xl object-contain"
+              className="max-h-[28rem] rounded-xl object-contain"
             />
-            <Button variant="ghost" onClick={() => setPreview(null)}>
-              Close photo
-            </Button>
           </div>
         )}
         <div className="flex gap-3">

@@ -8,12 +8,12 @@ import {
   Patch,
   Post,
   Query,
-  UploadedFile,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { PreschoolMediaService } from './preschool-media.service';
+import { MAX_PHOTOS_PER_UPLOAD, PreschoolMediaService } from './preschool-media.service';
 import { PreschoolPhotoDto } from './preschool.dto';
 import { PreschoolCopilotDto } from './preschool.dto';
 import { Throttle } from '@nestjs/throttler';
@@ -63,18 +63,29 @@ export class PreschoolController {
   @Post('students/:id/photos')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: memoryStorage(),
-      limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 1 },
-    })
+    FileFieldsInterceptor(
+      [
+        { name: 'file', maxCount: 1 },
+        { name: 'files', maxCount: MAX_PHOTOS_PER_UPLOAD },
+      ],
+      {
+        storage: memoryStorage(),
+        limits: { fileSize: 5 * 1024 * 1024, files: MAX_PHOTOS_PER_UPLOAD, fields: 4 },
+      }
+    )
   )
   upload(
     @CurrentUser() user: CurrentUserData,
     @Param('id', ParseUUIDPipe) id: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFiles()
+    uploaded: { file?: Express.Multer.File[]; files?: Express.Multer.File[] } | undefined,
     @Body() dto: PreschoolPhotoDto
   ) {
-    return this.media.upload(user, id, file, dto.caption);
+    const list = [...(uploaded?.file || []), ...(uploaded?.files || [])];
+    if (list.length === 1 && uploaded?.file?.length === 1 && !uploaded?.files?.length) {
+      return this.media.upload(user, id, list[0], dto.caption || '');
+    }
+    return this.media.uploadMany(user, id, list, dto.caption || '');
   }
   @Get('students/:id/photos') photos(
     @CurrentUser() user: CurrentUserData,
@@ -96,6 +107,51 @@ export class PreschoolController {
     @Param('photoId', ParseUUIDPipe) photoId: string
   ) {
     return this.media.remove(user, id, photoId);
+  }
+  @Post('classes/:id/photos')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'file', maxCount: 1 },
+        { name: 'files', maxCount: MAX_PHOTOS_PER_UPLOAD },
+      ],
+      {
+        storage: memoryStorage(),
+        limits: { fileSize: 5 * 1024 * 1024, files: MAX_PHOTOS_PER_UPLOAD, fields: 4 },
+      }
+    )
+  )
+  uploadClassPhotos(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFiles()
+    uploaded: { file?: Express.Multer.File[]; files?: Express.Multer.File[] } | undefined,
+    @Body() dto: PreschoolPhotoDto
+  ) {
+    const list = [...(uploaded?.file || []), ...(uploaded?.files || [])];
+    return this.media.uploadClassPhotos(user, id, list, dto.caption || '');
+  }
+  @Get('classes/:id/photos') classPhotos(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: PreschoolQueryDto
+  ) {
+    return this.media.listClassPhotos(user, id, query.offset);
+  }
+  @Get('classes/:id/photos/:photoId/view') classPhoto(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string
+  ) {
+    return this.media.viewClassPhoto(user, id, photoId);
+  }
+  @Delete('classes/:id/photos/:photoId') deleteClassPhoto(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string
+  ) {
+    return this.media.removeClassPhoto(user, id, photoId);
   }
   @Patch('students/:id/guardians/:guardianId/pickup')
   pickupPermission(

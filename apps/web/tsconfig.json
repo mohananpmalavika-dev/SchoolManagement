@@ -36,12 +36,10 @@
     ".next/dev/types/**/*.ts",
     ".next-release/types/**/*.ts",
     ".next-release/dev/types/**/*.ts",
-    ".next-compliance/types/**/*.ts",
-    ".next-compliance/dev/types/**/*.ts",
-    ".next-compliance-live/types/**/*.ts",
-    ".next-compliance-live/dev/types/**/*.ts",
-    ".next-compliance-build/types/**/*.ts",
-    ".next-compliance-build/dev/types/**/*.ts"
+    ".next-design/types/**/*.ts",
+    ".next-design/dev/types/**/*.ts",
+    ".next-redesign/types/**/*.ts",
+    ".next-redesign/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
