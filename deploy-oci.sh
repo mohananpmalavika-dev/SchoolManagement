@@ -77,7 +77,7 @@ if [ ! -f services/cctv-gateway/cameras.json ]; then
     cp services/cctv-gateway/cameras.example.json services/cctv-gateway/cameras.json
 fi
 sudo chown 1000:1000 services/cctv-gateway/cameras.json 2>/dev/null || true
-chmod 600 services/cctv-gateway/cameras.json
+sudo chmod 664 services/cctv-gateway/cameras.json
 
 # 5. Generate secure environment variables if .env.oci does not exist
 if [ ! -f .env.oci ]; then
