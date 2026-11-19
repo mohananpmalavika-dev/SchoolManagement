@@ -39,9 +39,7 @@
     ".next-design/types/**/*.ts",
     ".next-design/dev/types/**/*.ts",
     ".next-redesign/types/**/*.ts",
-    ".next-redesign/dev/types/**/*.ts",
-    ".next-master-setup/types/**/*.ts",
-    ".next-master-setup/dev/types/**/*.ts"
+    ".next-redesign/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

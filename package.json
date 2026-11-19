@@ -53,6 +53,7 @@
     "test:ui:signin": "node scripts/test-single-sign-in.mjs",
     "test:ui:modern": "node scripts/test-modern-workspace-ui.mjs",
     "test:ui:preschool": "node scripts/test-preschool-ui.mjs",
+    "test:ui:master-setup": "node scripts/test-master-setup-ui.mjs",
     "test:ui:school-payments": "node scripts/test-school-payments-ui.mjs",
     "test:ui:school-payment-settings": "node scripts/test-school-payment-settings-ui.mjs",
     "test:ui:school-records": "node scripts/test-school-records-ui.mjs",
