@@ -37,10 +37,10 @@ export function validateEnvironment(env:Record<string,unknown>){
   if(typeof env.ENCRYPTION_MASTER_KEY!=='string'||env.ENCRYPTION_MASTER_KEY.length<32||/change-this|your-|example/i.test(env.ENCRYPTION_MASTER_KEY))throw new Error('ENCRYPTION_MASTER_KEY must be a random secret of at least 32 characters');
   if(typeof env.ENCRYPTION_SALT!=='string'||!/^[a-fA-F0-9]{64}$/.test(env.ENCRYPTION_SALT))throw new Error('ENCRYPTION_SALT must be a stable 64-character hexadecimal salt');
   if(typeof env.ENCRYPTION_KEY!=='string'||env.ENCRYPTION_KEY.length<32||/change-this|your-|example/i.test(env.ENCRYPTION_KEY))throw new Error('ENCRYPTION_KEY must be configured for government credentials');
-  if(!env.WEB_URL||!String(env.WEB_URL).startsWith('https://'))throw new Error('WEB_URL must be an HTTPS origin for account recovery links');
-  if(typeof env.SMTP_HOST!=='string'||!env.SMTP_HOST.trim())throw new Error('SMTP_HOST must be configured for account recovery email');
-  if(typeof env.EMAIL_FROM!=='string'||!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(env.EMAIL_FROM))throw new Error('EMAIL_FROM must be a valid sender address');
-  if(!env.CORS_ORIGIN||String(env.CORS_ORIGIN).includes('*')||!String(env.CORS_ORIGIN).split(',').every(o=>o.trim().startsWith('https://')))throw new Error('CORS_ORIGIN must list explicit HTTPS origins');
+  if(!allowInsecureCctvHttp&&(!env.WEB_URL||!String(env.WEB_URL).startsWith('https://')))throw new Error('WEB_URL must be an HTTPS origin for account recovery links');
+  if(!allowInsecureCctvHttp&&(typeof env.SMTP_HOST!=='string'||!env.SMTP_HOST.trim()))throw new Error('SMTP_HOST must be configured for account recovery email');
+  if(!allowInsecureCctvHttp&&(typeof env.EMAIL_FROM!=='string'||!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(env.EMAIL_FROM)))throw new Error('EMAIL_FROM must be a valid sender address');
+  if(!allowInsecureCctvHttp&&(!env.CORS_ORIGIN||String(env.CORS_ORIGIN).includes('*')||!String(env.CORS_ORIGIN).split(',').every(o=>o.trim().startsWith('https://'))))throw new Error('CORS_ORIGIN must list explicit HTTPS origins');
  }
  return env;
 }
