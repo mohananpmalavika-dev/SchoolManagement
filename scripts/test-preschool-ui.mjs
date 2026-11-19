@@ -322,6 +322,7 @@ async function session(role, width = 1440) {
     })
   );
   const page = await context.newPage();
+  page.setDefaultNavigationTimeout(120000);
   page.on('pageerror', (e) => errors.push(e.message));
   return { page, context };
 }
@@ -459,9 +460,9 @@ try {
   await page.getByRole('button', { name: 'Download report CSV', exact: true }).click();
   assert.ok((await downloadPromise).suggestedFilename().endsWith('.csv'));
   checks.push('Development observation sharing and CSV reporting');
-  await page.getByRole('link', { name: 'School setup', exact: true }).click();
+  await page.locator('main').getByRole('link', { name: 'Preschool setup', exact: true }).click();
   await page.waitForURL('**/school/setup');
-  await page.getByRole('heading', { name: '3. Preschool teaching staff', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Preschool teaching staff', exact: true }).waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.screenshot({

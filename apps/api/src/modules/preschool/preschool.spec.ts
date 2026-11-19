@@ -130,6 +130,15 @@ function setup() {
   return { db, access, service, notifications };
 }
 describe('Preschool authorization and daily care', () => {
+  it.each(['SCHOOL_OWNER', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'SCHOOL_ADMIN'])(
+    'prevents %s from changing school type through the legacy school endpoint, including mixed pickup requests', async role => {
+      const { db, service } = setup();
+      for (const dto of [{ programme: 'COMBINED' as const }, { programme: 'STANDARD' as const, pickupVerification: 'REQUIRED' as const }]) {
+        await expect(service.programme({ ...manager, role }, 'school-1', dto)).rejects.toBeInstanceOf(ForbiddenException);
+      }
+      expect(db.$transaction).not.toHaveBeenCalled();
+    }
+  );
   beforeEach(() => jest.useFakeTimers().setSystemTime(new Date('2026-11-17T04:30:00Z')));
   afterEach(() => jest.useRealTimers());
   it('allows explicitly assigned teachers without a timetable and scopes queries to the tenant', async () => {

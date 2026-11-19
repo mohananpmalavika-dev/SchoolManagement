@@ -1,4 +1,9 @@
 export const preschoolManagers = ['SCHOOL_OWNER', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'SCHOOL_ADMIN'];
+export const schoolProgrammeLabels = {
+  STANDARD: 'Regular school',
+  PRESCHOOL: 'Playschool / preschool',
+  COMBINED: 'Combined school (regular + preschool)',
+} as const;
 export const kinds = [
   'LESSON_PLAN',
   'ACTIVITY',

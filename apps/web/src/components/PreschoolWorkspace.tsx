@@ -379,7 +379,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
             : 'A caring daily routine, playful learning and development observations.'
         }
         actions={<>
-          {manager && <Link className="account-back-link" href="/school/setup">School setup</Link>}
+          {manager && options.schools.some(school => school.programme !== 'STANDARD') && <Link className="account-back-link" href="/school/setup">Preschool setup</Link>}
           <Button
             variant="outline"
             size="sm"
@@ -428,8 +428,8 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                 family
                   ? 'Your school can link your child to your parent account.'
                   : manager
-                    ? 'Choose a preschool or combined school type in Setup → School setup, then assign classes and teachers.'
-                    : 'Ask the school administrator to enable preschool mode and assign your teaching classes.'
+                    ? 'The platform Super Admin manages school type. Once preschool is enabled, assign class stages and teachers in Preschool setup.'
+                    : 'Ask your school to assign your preschool classes. School type is managed by the platform Super Admin.'
               }
             />
           ) : (

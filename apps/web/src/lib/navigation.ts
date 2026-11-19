@@ -35,14 +35,13 @@ export function navigationFor(portal: Portal, role: string, programme: string = 
   if (!allowed) return [];
   const groups = baseNavigation(portal, role);
   if (portal !== 'parent') groups[0].items.push({ href: '/notifications', label: 'Notifications', icon: Bell });
-  if (portal === 'school' && preschoolManagers.includes(role)) {
-    groups.splice(1, 0, { label: 'SETUP', items: [{ href: '/school/setup', label: 'School setup', icon: School }] });
-  }
   const enabled = programme === 'PRESCHOOL' || programme === 'COMBINED';
   const sections = enabled ? preschoolSectionsFor(role) : [];
   if (['school', 'teacher', 'parent'].includes(portal) && sections.length) {
     const base = portal === 'parent' ? '/dashboard' : '/' + portal;
-    groups.splice(portal === 'school' && preschoolManagers.includes(role) ? 2 : 1, 0, { label: 'PRESCHOOL', items: preschoolSections.filter(([section]) => sections.includes(section)).map(([section, label, icon]) => ({ href: base + '/preschool?section=' + section, label, icon })) });
+    const items: NavigationItem[] = preschoolSections.filter(([section]) => sections.includes(section)).map(([section, label, icon]) => ({ href: base + '/preschool?section=' + section, label, icon }));
+    if (portal === 'school' && preschoolManagers.includes(role)) items.push({ href: '/school/setup', label: 'Preschool setup', icon: School });
+    groups.splice(1, 0, { label: 'PRESCHOOL', items });
   }
   const schoolAgeOnly = new Set(['grades', 'examinations', 'report-cards', 'timetable', 'performance', 'quizzes', 'lms', 'predictive-analytics']);
   return groups.map(group => ({ ...group, items: programme === 'PRESCHOOL' ? group.items.filter(item => !schoolAgeOnly.has(item.href.split('/')[2])) : group.items })).filter(group => group.items.length);
@@ -52,7 +51,7 @@ function baseNavigation(portal: Portal, role: string): NavigationGroup[] {
   const group = (label: string, entries: Entry[]): NavigationGroup => ({ label, items: entries.map(([slug, title, icon]) => ({ href: slug.startsWith('/') ? slug : base + (slug ? '/' + slug : ''), label: title, icon })) });
   if (portal === 'admin') return [
     group('WORKSPACE', [['dashboard', 'Dashboard', LayoutDashboard], ['analytics', 'School benchmarking', BarChart3], ['copilot', 'ERP Copilot', Bot]]),
-    group('PLATFORM', [['schools', 'Schools', School], ['users', 'Users & access', Users], ['subscriptions', 'Subscriptions', CreditCard], ['admissions', 'Admissions', GraduationCap]]),
+    group('PLATFORM', [['schools', 'Schools', School], ['school-setup', 'School setup', School], ['users', 'Users & access', Users], ['subscriptions', 'Subscriptions', CreditCard]]),
     group('OPERATIONS', [['reports', 'Reports', FileCheck], ['system', 'System health', ShieldCheck], ['support', 'Support center', LifeBuoy]]),
   ];
   if (portal === 'teacher') return [

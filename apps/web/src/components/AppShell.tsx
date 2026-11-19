@@ -61,6 +61,7 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
   const active = links.filter(link => matches(link.href)).sort((left, right) => right.href.length - left.href.length)[0];
   const selected = (href: string) => active?.href === href;
   const activeGroup = groups.find(group => group.items.some(item => selected(item.href)));
+  const preschoolSetupPage = portal === 'school' && pathname === '/school/setup';
   const visibleGroup = groups.find(group => group.label === expandedGroup) || activeGroup || groups[0];
   const results = links.filter(link => link.label.toLowerCase().includes(search.trim().toLowerCase()));
   const roles = portal === 'admin' ? ['SUPER_ADMIN'] : portal === 'teacher' ? teacherRoles : portal === 'school' ? schoolRoles : portal === 'student' ? ['STUDENT'] : ['PARENT'];
@@ -133,7 +134,7 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
     <div className="workspace-body" inert={modalNavigation || undefined}>
       <header className="topbar">
         <Link href={base + (portal === 'parent' ? '' : '/dashboard')} className="brand"><span className="brand-mark"><PortalIcon size={21}/></span><span>Krypton<small>{portalLabels[portal]}</small></span></Link>
-        <div className="school-page-context">{accountPage ? <Settings size={18}/> : <PortalIcon size={18}/>}<span>{accountPage ? 'Settings' : activeGroup?.label.toLowerCase() || portalLabels[portal]}</span><ChevronRight size={14}/><strong>{accountPage ? 'Account settings' : pathname === '/notifications' ? 'Notifications' : active?.label || 'Workspace'}</strong></div>
+        <div className="school-page-context">{accountPage ? <Settings size={18}/> : <PortalIcon size={18}/>}<span>{accountPage ? 'Settings' : preschoolSetupPage ? 'preschool' : activeGroup?.label.toLowerCase() || portalLabels[portal]}</span><ChevronRight size={14}/><strong>{accountPage ? 'Account settings' : preschoolSetupPage ? 'Preschool setup' : pathname === '/notifications' ? 'Notifications' : active?.label || 'Workspace'}</strong></div>
         <div className="topbar-actions"><button className="command-trigger" onClick={openSearch} aria-label="Find a page"><Search size={17}/><span>Find anything</span><kbd>Ctrl K</kbd></button><Link href="/account" className="profile-link" aria-label="Account settings"><span className="avatar">{user?.firstName?.[0]}{user?.lastName?.[0]}</span><span className="hidden xl:block"><strong>{user?.firstName} {user?.lastName}</strong><small>{user?.role.replaceAll('_',' ').toLowerCase()}</small></span></Link><button ref={menu} className="module-launcher" onClick={() => browse()} aria-controls="workspace-navigation" aria-expanded={open} aria-label="Open navigation"><Menu size={20}/><span>Menu</span></button></div>
       </header>
 

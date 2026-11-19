@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   Optional,
@@ -228,11 +229,13 @@ export class PreschoolService {
   }
   async programme(user: Actor, schoolId: string, dto: SchoolProgrammeDto) {
     this.access.allow(user, preschoolManagers);
-    if (!dto.programme && !dto.pickupVerification) {
-      throw new BadRequestException('Choose a school programme or safe pickup setting to update');
+    if (dto.programme !== undefined) {
+      throw new ForbiddenException('Only the platform Super Admin can change school type');
+    }
+    if (!dto.pickupVerification) {
+      throw new BadRequestException('Choose a safe pickup setting to update');
     }
     const data: Prisma.SchoolUpdateManyMutationInput = {};
-    if (dto.programme) data.programme = dto.programme;
     if (dto.pickupVerification) data.preschoolPickupVerification = dto.pickupVerification;
     return this.db.$transaction(async (tx) => {
       const result = await tx.school.updateMany({
@@ -240,9 +243,6 @@ export class PreschoolService {
         data,
       });
       if (!result.count) throw new NotFoundException('School not found');
-      if (dto.programme) {
-        await this.audit(tx, user, 'PRESCHOOL_PROGRAMME_' + dto.programme, schoolId);
-      }
       if (dto.pickupVerification) {
         await this.audit(
           tx,
@@ -253,7 +253,6 @@ export class PreschoolService {
       }
       return {
         id: schoolId,
-        ...(dto.programme ? { programme: dto.programme } : {}),
         ...(dto.pickupVerification ? { pickupVerification: dto.pickupVerification } : {}),
       };
     });

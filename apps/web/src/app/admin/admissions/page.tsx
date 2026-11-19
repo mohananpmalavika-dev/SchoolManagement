@@ -1,2 +1,6 @@
-import {OperationsWorkspace} from '@/components/OperationsWorkspace';
-export default function Page(){return <OperationsWorkspace resource="admissions"/>;}
+import { redirect } from 'next/navigation';
+
+export default function Page() {
+  redirect('/admin/dashboard');
+}
+

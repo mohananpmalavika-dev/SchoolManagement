@@ -310,11 +310,14 @@ integration('Preschool PostgreSQL integration', () => {
     expect((await request('/classes/' + cls + '/roster', teacherId)).status).toBe(200);
     expect(
       (await request('/schools/' + school, managerId, 'PATCH', { programme: 'STANDARD' })).status
-    ).toBe(200);
+    ).toBe(403);
+    // Simulate a platform-controlled type change to verify downstream visibility.
+    await inTenant(tenantA, () => db.school.update({ where: { id: school }, data: { programme: 'STANDARD' } }));
     expect((await request('/students/' + student, parentId)).status).toBe(404);
     expect(
       (await request('/schools/' + school, managerId, 'PATCH', { programme: 'COMBINED' })).status
-    ).toBe(200);
+    ).toBe(403);
+    await inTenant(tenantA, () => db.school.update({ where: { id: school }, data: { programme: 'COMBINED' } }));
     expect(
       (await request('/classes/' + cls, managerId, 'PATCH', { stage: 'NURSERY' })).status
     ).toBe(200);

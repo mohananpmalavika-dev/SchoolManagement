@@ -1,4 +1,4 @@
-import {Injectable,NotFoundException,BadRequestException} from '@nestjs/common';
+import {Injectable,NotFoundException,BadRequestException,ForbiddenException} from '@nestjs/common';
 import {PrismaService} from '../../database/prisma.service';
 import {RecordSpec,parseRecord} from '../workspace/records';
 import * as bcrypt from 'bcryptjs';
@@ -54,6 +54,27 @@ const specs:Record<string,RecordSpec> = {
 @Injectable()
 export class PlatformService{
  constructor(private prisma:PrismaService){}
+ private requireSuperAdmin(user:any){
+  if(user.role!=='SUPER_ADMIN')throw new ForbiddenException('Only the platform Super Admin can change school type');
+ }
+ async schoolSetup(user:any){
+  this.requireSuperAdmin(user);
+  return this.prisma.executeWithoutTenantFilter(()=>this.prisma.school.findMany({
+   select:{id:true,name:true,programme:true,isActive:true,tenant:{select:{name:true}}},
+   orderBy:[{name:'asc'},{id:'asc'}],
+  }));
+ }
+ async schoolProgramme(user:any,id:string,programme:'STANDARD'|'PRESCHOOL'|'COMBINED'){
+  this.requireSuperAdmin(user);
+  if(!['STANDARD','PRESCHOOL','COMBINED'].includes(programme))throw new BadRequestException('Choose a valid school type');
+  return this.prisma.executeWithoutTenantFilter(()=>this.prisma.$transaction(async tx=>{
+   const school=await tx.school.findUnique({where:{id},select:{id:true,tenantId:true,programme:true}});
+   if(!school)throw new NotFoundException('School not found');
+   const updated=await tx.school.update({where:{id:school.id},data:{programme},select:{id:true,programme:true}});
+   await tx.auditLog.create({data:{tenantId:school.tenantId,userId:user.userId,action:'SCHOOL_PROGRAMME_UPDATED',entityType:'school',entityId:school.id,changes:{programme:{from:school.programme,to:programme}}}});
+   return updated;
+  }));
+ }
  async list(resource:string){return this.prisma.executeWithoutTenantFilter(async()=>{
   if(resource==='plans')return this.prisma.plan.findMany({where:{isActive:true},orderBy:{sortOrder:'asc'}});
   const spec=specs[resource];if(!spec)throw new NotFoundException('Unknown resource');

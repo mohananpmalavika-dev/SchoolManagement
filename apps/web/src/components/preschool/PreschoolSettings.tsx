@@ -1,7 +1,7 @@
 'use client';
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { friendly, type PreschoolAction, type PreschoolOptions } from '@/lib/preschool';
+import { friendly, schoolProgrammeLabels, type PreschoolAction, type PreschoolOptions } from '@/lib/preschool';
 import { Panel, EmptyState } from '../WorkspaceUI';
 import { Button } from '../ui';
 import { Field } from './PreschoolFields';
@@ -26,8 +26,8 @@ export function PreschoolSettings({
   return (
     <div className="content-stack">
       <Panel
-        title="1. School type"
-        subtitle="Regular school, playschool / preschool, or both. This choice controls which school and preschool tools appear in the menu."
+        title="School programme & safe pickup"
+        subtitle="School type is managed by the platform Super Admin. Configure preschool classes, teachers and pickup here."
       >
         <div className="panel-body space-y-4">
           {!options.schools.length && (
@@ -39,21 +39,7 @@ export function PreschoolSettings({
           {!options.schools.length && <Link className="panel-link" href="/school/academics">Open academic setup</Link>}
           {options.schools.map((school) => (
             <div key={school.id} className="border rounded-xl p-4 space-y-3">
-              <div className="field">
-                <label htmlFor={'programme-' + school.id}>{school.name}</label>
-                <select
-                  id={'programme-' + school.id}
-                  value={school.programme}
-                  disabled={busy}
-                  onChange={(e) =>
-                    void action('/schools/' + school.id, { programme: e.target.value }, 'patch')
-                  }
-                >
-                  <option value="STANDARD">Regular school</option>
-                  <option value="PRESCHOOL">Playschool / preschool</option>
-                  <option value="COMBINED">Combined school (regular + preschool)</option>
-                </select>
-              </div>
+              <div><p className="font-semibold">{school.name}</p><p className="muted mt-1">{schoolProgrammeLabels[school.programme]}</p></div>
               {school.programme !== 'STANDARD' && (
                 <div className="field">
                   <label htmlFor={'pickup-verification-' + school.id}>
@@ -85,7 +71,7 @@ export function PreschoolSettings({
         </div>
       </Panel>
       {hasPreschool ? <><Panel
-        title="2. Preschool class stages"
+        title="Preschool class stages"
         subtitle="Select nursery or kindergarten classes. Setting a stage marks the class as pre-primary."
       >
         <div className="panel-body space-y-4">
@@ -117,7 +103,7 @@ export function PreschoolSettings({
         </div>
       </Panel>
       <Panel
-        title="3. Preschool teaching staff"
+        title="Preschool teaching staff"
         subtitle="Explicit class assignments work without an academic timetable."
       >
         <div className="panel-body space-y-4">
@@ -194,7 +180,7 @@ export function PreschoolSettings({
             </div>
           ))}
         </div>
-      </Panel></> : options.schools.length > 0 && <div className="panel panel-body"><p className="font-semibold">Regular school selected</p><p className="muted mt-2">Continue with classes, subjects and terms in Academic setup. Preschool tools appear when you choose Playschool / preschool or Combined school.</p><Link className="panel-link mt-3" href="/school/academics">Continue to academic setup</Link></div>}
+      </Panel></> : options.schools.length > 0 && <div className="panel panel-body"><p className="font-semibold">Regular school selected</p><p className="muted mt-2">Continue with classes, subjects and terms in Academic setup. Contact the platform Super Admin if the school type needs to change.</p><Link className="panel-link mt-3" href="/school/academics">Continue to academic setup</Link></div>}
     </div>
   );
 }

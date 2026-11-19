@@ -30,18 +30,18 @@ export function SchoolSetupWorkspace() {
       else await apiClient[method]('/preschool' + path, data);
       setOptions((await apiClient.get<PreschoolOptions>('/preschool/options')).data);
       window.dispatchEvent(new Event('preschool-configuration-changed'));
-      setNotice('School setup saved.');
+      setNotice('Preschool setup saved.');
       return true;
     } catch (err) { setError(messageFor(err)); return false; }
     finally { working.current = false; setBusy(false); }
   };
   const hasPreschool = options.schools.some(school => school.programme !== 'STANDARD');
   return <>
-    <PageHeading eyebrow="SETUP" title="School setup" description="Choose your school type. For preschool or combined schools, configure class stages and teaching staff next."
+    <PageHeading eyebrow="PRESCHOOL" title="Preschool setup" description="Manage class stages, teaching staff and safe pickup. The platform Super Admin manages your school type."
       actions={<><Link className="account-back-link" href="/school/academics">Academic setup</Link><Button size="sm" variant="outline" disabled={loading || busy} leftIcon={<RefreshCw size={15}/>} onClick={() => void load()}>Refresh</Button></>}/>
     {error && <div className="state-box mb-4" role="alert">{error}<button className="underline ml-3" disabled={busy || loading} onClick={() => void load()}>Try again</button></div>}
     {notice && <div className="state-box success mb-4" role="status">{notice}</div>}
-    {loading ? <p role="status">Loading school setup…</p> : <PreschoolSettings options={options} action={action} busy={busy}/>}
+    {loading ? <p role="status">Loading preschool setup…</p> : <PreschoolSettings options={options} action={action} busy={busy}/>}
     {!loading && hasPreschool && <div className="panel panel-body mt-6 flex flex-wrap items-center justify-between gap-4"><p>After assigning preschool classes and teachers, open the daily workspace.</p><Link className="account-back-link" href="/school/preschool?section=daily">Open preschool workspace</Link></div>}
   </>;
 }
