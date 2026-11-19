@@ -11,12 +11,12 @@ import { PlatformService } from './platform.service';
 const admin = { userId: 'platform-admin', role: 'SUPER_ADMIN', tenantId: 'platform-tenant' };
 const nonAdmins = ['SCHOOL_OWNER', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'SCHOOL_ADMIN', 'TEACHER', 'PARENT'];
 function setup() {
-  const school = { id: 'school-b', tenantId: 'tenant-b', programme: 'STANDARD' };
+  const school = { id: 'school-b', tenantId: 'tenant-b', programme: 'STANDARD', educationLevel: ['PRIMARY'] };
   const db: any = {
     school: {
       findMany: jest.fn().mockResolvedValue([school]),
       findUnique: jest.fn().mockResolvedValue(school),
-      update: jest.fn().mockImplementation(async ({ data }) => ({ id: school.id, ...data })),
+      update: jest.fn().mockImplementation(async ({ data }) => ({ id: school.id, programme: data.programme })),
     },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
     executeWithoutTenantFilter: jest.fn(async work => work()),
@@ -36,10 +36,11 @@ describe('Platform school type administration', () => {
   it.each(['STANDARD', 'PRESCHOOL', 'COMBINED'] as const)('allows Super Admin to set %s and audits the target school tenant', async programme => {
     const { db, service } = setup();
     expect(await service.schoolProgramme(admin, 'school-b', programme)).toEqual({ id: 'school-b', programme });
-    expect(db.school.update).toHaveBeenCalledWith({ where: { id: 'school-b' }, data: { programme }, select: { id: true, programme: true } });
+    const educationLevel = programme === 'PRESCHOOL' ? ['PRE_PRIMARY'] : programme === 'COMBINED' ? ['PRE_PRIMARY', 'PRIMARY'] : ['PRIMARY'];
+    expect(db.school.update).toHaveBeenCalledWith({ where: { id: 'school-b' }, data: { programme, educationLevel }, select: { id: true, programme: true } });
     expect(db.auditLog.create).toHaveBeenCalledWith({ data: {
       tenantId: 'tenant-b', userId: 'platform-admin', action: 'SCHOOL_PROGRAMME_UPDATED', entityType: 'school', entityId: 'school-b',
-      changes: { programme: { from: 'STANDARD', to: programme } },
+      changes: { programme: { from: 'STANDARD', to: programme }, educationLevel: { from: ['PRIMARY'], to: educationLevel } },
     } });
   });
   it('does not update or audit an unknown school', async () => {

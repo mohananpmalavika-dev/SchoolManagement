@@ -31,7 +31,7 @@ export class PasswordResetService {
   private readonly TOKEN_EXPIRY_HOURS = 24;
   private readonly RATE_LIMIT_WINDOW_SECONDS = 3600; // 1 hour
   private readonly MAX_RESET_REQUESTS = 3;
-  private readonly MIN_PASSWORD_LENGTH = 12;
+  private readonly MIN_PASSWORD_LENGTH = 6;
 
   constructor(
     private readonly prisma: PrismaService,

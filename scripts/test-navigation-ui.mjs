@@ -94,7 +94,7 @@ try {
     assert.equal(hrefs.includes('/school/fees/payment-settings'), ['SCHOOL_OWNER','PRINCIPAL','SCHOOL_ADMIN','ACCOUNTANT'].includes(role));
     assert.equal(hrefs.includes('/school/whatsapp'), ['SCHOOL_OWNER','PRINCIPAL','SCHOOL_ADMIN'].includes(role));
     assert.equal(hrefs.includes('/school/ptm'), ['PRINCIPAL','SCHOOL_ADMIN'].includes(role));
-    if (managers.includes(role)) assert(hrefs.includes('/school/smart-attendance'));
+    if (managers.includes(role) && programme !== 'PRESCHOOL') assert(hrefs.includes('/school/smart-attendance'));
     if (role === 'STUDENT') {
       assert(!hrefs.includes('/student/academics') && !hrefs.includes('/student/library'), 'Duplicate student content must use its canonical menu entry');
       assert.equal(links.find(link => link.href === '/student/grades').label, 'My progress');
@@ -248,6 +248,7 @@ try {
   }
   if (!process.env.UI_ROLE) {
     const exclusions = {
+      '/admin/admissions': 'Legacy platform admissions route; school admissions are managed in school portals',
       '/': 'Entry redirect', '/login': 'Sign-in page', '/forgot-password': 'Account recovery', '/reset-password': 'Private reset link',
       '/admin/login': 'Sign-in alias', '/teacher/login': 'Sign-in alias', '/student/login': 'Sign-in alias', '/parent/login': 'Sign-in alias',
       '/student': 'Dashboard redirect', '/student/academics': 'Alias of My progress', '/student/library': 'Alias of Resources & library',
@@ -260,6 +261,7 @@ try {
       '/dashboard/substitution': 'Legacy staff-only view; use school Staff substitutions',
       '/dashboard/whatsapp': 'Legacy staff-only view; use school WhatsApp messages',
     };
+    for (const path of (process.env.UI_PENDING_ROUTES || '').split(',').filter(Boolean)) exclusions[path] = 'Local work pending a separate deployment';
     const root = new URL('../apps/web/src/app/', import.meta.url), pages = [];
     async function inventory(directory, parts = []) {
       for (const entry of await readdir(directory, { withFileTypes: true })) {

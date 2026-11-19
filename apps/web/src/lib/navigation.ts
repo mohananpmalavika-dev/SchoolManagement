@@ -1,9 +1,13 @@
-import { BarChart3, Bell, BookOpen, Bot, Bus, CalendarDays, Camera, ClipboardCheck, CreditCard, FileCheck, GraduationCap, Image as ImageIcon, LayoutDashboard, Library, LifeBuoy, MessageSquare, Radar, School, ShieldCheck, Sparkles, Users, Zap, type LucideIcon } from 'lucide-react';
+import { BarChart3, Bell, BookOpen, Bot, Briefcase, Bus, CalendarDays, Camera, ClipboardCheck, CreditCard, FileCheck, GraduationCap, Image as ImageIcon, LayoutDashboard, Library, LifeBuoy, MessageSquare, Radar, School, ShieldCheck, Sparkles, Users, Zap, type LucideIcon } from 'lucide-react';
 import { predictiveAnalyticsRoles, schoolRoles, teacherRoles } from './session';
 import { preschoolManagers } from './preschool';
 export type Portal = 'admin' | 'school' | 'teacher' | 'parent' | 'student';
 export interface NavigationItem { href: string; label: string; icon: LucideIcon }
 export interface NavigationGroup { label: string; items: NavigationItem[] }
+const schoolAgeOnly = new Set(['grades', 'examinations', 'report-cards', 'timetable', 'performance', 'quizzes', 'lms', 'predictive-analytics', 'smart-attendance', 'attendance', 'learning', 'ai-studio', 'substitution']);
+export function isSchoolAgePage(pathname: string): boolean {
+  return schoolAgeOnly.has(pathname.split('/')[2]) || pathname === '/school/academics/promotion';
+}
 type Entry = [string, string, LucideIcon];
 export const portalLabels: Record<Portal, string> = { admin: 'Platform administration', school: 'School management', teacher: 'Teaching workspace', parent: 'Family workspace', student: 'Student workspace' };
 export const preschoolSections = [
@@ -43,8 +47,7 @@ export function navigationFor(portal: Portal, role: string, programme: string = 
     if (portal === 'school' && preschoolManagers.includes(role)) items.push({ href: '/school/setup', label: 'Preschool setup', icon: School });
     groups.splice(1, 0, { label: 'PRESCHOOL', items });
   }
-  const schoolAgeOnly = new Set(['grades', 'examinations', 'report-cards', 'timetable', 'performance', 'quizzes', 'lms', 'predictive-analytics']);
-  return groups.map(group => ({ ...group, items: programme === 'PRESCHOOL' ? group.items.filter(item => !schoolAgeOnly.has(item.href.split('/')[2])) : group.items })).filter(group => group.items.length);
+  return groups.map(group => ({ ...group, label: programme === 'PRESCHOOL' && group.label === 'ACADEMICS' ? 'SCHOOL SETUP' : group.label, items: programme === 'PRESCHOOL' ? group.items.filter(item => !isSchoolAgePage(item.href)).map(item => item.href === '/school/academics' ? { ...item, label: 'Classes & school years' } : item) : group.items })).filter(group => group.items.length);
 }
 function baseNavigation(portal: Portal, role: string): NavigationGroup[] {
   const base = portal === 'parent' ? '/dashboard' : '/' + portal;
@@ -52,12 +55,12 @@ function baseNavigation(portal: Portal, role: string): NavigationGroup[] {
   if (portal === 'admin') return [
     group('WORKSPACE', [['dashboard', 'Dashboard', LayoutDashboard], ['analytics', 'School benchmarking', BarChart3], ['copilot', 'ERP Copilot', Bot]]),
     group('PLATFORM', [['schools', 'Schools', School], ['school-setup', 'School setup', School], ['users', 'Users & access', Users], ['subscriptions', 'Subscriptions', CreditCard]]),
-    group('OPERATIONS', [['reports', 'Reports', FileCheck], ['system', 'System health', ShieldCheck], ['support', 'Support center', LifeBuoy]]),
+    group('OPERATIONS', [['reports', 'Reports', FileCheck], ['system', 'System health', ShieldCheck], ['support', 'Support center', LifeBuoy], ['hrms', 'HR & Payroll', Briefcase]]),
   ];
   if (portal === 'teacher') return [
     group('WORKSPACE', [['dashboard', 'Dashboard', LayoutDashboard], ['classes', 'My classes', Users], ['timetable', 'My schedule', CalendarDays]]),
     group('TEACHING', [['attendance', 'Attendance', ClipboardCheck], ['smart-attendance', 'Classroom check-in', ShieldCheck], ['grades', 'Gradebook', BookOpen], ['learning', 'Assignments & resources', Library], ['portfolio', 'Student portfolios', GraduationCap], ['performance', 'Learning performance', BarChart3]]),
-    group('TOOLS & CONNECTIONS', [['chat', 'School chat', MessageSquare], ['quizzes', 'Class quizzes', ClipboardCheck], ['ai-studio', 'AI teaching studio', Sparkles], ['copilot', 'ERP Copilot', Bot], ['substitution', 'Substitution duties', Zap], ['ptm', 'Parent meetings', CalendarDays], ['messages', 'School messages', MessageSquare]]),
+    group('TOOLS & CONNECTIONS', [['chat', 'School chat', MessageSquare], ['quizzes', 'Class quizzes', ClipboardCheck], ['ai-studio', 'AI teaching studio', Sparkles], ['copilot', 'ERP Copilot', Bot], ['substitution', 'Substitution duties', Zap], ['ptm', 'Parent meetings', CalendarDays], ['messages', 'School messages', MessageSquare], ['hrms', 'Staff HR & Leaves', Briefcase]]),
   ];
   if (portal === 'student') return [
     group('WORKSPACE', [['dashboard', 'Dashboard', LayoutDashboard], ['timetable', 'My timetable', CalendarDays], ['profile', 'My profile', Users]]),
@@ -68,7 +71,7 @@ function baseNavigation(portal: Portal, role: string): NavigationGroup[] {
     group('SCHOOL SERVICES', [['/parent/transport', 'Bus tracking', Bus], ['/parent/absence', 'Report an absence', ClipboardCheck], ['portfolio', 'Child portfolio', GraduationCap], ['lms', 'Homework & quizzes', Library], ['ptm', 'Parent meetings', CalendarDays], ['certificates', 'Certificates & ID cards', FileCheck], ['/admissions/apply', 'Admission application', GraduationCap], ['/admissions/track', 'Track application', FileCheck]]),
   ];
   const operations: Record<string, Entry[]> = {
-    ACCOUNTANT: [['admissions', 'Admissions', GraduationCap], ['guardians', 'Guardians', Users], ['fees', 'Fees & invoices', CreditCard], ['fees/payment-settings', 'School payment accounts', CreditCard]],
+    ACCOUNTANT: [['admissions', 'Admissions', GraduationCap], ['guardians', 'Guardians', Users], ['fees', 'Fees & invoices', CreditCard], ['fees/payment-settings', 'School payment accounts', CreditCard], ['hrms', 'Payroll & HR', Briefcase]],
     LIBRARIAN: [['library', 'Library', Library]],
     TRANSPORT_OFFICER: [['transport', 'Trips & bus tracking', Bus], ['transport/setup', 'Vehicles & routes', Bus], ['transport/assignments', 'Student bus assignments', Users]],
     RECEPTIONIST: [['admissions', 'Admissions', GraduationCap], ['/admissions/apply', 'Admission application', GraduationCap], ['/admissions/track', 'Track application', FileCheck], ['guardians', 'Guardians', Users]],
@@ -80,7 +83,7 @@ function baseNavigation(portal: Portal, role: string): NavigationGroup[] {
   ];
   return [
     group('WORKSPACE', [['dashboard', 'Dashboard', LayoutDashboard], ...(predictiveAnalyticsRoles.includes(role) ? [['analytics', 'Advanced analytics', BarChart3], ['predictive-analytics', 'Student risk alerts', Radar], ['ai-studio', 'AI teaching studio', Sparkles]] as Entry[] : []), ['copilot', 'ERP Copilot', Bot]]),
-    group('PEOPLE', [['students', 'Students', Users], ['admissions', 'Admissions', GraduationCap], ['/admissions/apply', 'Admission application', GraduationCap], ['/admissions/track', 'Track application', FileCheck], ['guardians', 'Guardians', Users], ['staff', 'Staff directory', Users]]),
+    group('PEOPLE', [['students', 'Students', Users], ['admissions', 'Admissions', GraduationCap], ['/admissions/apply', 'Admission application', GraduationCap], ['/admissions/track', 'Track application', FileCheck], ['guardians', 'Guardians', Users], ['staff', 'Staff directory', Users], ['hrms', 'HR & Payroll', Briefcase]]),
     group('ACADEMICS', [['academics', 'Academic setup', BookOpen], ['academics/promotion', 'Year-end promotion', GraduationCap], ['attendance', 'Attendance', ClipboardCheck], ['smart-attendance', 'Classroom check-in', ShieldCheck], ['grades', 'Gradebook', BookOpen], ['examinations', 'Examinations', FileCheck], ['report-cards', 'Report cards', FileCheck], ['learning', 'Assignments & resources', Library], ['calendar', 'School calendar', CalendarDays], ['timetable', 'Timetable', CalendarDays], ['timetable/preview', 'Timetable planner', CalendarDays], ['substitution', 'Staff substitutions', Zap]]),
     group('OPERATIONS', [['chat', 'School chat', MessageSquare], ['absences','Absence requests',ClipboardCheck], ['portfolio','Student portfolios',GraduationCap], ['certificates','Certificates & ID cards',FileCheck], ['quizzes','Class quizzes',ClipboardCheck], ['fees', 'Fees & invoices', CreditCard], ['library', 'Library', Library], ['inventory', 'Inventory', Library], ['messages', 'School messages', MessageSquare], ['support', 'Support', LifeBuoy], ...(['PRINCIPAL','SCHOOL_ADMIN'].includes(role) ? [['ptm', 'Parent meetings', CalendarDays]] as Entry[] : []), ...(['SCHOOL_OWNER','PRINCIPAL','SCHOOL_ADMIN'].includes(role) ? [['whatsapp', 'WhatsApp messages', MessageSquare], ['fees/payment-settings', 'School payment accounts', CreditCard]] as Entry[] : [])]),
     ...(managersForCompliance(role) ? [group('REPORTING', [['compliance', 'Government reporting', FileCheck]])] : []),

@@ -14,7 +14,7 @@ import {Throttle} from '@nestjs/throttler';
 
 class ChangePasswordDto {
  @IsString() @MaxLength(128) currentPassword:string;
- @IsString() @MinLength(12) @MaxLength(128) newPassword:string;
+ @IsString() @MinLength(6) @MaxLength(128) newPassword:string;
 }
 
 class UnlockAccountDto {
@@ -28,7 +28,7 @@ class RequestPasswordResetDto {
 
 class ResetPasswordDto {
  @IsString() token:string;
- @IsString() @MinLength(12) @MaxLength(128) newPassword:string;
+ @IsString() @MinLength(6) @MaxLength(128) newPassword:string;
 }
 
 class VerifyResetTokenDto {

@@ -4,6 +4,7 @@ import { X, ChevronDown, SlidersHorizontal, Check } from 'lucide-react';
 import { Button } from './ui';
 import { apiClient } from '@/lib/api-client';
 import { getRows, messageFor } from '@/lib/workspace';
+import { educationLevelLabels, preschoolStages } from '@/lib/academic-setup';
 export interface Field {key:string;label:string;type?:string;required?:boolean;clearable?:boolean;options?:string[];source?:string;min?:number;max?:number}
 function todayValue() {
   const date = new Date();
@@ -14,7 +15,7 @@ export function RecordModal({title,endpoint,fields,initial,onClose,onSaved}:{tit
     const saved = field.type==='date'&&initial?.[field.key]?String(initial[field.key]).slice(0,10):field.type==='currency'&&initial?.[field.key]!=null?String(Number(initial[field.key])/100):String(initial?.[field.key]??'');
     const fallback = !initial && field.key === 'admissionDate' ? todayValue() : !initial && endpoint.endsWith('/students') && field.key === 'status' && field.options?.includes('ACTIVE') ? 'ACTIVE' : '';
     return [field.key, saved || fallback];
-  })));
+  }).concat([['preschoolStage', String(initial?.preschoolStage || '')]])));
   const [options,setOptions]=useState<Record<string,any[]>>({});
   const [busy,setBusy]=useState(false);
   const [detailsOpen,setDetailsOpen]=useState(!!initial);
@@ -26,8 +27,19 @@ export function RecordModal({title,endpoint,fields,initial,onClose,onSaved}:{tit
   const busyRef=useRef(false);
   const titleId=useId();
   const required = (field: Field) => !!field.required && !(initial && field.type === 'password');
-  const essentials = fields.filter(required);
-  const optional = fields.filter(field => !required(field));
+  const classForm = endpoint === '/workspace/classes';
+  const selectedSchool = options.schoolId?.find(school => school.id === values.schoolId);
+  const preschoolClass = classForm && (selectedSchool?.programme === 'PRESCHOOL' || values.educationLevel === 'PRE_PRIMARY');
+  const formFields = fields.flatMap(field => {
+    if (!classForm) return [field];
+    if (field.key === 'name') return [{ ...field, label: 'Class name' }];
+    if (!selectedSchool && ['level', 'educationLevel'].includes(field.key)) return [];
+    if (field.key === 'level' && preschoolClass) return [{ key: 'preschoolStage', label: 'Preschool stage', required: true, options: Object.keys(preschoolStages) }];
+    if (field.key === 'educationLevel' && selectedSchool?.programme === 'PRESCHOOL') return [];
+    return [field];
+  });
+  const essentials = formFields.filter(required);
+  const optional = formFields.filter(field => !required(field));
   const entered = essentials.filter(field => values[field.key]?.trim()).length;
   useEffect(()=>{busyRef.current=busy;},[busy]);
   useEffect(()=>{
@@ -52,7 +64,7 @@ export function RecordModal({title,endpoint,fields,initial,onClose,onSaved}:{tit
     let active=true;
     setOptionsLoading(fields.some(field=>field.source));setOptionsError('');
     Promise.all(fields.filter(field=>field.source).map(async field=>[field.key,await getRows(field.source!)] as const))
-      .then(result=>{if(active)setOptions(Object.fromEntries(result));})
+      .then(result=>{if(active){const loaded = Object.fromEntries(result); setOptions(loaded); if (classForm && !initial && loaded.schoolId?.length === 1) setValues(current => ({ ...current, schoolId: current.schoolId || loaded.schoolId[0].id }));}})
       .catch(err=>{if(active)setOptionsError(messageFor(err));})
       .finally(()=>{if(active)setOptionsLoading(false);});
     return()=>{active=false;};
@@ -61,11 +73,16 @@ export function RecordModal({title,endpoint,fields,initial,onClose,onSaved}:{tit
     event.preventDefault();if(busy||optionsLoading||optionsError)return;
     setBusy(true);setError('');
     const data:Record<string,unknown>={};
-    fields.forEach(field=>{
+    formFields.forEach(field=>{
       const value=values[field.key];
       if(initial&&field.clearable&&value===''&&initial[field.key]!=null)data[field.key]=null;
       else if(value!=='')data[field.key]=field.type==='currency'?Math.round(Number(value)*100):field.type==='number'?Number(value):value;
     });
+    if (classForm && preschoolClass) {
+      data.educationLevel = 'PRE_PRIMARY';
+      data.preschoolStage = values.preschoolStage;
+      data.level = preschoolStages[values.preschoolStage as keyof typeof preschoolStages];
+    } else if (classForm && initial?.preschoolStage) data.preschoolStage = null;
     try {
       if(initial)await apiClient.patch(endpoint+'/'+initial.id,{data});
       else await apiClient.post(endpoint,{data});
@@ -83,7 +100,7 @@ export function RecordModal({title,endpoint,fields,initial,onClose,onSaved}:{tit
     const id=titleId+'-'+field.key;
     const isRequired = required(field);
     const change=(value:string)=>setValues(current=>({...current,[field.key]:value}));
-    return <div className="field" key={field.key}><label htmlFor={id}>{field.label}{isRequired?' *':''}</label>{field.options||field.source?<select id={id} required={isRequired} disabled={busy||!!field.source&&optionsLoading} value={values[field.key]} onChange={event=>change(event.target.value)}><option value="">{field.source&&optionsLoading?'Loading options...':'Select '+field.label.toLowerCase()}</option>{field.options?.map(option=><option key={option} value={option}>{option.replaceAll('_',' ')}</option>)}{options[field.key]?.map(option=><option key={option.id} value={option.id}>{option.name||option.title||option.invoiceNumber||[option.firstName,option.lastName].filter(Boolean).join(' ')}</option>)}</select>:field.type==='textarea'?<textarea id={id} required={isRequired} disabled={busy} maxLength={10000} value={values[field.key]} onChange={event=>change(event.target.value)}/>:<input id={id} type={field.type==='currency'?'number':field.type||'text'} inputMode={field.type==='currency'?'decimal':undefined} step={field.type==='currency'?'.01':field.type==='number'?1:undefined} required={isRequired} disabled={busy} min={field.type==='currency'&&field.min!=null?field.min/100:field.min} max={field.type==='currency'&&field.max!=null?field.max/100:field.max} maxLength={field.type==='password'?128:255} value={values[field.key]} onChange={event=>change(event.target.value)}/>}</div>;
+    return <div className="field" key={field.key}><label htmlFor={id}>{field.label}{isRequired?' *':''}</label>{field.options||field.source?<select id={id} required={isRequired} disabled={busy||!!field.source&&optionsLoading} value={values[field.key]} onChange={event=>change(event.target.value)}><option value="">{field.source&&optionsLoading?'Loading options...':'Select '+field.label.toLowerCase()}</option>{field.options?.map(option=><option key={option} value={option}>{field.key === 'educationLevel' ? educationLevelLabels[option] : field.key === 'preschoolStage' ? preschoolStages[option as keyof typeof preschoolStages] : option.replaceAll('_',' ')}</option>)}{options[field.key]?.map(option=><option key={option.id} value={option.id}>{option.name||option.title||option.invoiceNumber||[option.firstName,option.lastName].filter(Boolean).join(' ')}</option>)}</select>:field.type==='textarea'?<textarea id={id} required={isRequired} disabled={busy} maxLength={10000} value={values[field.key]} onChange={event=>change(event.target.value)}/>:<input id={id} type={field.type==='currency'?'number':field.type||'text'} inputMode={field.type==='currency'?'decimal':undefined} step={field.type==='currency'?'.01':field.type==='number'?1:undefined} required={isRequired} disabled={busy} min={field.type==='currency'&&field.min!=null?field.min/100:field.min} max={field.type==='currency'&&field.max!=null?field.max/100:field.max} maxLength={field.type==='password'?128:255} value={values[field.key]} onChange={event=>change(event.target.value)}/>}</div>;
   }
   return <div className="modal-backdrop record-drawer-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget&&!busy)onClose();}}>
     <div ref={dialog} className="modal record-drawer" role="dialog" aria-modal="true" aria-labelledby={titleId}>
@@ -91,6 +108,7 @@ export function RecordModal({title,endpoint,fields,initial,onClose,onSaved}:{tit
       <form onSubmit={submit}>
         <div className="record-form-body">
           {(error||optionsError)&&<div role="alert" className="state-box">{error||optionsError}{optionsError&&<div className="mt-3"><p>Reload the available choices to continue.</p><Button size="sm" variant="outline" onClick={() => setOptionsAttempt(value => value + 1)}>Reload choices</Button></div>}</div>}
+          {classForm && selectedSchool?.programme === 'PRESCHOOL' && <p className="muted mb-4">This campus is a preschool. Classes use the pre-primary education level automatically.</p>}
           {!!essentials.length && <><div className="form-section-heading"><h3>The essentials</h3><span>{entered} / {essentials.length} entered</span></div><div className="form-entry-track" aria-hidden="true"><span style={{width: entered / essentials.length * 100 + '%'}}/></div><div className="form-grid">{essentials.map(renderField)}</div></>}
           {!!optional.length && <section className="optional-details"><button className="optional-toggle" type="button" disabled={busy} aria-expanded={detailsOpen} aria-controls={titleId + '-optional'} onClick={toggleDetails}><SlidersHorizontal size={16}/><span>More details<small>{optional.length} optional fields</small></span><ChevronDown size={17}/></button><div id={titleId + '-optional'} className="form-grid" hidden={!detailsOpen}>{detailsOpen && optional.map(renderField)}</div></section>}
         </div>

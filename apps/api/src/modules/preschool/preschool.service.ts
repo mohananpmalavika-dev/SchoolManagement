@@ -118,7 +118,7 @@ export class PreschoolService {
             : 'COMBINED',
       };
     }
-    if (preschoolManagers.includes(user.role)) {
+    if ([...preschoolManagers, 'ACCOUNTANT', 'LIBRARIAN', 'TRANSPORT_OFFICER', 'RECEPTIONIST', 'AUDITOR', 'EXAM_OFFICER'].includes(user.role)) {
       const schools = await this.db.school.findMany({
         where: { tenantId, isActive: true },
         select: { programme: true },

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ArrowUpRight, ChevronRight, LogOut, Menu, Search, Settings, X, Smartphone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { navigationFor, navigationMatches, preschoolSectionsFor, portalLabels, type Portal, type PreschoolSection } from '@/lib/navigation';
+import { navigationFor, navigationMatches, preschoolSectionsFor, portalLabels, isSchoolAgePage, type Portal, type PreschoolSection } from '@/lib/navigation';
 import { teacherRoles, schoolRoles } from '@/lib/session';
 import { ProtectedRoute } from './ProtectedRoute';
 import { FeatureBoundary } from './FeatureBoundary';
@@ -13,7 +13,8 @@ import { portalDesign } from '@/lib/portal-design';
 import { PreschoolSectionLocation } from './PreschoolSectionLocation';
 
 export function AppShell({ portal, children }: { portal: Portal; children: ReactNode }) {
-  const [programme, setProgramme] = useState('STANDARD');
+  const [programme, setProgramme] = useState('');
+  const [programmeError, setProgrammeError] = useState(false);
   const [section, setSection] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -45,17 +46,20 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
   useEffect(() => {
     if (!user || portal === 'admin' || portal === 'student') return;
     let active = true;
-    setProgramme('STANDARD');
-    const loadProgramme = () => { void apiClient.get('/preschool/navigation').then(({ data }) => { if (active && ['STANDARD','PRESCHOOL','COMBINED'].includes(data.programme)) setProgramme(data.programme); }).catch(() => undefined); };
+    setProgramme('');
+    const loadProgramme = () => { setProgrammeError(false); void apiClient.get('/preschool/navigation').then(({ data }) => { if (active) { if (['STANDARD','PRESCHOOL','COMBINED'].includes(data.programme)) setProgramme(data.programme); else setProgrammeError(true); } }).catch(() => { if (active) setProgrammeError(true); }); };
     loadProgramme(); window.addEventListener('preschool-configuration-changed', loadProgramme);
     return () => { active = false; window.removeEventListener('preschool-configuration-changed', loadProgramme); };
   }, [user, portal]);
   useEffect(() => {
-    if (programme !== 'PRESCHOOL' || !['school','teacher','parent'].includes(portal) || !preschoolSectionsFor(user?.role || '').length) return;
+    if (programme !== 'PRESCHOOL' || !['school','teacher','parent'].includes(portal)) return;
+    const preschoolAccess = preschoolSectionsFor(user?.role || '').length > 0;
     const overview = portal === 'parent' ? '/dashboard' : '/' + portal + '/dashboard';
-    if (pathname === overview) router.replace(portal === 'parent' ? '/dashboard/preschool' : '/' + portal + '/preschool');
+    if (isSchoolAgePage(pathname) || pathname === overview && preschoolAccess) router.replace(preschoolAccess ? portal === 'parent' ? '/dashboard/preschool' : '/' + portal + '/preschool' : overview);
   }, [programme, portal, pathname, router, user?.role]);
   const links = groups.flatMap(group => group.items);
+  const needsProgramme = !['admin', 'student'].includes(portal);
+  const schoolAgeRedirect = programme === 'PRESCHOOL' && needsProgramme && isSchoolAgePage(pathname);
   const currentSection = preschoolSectionsFor(user?.role || '').includes(section as PreschoolSection) ? section : 'daily';
   const matches = (href: string) => navigationMatches(href, pathname, currentSection);
   const active = links.filter(link => matches(link.href)).sort((left, right) => right.href.length - left.href.length)[0];
@@ -138,7 +142,7 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
         <div className="topbar-actions"><button className="command-trigger" onClick={openSearch} aria-label="Find a page"><Search size={17}/><span>Find anything</span><kbd>Ctrl K</kbd></button><Link href="/account" className="profile-link" aria-label="Account settings"><span className="avatar">{user?.firstName?.[0]}{user?.lastName?.[0]}</span><span className="hidden xl:block"><strong>{user?.firstName} {user?.lastName}</strong><small>{user?.role.replaceAll('_',' ').toLowerCase()}</small></span></Link><button ref={menu} className="module-launcher" onClick={() => browse()} aria-controls="workspace-navigation" aria-expanded={open} aria-label="Open navigation"><Menu size={20}/><span>Menu</span></button></div>
       </header>
 
-      <main ref={main} id="main-content" tabIndex={-1} className="page-content"><FeatureBoundary inWorkspace>{children}</FeatureBoundary></main>
+      <main ref={main} id="main-content" tabIndex={-1} className="page-content">{needsProgramme && !programme ? programmeError ? <div className="state-box" role="alert">School configuration could not be loaded.<button className="underline ml-3" onClick={() => window.dispatchEvent(new Event('preschool-configuration-changed'))}>Try again</button></div> : <p role="status">Loading school workspace…</p> : schoolAgeRedirect ? <p role="status">Opening preschool workspace…</p> : <FeatureBoundary inWorkspace>{children}</FeatureBoundary>}</main>
       <footer className="workspace-footer"><span>&copy; {new Date().getFullYear()} Krypton School ERP</span><span>One connected school community</span></footer>
     </div>
     <dialog ref={dialog} className="command-dialog" aria-labelledby="command-title" onClick={event => { if (event.target === event.currentTarget) dialog.current?.close(); }}><div className="command-header"><Search size={20}/><h2 id="command-title" className="sr-only">Find a page</h2><input autoFocus aria-label="Search workspace pages" placeholder="Where would you like to go?" value={search} onChange={event => setSearch(event.target.value)}/><button className="icon-button" aria-label="Close search" onClick={() => dialog.current?.close()}><X size={18}/></button></div><div className="command-results">{results.map(({href,label,icon:Icon}) => <Link key={href} href={href} onClick={() => { dialog.current?.close(); followMenuLink(); }}><Icon size={18}/><span>{label}</span><ArrowUpRight size={16}/></Link>)}{!results.length && <p className="command-empty">No pages match &ldquo;{search}&rdquo;. Try another keyword.</p>}</div><div className="command-footer"><span>Search your {portalLabels[portal].toLowerCase()}</span><span><kbd>Esc</kbd> to close</span></div></dialog>

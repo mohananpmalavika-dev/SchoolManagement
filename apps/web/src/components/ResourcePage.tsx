@@ -7,6 +7,7 @@ import { RecordModal, type Field } from './RecordModal';
 import { apiClient } from '@/lib/api-client';
 import { getRows, messageFor, exportCsv, money, dateLabel } from '@/lib/workspace';
 import { useAuth } from '@/contexts/AuthContext';
+import { educationLevelLabels, preschoolStages } from '@/lib/academic-setup';
 export interface Column { key: string; label: string; format?: 'money' | 'date' | 'status' }
 interface Props { title: string; description: string; endpoint: string; columns: Column[]; fields?: Field[]; editable?: boolean; createAllowed?: boolean; action?: { label: string; path: string } }
 const directories = new Set(['students', 'guardians', 'staff', 'schools', 'users', 'books', 'materials']);
@@ -96,13 +97,15 @@ export function ResourcePage({ title, description, endpoint, columns, fields, ed
     try { await apiClient.post(endpoint + '/' + row.id + '/' + action.path); setNotice(action.label + ' completed.'); await load(); }
     catch (err) { setError(messageFor(err)); } finally { setBusy(null); }
   }
-  const recordLabel = title === 'People & access' ? 'user' : title === 'Students' ? 'student' : title === 'Guardians' ? 'guardian' : title === 'Staff' ? 'staff member' : 'record';
+  const recordLabel = resource === 'classes' ? 'class' : resource === 'streams' ? 'section' : resource === 'years' ? 'school year' : resource === 'terms' ? 'term' : title === 'People & access' ? 'user' : title === 'Students' ? 'student' : title === 'Guardians' ? 'guardian' : title === 'Staff' ? 'staff member' : 'record';
   const canAct = !!action && (role === 'SUPER_ADMIN' || ['SCHOOL_OWNER','PRINCIPAL','SCHOOL_ADMIN'].includes(role) || role === 'DEPUTY_PRINCIPAL' && !deputyRestricted || role === 'LIBRARIAN' && resource === 'borrowings');
   const showActions = editable && canWrite || canAct;
   const primaryName = (row: Record<string, any>) => String(row[columns[0]?.key] ?? row.name ?? row.title ?? 'Record');
   const initials = (name: string) => name.split(' ').filter(Boolean).slice(0, 2).map(word => word[0]).join('');
   const edit = (row: Record<string, any>) => { setSelected(row); setModal(true); };
   function value(column: Column, row: Record<string, any>) {
+    if (column.key === 'educationLevel') return educationLevelLabels[row[column.key]] || row[column.key] || '—';
+    if (column.key === 'preschoolStage') return preschoolStages[row[column.key] as keyof typeof preschoolStages] || 'Stage not assigned';
     if (column.format === 'status') return <StatusPill value={String(row[column.key] ?? 'UNKNOWN')}/>;
     if (column.format === 'money') return row[column.key] == null ? '\u2014' : money(Number(row[column.key]));
     if (column.format === 'date') return dateLabel(row[column.key]);

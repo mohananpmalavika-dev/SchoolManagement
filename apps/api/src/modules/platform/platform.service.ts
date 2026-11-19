@@ -2,6 +2,7 @@ import {Injectable,NotFoundException,BadRequestException,ForbiddenException} fro
 import {PrismaService} from '../../database/prisma.service';
 import {RecordSpec,parseRecord} from '../workspace/records';
 import * as bcrypt from 'bcryptjs';
+import { schoolEducationLevels } from '../preschool/school-programme';
 const specs:Record<string,RecordSpec> = {
   "schools": {
     "model": "tenant",
@@ -40,7 +41,8 @@ const specs:Record<string,RecordSpec> = {
     "model": "supportTicket",
     "fields": {
       "status": "enum:OPEN,IN_PROGRESS,RESOLVED,CLOSED!",
-      "priority": "enum:LOW,NORMAL,HIGH,URGENT"
+      "priority": "enum:LOW,NORMAL,HIGH,URGENT",
+      "description": "long"
     }
   },
   "announcements": {
@@ -68,10 +70,11 @@ export class PlatformService{
   this.requireSuperAdmin(user);
   if(!['STANDARD','PRESCHOOL','COMBINED'].includes(programme))throw new BadRequestException('Choose a valid school type');
   return this.prisma.executeWithoutTenantFilter(()=>this.prisma.$transaction(async tx=>{
-   const school=await tx.school.findUnique({where:{id},select:{id:true,tenantId:true,programme:true}});
+   const school=await tx.school.findUnique({where:{id},select:{id:true,tenantId:true,programme:true,educationLevel:true}});
    if(!school)throw new NotFoundException('School not found');
-   const updated=await tx.school.update({where:{id:school.id},data:{programme},select:{id:true,programme:true}});
-   await tx.auditLog.create({data:{tenantId:school.tenantId,userId:user.userId,action:'SCHOOL_PROGRAMME_UPDATED',entityType:'school',entityId:school.id,changes:{programme:{from:school.programme,to:programme}}}});
+   const educationLevel=schoolEducationLevels(programme,school.educationLevel);
+   const updated=await tx.school.update({where:{id:school.id},data:{programme,educationLevel},select:{id:true,programme:true}});
+   await tx.auditLog.create({data:{tenantId:school.tenantId,userId:user.userId,action:'SCHOOL_PROGRAMME_UPDATED',entityType:'school',entityId:school.id,changes:{programme:{from:school.programme,to:programme},educationLevel:{from:school.educationLevel,to:educationLevel}}}});
    return updated;
   }));
  }
@@ -80,6 +83,25 @@ export class PlatformService{
   const spec=specs[resource];if(!spec)throw new NotFoundException('Unknown resource');
   if(resource==='users'){const users=await this.prisma.user.findMany({select:{id:true,tenantId:true,email:true,firstName:true,lastName:true,role:true,isActive:true,createdAt:true,tenant:{select:{name:true}}},orderBy:{createdAt:'desc'},take:5000});return users.map(u=>({...u,name:u.firstName+' '+u.lastName,schoolName:u.tenant.name,status:u.isActive?'ACTIVE':'SUSPENDED'}));}
   if(resource==='subscriptions'){const rows=await this.prisma.subscription.findMany({include:{plan:true,tenant:{select:{name:true}}},orderBy:{createdAt:'desc'},take:5000});return rows.map(r=>({...r,schoolName:r.tenant.name,planName:r.plan.name,price:r.plan.price}));}
+   if(resource==='tickets'){
+    const [tickets, tenants, users] = await Promise.all([
+     this.prisma.supportTicket.findMany({orderBy:{createdAt:'desc'},take:5000}),
+     this.prisma.tenant.findMany({select:{id:true,name:true}}),
+     this.prisma.user.findMany({select:{id:true,firstName:true,lastName:true,email:true,role:true}}),
+    ]);
+    const tenantMap = new Map(tenants.map(t => [t.id, t.name]));
+    const userMap = new Map(users.map(u => [u.id, u]));
+    return tickets.map(t => {
+     const u = userMap.get(t.createdBy);
+     return {
+      ...t,
+      schoolName: tenantMap.get(t.tenantId) || 'Unknown School',
+      creatorName: u ? (u.firstName + ' ' + u.lastName).trim() : 'Staff Member',
+      creatorEmail: u?.email || '',
+      creatorRole: u?.role || '',
+     };
+    });
+   }
   return (this.prisma as any)[spec.model].findMany({orderBy:{createdAt:'desc'},take:5000});
  });}
  async write(user:any,resource:string,input:Record<string,unknown>,id?:string){return this.prisma.executeWithoutTenantFilter(async()=>{

@@ -97,11 +97,13 @@ export const recordSpecs:Record<string,RecordSpec> = {
   },
   "classes": {
     "model": "class",
+    "nullable": ["preschoolStage"],
     "fields": {
       "name": "text!",
       "schoolId": "ref:school!",
       "level": "text!",
-      "educationLevel": "enum:PRE_PRIMARY,PRIMARY,MIDDLE,SECONDARY,SENIOR_SECONDARY!"
+      "educationLevel": "enum:PRE_PRIMARY,PRIMARY,MIDDLE,SECONDARY,SENIOR_SECONDARY!",
+      "preschoolStage": "enum:PLAYGROUP,NURSERY,LKG,UKG"
     }
   },
   "streams": {
@@ -364,7 +366,7 @@ export function parseRecord(spec:RecordSpec,input:Record<string,unknown>,partial
   if(kind.startsWith('enum:')&&!kind.slice(5).split(',').includes(trimmed))throw new BadRequestException('Invalid '+key);
   if(kind==='date'){if(!/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(trimmed)||!Number.isFinite(Date.parse(trimmed))||new Date(trimmed.slice(0,10)+'T00:00:00.000Z').toISOString().slice(0,10)!==trimmed.slice(0,10))throw new BadRequestException('Invalid '+key);result[key]=new Date(trimmed);continue;}
   if(kind==='time'&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(trimmed))throw new BadRequestException('Invalid time');
-  if(kind==='password'&&trimmed.length<12)throw new BadRequestException('Password must contain at least 12 characters');
+  if(kind==='password'&&trimmed.length<6)throw new BadRequestException('Password must contain at least 6 characters');
   result[key]=kind==='email'?trimmed.toLowerCase():trimmed;
  }
  if(result.startDate&&result.endDate&&result.startDate>result.endDate)throw new BadRequestException('End date must follow start date');

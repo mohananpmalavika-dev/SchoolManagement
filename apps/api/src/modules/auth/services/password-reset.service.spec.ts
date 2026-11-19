@@ -241,11 +241,11 @@ describe('PasswordResetService', () => {
 
     it('should reject weak password (too short)', async () => {
       // Password validation happens before DB access
-      await expect(service.resetPassword('any-token', 'Short1!')).rejects.toThrow(
+      await expect(service.resetPassword('any-token', 'Sh1!')).rejects.toThrow(
         BadRequestException
       );
-      await expect(service.resetPassword('any-token', 'Short1!')).rejects.toThrow(
-        'Password must be at least 12 characters long'
+      await expect(service.resetPassword('any-token', 'Sh1!')).rejects.toThrow(
+        'Password must be at least 6 characters long'
       );
     });
 

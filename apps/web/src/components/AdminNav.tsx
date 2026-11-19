@@ -56,6 +56,7 @@ export function AdminNav() {
             <NavLink href="/dashboard/smart-attendance">Smart Attendance</NavLink>
             <NavLink href="/admin/schools">{t('admin.schools')}</NavLink>
             <NavLink href="/admin/subscriptions">{t('admin.subscriptions')}</NavLink>
+            <NavLink href="/admin/hrms">HR & Payroll</NavLink>
             <NavLink href="/admin/users">{t('admin.users')}</NavLink>
             <NavLink href="/admin/system">{t('admin.system')}</NavLink>
             <NavLink href="/admin/reports">{t('admin.reports')}</NavLink>

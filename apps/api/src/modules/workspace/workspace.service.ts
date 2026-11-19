@@ -9,6 +9,8 @@ import { TimetableService } from '../timetable/timetable.service';
 import { FeeCategory } from '@krypton/types';
 import { recordSpecs, managers, parseRecord } from './records';
 import { recordEnrollment } from '../students/student-enrollment';
+import { prepareAcademicClass } from './academic-class';
+import { schoolEducationLevels } from '../preschool/school-programme';
 const teacherRoles = ['TEACHER', 'CLASS_TEACHER', 'EXAM_OFFICER'];
 @Injectable()
 export class WorkspaceService {
@@ -126,6 +128,7 @@ export class WorkspaceService {
   }
   else if(['years','terms','classes','streams'].includes(resource))result=await this.prisma.$transaction(async tx=>{
    await tx.tenant.update({where:{id:tenantId},data:{updatedAt:new Date()}});
+   if(resource==='classes')await prepareAcademicClass(tx,tenantId,data,id);
    const model=(tx as any)[spec.model];return id?model.update({where:{id,tenantId},data}):model.create({data:{...data,tenantId}});
   });
   else if(resource==='report-cards')result=await this.exams.generateReportCard(data as any,user.userId);
@@ -141,7 +144,11 @@ export class WorkspaceService {
     return tx.bookBorrowing.create({data:{...data,tenantId,borrowerType:'STUDENT'} as any});
    });
   }else{
-   if(resource==='schools'&&!id)data.educationLevel=['PRIMARY'];
+   if(resource==='schools'&&!id){
+    const schools=await this.prisma.school.findMany({where:{tenantId,isActive:true},select:{programme:true,educationLevel:true}});
+    data.programme=schools.length&&schools.every(s=>s.programme==='PRESCHOOL')?'PRESCHOOL':schools.some(s=>s.programme!=='STANDARD')?'COMBINED':'STANDARD';
+    data.educationLevel=schoolEducationLevels(data.programme,schools.flatMap(s=>s.educationLevel));
+   }
    if(resource==='staff'&&data.department!==undefined)data.isTeacher=data.department==='TEACHING';
    if(resource==='books'&&!id)data.available=data.quantity;
    if(resource==='tickets'&&!id)data.createdBy=user.userId;

@@ -36,9 +36,10 @@ export function SchoolSetupWorkspace() {
     finally { working.current = false; setBusy(false); }
   };
   const hasPreschool = options.schools.some(school => school.programme !== 'STANDARD');
+  const classesLabel = options.schools.length > 0 && options.schools.every(school => school.programme === 'PRESCHOOL') ? 'Classes & school years' : 'Academic setup';
   return <>
     <PageHeading eyebrow="PRESCHOOL" title="Preschool setup" description="Manage class stages, teaching staff and safe pickup. The platform Super Admin manages your school type."
-      actions={<><Link className="account-back-link" href="/school/academics">Academic setup</Link><Button size="sm" variant="outline" disabled={loading || busy} leftIcon={<RefreshCw size={15}/>} onClick={() => void load()}>Refresh</Button></>}/>
+      actions={<><Link className="account-back-link" href="/school/academics">{classesLabel}</Link><Button size="sm" variant="outline" disabled={loading || busy} leftIcon={<RefreshCw size={15}/>} onClick={() => void load()}>Refresh</Button></>}/>
     {error && <div className="state-box mb-4" role="alert">{error}<button className="underline ml-3" disabled={busy || loading} onClick={() => void load()}>Try again</button></div>}
     {notice && <div className="state-box success mb-4" role="status">{notice}</div>}
     {loading ? <p role="status">Loading preschool setup…</p> : <PreschoolSettings options={options} action={action} busy={busy}/>}

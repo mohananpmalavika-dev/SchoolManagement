@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, LockKeyhole, Mail } from 'lucide-react';
@@ -40,8 +40,8 @@ export default function AccountPage() {
           <form className="panel-body account-password-form" onSubmit={submit}>
             {error && <div className="state-box" role="alert">{error}</div>}
             <Input label="Current password" type="password" autoComplete="current-password" required maxLength={128} value={current} onChange={e => setCurrent(e.target.value)}/>
-            <Input label="New password" type="password" autoComplete="new-password" required minLength={12} maxLength={128} value={next} onChange={e => setNext(e.target.value)} helpText="Use at least 12 characters."/>
-            <Input label="Confirm new password" type="password" autoComplete="new-password" required minLength={12} maxLength={128} value={confirm} onChange={e => setConfirm(e.target.value)}/>
+            <Input label="New password" type="password" autoComplete="new-password" required minLength={6} maxLength={128} value={next} onChange={e => setNext(e.target.value)} helpText="Use at least 6 characters."/>
+            <Input label="Confirm new password" type="password" autoComplete="new-password" required minLength={6} maxLength={128} value={confirm} onChange={e => setConfirm(e.target.value)}/>
             <div className="account-form-footer"><p><LockKeyhole size={14}/>Changing your password signs out all existing sessions.</p><Button type="submit" isLoading={busy}>Update password</Button></div>
           </form>
         </Panel>

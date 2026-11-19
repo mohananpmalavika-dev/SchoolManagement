@@ -130,6 +130,15 @@ function setup() {
   return { db, access, service, notifications };
 }
 describe('Preschool authorization and daily care', () => {
+  it.each(['ACCOUNTANT', 'LIBRARIAN', 'TRANSPORT_OFFICER', 'RECEPTIONIST', 'AUDITOR', 'EXAM_OFFICER'])(
+    'uses the configured preschool programme for %s without granting classroom access', async role => {
+      const { db, service, access } = setup();
+      db.school = { findMany: fn([{ programme: 'PRESCHOOL' }]) };
+      await expect(service.navigation({ userId: 'staff', role })).resolves.toEqual({ programme: 'PRESCHOOL' });
+      expect(db.school.findMany).toHaveBeenCalledWith({ where: { tenantId: 'tenant-a', isActive: true }, select: { programme: true } });
+      await expect(access.classIds({ userId: 'staff', role })).rejects.toBeInstanceOf(ForbiddenException);
+    }
+  );
   it.each(['SCHOOL_OWNER', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'SCHOOL_ADMIN'])(
     'prevents %s from changing school type through the legacy school endpoint, including mixed pickup requests', async role => {
       const { db, service } = setup();

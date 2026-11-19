@@ -1606,12 +1606,20 @@ export const adminResources:Record<string,ResourceConfig>={
     "endpoint": "/admin/tickets",
     "columns": [
       {
+        "key": "schoolName",
+        "label": "School"
+      },
+      {
         "key": "subject",
         "label": "Subject"
       },
       {
         "key": "description",
         "label": "Description"
+      },
+      {
+        "key": "creatorName",
+        "label": "Opened by"
       },
       {
         "key": "priority",
