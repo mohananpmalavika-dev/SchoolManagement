@@ -55,11 +55,11 @@ sudo apt-get install -y curl git openssl ca-certificates gnupg lsb-release iptab
 
 # 2. Fix OCI iptables firewall (Oracle Cloud blocks inbound ports in local OS firewall by default)
 echo "🛡️ Configuring Oracle Cloud OS Firewall (HTTP 80, HTTPS 443, WebRTC 8189, SRT Ingest 8890)..."
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT || true
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT || true
-sudo iptables -I INPUT 6 -m state --state NEW -p udp --dport 8189 -j ACCEPT || true
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 8189 -j ACCEPT || true
-sudo iptables -I INPUT 6 -m state --state NEW -p udp --dport 8890 -j ACCEPT || true
+sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport 80 -j ACCEPT || true
+sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport 443 -j ACCEPT || true
+sudo iptables -I INPUT 5 -m state --state NEW -p udp --dport 8189 -j ACCEPT || true
+sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport 8189 -j ACCEPT || true
+sudo iptables -I INPUT 5 -m state --state NEW -p udp --dport 8890 -j ACCEPT || true
 sudo netfilter-persistent save || true
 
 # 3. Install Docker if missing
