@@ -19,6 +19,7 @@ async function session(role, programme) {
     const path = new URL(route.request().url()).pathname.replace(/^\/api\/v1/, '');
     const ok = data => route.fulfill({ json: { success: true, data } });
     if (path === '/auth/me') return ok({ id: 'fixture-user', tenantId: 'fixture-school', role, firstName: 'Menu', lastName: 'Test', email: 'menu@example.test' });
+    if (path === '/teacher-ai/options') return ok({ status: { configured: false } });
     if (path === '/preschool/navigation') return ok({ programme });
     if (path === '/preschool/options') return ok({ today: '2026-11-17', timezone: 'Asia/Kolkata', schools: [], classes: [], students: [], staff: [], assignments: [] });
     if (path === '/workspace/overview' || path === '/admin/overview') return ok(overview);
@@ -27,6 +28,7 @@ async function session(role, programme) {
     return ok([]);
   });
   const page = await context.newPage();
+  page.setDefaultNavigationTimeout(120000);
   page.on('pageerror', error => errors.push(role + ': ' + error.message));
   return { context, page };
 }
@@ -48,7 +50,7 @@ try {
     ['TEACHER', 'COMBINED'], ['CLASS_TEACHER', 'PRESCHOOL'], ['EXAM_OFFICER', 'STANDARD'],
     ['PARENT', 'COMBINED'], ['STUDENT', 'STANDARD'], ['TEACHER', 'STANDARD'],
     ['PARENT', 'STANDARD'], ['PARENT', 'PRESCHOOL'], ['SCHOOL_ADMIN', 'PRESCHOOL'], ['EXAM_OFFICER','COMBINED'],
-  ]) {
+  ].filter(([role]) => !process.env.UI_ROLE || role === process.env.UI_ROLE)) {
     const { context, page } = await session(role, programme);
     const portal = portalFor(role), home = portal === 'parent' ? '/dashboard' : '/' + portal + '/dashboard';
     const preschoolTeacher=['TEACHER','CLASS_TEACHER'].includes(role);
@@ -77,11 +79,72 @@ try {
     if (role === 'AUDITOR') assert(!hrefs.some(href => /\/(ai-studio|copilot|admissions)/.test(href)));
     if (role === 'PARENT') assert(hrefs.includes('/dashboard/portfolio'));
     checks.push(role + ' / ' + programme + ': scoped menus, valid routes and correct landing page');
-    if (role === 'SCHOOL_ADMIN' && programme === 'COMBINED') {
-      await page.getByRole('button', { name: 'Browse early years', exact: true }).click();
-      await page.getByRole('dialog', { name: 'Main navigation' }).waitFor();
+    if (role === 'PRINCIPAL') {
+      const navigation = page.getByRole('complementary', { name: 'Main navigation' });
+      await navigation.waitFor();
+      assert.equal(await page.locator('.module-navigation, .workspace-subnav').count(), 0);
+      assert.equal(await page.getByRole('button', { name: 'Open navigation', exact: true }).isVisible(), false);
+      assert.equal(await page.locator('a[aria-current="page"]').count(), 1);
+      assert.equal(await page.locator('.workspace-body').getAttribute('inert'), null);
+      const bounds = await navigation.boundingBox();
+      assert.equal(bounds.width, 280);
+      assert((await page.locator('.workspace-body').boundingBox()).x >= bounds.width);
+      assert.equal(await page.evaluate(() => getComputedStyle(document.body).overflow === 'hidden'), false);
+      await navigation.getByRole('button', { name: 'people', exact: true }).click();
+      await navigation.getByRole('link', { name: 'Students', exact: true }).click();
+      await page.waitForURL('**/school/students');
+      await page.waitForFunction(() => document.activeElement?.id === 'main-content');
+      assert.equal(await navigation.locator('a[aria-current="page"]').getAttribute('href'), '/school/students');
+      await page.reload();
+      await navigation.getByRole('link', { name: 'Students', exact: true }).waitFor();
+      assert.equal(await navigation.getByRole('button', { name: 'people', exact: true }).getAttribute('aria-pressed'), 'true');
+      await page.goto(base + home);
+      await navigation.getByRole('link', { name: 'Overview', exact: true }).waitFor();
+      const hoverLink = navigation.getByRole('link', { name: 'Advanced analytics', exact: true });
+      await hoverLink.hover();
+      assert.equal(await hoverLink.evaluate(element => getComputedStyle(element, '::before').animationName), 'school-menu-shine');
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      assert.equal(await hoverLink.evaluate(element => getComputedStyle(element, '::before').animationName), 'none');
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
+      await page.screenshot({ path: fileURLToPath(new URL('principal-menu-desktop.png', output)), animations: 'disabled' });
+      for (const width of [1100, 1280, 1920, 1024, 768, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Principal layout overflow at ' + width);
+      }
+      await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+      const drawer = page.getByRole('dialog', { name: 'Main navigation' });
+      await drawer.waitFor();
+      assert.equal(await page.locator('.workspace-body').getAttribute('inert'), '');
+      await drawer.getByRole('button', { name: 'Close navigation', exact: true }).focus();
+      await page.keyboard.press('Shift+Tab');
+      assert.equal(await drawer.getByRole('link').first().evaluate(element => element === document.activeElement), true);
+      await page.keyboard.press('Shift+Tab');
+      assert.equal(await drawer.getByRole('button', { name: 'Sign out', exact: true }).evaluate(element => element === document.activeElement), true);
+      await page.keyboard.press('Tab');
+      assert.equal(await drawer.getByRole('link').first().evaluate(element => element === document.activeElement), true);
+      await page.screenshot({ path: fileURLToPath(new URL('principal-menu-mobile.png', output)), animations: 'disabled' });
       await page.keyboard.press('Escape');
-      assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'Browse early years');
+      await drawer.waitFor({ state: 'hidden' });
+      assert.equal(await page.getByRole('button', { name: 'Open navigation', exact: true }).evaluate(element => element === document.activeElement), true);
+      await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+      await drawer.getByRole('button', { name: 'people', exact: true }).click();
+      await drawer.getByRole('link', { name: 'Students', exact: true }).click();
+      await page.waitForURL('**/school/students');
+      await drawer.waitFor({ state: 'hidden' });
+      assert.equal(await page.locator('.workspace-body').getAttribute('inert'), null);
+      await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+      await drawer.waitFor();
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await navigation.waitFor();
+      assert.equal(await page.locator('.nav-scrim').count(), 0);
+      assert.equal(await page.locator('.workspace-body').getAttribute('inert'), null);
+      assert.equal(await page.evaluate(() => getComputedStyle(document.body).overflow === 'hidden'), false);
+      checks.push('Principal: one desktop menu, hover effects and reduced motion, active route after reload, responsive widths, mobile focus trap and Escape, route closure and resize cleanup');
+    }
+    if (role === 'SCHOOL_ADMIN' && programme === 'COMBINED') {
+      await page.locator('aside').getByRole('button', { name: 'early years', exact: true }).click();
+      await page.locator('aside').getByRole('link', { name: 'Daily care & check-in', exact: true }).waitFor();
       await page.getByRole('button', { name: 'Find a page', exact: true }).click();
       await page.getByLabel('Search workspace pages').fill('Classroom cameras');
       await page.getByRole('dialog').getByRole('link', { name: 'Classroom cameras' }).click();

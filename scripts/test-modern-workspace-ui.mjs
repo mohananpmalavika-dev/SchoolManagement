@@ -17,6 +17,7 @@ async function session(role = 'SCHOOL_ADMIN') {
     const ok = data => route.fulfill({ json: { success: true, data } });
     if (method !== 'GET') writes.push({ path, method, body: route.request().postDataJSON() });
     if (path === '/api/auth/me') return ok({ id: 'user-' + role, firstName: 'Amara', lastName: 'Mwangi', email: 'qa@example.test', role, tenantId: 'tenant-1' });
+    if (path === '/api/teacher-ai/options') return ok({ status: { configured: false } });
     if (path.endsWith('/overview')) return ok({ students: 13, staff: 6, classes: 2, balance: 125000, attendanceTotal: 13, attendanceRate: 92, weekly: Array.from({ length: 5 }, (_, index) => ({ date: '2026-10-0' + (5 + index), rate: 90 + index, total: index === 2 ? 0 : 13 })), events: [], activities: [] });
     if (path === '/api/workspace/students') return method === 'GET' ? ok(rows) : ok({ id: 'created', ...route.request().postDataJSON().data });
     if (path.startsWith('/api/workspace/students/') && method === 'PATCH') {
@@ -47,28 +48,22 @@ try {
   await page.getByRole('button', { name: 'Monday: 90%, 13 students recorded', exact: true }).click();
   checks.push('Attendance trends expose actual daily counts through keyboard selection and distinguish missing registers from zero attendance');
   await page.screenshot({ path: fileURLToPath(new URL('dashboard-desktop.png', output)), fullPage: true });
-  assert.equal(await page.locator('aside').isVisible(), false);
-  await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
   assert.equal(await page.locator('aside').isVisible(), true);
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).overflow), 'hidden');
-  await page.keyboard.press('Escape');
-  await page.locator('aside').waitFor({ state: 'hidden' });
-  assert.equal(await page.getByRole('button', { name: 'Open navigation', exact: true }).evaluate(element => element === document.activeElement), true);
-  await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+  assert.equal(await page.locator('.module-navigation, .workspace-subnav').count(), 0);
+  assert.equal(await page.locator('.nav-scrim').count(), 0);
   const people = page.locator('aside').getByRole('button', { name: 'people', exact: true, includeHidden: true });
-  assert.equal(await people.getAttribute('aria-expanded'), 'false');
+  assert.equal(await people.getAttribute('aria-pressed'), 'false');
   assert.equal(await page.locator('#' + await people.getAttribute('aria-controls')).count(), 1);
   assert.equal(await page.locator('aside').getByRole('link', { name: 'Students', exact: true }).count(), 0);
   await people.click();
   await page.locator('aside').getByRole('link', { name: 'Students', exact: true }).click();
   await page.waitForURL('**/school/students');
   await page.locator('.record-card').first().waitFor();
-  await page.locator('aside').waitFor({ state: 'hidden' });
-  assert.equal(await people.getAttribute('aria-expanded'), 'true');
-  assert.equal(await page.locator('aside').isVisible(), false);
+  assert.equal(await people.getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('aside').isVisible(), true);
   assert.equal(await page.locator('#main-content').evaluate(element => element === document.activeElement), true);
   assert.equal(await page.locator('a[aria-current=page]').count(), 1);
-  checks.push('Top navigation opens a focused module drawer; route changes close it and expose the current section through contextual tabs');
+  checks.push('School navigation uses module tiles in one desktop sidebar, selects the active module and focuses page content on navigation');
 
   assert.equal(await page.locator('.record-card').count(), 10);
   await page.screenshot({ path: fileURLToPath(new URL('directory-desktop.png', output)), fullPage: true });
@@ -169,7 +164,7 @@ try {
 
   const transport = await session('TRANSPORT_OFFICER');
   await transport.page.goto(base + '/school/transport/setup', { timeout: 120000 });
-  const transportTabs = transport.page.getByRole('navigation', { name: 'Current section', exact: true });
+  const transportTabs = transport.page.getByRole('navigation', { name: 'Workspace sections', exact: true });
   await transportTabs.getByRole('link', { name: 'Vehicles & routes', exact: true }).waitFor();
   assert.equal(await transportTabs.getByRole('link', { name: 'Vehicles & routes', exact: true }).getAttribute('aria-current'), 'page');
   const trips = transportTabs.getByRole('link', { name: 'Trips & live GPS', exact: true });

@@ -11,6 +11,108 @@
   --shadow: 0 4px 6px -4px #172b4610, 0 12px 32px -22px #172b4630;
 }
 body { background: var(--paper); }
+/* School teams use one navigation surface, with a drawer on smaller screens. */
+[data-portal="school"] .sidebar {
+  width: 280px;
+  height: 100dvh;
+  padding: 24px 16px 14px;
+  overflow: hidden;
+  color: #405172;
+  background: radial-gradient(ellipse at 0 0, #cfdeffb3, transparent 48%), radial-gradient(ellipse at 100% 90%, #e4d7ff99, transparent 48%), #f7f9ff;
+  border-right: 1px solid #fff;
+  box-shadow: 4px 0 30px #5069aa0d;
+}
+[data-portal="school"] .sidebar::before { content: ''; position: absolute; top: -65px; right: -75px; width: 200px; height: 200px; pointer-events: none; border-radius: 50%; background: radial-gradient(circle, #90b1ff40, transparent 70%); animation: school-menu-aura 12s ease-in-out infinite alternate; }
+[data-portal="school"] .sidebar-brand-row { flex-shrink: 0; padding: 0 8px; }
+[data-portal="school"] .sidebar .brand { color: #22365d; font-size: 24px; gap: 10px; }
+[data-portal="school"] .sidebar .brand small { color: #6b7c9c; font-size: 10px; letter-spacing: .03em; }
+[data-portal="school"] .sidebar .brand-logo-img { width: 39px; height: 39px; border-color: #ffffffcc; box-shadow: 0 4px 12px #5c74a61a; }
+[data-portal="school"] .sidebar-close { color: #526484; }
+[data-portal="school"] .sidebar-close:hover { background: #667eea12; }
+[data-portal="school"] .workspace-label { position: relative; flex-shrink: 0; margin: 24px 4px 20px; padding: 12px; border-color: #fff; background: linear-gradient(115deg, #ffffffdb, #ffffff73); box-shadow: 0 5px 18px #5069aa0a, inset 0 1px #fff; border-radius: 16px; }
+[data-portal="school"] .workspace-label::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #20b896; box-shadow: 0 0 0 4px #20b89612; margin-left: auto; }
+[data-portal="school"] .workspace-label strong { color: #35476c; }
+[data-portal="school"] .workspace-label small { text-transform: capitalize; color: #7383a0; }
+[data-portal="school"] .workspace-portal-icon { background: linear-gradient(135deg, #5b7aef, #8b68dc); color: #fff; box-shadow: 0 4px 12px #6b78e42b; border: 1px solid #ffffff66; border-radius: 12px; }
+[data-portal="school"] .sidebar > nav { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #c4cfea transparent; padding: 2px 4px 12px; }
+[data-portal="school"] .nav-caption { font-size: 9px; letter-spacing: .14em; margin: 0 11px 10px; color: #7888a4; }
+[data-portal="school"] .sidebar > .school-navigation { display: flex; flex-direction: column; overflow: hidden; }
+.school-module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; flex-shrink: 0; padding-bottom: 18px; }
+.school-module-tile { --tile-color: #5174d7; --tile-tint: #e8efff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 10px 3px; min-height: 72px; color: #617290; font-size: 10px; font-weight: 600; line-height: 1.2; text-transform: capitalize; border: 1px solid #fff; border-radius: 15px; background: #ffffff99; box-shadow: 0 2px 5px #647ab007; transition: transform .2s, background .2s, box-shadow .2s; }
+.school-module-tile:nth-child(3n + 2) { --tile-color: #9670cb; --tile-tint: #f0e8fc; }
+.school-module-tile:nth-child(3n) { --tile-color: #379d93; --tile-tint: #e0f4ee; }
+.school-module-icon { display: grid; place-items: center; width: 30px; height: 30px; color: var(--tile-color); background: var(--tile-tint); border-radius: 10px; transition: transform .2s; }
+.school-module-tile:hover { transform: translateY(-2px); background: #fff; box-shadow: 0 5px 14px #5d75bb20; }
+.school-module-tile:hover .school-module-icon { transform: scale(1.08); }
+.school-module-tile[aria-pressed="true"] { color: #fff; background: linear-gradient(135deg, #517ded, #8366dd); border-color: #ffffff73; box-shadow: 0 5px 14px #667ae840, inset 0 1px #ffffff40; }
+.school-module-tile[aria-pressed="true"] .school-module-icon { color: #fff; background: #ffffff26; }
+.school-menu-pages { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #c4cfea transparent; padding: 3px 2px 12px; animation: school-menu-reveal .2s ease-out; }
+.school-navigation-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px 9px; }
+.school-navigation-heading strong { font-size: 12px; font-weight: 650; color: #3d5176; text-transform: capitalize; }
+.school-navigation-heading > span { padding: 3px 6px; font-size: 9px; color: #8190ad; border-radius: 6px; background: #e7edf9; }
+[data-portal="school"] .nav-link .nav-page-arrow { width: 13px; opacity: 0; transform: translate(-3px, 3px); transition: opacity .2s, transform .2s; }
+[data-portal="school"] .nav-link:hover .nav-page-arrow { opacity: 1; transform: none; }
+[data-portal="school"] .nav-link { position: relative; overflow: hidden; isolation: isolate; min-height: 45px; margin: 5px 0; padding: 6px 10px; gap: 10px; font-size: 12px; line-height: 1.5; color: #526687; border: 1px solid transparent; border-radius: 13px; transition: background .2s, border-color .2s, box-shadow .2s, transform .2s; }
+[data-portal="school"] .nav-link::before { content: ''; position: absolute; pointer-events: none; inset: 0; background: linear-gradient(110deg, transparent 25%, #ffffff4d 50%, transparent 75%); transform: translateX(-130%); z-index: -1; }
+[data-portal="school"] .nav-link:hover::before { animation: school-menu-shine .75s ease-out; }
+[data-portal="school"] .nav-link > .nav-link-icon { flex: 0 0 30px; display: grid; place-items: center; height: 30px; border: 1px solid #ffffffb3; border-radius: 10px; background: #e8effd; transition: background .2s, transform .2s; }
+[data-portal="school"] .nav-link > span:nth-child(2) { min-width: 0; }
+[data-portal="school"] .nav-link svg { flex-shrink: 0; width: 17px; color: #6684c6; }
+[data-portal="school"] .nav-link:nth-child(2n) .nav-link-icon { background: #eee7fc; }
+[data-portal="school"] .nav-link:nth-child(2n) svg { color: #8a6bc9; }
+[data-portal="school"] .nav-link:hover { color: #4b5db5; background: #fff; border-color: #d5dff9; box-shadow: 0 4px 12px #5069aa12; transform: translateX(2px); }
+[data-portal="school"] .nav-link:hover .nav-link-icon { transform: translateY(-1px); }
+[data-portal="school"] .nav-link.active { color: #fff; background: linear-gradient(115deg, #4678e9, #7760d7); border-color: #ffffff4d; box-shadow: 0 5px 14px #667ae84d, inset 0 1px #ffffff40; }
+[data-portal="school"] .nav-link.active .nav-link-icon { background: #ffffff26; border-color: #ffffff26; }
+[data-portal="school"] .nav-link.active svg { color: #fff; }
+.nav-active-dot { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 9px #ffffffb3; }
+@keyframes school-menu-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes school-menu-shine { from { transform: translateX(-130%); } to { transform: translateX(130%); } }
+@keyframes school-menu-aura { from { transform: translate(0, 0) scale(1); } to { transform: translate(-70px, 90px) scale(1.3); } }
+@media (prefers-reduced-motion: reduce) {
+  .school-menu-pages, [data-portal="school"] .nav-link:hover::before, [data-portal="school"] .sidebar::before { animation: none; }
+  .school-module-tile, .school-module-icon, [data-portal="school"] .nav-link, [data-portal="school"] .nav-link-icon, [data-portal="school"] .nav-page-arrow, [data-portal="school"] .sidebar { transition: none; }
+  .school-module-tile:hover, .school-module-tile:hover .school-module-icon, [data-portal="school"] .nav-link:hover, [data-portal="school"] .nav-link:hover .nav-link-icon { transform: none; }
+}
+[data-portal="school"] .sidebar-bottom { flex-shrink: 0; padding: 12px 4px 0; margin-top: 0; border-top: 1px solid #dce4f6; }
+[data-portal="school"] .sidebar-install-pwa { color: #5d72b6; margin-bottom: 3px; }
+[data-portal="school"] .sidebar-install-pwa svg { color: inherit; }
+[data-portal="school"] .sidebar-account { padding: 10px 8px; border: 1px solid #ffffffcc; border-radius: 12px; background: #ffffff70; }
+[data-portal="school"] .sidebar-account strong { color: #34486e; }
+[data-portal="school"] .sidebar-account small { color: #7383a0; }
+[data-portal="school"] .sidebar-account > svg { color: #8796b3; }
+[data-portal="school"] .sidebar-account .avatar { width: 31px; height: 31px; background: linear-gradient(135deg, #dce8ff, #e9dfff); border-color: #fff; color: #6369b4; border-radius: 10px; }
+[data-portal="school"] .signout { margin-top: 3px; padding: 8px 10px; color: #7b6e92; }
+[data-portal="school"] .signout:hover { color: #a34b78; background: #e8dcef66; }
+[data-portal="school"] .sidebar a:focus-visible, [data-portal="school"] .sidebar button:focus-visible { outline-color: #667ae8; outline-offset: -2px; }
+.school-page-context { display: none; }
+@media screen and (min-width: 1100px) {
+  [data-portal="school"] .sidebar { transform: none; visibility: visible; transition: none; }
+  [data-portal="school"] .workspace-body { margin-left: 280px; }
+  [data-portal="school"] .sidebar-close, [data-portal="school"] .topbar > .brand, [data-portal="school"] .module-launcher { display: none; }
+  [data-portal="school"] .topbar { gap: 18px; padding-inline: 30px; }
+  .school-page-context { display: flex; align-items: center; gap: 12px; min-width: 0; color: #b8c5d4; font-size: 12px; }
+  .school-page-context > svg { flex-shrink: 0; color: #d8b77a; }
+  .school-page-context span { text-transform: capitalize; }
+  .school-page-context strong { color: #f1f5f9; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  [data-portal="school"] .command-trigger kbd { margin-left: 12px; }
+  [data-portal="school"] .page-content { min-height: calc(100vh - 136px); padding-inline: 30px; }
+}
+@media screen and (min-width: 1100px) and (max-width: 1399px) {
+  [data-portal="school"] .school-page-context span, [data-portal="school"] .school-page-context > svg:nth-of-type(2) { display: none; }
+  [data-portal="school"] .dashboard-stage { grid-template-columns: 1fr; }
+  [data-portal="school"] .dashboard-metrics .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media screen and (max-width: 1099px) {
+  [data-portal="school"] .nav-scrim { backdrop-filter: none; background: #0c1b2b70; }
+}
+@media screen and (max-width: 600px) {
+  [data-portal="school"] .sidebar { padding-top: 18px; }
+  [data-portal="school"] .workspace-label { margin-top: 18px; margin-bottom: 15px; }
+}
+@media print {
+  [data-portal="school"] .workspace-body { margin-left: 0; }
+}
 .workspace { background: var(--paper); }
 .workspace .topbar {
   height: 84px;
