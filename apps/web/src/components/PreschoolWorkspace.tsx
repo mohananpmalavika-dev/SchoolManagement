@@ -42,7 +42,6 @@ import {
 } from './preschool/PreschoolDaily';
 import { PreschoolParentPickupPass } from './preschool/PreschoolPickupPass';
 import { PreschoolCameras } from './preschool/PreschoolCameras';
-import { PreschoolSettings } from './preschool/PreschoolSettings';
 import { PreschoolReports } from './preschool/PreschoolReports';
 import {
   PreschoolMilestoneProgressCard,
@@ -55,16 +54,17 @@ import { PreschoolSectionLocation } from './PreschoolSectionLocation';
 import { preschoolSectionsFor, preschoolSectionLabels as labels } from '@/lib/navigation';
 
 type View =
-  'daily' | 'learning' | 'progress' | 'photos' | 'cameras' | 'reports' | 'settings' | 'copilot';
+  'daily' | 'learning' | 'progress' | 'photos' | 'cameras' | 'reports' | 'copilot';
 export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
   const { user } = useAuth(),
     { language } = useLanguageContext();
   const manager = preschoolManagers.includes(user?.role || '');
   const router = useRouter(), pathname = usePathname();
   const syncSection = useCallback((section: string | null) => {
+    if (section === 'settings' && manager) { router.replace('/school/setup'); return; }
     const allowed = preschoolSectionsFor(user?.role || '');
     setView(allowed.includes(section as View) ? section as View : 'daily');
-  }, [user?.role]);
+  }, [manager, router, user?.role]);
   const selectView = (tab: View) => {
     setView(tab);
     const query = new URLSearchParams(window.location.search);
@@ -378,7 +378,8 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
             ? 'Your child’s day, discoveries and classroom updates.'
             : 'A caring daily routine, playful learning and development observations.'
         }
-        actions={
+        actions={<>
+          {manager && <Link className="account-back-link" href="/school/setup">School setup</Link>}
           <Button
             variant="outline"
             size="sm"
@@ -387,7 +388,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
             onClick={() => setRefresh((v) => v + 1)}
           >
             Refresh
-          </Button>
+          </Button></>
         }
       />
       {error && (
@@ -418,9 +419,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
         <p role="status">Loading preschool workspace…</p>
       ) : (
         <>
-          {view === 'settings' && manager ? (
-            <PreschoolSettings options={options} action={action} busy={busy} />
-          ) : !hasSchool ? (
+          {!hasSchool ? (
             <EmptyState
               title={
                 family ? 'No preschool child linked yet' : 'Preschool mode is ready to configure'
@@ -429,7 +428,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                 family
                   ? 'Your school can link your child to your parent account.'
                   : manager
-                    ? 'Enable preschool or combined mode in Preschool settings, then select the relevant classes and teachers.'
+                    ? 'Choose a preschool or combined school type in Setup → School setup, then assign classes and teachers.'
                     : 'Ask the school administrator to enable preschool mode and assign your teaching classes.'
               }
             />

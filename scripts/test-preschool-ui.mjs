@@ -459,8 +459,9 @@ try {
   await page.getByRole('button', { name: 'Download report CSV', exact: true }).click();
   assert.ok((await downloadPromise).suggestedFilename().endsWith('.csv'));
   checks.push('Development observation sharing and CSV reporting');
-  await page.getByRole('button', { name: 'Preschool settings', exact: true }).click();
-  await page.getByRole('heading', { name: 'Preschool teaching staff', exact: true }).waitFor();
+  await page.getByRole('link', { name: 'School setup', exact: true }).click();
+  await page.waitForURL('**/school/setup');
+  await page.getByRole('heading', { name: '3. Preschool teaching staff', exact: true }).waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.screenshot({

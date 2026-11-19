@@ -14,14 +14,13 @@ export const preschoolSections = [
   ['photos', 'Photos', ImageIcon],
   ['cameras', 'Classroom cameras', Camera],
   ['reports', 'Preschool reports', FileCheck],
-  ['settings', 'Preschool settings', School],
 ] as const;
 export type PreschoolSection = typeof preschoolSections[number][0];
 export const preschoolSectionLabels = Object.fromEntries(preschoolSections.map(([section, label]) => [section, label])) as Record<PreschoolSection, string>;
 export function preschoolSectionsFor(role: string): PreschoolSection[] {
   if (role === 'PARENT') return ['daily', 'learning', 'progress', 'photos', 'cameras'];
   if (preschoolManagers.includes(role)) return preschoolSections.map(([section]) => section);
-  if (['TEACHER', 'CLASS_TEACHER'].includes(role)) return preschoolSections.filter(([section]) => section !== 'settings').map(([section]) => section);
+  if (['TEACHER', 'CLASS_TEACHER'].includes(role)) return preschoolSections.map(([section]) => section);
   return [];
 }
 export function navigationMatches(href: string, pathname: string, section: string | null): boolean {
@@ -36,11 +35,14 @@ export function navigationFor(portal: Portal, role: string, programme: string = 
   if (!allowed) return [];
   const groups = baseNavigation(portal, role);
   if (portal !== 'parent') groups[0].items.push({ href: '/notifications', label: 'Notifications', icon: Bell });
+  if (portal === 'school' && preschoolManagers.includes(role)) {
+    groups.splice(1, 0, { label: 'SETUP', items: [{ href: '/school/setup', label: 'School setup', icon: School }] });
+  }
   const enabled = programme === 'PRESCHOOL' || programme === 'COMBINED';
-  const sections = preschoolSectionsFor(role).filter(section => enabled || section === 'settings');
+  const sections = enabled ? preschoolSectionsFor(role) : [];
   if (['school', 'teacher', 'parent'].includes(portal) && sections.length) {
     const base = portal === 'parent' ? '/dashboard' : '/' + portal;
-    groups.splice(1, 0, { label: 'PRESCHOOL', items: preschoolSections.filter(([section]) => sections.includes(section)).map(([section, label, icon]) => ({ href: base + '/preschool?section=' + section, label, icon })) });
+    groups.splice(portal === 'school' && preschoolManagers.includes(role) ? 2 : 1, 0, { label: 'PRESCHOOL', items: preschoolSections.filter(([section]) => sections.includes(section)).map(([section, label, icon]) => ({ href: base + '/preschool?section=' + section, label, icon })) });
   }
   const schoolAgeOnly = new Set(['grades', 'examinations', 'report-cards', 'timetable', 'performance', 'quizzes', 'lms', 'predictive-analytics']);
   return groups.map(group => ({ ...group, items: programme === 'PRESCHOOL' ? group.items.filter(item => !schoolAgeOnly.has(item.href.split('/')[2])) : group.items })).filter(group => group.items.length);

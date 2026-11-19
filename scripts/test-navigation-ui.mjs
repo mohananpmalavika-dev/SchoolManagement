@@ -77,9 +77,11 @@ try {
       if (teachers.includes(role)) assert(url.pathname.startsWith('/teacher/') || url.pathname === '/notifications', 'Teacher menu must remain in its authorized portal: ' + href);
     }
     const preschool = hrefs.filter(href => href.includes('/preschool?section='));
-    const expected = programme === 'STANDARD' ? managers.includes(role) ? 1 : 0 : managers.includes(role) ? 8 : preschoolTeacher ? 7 : role === 'PARENT' ? 5 : 0;
+    const expected = programme === 'STANDARD' ? 0 : managers.includes(role) || preschoolTeacher ? 7 : role === 'PARENT' ? 5 : 0;
     assert.equal(preschool.length, expected, role + ' ' + programme + ' preschool visibility');
-    if (!managers.includes(role)) assert(!preschool.some(href => href.endsWith('settings')));
+    assert(!preschool.some(href => href.endsWith('settings')));
+    assert.equal(hrefs.includes('/school/setup'), managers.includes(role));
+    if (programme === 'STANDARD') assert.equal(await page.locator('.school-module-tile[aria-label=preschool]').count(), 0);
     if (programme === 'PRESCHOOL') assert(!hrefs.some(href => /\/(grades|examinations|report-cards|timetable|quizzes|lms)(\/|$)/.test(href)));
     if (!eligible) assert.equal(new URL(page.url()).pathname, home, 'Operational staff must keep their own home');
     if (role === 'RECEPTIONIST') assert(hrefs.includes('/school/admissions'));
@@ -171,12 +173,14 @@ try {
       assert.equal(await page.evaluate(() => getComputedStyle(document.body).overflow === 'hidden'), false);
       checks.push('Principal: compact desktop navigation, active route after reload, responsive widths, mobile focus trap and Escape, route closure and resize cleanup');
       await page.goto(base + '/school/preschool?section=settings');
-      await navigation.getByRole('link', { name: 'Preschool settings', exact: true }).waitFor();
-      await page.locator('nav[aria-label="Preschool sections"] button[aria-pressed="true"]').filter({ hasText: 'Preschool settings' }).waitFor();
-      assert.equal(await page.locator('.school-page-context strong').innerText(), 'Preschool settings');
-      assert.equal(await page.locator('.school-navigation-heading > span').innerText(), '1 page');
-      await page.screenshot({ path: fileURLToPath(new URL('principal-preschool-settings.png', output)), fullPage: true });
-      checks.push('Principal preschool settings use one consistent label in the sidebar, breadcrumb and selected tab');
+      await page.waitForURL('**/school/setup');
+      await navigation.getByRole('link', { name: 'School setup', exact: true }).waitFor();
+      await page.getByRole('heading', { name: 'School setup', exact: true }).waitFor();
+      assert.equal(await page.locator('.school-page-context strong').innerText(), 'School setup');
+      assert.equal(await page.locator('.school-page-context > span').innerText(), 'Setup');
+      assert.equal(await page.getByRole('navigation', { name: 'Preschool sections' }).count(), 0);
+      await page.screenshot({ path: fileURLToPath(new URL('principal-school-setup.png', output)), fullPage: true });
+      checks.push('School setup has its own Setup module; old preschool settings links redirect to the correct page');
       for (const [href, title] of [
         ['/school/smart-attendance', 'Classroom check-in'], ['/school/ptm', 'Parent meetings'],
         ['/school/whatsapp', 'WhatsApp messages'], ['/school/fees/payment-settings', 'School payment accounts'],
@@ -205,12 +209,13 @@ try {
       const sectionLabels = await page.locator('nav[aria-label="Preschool sections"] button').allTextContents();
       const menuLabels = await page.locator('.school-menu-pages .nav-link > span:nth-child(2)').allTextContents();
       assert.deepEqual(sectionLabels, menuLabels, 'Preschool tabs and sidebar must use the same labels');
-      await page.getByRole('button', { name: 'Preschool settings', exact: true }).click();
-      await page.waitForURL('**/preschool?section=settings');
-      await page.locator('.school-page-context strong').filter({ hasText: 'Preschool settings' }).waitFor();
-      assert.equal(await page.locator('a[aria-current="page"]').innerText(), 'Preschool settings');
-      await page.getByRole('button', { name: 'Classroom cameras', exact: true }).click();
-      await page.waitForURL('**/preschool?section=cameras');
+      assert.equal(await page.getByRole('button', { name: 'Preschool settings', exact: true }).count(), 0);
+      await page.getByRole('link', { name: 'School setup', exact: true }).click();
+      await page.waitForURL('**/school/setup');
+      await page.locator('.school-page-context strong').filter({ hasText: 'School setup' }).waitFor();
+      assert.equal(await page.locator('a[aria-current="page"]').innerText(), 'School setup');
+      await page.goto(base + '/school/preschool?section=cameras');
+      await page.locator('nav[aria-label="Preschool sections"] button[aria-pressed="true"]').filter({ hasText: 'Classroom cameras' }).waitFor();
       await page.getByRole('button', { name: 'Activities & plans', exact: true }).click();
       await page.waitForURL('**/preschool?section=learning');
       await page.goBack();

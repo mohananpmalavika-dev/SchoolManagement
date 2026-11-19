@@ -1,5 +1,6 @@
 'use client';
 import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { friendly, type PreschoolAction, type PreschoolOptions } from '@/lib/preschool';
 import { Panel, EmptyState } from '../WorkspaceUI';
 import { Button } from '../ui';
@@ -16,6 +17,8 @@ export function PreschoolSettings({
 }) {
   const [classId, setClass] = useState(''),
     [teacher, setTeacher] = useState('');
+  const enabledClasses = options.classes.filter(c => c.school.programme !== 'STANDARD');
+  const hasPreschool = options.schools.some(school => school.programme !== 'STANDARD');
   async function assign(e: FormEvent) {
     e.preventDefault();
     await action('/staff-assignments', { classId, staffId: teacher, assigned: true });
@@ -23,8 +26,8 @@ export function PreschoolSettings({
   return (
     <div className="content-stack">
       <Panel
-        title="School programme"
-        subtitle="A combined school can run preschool and regular school classes in the same platform."
+        title="1. School type"
+        subtitle="Regular school, playschool / preschool, or both. This choice controls which school and preschool tools appear in the menu."
       >
         <div className="panel-body space-y-4">
           {!options.schools.length && (
@@ -33,6 +36,7 @@ export function PreschoolSettings({
               description="Add the school in academic setup, then return here."
             />
           )}
+          {!options.schools.length && <Link className="panel-link" href="/school/academics">Open academic setup</Link>}
           {options.schools.map((school) => (
             <div key={school.id} className="border rounded-xl p-4 space-y-3">
               <div className="field">
@@ -47,7 +51,7 @@ export function PreschoolSettings({
                 >
                   <option value="STANDARD">Regular school</option>
                   <option value="PRESCHOOL">Playschool / preschool</option>
-                  <option value="COMBINED">Combined school</option>
+                  <option value="COMBINED">Combined school (regular + preschool)</option>
                 </select>
               </div>
               {school.programme !== 'STANDARD' && (
@@ -80,12 +84,13 @@ export function PreschoolSettings({
           ))}
         </div>
       </Panel>
-      <Panel
-        title="Preschool class stages"
+      {hasPreschool ? <><Panel
+        title="2. Preschool class stages"
         subtitle="Select nursery or kindergarten classes. Setting a stage marks the class as pre-primary."
       >
         <div className="panel-body space-y-4">
-          {options.classes.map((c) => (
+          {!enabledClasses.length && <EmptyState title="Add classes for your preschool" description="Create classes in Academic setup, then assign their preschool stages here."/>}
+          {enabledClasses.map((c) => (
             <div className="field" key={c.id}>
               <label htmlFor={'stage-' + c.id}>{c.name}</label>
               <select
@@ -112,7 +117,7 @@ export function PreschoolSettings({
         </div>
       </Panel>
       <Panel
-        title="Preschool teaching staff"
+        title="3. Preschool teaching staff"
         subtitle="Explicit class assignments work without an academic timetable."
       >
         <div className="panel-body space-y-4">
@@ -127,7 +132,7 @@ export function PreschoolSettings({
                     onChange={(e) => setClass(e.target.value)}
                   >
                     <option value="">Choose class</option>
-                    {options.classes
+                    {enabledClasses
                       .filter(
                         (c) =>
                           c.educationLevel === 'PRE_PRIMARY' && c.school.programme !== 'STANDARD'
@@ -162,7 +167,7 @@ export function PreschoolSettings({
               Assign teacher
             </Button>
           </form>
-          {options.assignments.map((a) => (
+          {options.assignments.filter(a => enabledClasses.some(c => c.id === a.classId)).map((a) => (
             <div
               className="flex justify-between gap-3 border rounded-xl p-4"
               key={a.classId + a.staffId}
@@ -189,7 +194,7 @@ export function PreschoolSettings({
             </div>
           ))}
         </div>
-      </Panel>
+      </Panel></> : options.schools.length > 0 && <div className="panel panel-body"><p className="font-semibold">Regular school selected</p><p className="muted mt-2">Continue with classes, subjects and terms in Academic setup. Preschool tools appear when you choose Playschool / preschool or Combined school.</p><Link className="panel-link mt-3" href="/school/academics">Continue to academic setup</Link></div>}
     </div>
   );
 }
