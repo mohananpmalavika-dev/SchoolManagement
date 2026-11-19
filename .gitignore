@@ -85,3 +85,6 @@ scratch/preschool/
 # Isolated government workflow verification infrastructure.
 /scratch/compliance-postgres/
 /apps/web/.next-compliance*/
+
+.next-master-setup
+apps/web/.next-master-setup

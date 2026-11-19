@@ -1,5 +1,5 @@
-import { HRMSPortalLaunchpad } from '@/components/hrms/HRMSPortalLaunchpad';
+import { HRMSWorkspace } from '@/components/hrms/HRMSWorkspace';
 
 export default function Page() {
-  return <HRMSPortalLaunchpad />;
+  return <HRMSWorkspace />;
 }

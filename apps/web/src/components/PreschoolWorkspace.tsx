@@ -420,18 +420,18 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
       ) : (
         <>
           {!hasSchool ? (
-            <EmptyState
+            <div><EmptyState
               title={
-                family ? 'No preschool child linked yet' : 'Preschool mode is ready to configure'
+                family ? 'No preschool child linked yet' : !manager ? 'No preschool classes assigned' : !options.schools.length ? 'Add your school campus' : options.schools.every(school => school.programme === 'STANDARD') ? 'Preschool is not enabled for this school' : !options.classes.some(c => c.school.programme !== 'STANDARD') ? 'Create your preschool classes' : 'Assign preschool stages to your classes'
               }
               description={
                 family
                   ? 'Your school can link your child to your parent account.'
                   : manager
-                    ? 'The platform Super Admin manages school type. Once preschool is enabled, assign class stages and teachers in Preschool setup.'
+                    ? !options.schools.length ? 'Create a campus in Academic setup to begin.' : options.schools.every(school => school.programme === 'STANDARD') ? 'Ask the platform Super Admin to select Preschool or Combined school in School type. Your existing records are retained.' : !options.classes.some(c => c.school.programme !== 'STANDARD') ? 'Add Playgroup, Nursery, LKG or UKG classes in Academic setup, then assign teachers in Preschool setup.' : 'Open Preschool setup and select a stage for each preschool class.'
                     : 'Ask your school to assign your preschool classes. School type is managed by the platform Super Admin.'
               }
-            />
+            />{manager && <div className="flex flex-wrap justify-center gap-4 mt-4"><Link className="account-back-link" href={'/school/academics?section=' + (!options.schools.length ? 'schools' : 'classes')}>{!options.schools.length ? 'Add a campus' : 'Manage classes'}</Link>{options.schools.some(school => school.programme !== 'STANDARD') && <Link className="account-back-link" href="/school/setup">Configure preschool</Link>}</div>}</div>
           ) : (
             <div className="content-stack">
               <div className="panel panel-body">

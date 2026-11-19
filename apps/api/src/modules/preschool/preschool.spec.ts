@@ -130,6 +130,18 @@ function setup() {
   return { db, access, service, notifications };
 }
 describe('Preschool authorization and daily care', () => {
+  it('saves a consistent class level and refuses preschool stages on regular or inactive campuses', async () => {
+    const { db, service } = setup();
+    db.class.findFirst.mockResolvedValue({ id: 'class', school: { programme: 'PRESCHOOL', isActive: true } });
+    await service.stage(manager, 'class', 'NURSERY');
+    expect(db.class.updateMany).toHaveBeenCalledWith({ where: { id: 'class', tenantId: 'tenant-a' }, data: { preschoolStage: 'NURSERY', educationLevel: 'PRE_PRIMARY', level: 'Nursery' } });
+    db.class.updateMany.mockClear();
+    for (const school of [{ programme: 'STANDARD', isActive: true }, { programme: 'PRESCHOOL', isActive: false }]) {
+      db.class.findFirst.mockResolvedValue({ id: 'class', school });
+      await expect(service.stage(manager, 'class', 'NURSERY')).rejects.toThrow('Enable preschool or combined mode');
+    }
+    expect(db.class.updateMany).not.toHaveBeenCalled();
+  });
   it.each(['ACCOUNTANT', 'LIBRARIAN', 'TRANSPORT_OFFICER', 'RECEPTIONIST', 'AUDITOR', 'EXAM_OFFICER'])(
     'uses the configured preschool programme for %s without granting classroom access', async role => {
       const { db, service, access } = setup();

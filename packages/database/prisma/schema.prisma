@@ -58,6 +58,27 @@ model Tenant {
   messageTemplates  MessageTemplate[]
   chatChannels      ChatChannel[]
   auditLogs         AuditLog[]
+  employees                  Employee[]
+  departments                Department[]
+  designations               Designation[]
+  employeeGrades             EmployeeGrade[]
+  shifts                     Shift[]
+  leaveTypes                 LeaveType[]
+  leaveBalances              LeaveBalance[]
+  leaveRequests              LeaveRequest[]
+  salaryComponents           SalaryComponent[]
+  salaryStructures           SalaryStructure[]
+  payrollPeriods             PayrollPeriod[]
+  payrollRuns                PayrollRun[]
+  payslips                   Payslip[]
+  jobOffers                  JobOffer[]
+  onboardingTasks            OnboardingTask[]
+  resignations               Resignation[]
+  exitClearances             ExitClearance[]
+  fullFinalSettlements       FullFinalSettlement[]
+  orderLetters               EmployeeOrderLetter[]
+  attendanceDevices          AttendanceDevice[]
+  geofenceZones              GeofenceZone[]
 
   @@index([subdomain])
   @@index([status])
@@ -538,6 +559,7 @@ model Staff {
   tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   timetableEntries TimetableEntry[]
   staffAttendance  StaffAttendance[]
+  employee         Employee?
 
   @@unique([tenantId, staffNumber])
   @@index([tenantId])
@@ -586,10 +608,21 @@ model StaffAttendance {
   timeOut  DateTime?
   notes    String?
 
+  shiftId          String?
+  firstIn          DateTime?
+  lastOut          DateTime?
+  totalWorkMinutes Int              @default(0)
+  lateMinutes      Int              @default(0)
+  overtimeMinutes  Int              @default(0)
+  isRegularized    Boolean          @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  staff       Staff                  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  shift       Shift?                 @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  punchLogs   PunchLog[]
+  corrections AttendanceCorrection[]
 
   @@unique([tenantId, staffId, date])
   @@index([tenantId])
@@ -3120,4 +3153,612 @@ model TransportAlert {
   @@unique([tenantId, tripId, studentId, kind])
   @@index([tenantId, studentId, createdAt])
   @@map("transport_alerts")
+}
+
+// ===================================
+// UNIFIED HRMS & STAFF WORKFORCE SUITE
+// ===================================
+
+model Department {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  code        String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employees Employee[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("hrms_departments")
+}
+
+model Designation {
+  id          String   @id @default(uuid())
+  tenantId    String
+  title       String
+  code        String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employees Employee[]
+
+  @@unique([tenantId, title])
+  @@index([tenantId])
+  @@map("hrms_designations")
+}
+
+model EmployeeGrade {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  code      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employees Employee[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("hrms_employee_grades")
+}
+
+model Employee {
+  id               String    @id @default(uuid())
+  tenantId         String
+  schoolId         String?
+  staffId          String?   @unique
+  userId           String?
+  employeeCode     String
+  firstName        String
+  lastName         String
+  email            String
+  phone            String?
+  gender           String?
+  dob              DateTime?
+  bloodGroup       String?
+  maritalStatus    String?
+  joiningDate      DateTime  @default(now())
+  probationMonths  Int       @default(6)
+  confirmationDate DateTime?
+  employmentType   String    @default("FULL_TIME")
+  employmentStatus String    @default("ACTIVE")
+  exitDate         DateTime?
+
+  departmentId       String?
+  designationId      String?
+  gradeId            String?
+  reportingManagerId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant           Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  staff            Staff?                      @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  department       Department?                 @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  designation      Designation?                @relation(fields: [designationId], references: [id], onDelete: SetNull)
+  grade            EmployeeGrade?              @relation(fields: [gradeId], references: [id], onDelete: SetNull)
+  reportingManager Employee?                   @relation("ReportingHierarchy", fields: [reportingManagerId], references: [id])
+  directReports    Employee[]                  @relation("ReportingHierarchy")
+  bankAccount      EmployeeBankAccount?
+  statutoryProfile EmployeeStatutoryProfile?
+  documents        EmployeeDocument[]
+  shiftAssignments ShiftAssignment[]
+  punchLogs        PunchLog[]
+  corrections      AttendanceCorrection[]
+  leaveBalances    LeaveBalance[]
+  leaveRequests    LeaveRequest[]
+  salaryAssignments EmployeeSalaryAssignment[]
+  payslips         Payslip[]
+  resignations     Resignation[]
+  exitClearances   ExitClearance[]
+  settlements      FullFinalSettlement[]
+  orderLetters     EmployeeOrderLetter[]
+  onboardingTasks  OnboardingTask[]
+
+  @@unique([tenantId, employeeCode])
+  @@index([tenantId, email])
+  @@index([tenantId, employmentStatus])
+  @@map("hrms_employees")
+}
+
+model EmployeeBankAccount {
+  id                String   @id @default(uuid())
+  tenantId          String
+  employeeId        String   @unique
+  accountHolderName String
+  accountNumber     String
+  bankName          String
+  ifscCode          String
+  branchName        String?
+  isVerified        Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("hrms_employee_bank_accounts")
+}
+
+model EmployeeStatutoryProfile {
+  id             String   @id @default(uuid())
+  tenantId       String
+  employeeId     String   @unique
+  panNumber      String?
+  aadhaarNumber  String?
+  uanNumber      String?
+  pfNumber       String?
+  esiNumber      String?
+  pfApplicable   Boolean  @default(true)
+  esiApplicable  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("hrms_employee_statutory_profiles")
+}
+
+model EmployeeDocument {
+  id           String   @id @default(uuid())
+  tenantId     String
+  employeeId   String
+  documentType String
+  documentName String
+  fileUrl      String
+  verified     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, employeeId])
+  @@map("hrms_employee_documents")
+}
+
+model Shift {
+  id             String   @id @default(uuid())
+  tenantId       String
+  name           String
+  code           String?
+  startTime      String
+  endTime        String
+  graceMinutes   Int      @default(15)
+  halfDayMinutes Int      @default(240)
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignments      ShiftAssignment[]
+  staffAttendances StaffAttendance[]
+
+  @@index([tenantId])
+  @@map("hrms_shifts")
+}
+
+model ShiftAssignment {
+  id            String    @id @default(uuid())
+  tenantId      String
+  employeeId    String
+  shiftId       String
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+  createdAt     DateTime  @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift    Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, employeeId])
+  @@map("hrms_shift_assignments")
+}
+
+model AttendanceDevice {
+  id            String    @id @default(uuid())
+  tenantId      String
+  name          String
+  deviceType    String    @default("BIOMETRIC")
+  ipAddress     String?
+  port          Int?
+  serialNumber  String?
+  location      String?
+  status        String    @default("ONLINE")
+  lastHeartbeat DateTime?
+  createdAt     DateTime  @default(now())
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  punchLogs PunchLog[]
+
+  @@index([tenantId])
+  @@map("hrms_attendance_devices")
+}
+
+model PunchLog {
+  id                String   @id @default(uuid())
+  tenantId          String
+  employeeId        String
+  deviceId          String?
+  staffAttendanceId String?
+  punchTime         DateTime @default(now())
+  punchType         String   @default("CHECK_IN")
+  verificationMode  String   @default("FINGERPRINT")
+  latitude          Float?
+  longitude         Float?
+  rawPayload        Json?
+
+  employee        Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  device          AttendanceDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  staffAttendance StaffAttendance?  @relation(fields: [staffAttendanceId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, employeeId, punchTime])
+  @@map("hrms_punch_logs")
+}
+
+model AttendanceCorrection {
+  id                String    @id @default(uuid())
+  tenantId          String
+  employeeId        String
+  staffAttendanceId String?
+  date              DateTime  @db.Date
+  requestedIn       DateTime?
+  requestedOut      DateTime?
+  reason            String
+  status            String    @default("PENDING")
+  approvedBy        String?
+  approvedAt        DateTime?
+  createdAt         DateTime  @default(now())
+
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  staffAttendance StaffAttendance? @relation(fields: [staffAttendanceId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, employeeId])
+  @@map("hrms_attendance_corrections")
+}
+
+model GeofenceZone {
+  id           String   @id @default(uuid())
+  tenantId     String
+  name         String
+  latitude     Float
+  longitude    Float
+  radiusMeters Float    @default(200)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("hrms_geofence_zones")
+}
+
+model LeaveType {
+  id               String   @id @default(uuid())
+  tenantId         String
+  name             String
+  code             String
+  daysPerYear      Float    @default(12)
+  isPaid           Boolean  @default(true)
+  requiresDocument Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  balances LeaveBalance[]
+  requests LeaveRequest[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("hrms_leave_types")
+}
+
+model LeaveBalance {
+  id            String   @id @default(uuid())
+  tenantId      String
+  employeeId    String
+  leaveTypeId   String
+  year          Int
+  allocatedDays Float
+  usedDays      Float    @default(0)
+  pendingDays   Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, employeeId, leaveTypeId, year])
+  @@index([tenantId, employeeId])
+  @@map("hrms_leave_balances")
+}
+
+model LeaveRequest {
+  id              String    @id @default(uuid())
+  tenantId        String
+  employeeId      String
+  leaveTypeId     String
+  startDate       DateTime  @db.Date
+  endDate         DateTime  @db.Date
+  numberOfDays    Float
+  isHalfDay       Boolean   @default(false)
+  reason          String
+  documentUrl     String?
+  status          String    @default("PENDING")
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  reviewerRemarks String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, employeeId])
+  @@index([tenantId, status])
+  @@map("hrms_leave_requests")
+}
+
+model SalaryComponent {
+  id              String   @id @default(uuid())
+  tenantId        String
+  name            String
+  code            String
+  type            String
+  isStatutory     Boolean  @default(false)
+  calculationType String   @default("FIXED")
+  percentage      Float?
+  createdAt       DateTime @default(now())
+
+  tenant              Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  structureComponents SalaryStructureComponent[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("hrms_salary_components")
+}
+
+model SalaryStructure {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  components  SalaryStructureComponent[]
+  assignments EmployeeSalaryAssignment[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("hrms_salary_structures")
+}
+
+model SalaryStructureComponent {
+  id          String @id @default(uuid())
+  structureId String
+  componentId String
+  amount      Float  @default(0)
+
+  structure SalaryStructure @relation(fields: [structureId], references: [id], onDelete: Cascade)
+  component SalaryComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@unique([structureId, componentId])
+  @@map("hrms_salary_structure_components")
+}
+
+model EmployeeSalaryAssignment {
+  id                String   @id @default(uuid())
+  tenantId          String
+  employeeId        String
+  structureId       String
+  effectiveFrom     DateTime @default(now())
+  baseMonthlySalary Float
+  customComponents  Json?
+  createdAt         DateTime @default(now())
+
+  employee  Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  structure SalaryStructure @relation(fields: [structureId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, employeeId])
+  @@map("hrms_employee_salary_assignments")
+}
+
+model PayrollPeriod {
+  id               String   @id @default(uuid())
+  tenantId         String
+  year             Int
+  month            Int
+  startDate        DateTime @db.Date
+  endDate          DateTime @db.Date
+  totalWorkingDays Int
+  status           String   @default("OPEN")
+  createdAt        DateTime @default(now())
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  runs   PayrollRun[]
+
+  @@unique([tenantId, year, month])
+  @@index([tenantId])
+  @@map("hrms_payroll_periods")
+}
+
+model PayrollRun {
+  id               String   @id @default(uuid())
+  tenantId         String
+  periodId         String
+  runDate          DateTime @default(now())
+  totalEmployees   Int      @default(0)
+  totalGrossSalary Float    @default(0)
+  totalDeductions  Float    @default(0)
+  totalNetSalary   Float    @default(0)
+  status           String   @default("DRAFT")
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  period   PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  payslips Payslip[]
+
+  @@index([tenantId, periodId])
+  @@map("hrms_payroll_runs")
+}
+
+model Payslip {
+  id                String    @id @default(uuid())
+  tenantId          String
+  runId             String
+  employeeId        String
+  month             Int
+  year              Int
+  workedDays        Float
+  lossOfPayDays     Float     @default(0)
+  grossSalary       Float
+  totalDeductions   Float
+  netSalary         Float
+  breakdown         Json
+  pdfUrl            String?
+  status            String    @default("GENERATED")
+  paymentDate       DateTime?
+  paymentReference  String?
+  createdAt         DateTime  @default(now())
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run      PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employee Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, employeeId, year, month])
+  @@map("hrms_payslips")
+}
+
+model JobOffer {
+  id                String   @id @default(uuid())
+  tenantId          String
+  candidateName     String
+  candidateEmail    String
+  candidatePhone    String
+  departmentId      String?
+  designationTitle  String
+  joiningDate       DateTime @db.Date
+  offeredCtcMonthly Float
+  status            String   @default("OFFERED")
+  offerLetterUrl    String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  joiningTasks OnboardingTask[]
+
+  @@index([tenantId, candidateEmail])
+  @@map("hrms_job_offers")
+}
+
+model OnboardingTask {
+  id          String    @id @default(uuid())
+  tenantId    String
+  offerId     String?
+  employeeId  String?
+  title       String
+  category    String    @default("DOCUMENT")
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offer    JobOffer? @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@map("hrms_onboarding_tasks")
+}
+
+model Resignation {
+  id                String    @id @default(uuid())
+  tenantId          String
+  employeeId        String
+  submissionDate    DateTime  @default(now())
+  reason            String
+  preferredExitDate DateTime  @db.Date
+  approvedExitDate  DateTime? @db.Date
+  status            String    @default("SUBMITTED")
+  reviewRemarks     String?
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant     Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee   Employee              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  clearances ExitClearance[]
+  settlement FullFinalSettlement?
+
+  @@index([tenantId, employeeId])
+  @@map("hrms_resignations")
+}
+
+model ExitClearance {
+  id            String    @id @default(uuid())
+  tenantId      String
+  resignationId String
+  employeeId    String
+  department    String
+  status        String    @default("PENDING")
+  duesAmount    Float     @default(0)
+  remarks       String?
+  clearedBy     String?
+  clearedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  resignation Resignation @relation(fields: [resignationId], references: [id], onDelete: Cascade)
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, resignationId])
+  @@map("hrms_exit_clearances")
+}
+
+model FullFinalSettlement {
+  id                     String    @id @default(uuid())
+  tenantId               String
+  resignationId          String    @unique
+  employeeId             String
+  workingDaysInFinalMonth Float
+  earnedSalary           Float
+  leaveEncashmentAmount  Float     @default(0)
+  noticePayRecovery      Float     @default(0)
+  assetDuesDeduction     Float     @default(0)
+  netSettlementAmount    Float
+  settlementDate         DateTime?
+  status                 String    @default("CALCULATED")
+  createdAt              DateTime  @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  resignation Resignation @relation(fields: [resignationId], references: [id], onDelete: Cascade)
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("hrms_full_final_settlements")
+}
+
+model EmployeeOrderLetter {
+  id              String   @id @default(uuid())
+  tenantId        String
+  employeeId      String
+  letterType      String
+  referenceNumber String
+  issueDate       DateTime @default(now())
+  content         String   @db.Text
+  pdfUrl          String?
+  issuedBy        String
+  createdAt       DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, employeeId])
+  @@map("hrms_employee_order_letters")
 }

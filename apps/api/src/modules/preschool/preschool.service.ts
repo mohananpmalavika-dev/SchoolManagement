@@ -206,7 +206,7 @@ export class PreschoolService {
         })
         : [],
       this.db.class.findMany({
-        where: { tenantId, ...(ids ? { id: { in: ids } } : {}) },
+        where: { tenantId, school: { isActive: true }, ...(ids ? { id: { in: ids } } : {}) },
         select: {
           id: true,
           name: true,
@@ -260,9 +260,12 @@ export class PreschoolService {
   async stage(user: Actor, classId: string, stage: 'PLAYGROUP' | 'NURSERY' | 'LKG' | 'UKG') {
     this.access.allow(user, preschoolManagers);
     return this.db.$transaction(async (tx) => {
+      const classroom = await tx.class.findFirst({ where: { id: classId, tenantId: this.tenant() }, include: { school: true } });
+      if (!classroom) throw new NotFoundException('Class not found');
+      if (!classroom.school.isActive || classroom.school.programme === 'STANDARD') throw new BadRequestException('Enable preschool or combined mode for this campus before assigning a preschool stage');
       const result = await tx.class.updateMany({
         where: { id: classId, tenantId: this.tenant() },
-        data: { preschoolStage: stage, educationLevel: 'PRE_PRIMARY' },
+        data: { preschoolStage: stage, educationLevel: 'PRE_PRIMARY', level: { PLAYGROUP: 'Playgroup', NURSERY: 'Nursery', LKG: 'LKG', UKG: 'UKG' }[stage] },
       });
       if (!result.count) throw new NotFoundException('Class not found');
       await this.audit(tx, user, 'PRESCHOOL_STAGE_' + stage, classId);

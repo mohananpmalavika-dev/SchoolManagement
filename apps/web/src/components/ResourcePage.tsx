@@ -104,6 +104,7 @@ export function ResourcePage({ title, description, endpoint, columns, fields, ed
   const initials = (name: string) => name.split(' ').filter(Boolean).slice(0, 2).map(word => word[0]).join('');
   const edit = (row: Record<string, any>) => { setSelected(row); setModal(true); };
   function value(column: Column, row: Record<string, any>) {
+    if (column.key === 'isCurrent') return row.isCurrent ? 'Current' : '—';
     if (column.key === 'educationLevel') return educationLevelLabels[row[column.key]] || row[column.key] || '—';
     if (column.key === 'preschoolStage') return preschoolStages[row[column.key] as keyof typeof preschoolStages] || 'Stage not assigned';
     if (column.format === 'status') return <StatusPill value={String(row[column.key] ?? 'UNKNOWN')}/>;

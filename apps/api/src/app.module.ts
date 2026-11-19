@@ -43,6 +43,7 @@ import { TransportModule } from './modules/transport/transport.module';
 import { AdmissionsModule } from './modules/admissions/admissions.module';
 import { CertificatesModule } from './modules/certificates/certificates.module';
 import { ParentEngagementNotificationsModule } from './modules/parent-engagement-notifications/parent-engagement-notifications.module';
+import { HrmsModule } from './modules/hrms/hrms.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { RedisService } from './common/services/redis.service';
 import { OperationsModule } from './modules/operations/operations.module';
@@ -118,6 +119,7 @@ import { PushModule } from './modules/push/push.module';
     AdmissionsModule,
     CertificatesModule,
     ParentEngagementNotificationsModule,
+    HrmsModule,
   ],
   controllers: [AppController],
   providers: [

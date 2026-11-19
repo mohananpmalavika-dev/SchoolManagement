@@ -76,6 +76,7 @@ export function PreschoolSettings({
       >
         <div className="panel-body space-y-4">
           {!enabledClasses.length && <EmptyState title="Add classes for your preschool" description="Create classes in Academic setup, then assign their preschool stages here."/>}
+          <Link className="panel-link" href="/school/academics?section=classes">Add or edit preschool classes</Link>
           {enabledClasses.map((c) => (
             <div className="field" key={c.id}>
               <label htmlFor={'stage-' + c.id}>{c.name}</label>
@@ -107,6 +108,8 @@ export function PreschoolSettings({
         subtitle="Explicit class assignments work without an academic timetable."
       >
         <div className="panel-body space-y-4">
+          {!options.staff.length && <div className="state-box"><p>No active teaching staff with a linked account. Add a staff member, select the Teaching department and link their staff account.</p><Link className="panel-link mt-2" href="/school/staff">Manage staff & linked accounts</Link></div>}
+          {!enabledClasses.some(c => c.educationLevel === 'PRE_PRIMARY') && <p className="muted">Choose a preschool stage above before assigning a teacher.</p>}
           <form className="space-y-4" onSubmit={assign}>
             <div className="form-grid">
               <Field label="Assigned class">
@@ -149,7 +152,7 @@ export function PreschoolSettings({
                 )}
               </Field>
             </div>
-            <Button type="submit" isLoading={busy}>
+            <Button type="submit" isLoading={busy} disabled={!classId || !teacher || !enabledClasses.some(c => c.id === classId && c.educationLevel === 'PRE_PRIMARY') || !options.staff.some(s => s.id === teacher)}>
               Assign teacher
             </Button>
           </form>
