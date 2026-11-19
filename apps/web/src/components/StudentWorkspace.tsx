@@ -34,7 +34,7 @@ export function StudentWorkspace({view='dashboard'}:{view?:string}) {
       setAssignment(null);setText('');setNotice('Your work has been submitted to your teacher.');await load();
     } catch(err) {setError(messageFor(err));} finally {setBusy(false);}
   }
-  const titles:Record<string,string>={dashboard:'Your learning journey',grades:'My progress',attendance:'My attendance',timetable:'My timetable','report-cards':'My report cards',assignments:'Assignments',materials:'Learning resources',profile:'My profile'};
+  const titles:Record<string,string>={dashboard:'Your learning journey',grades:'My progress',attendance:'My attendance',timetable:'My timetable','report-cards':'My report cards',assignments:'Assignments',materials:'Resources & library',profile:'My profile'};
   return <><PageHeading eyebrow="STUDENT WORKSPACE" title={titles[view]||'My learning'} description="Your classes, progress, and next steps, all in one place." actions={<Button size="sm" variant="outline" leftIcon={<RefreshCw size={15}/>} onClick={()=>void load()} disabled={loading}>Refresh</Button>}/>
     {error&&!assignment&&<div className="state-box" role="alert">{error}<button className="underline ml-3" onClick={()=>void load()}>Try again</button></div>}
     {notice&&<div className="state-box success" role="status">{notice}</div>}

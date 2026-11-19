@@ -17,7 +17,7 @@ interface StudentHomeProps {
 const shortcuts = [
   { href: 'assignments', title: 'Assignments', caption: 'Homework & submissions', icon: ClipboardCheck, tone: 'lilac' },
   { href: 'quizzes', title: 'Quizzes', caption: 'Assess your understanding', icon: Zap, tone: 'peach' },
-  { href: 'materials', title: 'Learning materials', caption: 'Notes & class resources', icon: Library, tone: 'mint' },
+  { href: 'materials', title: 'Resources & library', caption: 'Notes & class resources', icon: Library, tone: 'mint' },
   { href: 'portfolio', title: 'My portfolio', caption: 'Your work & achievements', icon: GraduationCap, tone: 'blue' },
 ];
 
@@ -69,7 +69,7 @@ export function StudentHome({ profile, data }: StudentHomeProps) {
         <Panel title="Around your school" subtitle="Good things to look forward to">
           {data.announcements.length ? <div className="student-events">{data.announcements.map(event => <div key={event.id} className="student-event"><CalendarDays size={19}/><div><strong>{event.title}</strong><time>{dateLabel(event.date)}</time></div></div>)}</div> : <EmptyState title="Watch this space" description="School events and important dates will appear here."/>}
         </Panel>
-        <Link href="/student/library" className="student-library"><span><Library size={24}/></span><div><small>SCHOOL LIBRARY</small><strong>Find your next read.</strong><p>Browse your school library <ArrowRight size={15}/></p></div></Link>
+        <Link href="/student/materials" className="student-library"><span><Library size={24}/></span><div><small>SCHOOL LIBRARY</small><strong>Your borrowed books.</strong><p>View your library loans <ArrowRight size={15}/></p></div></Link>
       </div>
     </div>
   </div>;

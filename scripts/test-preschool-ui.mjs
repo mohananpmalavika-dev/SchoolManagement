@@ -408,7 +408,7 @@ try {
   assert.equal(await animalsSvg.getAttribute('data-printable-theme'), 'fruits');
   await page.getByRole('button', { name: 'Close printable sheet', exact: true }).click();
   checks.push('Theme-matched printable colouring sheet and worksheet SVGs with manual theme override');
-  await page.getByRole('button', { name: 'INKY assistant', exact: true }).click();
+  await page.getByRole('button', { name: 'INKY AI assistant', exact: true }).click();
   await page
     .getByLabel('Describe the classroom situation')
     .fill('How can I help children take turns?');
@@ -434,7 +434,7 @@ try {
   await page.getByRole('button', { name: 'Draft in Activities & plans', exact: true }).first().click();
   await page.getByRole('heading', { name: 'Edit teaching content', exact: true }).waitFor();
   await page.getByRole('heading', { name: 'Picture circle', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'INKY assistant', exact: true }).click();
+  await page.getByRole('button', { name: 'INKY AI assistant', exact: true }).click();
   assert.equal(
     await page
       .getByText('Model a short supported turn and offer a quiet alternative.', { exact: true })
@@ -453,13 +453,13 @@ try {
   await page.getByLabel('Share this observation with parents', { exact: true }).check();
   await page.getByRole('button', { name: 'Save observation', exact: true }).click();
   await page.getByRole('heading', { name: 'Takes a supported turn', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Reports', exact: true }).click();
+  await page.getByRole('button', { name: 'Preschool reports', exact: true }).click();
   await page.getByRole('button', { name: 'Download report CSV', exact: true }).waitFor();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download report CSV', exact: true }).click();
   assert.ok((await downloadPromise).suggestedFilename().endsWith('.csv'));
   checks.push('Development observation sharing and CSV reporting');
-  await page.getByRole('button', { name: 'School setup', exact: true }).click();
+  await page.getByRole('button', { name: 'Preschool settings', exact: true }).click();
   await page.getByRole('heading', { name: 'Preschool teaching staff', exact: true }).waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
@@ -472,7 +472,7 @@ try {
   await teaching.page.goto(base + '/teacher/preschool');
   await teaching.page.getByRole('heading', { name: 'Today’s attendance', exact: true }).waitFor();
   assert.equal(
-    await teaching.page.getByRole('button', { name: 'School setup', exact: true }).count(),
+    await teaching.page.getByRole('button', { name: 'Preschool settings', exact: true }).count(),
     0
   );
   await teaching.context.close();
@@ -483,7 +483,7 @@ try {
   await family.page.getByRole('heading', { name: 'Maya’s school updates', exact: true }).waitFor();
   await family.page.getByText('Enjoyed shared drawing.', { exact: true }).waitFor();
   assert.equal(
-    await family.page.getByRole('button', { name: 'School setup', exact: true }).count(),
+    await family.page.getByRole('button', { name: 'Preschool settings', exact: true }).count(),
     0
   );
   await family.page.getByRole('button', { name: 'Activities & plans', exact: true }).click();

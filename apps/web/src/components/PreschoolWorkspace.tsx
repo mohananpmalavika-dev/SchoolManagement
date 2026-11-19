@@ -52,20 +52,10 @@ import {
 import { Field } from './preschool/PreschoolFields';
 import { PreschoolCopilot } from './preschool/PreschoolCopilot';
 import { PreschoolSectionLocation } from './PreschoolSectionLocation';
-import { preschoolSectionsFor } from '@/lib/navigation';
+import { preschoolSectionsFor, preschoolSectionLabels as labels } from '@/lib/navigation';
 
 type View =
   'daily' | 'learning' | 'progress' | 'photos' | 'cameras' | 'reports' | 'settings' | 'copilot';
-const labels: Record<View, string> = {
-  daily: 'Daily care',
-  learning: 'Activities & plans',
-  progress: 'Child development',
-  photos: 'Photos',
-  cameras: 'Classroom cameras',
-  reports: 'Reports',
-  settings: 'School setup',
-  copilot: 'INKY assistant',
-};
 export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
   const { user } = useAuth(),
     { language } = useLanguageContext();
@@ -381,7 +371,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
     <>
       <Suspense fallback={null}><PreschoolSectionLocation onChange={syncSection} /></Suspense>
       <PageHeading
-        eyebrow="EARLY YEARS"
+        eyebrow="PRESCHOOL"
         title={title}
         description={
           family
@@ -439,7 +429,7 @@ export function PreschoolWorkspace({ family = false }: { family?: boolean }) {
                 family
                   ? 'Your school can link your child to your parent account.'
                   : manager
-                    ? 'Enable preschool or combined mode in School setup, then select the relevant classes and teachers.'
+                    ? 'Enable preschool or combined mode in Preschool settings, then select the relevant classes and teachers.'
                     : 'Ask the school administrator to enable preschool mode and assign your teaching classes.'
               }
             />

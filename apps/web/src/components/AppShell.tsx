@@ -119,7 +119,7 @@ export function AppShell({ portal, children }: { portal: Portal; children: React
           return <button type="button" key={group.label} className="school-module-tile" aria-label={group.label.toLowerCase()} aria-pressed={visibleGroup?.label === group.label} aria-controls="school-module-pages" onClick={() => setExpandedGroup(group.label)}><span className="school-module-icon"><Icon size={19}/></span><span>{group.label.toLowerCase()}</span></button>;
         })}</div>
         {visibleGroup && <div className="school-menu-pages" id="school-module-pages" key={visibleGroup.label}>
-          <div className="school-navigation-heading"><strong>{visibleGroup.label.toLowerCase()}</strong><span>{visibleGroup.items.length} pages</span></div>
+          <div className="school-navigation-heading"><strong>{visibleGroup.label.toLowerCase()}</strong><span>{visibleGroup.items.length} {visibleGroup.items.length === 1 ? 'page' : 'pages'}</span></div>
           {visibleGroup.items.map(({ href, label, icon: Icon }) => <Link key={href} href={href} onClick={followMenuLink} className={'nav-link ' + (selected(href) ? 'active' : '')} aria-current={selected(href) ? 'page' : undefined}><span className="nav-link-icon"><Icon size={18}/></span><span>{label}</span>{selected(href) ? <i className="nav-active-dot" aria-hidden="true"/> : <ArrowUpRight className="nav-page-arrow" size={13}/>}</Link>)}
         </div>}
       </nav>

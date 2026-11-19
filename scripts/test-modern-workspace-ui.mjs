@@ -167,7 +167,7 @@ try {
   const transportTabs = transport.page.getByRole('navigation', { name: 'Workspace sections', exact: true });
   await transportTabs.getByRole('link', { name: 'Vehicles & routes', exact: true }).waitFor();
   assert.equal(await transportTabs.getByRole('link', { name: 'Vehicles & routes', exact: true }).getAttribute('aria-current'), 'page');
-  const trips = transportTabs.getByRole('link', { name: 'Trips & live GPS', exact: true });
+  const trips = transportTabs.getByRole('link', { name: 'Trips & bus tracking', exact: true });
   assert.equal(await trips.getAttribute('href'), '/school/transport');
   assert.equal(await trips.getAttribute('aria-current'), null);
   assert.equal(await transport.page.locator('a[aria-current=page]').count(), 1);
