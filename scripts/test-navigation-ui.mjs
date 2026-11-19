@@ -87,7 +87,7 @@ try {
       assert.equal(await page.locator('a[aria-current="page"]').count(), 1);
       assert.equal(await page.locator('.workspace-body').getAttribute('inert'), null);
       const bounds = await navigation.boundingBox();
-      assert.equal(bounds.width, 280);
+      assert.equal(bounds.width, 256);
       assert((await page.locator('.workspace-body').boundingBox()).x >= bounds.width);
       assert.equal(await page.evaluate(() => getComputedStyle(document.body).overflow === 'hidden'), false);
       await navigation.getByRole('button', { name: 'people', exact: true }).click();
@@ -102,7 +102,7 @@ try {
       await navigation.getByRole('link', { name: 'Overview', exact: true }).waitFor();
       const hoverLink = navigation.getByRole('link', { name: 'Advanced analytics', exact: true });
       await hoverLink.hover();
-      assert.equal(await hoverLink.evaluate(element => getComputedStyle(element, '::before').animationName), 'school-menu-shine');
+      assert.equal(await hoverLink.evaluate(element => getComputedStyle(element, '::before').animationName), 'none');
       await page.emulateMedia({ reducedMotion: 'reduce' });
       assert.equal(await hoverLink.evaluate(element => getComputedStyle(element, '::before').animationName), 'none');
       await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -140,7 +140,7 @@ try {
       assert.equal(await page.locator('.nav-scrim').count(), 0);
       assert.equal(await page.locator('.workspace-body').getAttribute('inert'), null);
       assert.equal(await page.evaluate(() => getComputedStyle(document.body).overflow === 'hidden'), false);
-      checks.push('Principal: one desktop menu, hover effects and reduced motion, active route after reload, responsive widths, mobile focus trap and Escape, route closure and resize cleanup');
+      checks.push('Principal: compact desktop navigation, active route after reload, responsive widths, mobile focus trap and Escape, route closure and resize cleanup');
     }
     if (role === 'SCHOOL_ADMIN' && programme === 'COMBINED') {
       await page.locator('aside').getByRole('button', { name: 'early years', exact: true }).click();

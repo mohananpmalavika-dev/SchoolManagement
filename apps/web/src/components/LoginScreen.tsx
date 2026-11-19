@@ -2,12 +2,12 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, Eye, EyeOff, ShieldCheck, Users, BookOpen } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, ShieldCheck, Users, BookOpen, School, Smartphone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button, Input, Alert, PageLoader } from './ui';
 import { useTranslation } from '@/hooks/useTranslation';
 import LanguageSwitcher from './LanguageSwitcher';
-import { CampusArtwork } from './CampusArtwork';
+import { WorkspacePreview } from './WorkspacePreview';
 import { homeForRole } from '@/lib/session';
 export function LoginScreen() {
   const { login, verifyMfa, user, isLoading } = useAuth();
@@ -47,7 +47,7 @@ export function LoginScreen() {
   return (
     <div className="login-page" data-portal="school">
       <header className="login-brandbar"><Link href="/" className="brand">
-          <img src="/krypton-icon.png" alt="Krypton Logo" className="brand-logo-img" />
+          <span className="brand-mark"><School size={23}/></span>
           <span>
             Krypton
             <small>{t('common.schoolWorkspace')}</small>
@@ -57,10 +57,10 @@ export function LoginScreen() {
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent('open-pwa-install'))}
-            className="text-xs font-semibold px-2.5 py-1.5 rounded-full bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 flex items-center gap-1.5 transition-colors shadow-sm"
+            className="login-install-action"
             aria-label="Install School App"
           >
-            <span>📲</span>
+            <Smartphone size={15}/>
             <span className="hidden sm:inline">Install App</span>
           </button>
           <LanguageSwitcher variant="compact"/>
@@ -145,7 +145,7 @@ export function LoginScreen() {
               <span>{t('common.accessProtected')}</span>
             </div>
           </div>
-          <CampusArtwork />
+          <WorkspacePreview />
           <small>{t('common.oneCommunity')}</small>
         </div>
       </section></div>

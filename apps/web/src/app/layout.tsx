@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './design.css';
 import './premium.css';
+import './workspace.css';
+import './product.css';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { FeatureBoundary } from '@/components/FeatureBoundary';

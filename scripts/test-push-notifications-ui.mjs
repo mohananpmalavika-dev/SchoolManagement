@@ -88,7 +88,6 @@ try {
   assert.equal(await existing.page.evaluate(() => window.__push.prompts), 0);
   assert.equal(await existing.page.evaluate(() => window.__push.subscriptions), 0);
   assert.equal(existing.writes[0].method, 'POST');
-  await existing.page.getByRole('button', {name: 'Open navigation', exact: true}).click();
   await existing.page.getByRole('button', {name: 'Sign out', exact: true}).click();
   await existing.page.waitForURL('**/login');
   assert.ok(existing.writes.some(write => write.method === 'DELETE'));

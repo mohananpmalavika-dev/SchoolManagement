@@ -9,7 +9,7 @@ const suites = [
   'school-payments-ui', 'school-records-ui', 'chat-ui', 'meetings-ui',
   'teacher-ai-ui', 'advanced-analytics-ui', 'predictive-analytics-ui',
   'modern-workspace-ui', 'api-proxy',
-];
+].filter(suite => !process.env.UI_SUITES || process.env.UI_SUITES.split(',').includes(suite));
 const results = [];
 for (const suite of suites) {
   const start = Date.now();

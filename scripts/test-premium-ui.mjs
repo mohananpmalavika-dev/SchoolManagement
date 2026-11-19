@@ -61,7 +61,7 @@ try {
   const student = await session('STUDENT');
   const { page, state } = student;
   await page.goto(base + '/student/dashboard', { timeout: 120000 });
-  await page.getByRole('heading', { name: /Hey Aarav/ }).waitFor();
+  await page.getByRole('heading', { name: /Welcome back, Aarav/ }).waitFor();
   assert.equal(await page.locator('.student-lesson').count(), 3);
   assert.equal(await page.locator('.student-task').count(), 2);
   assert.equal(await page.locator('.result-score').first().innerText(), '42 / 50');
@@ -91,7 +91,7 @@ try {
   for (const width of [768, 390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto(base + '/student/dashboard');
-    await page.getByRole('heading', { name: /Hey Aarav/ }).waitFor();
+    await page.getByRole('heading', { name: /Welcome back, Aarav/ }).waitFor();
     await fits(page);
     if (width === 390) await shot(page, 'student-mobile');
   }

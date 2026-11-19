@@ -215,7 +215,7 @@ try {
   const family=await contextFor('PARENT');
   await family.page.goto(base+'/dashboard');
   await family.page.getByRole('heading',{name:'Your family, connected',exact:true}).waitFor();
-  await family.page.getByRole('heading',{name:'Growing, learning, belonging.',exact:true}).waitFor();
+  await family.page.getByRole('heading',{name:'Your child’s school day, at a glance.',exact:true}).waitFor();
   await family.page.screenshot({path:fileURLToPath(new URL('family-desktop.png',output)),fullPage:true});
   await family.page.goto(base+'/dashboard/fees');
   await family.page.getByRole('button',{name:'Pay via UPI / Razorpay',exact:true}).click();
