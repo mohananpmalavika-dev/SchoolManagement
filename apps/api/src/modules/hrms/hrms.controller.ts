@@ -1,228 +1,428 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
-  Patch,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  Request,
-  HttpStatus,
   HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  Request,
+  Res,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { TenantGuard } from '../../common/guards/tenant.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
+import type { Response } from 'express';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '@krypton/types';
+import { TenantGuard } from '../../common/guards/tenant.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { HrmsService } from './hrms.service';
+import { HrScopeGuard } from './hrms-scope.guard';
+import {
+  HrCandidateDto,
+  HrCandidateStageDto,
+  HrInterviewDto,
+  HrInterviewReviewDto,
+  HrOfferDecisionDto,
+  HrVacancyDto,
+} from './hrms-recruitment.dto';
+import { HrActor, hrManagerRoles, hrPayrollRoles, hrStaffRoles } from './hrms.policy';
+import {
+  HrAccountDto,
+  HrAttendanceDto,
+  HrEndShiftDto,
+  HrClearanceDto,
+  HrCompleteExitDto,
+  HrCancelLeaveDto,
+  HrConvertOfferDto,
+  HrEmployeeSetupDto,
+  HrExitReviewDto,
+  HrLeaveDto,
+  HrLeaveBalanceQuery,
+  HrLeaveAccrualDto,
+  HrLeaveDocumentDto,
+  HrLeaveDocumentReviewDto,
+  HrMasterDto,
+  HrOfferDto,
+  HrPayrollDto,
+  HrPeriodQuery,
+  HrPunchDto,
+  HrRelievingDto,
+  HrResignationDto,
+  HrReviewDto,
+  HrSalaryAssignmentDto,
+  HrSettlementDto,
+  HrShiftAssignmentDto,
+  HrStructureDto,
+  HrTaskDto,
+  HrStatutoryDto,
+} from './hrms.dto';
 
+type Req = { user: HrActor };
 @ApiTags('hrms')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, HrScopeGuard)
+@Roles(...hrStaffRoles)
 @Controller('hrms')
 export class HrmsController {
-  constructor(private readonly hrmsService: HrmsService) {}
-
-  // 1. Overview
-  @Get('overview')
-  @Roles(
-    UserRole.SUPER_ADMIN,
-    UserRole.SCHOOL_OWNER,
-    UserRole.PRINCIPAL,
-    UserRole.SCHOOL_ADMIN,
-    UserRole.ACCOUNTANT,
-  )
-  @ApiOperation({ summary: 'Get HRMS workforce and attendance summary' })
-  getOverview(@Request() req: any) {
-    return this.hrmsService.getHrmsOverview(req.user.tenantId);
+  constructor(private service: HrmsService) {}
+  @Get('recruitment') @Roles(...hrManagerRoles) recruitment(@Request() r: Req) {
+    return this.service.recruitment(r.user);
   }
-
-  // 2. Staff Directory
-  @Get('employees')
-  @Roles(
-    UserRole.SUPER_ADMIN,
-    UserRole.SCHOOL_OWNER,
-    UserRole.PRINCIPAL,
-    UserRole.SCHOOL_ADMIN,
-    UserRole.ACCOUNTANT,
-  )
-  listEmployees(@Request() req: any) {
-    return this.hrmsService.listEmployees(req.user.tenantId);
-  }
-
-  @Get('employees/me')
-  getMyEmployeeProfile(@Request() req: any) {
-    return this.hrmsService.getEmployeeByUserId(req.user.tenantId, req.user.userId);
-  }
-
-  @Get('employees/:id')
-  getEmployee(@Request() req: any, @Param('id') id: string) {
-    return this.hrmsService.getEmployeeById(req.user.tenantId, id);
-  }
-
-  // 3. Shifts & Punching
-  @Get('shifts')
-  listShifts(@Request() req: any) {
-    return this.hrmsService.listShifts(req.user.tenantId);
-  }
-
-  @Post('shifts')
-  @Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  createShift(@Request() req: any, @Body() body: any) {
-    return this.hrmsService.createShift(req.user.tenantId, body);
-  }
-
-  @Post('punch')
-  @HttpCode(HttpStatus.OK)
-  async recordPunch(@Request() req: any, @Body() body: any) {
-    // If employeeId is not provided, derive from authenticated user
-    let employeeId = body.employeeId;
-    if (!employeeId) {
-      const emp = await this.hrmsService.getEmployeeByUserId(req.user.tenantId, req.user.userId);
-      if (emp) employeeId = emp.id;
-    }
-    return this.hrmsService.recordPunch(req.user.tenantId, employeeId, body);
-  }
-
-  @Get('punches/today')
-  getTodayPunches(@Request() req: any) {
-    return this.hrmsService.getTodayPunchLogs(req.user.tenantId);
-  }
-
-  // 4. Leave Management
-  @Get('leaves/types')
-  listLeaveTypes(@Request() req: any) {
-    return this.hrmsService.listLeaveTypes(req.user.tenantId);
-  }
-
-  @Post('leaves/apply')
-  async applyLeave(@Request() req: any, @Body() body: any) {
-    let employeeId = body.employeeId;
-    if (!employeeId) {
-      const emp = await this.hrmsService.getEmployeeByUserId(req.user.tenantId, req.user.userId);
-      if (emp) employeeId = emp.id;
-    }
-    return this.hrmsService.submitLeaveRequest(req.user.tenantId, employeeId, body);
-  }
-
-  @Get('leaves/requests')
-  listLeaveRequests(@Request() req: any, @Query('status') status?: string) {
-    return this.hrmsService.listLeaveRequests(req.user.tenantId, status);
-  }
-
-  @Patch('leaves/requests/:id/review')
-  @Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  reviewLeaveRequest(
-    @Request() req: any,
-    @Param('id') id: string,
-    @Body() body: { status: 'APPROVED' | 'REJECTED'; reviewerRemarks?: string },
+  @Post('recruitment/vacancies') @Roles(...hrManagerRoles) vacancy(
+    @Request() r: Req,
+    @Body() dto: HrVacancyDto
   ) {
-    return this.hrmsService.reviewLeaveRequest(req.user.tenantId, id, {
-      ...body,
-      reviewedBy: `${req.user.firstName} ${req.user.lastName}`,
-    });
+    return this.service.saveVacancy(r.user, dto);
   }
-
-  // 5. Payroll
-  @Get('payroll/structures')
-  listSalaryStructures(@Request() req: any) {
-    return this.hrmsService.listSalaryStructures(req.user.tenantId);
+  @Patch('recruitment/vacancies/:id') @Roles(...hrManagerRoles) editVacancy(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrVacancyDto
+  ) {
+    return this.service.saveVacancy(r.user, dto, id);
   }
-
-  @Post('payroll/generate')
-  @Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.ACCOUNTANT)
-  generatePayroll(@Request() req: any, @Body() body: { year: number; month: number }) {
-    return this.hrmsService.generateMonthlyPayroll(
-      req.user.tenantId,
-      Number(body.year),
-      Number(body.month),
+  @Post('recruitment/candidates') @Roles(...hrManagerRoles) candidate(
+    @Request() r: Req,
+    @Body() dto: HrCandidateDto
+  ) {
+    return this.service.saveCandidate(r.user, dto);
+  }
+  @Patch('recruitment/candidates/:id') @Roles(...hrManagerRoles) editCandidate(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrCandidateDto
+  ) {
+    return this.service.saveCandidate(r.user, dto, id);
+  }
+  @Patch('recruitment/candidates/:id/stage') @Roles(...hrManagerRoles) candidateStage(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrCandidateStageDto
+  ) {
+    return this.service.candidateStage(r.user, id, dto);
+  }
+  @Post('recruitment/candidates/:id/interviews') @Roles(...hrManagerRoles) interview(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrInterviewDto
+  ) {
+    return this.service.scheduleInterview(r.user, id, dto);
+  }
+  @Patch('recruitment/candidates/:candidateId/interviews/:id')
+  @Roles(...hrManagerRoles)
+  rescheduleInterview(
+    @Request() r: Req,
+    @Param('candidateId', ParseUUIDPipe) candidateId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrInterviewDto
+  ) {
+    return this.service.scheduleInterview(r.user, candidateId, dto, id);
+  }
+  @Patch('recruitment/interviews/:id/review') @Roles(...hrManagerRoles) interviewReview(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrInterviewReviewDto
+  ) {
+    return this.service.reviewInterview(r.user, id, dto);
+  }
+  @Patch('onboarding/offers/:id/decision') @Roles(...hrManagerRoles) offerDecision(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrOfferDecisionDto
+  ) {
+    return this.service.offerDecision(r.user, id, dto);
+  }
+  @Post('salary-assignments/:id/withdraw') @Roles(...hrPayrollRoles) withdrawSalary(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrCancelLeaveDto
+  ) {
+    return this.service.withdrawSalary(r.user, id, dto.reason);
+  }
+  @Post('accounts') @Roles(...hrManagerRoles) account(
+    @Request() r: Req,
+    @Body() dto: HrAccountDto
+  ) {
+    return this.service.createAccount(r.user, dto);
+  }
+  @Get('overview') @Roles(...hrManagerRoles) overview(@Request() r: Req) {
+    return this.service.getHrmsOverview(r.user);
+  }
+  @Get('employees') @Roles(...hrPayrollRoles) employees(@Request() r: Req) {
+    return this.service.listEmployees(r.user);
+  }
+  @Get('employees/me') profile(@Request() r: Req) {
+    return this.service.profile(r.user);
+  }
+  @Post('employees/sync') @Roles(...hrManagerRoles) sync(@Request() r: Req) {
+    return this.service.syncStaff(r.user);
+  }
+  @Get('employees/:id') employee(@Request() r: Req, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getEmployeeById(r.user, id);
+  }
+  @Patch('employees/:id') @Roles(...hrManagerRoles) configure(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrEmployeeSetupDto
+  ) {
+    return this.service.configureEmployee(r.user, id, dto);
+  }
+  @Post('employees/:id/shifts') @Roles(...hrManagerRoles) assignShift(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrShiftAssignmentDto
+  ) {
+    return this.service.assignShift(r.user, id, dto);
+  }
+  @Patch('shift-assignments/:id/end') @Roles(...hrManagerRoles) endShift(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrEndShiftDto
+  ) {
+    return this.service.endShift(r.user, id, dto.effectiveTo);
+  }
+  @Get('attendance') @Roles(...hrManagerRoles) attendance(
+    @Request() r: Req,
+    @Query('date') date: string
+  ) {
+    return this.service.attendance(r.user, date);
+  }
+  @Post('attendance/corrections') @Roles(...hrManagerRoles) correct(
+    @Request() r: Req,
+    @Body() dto: HrAttendanceDto
+  ) {
+    return this.service.correctAttendance(r.user, dto);
+  }
+  @Post('employees/:id/salary') @Roles(...hrPayrollRoles) salary(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrSalaryAssignmentDto
+  ) {
+    return this.service.assignSalary(r.user, id, dto);
+  }
+  @Get('employees/:id/statutory') @Roles(...hrPayrollRoles) statutory(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
+    return this.service.statutoryProfile(r.user, id);
+  }
+  @Patch('employees/:id/statutory') @Roles(...hrPayrollRoles) saveStatutory(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrStatutoryDto
+  ) {
+    return this.service.saveStatutoryProfile(r.user, id, dto);
+  }
+  @Get('payroll/periods') @Roles(...hrPayrollRoles) periods(
+    @Request() r: Req,
+    @Query() q: HrPeriodQuery
+  ) {
+    return this.service.payrollPeriods(r.user, q);
+  }
+  @Post('payroll/runs/:id/discard') @Roles(...hrPayrollRoles) discard(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrCancelLeaveDto
+  ) {
+    return this.service.discardPayroll(r.user, id, dto.reason);
+  }
+  @Get('setup') @Roles(...hrPayrollRoles) setup(@Request() r: Req) {
+    return this.service.setup(r.user);
+  }
+  @Get('payroll/structures') @Roles(...hrPayrollRoles) async structures(@Request() r: Req) {
+    return (await this.service.setup(r.user)).structures;
+  }
+  @Post('masters/:resource') @Roles(...hrPayrollRoles) createMaster(
+    @Request() r: Req,
+    @Param('resource') resource: string,
+    @Body() dto: HrMasterDto
+  ) {
+    return this.service.saveMaster(r.user, resource, dto.data);
+  }
+  @Patch('masters/:resource/:id') @Roles(...hrPayrollRoles) editMaster(
+    @Request() r: Req,
+    @Param('resource') resource: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrMasterDto
+  ) {
+    return this.service.saveMaster(r.user, resource, dto.data, id);
+  }
+  @Post('payroll/structures') @Roles(...hrPayrollRoles) structure(
+    @Request() r: Req,
+    @Body() dto: HrStructureDto
+  ) {
+    return this.service.saveStructure(r.user, dto);
+  }
+  @Get('shifts') shifts(@Request() r: Req) {
+    return this.service.listShifts(r.user);
+  }
+  @Post('punch') @HttpCode(200) punch(@Request() r: Req, @Body() dto: HrPunchDto) {
+    return this.service.recordPunch(r.user, dto);
+  }
+  @Get('punches/today') punches(@Request() r: Req) {
+    return this.service.getTodayPunchLogs(r.user);
+  }
+  @Get('leaves/types') types(@Request() r: Req) {
+    return this.service.listLeaveTypes(r.user);
+  }
+  @Get('leaves/balances') leaveBalances(@Request() r: Req, @Query() q: HrLeaveBalanceQuery) {
+    return this.service.listLeaveBalances(r.user, q);
+  }
+  @Post('leaves/balances/accrue') @Roles(...hrManagerRoles) accrueLeave(
+    @Request() r: Req,
+    @Body() dto: HrLeaveAccrualDto
+  ) {
+    return this.service.accrueLeaveBalances(r.user, dto);
+  }
+  @Patch('leaves/requests/:id/document') leaveDocument(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrLeaveDocumentDto
+  ) {
+    return this.service.replaceLeaveDocument(r.user, id, dto.documentUrl);
+  }
+  @Patch('leaves/requests/:id/document-review') @Roles(...hrManagerRoles) verifyLeaveDocument(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrLeaveDocumentReviewDto
+  ) {
+    return this.service.reviewLeaveDocument(r.user, id, dto);
+  }
+  @Post('leaves/apply') leave(@Request() r: Req, @Body() dto: HrLeaveDto) {
+    return this.service.submitLeaveRequest(r.user, dto);
+  }
+  @Get('leaves/requests') leaves(@Request() r: Req) {
+    return this.service.listLeaveRequests(r.user);
+  }
+  @Post('leaves/requests/:id/cancel') cancelLeave(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrCancelLeaveDto
+  ) {
+    return this.service.cancelLeaveRequest(r.user, id, dto.reason);
+  }
+  @Patch('leaves/requests/:id/review') @Roles(...hrManagerRoles) reviewLeave(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrReviewDto
+  ) {
+    return this.service.reviewLeaveRequest(r.user, id, dto);
+  }
+  @Post('payroll/preview') @Roles(...hrPayrollRoles) preview(
+    @Request() r: Req,
+    @Body() dto: HrPayrollDto
+  ) {
+    return this.service.previewPayroll(r.user, dto);
+  }
+  @Post('payroll/generate') @Roles(...hrPayrollRoles) payroll(
+    @Request() r: Req,
+    @Body() dto: HrPayrollDto
+  ) {
+    return this.service.generateMonthlyPayroll(r.user, dto);
+  }
+  @Post('payroll/runs/:id/approve') @Roles(...hrManagerRoles) approve(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
+    return this.service.approvePayroll(r.user, id);
+  }
+  @Get('payroll/payslips') slips(@Request() r: Req, @Query() q: HrPeriodQuery) {
+    return this.service.listPayslips(r.user, q);
+  }
+  @Get('payroll/payslips/:id/download') async download(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response
+  ) {
+    const csv = await this.service.payslipCsv(r.user, id);
+    res.type('text/csv').attachment('payslip.csv').send(csv);
+  }
+  @Get('onboarding/offers') @Roles(...hrManagerRoles) offers(@Request() r: Req) {
+    return this.service.listJobOffers(r.user);
+  }
+  @Post('onboarding/offers') @Roles(...hrManagerRoles) offer(
+    @Request() r: Req,
+    @Body() dto: HrOfferDto
+  ) {
+    return this.service.createJobOffer(r.user, dto);
+  }
+  @Patch('onboarding/offers/:id') @Roles(...hrManagerRoles) editOffer(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrOfferDto
+  ) {
+    return this.service.createJobOffer(r.user, dto, id);
+  }
+  @Patch('onboarding/tasks/:id') @Roles(...hrManagerRoles) task(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrTaskDto
+  ) {
+    return this.service.completeTask(r.user, id, dto.isCompleted);
+  }
+  @Post('onboarding/offers/:id/convert') @Roles(...hrManagerRoles) convert(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrConvertOfferDto
+  ) {
+    return this.service.convertOfferToEmployee(r.user, id, dto);
+  }
+  @Post('exit/resignations') resign(@Request() r: Req, @Body() dto: HrResignationDto) {
+    return this.service.submitResignation(r.user, dto);
+  }
+  @Get('exit/resignations') resignations(@Request() r: Req) {
+    return this.service.listResignations(r.user);
+  }
+  @Patch('exit/resignations/:id/review') @Roles(...hrManagerRoles) reviewExit(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrExitReviewDto
+  ) {
+    return this.service.reviewResignation(r.user, id, dto);
+  }
+  @Patch('exit/clearance/:id') clearance(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrClearanceDto
+  ) {
+    return this.service.reviewClearance(r.user, id, dto);
+  }
+  @Post('exit/resignations/:id/settlement') @Roles(...hrPayrollRoles) settlement(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrSettlementDto
+  ) {
+    return this.service.settle(r.user, id, dto);
+  }
+  @Post('exit/resignations/:id/settlement/finalize') @Roles(...hrManagerRoles) finalize(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrCompleteExitDto
+  ) {
+    return this.service.finalizeSettlement(r.user, id, dto.referenceNumber, dto.preparationId);
+  }
+  @Post('exit/resignations/:id/complete') @Roles(...hrManagerRoles) completeExit(
+    @Request() r: Req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrCompleteExitDto
+  ) {
+    return this.service.completeExit(r.user, id, dto.referenceNumber, dto.preparationId);
+  }
+  @Post('exit/relieving-letter') @Roles(...hrManagerRoles) relieve(
+    @Request() r: Req,
+    @Body() dto: HrRelievingDto
+  ) {
+    return this.service.issueRelievingLetter(
+      r.user,
+      dto.resignationId,
+      dto.referenceNumber,
+      dto.preparationId
     );
   }
-
-  @Get('payroll/payslips')
-  listPayslips(
-    @Request() req: any,
-    @Query('year') year?: string,
-    @Query('month') month?: string,
-  ) {
-    return this.hrmsService.listPayslips(
-      req.user.tenantId,
-      year ? Number(year) : undefined,
-      month ? Number(month) : undefined,
-    );
-  }
-
-  // 6. Onboarding & Offers
-  @Get('onboarding/offers')
-  @Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  listOffers(@Request() req: any) {
-    return this.hrmsService.listJobOffers(req.user.tenantId);
-  }
-
-  @Post('onboarding/offers')
-  @Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  createOffer(@Request() req: any, @Body() body: any) {
-    return this.hrmsService.createJobOffer(req.user.tenantId, body);
-  }
-
-  @Post('onboarding/offers/:id/convert')
-  @Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  convertOffer(@Request() req: any, @Param('id') id: string) {
-    return this.hrmsService.convertOfferToEmployee(req.user.tenantId, id);
-  }
-
-  // 7. Resignations & Exit
-  @Post('exit/resignations')
-  async submitResignation(@Request() req: any, @Body() body: any) {
-    let employeeId = body.employeeId;
-    if (!employeeId) {
-      const emp = await this.hrmsService.getEmployeeByUserId(req.user.tenantId, req.user.userId);
-      if (emp) employeeId = emp.id;
-    }
-    return this.hrmsService.submitResignation(req.user.tenantId, employeeId, body);
-  }
-
-  @Get('exit/resignations')
-  @Roles(
-    UserRole.SUPER_ADMIN,
-    UserRole.SCHOOL_OWNER,
-    UserRole.PRINCIPAL,
-    UserRole.SCHOOL_ADMIN,
-    UserRole.ACCOUNTANT,
-  )
-  listResignations(@Request() req: any) {
-    return this.hrmsService.listResignations(req.user.tenantId);
-  }
-
-  @Patch('exit/clearance/:id')
-  @Roles(
-    UserRole.SCHOOL_OWNER,
-    UserRole.PRINCIPAL,
-    UserRole.SCHOOL_ADMIN,
-    UserRole.ACCOUNTANT,
-    UserRole.LIBRARIAN,
-  )
-  updateClearance(
-    @Request() req: any,
-    @Param('id') id: string,
-    @Body() body: { status: 'CLEARED' | 'DUES_PENDING'; duesAmount?: number; remarks?: string },
-  ) {
-    return this.hrmsService.reviewClearance(req.user.tenantId, id, {
-      ...body,
-      clearedBy: `${req.user.firstName} ${req.user.lastName}`,
-    });
-  }
-
-  @Post('exit/relieving-letter')
-  @Roles(UserRole.SCHOOL_OWNER, UserRole.PRINCIPAL, UserRole.SCHOOL_ADMIN)
-  issueRelievingLetter(@Request() req: any, @Body() body: any) {
-    return this.hrmsService.issueRelievingLetter(req.user.tenantId, body.employeeId, {
-      referenceNumber: body.referenceNumber || `REL-${Date.now()}`,
-      content: body.content,
-      issuedBy: `${req.user.firstName} ${req.user.lastName} (Principal)`,
-    });
+  @Get('exit/letters') letters(@Request() r: Req) {
+    return this.service.letters(r.user);
   }
 }

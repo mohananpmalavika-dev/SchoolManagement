@@ -44,7 +44,7 @@ services:
       target: runtime
     restart: unless-stopped
     init: true
-    environment:
+    environment: &api-environment
       NODE_ENV: production
       DATABASE_URL: postgresql://krypton:${DB_PASSWORD}@postgres:5432/krypton
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
@@ -66,6 +66,15 @@ services:
       BACKUP_DIR: /app/backups
       BACKUP_ENABLED: ${BACKUP_ENABLED:-true}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_MAX_AGE_HOURS: ${BACKUP_MAX_AGE_HOURS:-30}
+      RESTORE_MAX_AGE_HOURS: ${RESTORE_MAX_AGE_HOURS:-840}
+      BACKUP_REQUIRE_OFFSITE: ${BACKUP_REQUIRE_OFFSITE:-true}
+      BACKUP_ENCRYPTION_KEY_FILE: /run/secrets/backup_key
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY:-}
+      BACKUP_S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY:-}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-us-east-1}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_BUCKET: ${S3_BUCKET:-krypton}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
@@ -115,8 +124,66 @@ services:
         condition: service_healthy
     volumes:
       - backups:/app/backups
+    secrets:
+      - backup_key
     ports:
       - "127.0.0.1:3001:3001"
+  maintenance:
+    profiles: [operations]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: operations
+    environment:
+      <<: *api-environment
+    volumes:
+      - backups:/app/backups
+    secrets:
+      - backup_key
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+  bootstrap:
+    extends:
+      service: maintenance
+    command: [bootstrap-admin]
+    environment:
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+      INITIAL_ADMIN_FIRST_NAME: ${INITIAL_ADMIN_FIRST_NAME:-}
+      INITIAL_ADMIN_LAST_NAME: ${INITIAL_ADMIN_LAST_NAME:-}
+      INITIAL_ADMIN_PHONE: ${INITIAL_ADMIN_PHONE:-}
+      INITIAL_ADMIN_PASSWORD_FILE: /run/secrets/initial_admin_password
+    secrets:
+      - initial_admin_password
+  rehearsal:
+    extends:
+      service: maintenance
+    command: [rehearse]
+    environment:
+      RESTORE_DATABASE_URL_FILE: /run/secrets/restore_database_url
+      RESTORE_BACKUP_ID: ${RESTORE_BACKUP_ID:-}
+      RESTORE_EXPECTED_TABLES: ${RESTORE_EXPECTED_TABLES:-}
+      RESTORE_EXPECTED_TENANTS: ${RESTORE_EXPECTED_TENANTS:-}
+      RESTORE_EXPECTED_USERS: ${RESTORE_EXPECTED_USERS:-}
+    secrets:
+      - restore_database_url
+  edge:
+    profiles: [https]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:-}
+      TLS_CONTACT_EMAIL: ${TLS_CONTACT_EMAIL:-}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - tls-data:/data
+    depends_on:
+      - web
   web:
     build:
       context: .
@@ -134,3 +201,15 @@ volumes:
   database:
   redis-data:
   backups:
+    external: true
+    name: ${BACKUP_VOLUME_NAME:-krypton_backups}
+  tls-data:
+    external: true
+    name: ${TLS_VOLUME_NAME:-krypton_tls_data}
+secrets:
+  backup_key:
+    file: ${BACKUP_KEY_SECRET_FILE:?Set BACKUP_KEY_SECRET_FILE to an externally retained encryption key file}
+  initial_admin_password:
+    file: ${INITIAL_ADMIN_PASSWORD_SECRET_FILE:-/etc/krypton/initial-admin-password}
+  restore_database_url:
+    file: ${RESTORE_DATABASE_SECRET_FILE:-/etc/krypton/restore-database-url}

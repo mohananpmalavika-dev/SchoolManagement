@@ -25,6 +25,7 @@ import {
   StaffAttendanceStatus,
 } from './dto/staff-attendance.dto';
 import { AttendanceStatus } from '@krypton/types';
+import { assertHrPeriodWritable } from '../hrms/hrms-period';
 
 @Injectable()
 export class AttendanceService {
@@ -33,7 +34,7 @@ export class AttendanceService {
   constructor(
     private prisma: PrismaService,
     private tenantService: TenantService,
-    private notifications: ParentEngagementNotificationsService,
+    private notifications: ParentEngagementNotificationsService
   ) {}
 
   // ==================== STUDENT ATTENDANCE ====================
@@ -77,7 +78,7 @@ export class AttendanceService {
 
     if (students.length !== studentIds.length) {
       throw new BadRequestException(
-        'Some students not found or do not belong to the specified class',
+        'Some students not found or do not belong to the specified class'
       );
     }
 
@@ -93,7 +94,7 @@ export class AttendanceService {
 
     if (existing.length > 0) {
       throw new ConflictException(
-        `Attendance already marked for ${existing.length} student(s) on this date`,
+        `Attendance already marked for ${existing.length} student(s) on this date`
       );
     }
 
@@ -113,15 +114,13 @@ export class AttendanceService {
             arrivalTime: item.arrivalTime ? new Date(item.arrivalTime) : null,
             markedBy: userId,
           },
-        }),
-      ),
+        })
+      )
     );
 
-    this.logger.log(
-      `Bulk attendance marked: ${records.length} students for ${dto.date}`,
-    );
+    this.logger.log(`Bulk attendance marked: ${records.length} students for ${dto.date}`);
 
-    const absentStudents = records.filter(r => r.status === AttendanceStatus.ABSENT);
+    const absentStudents = records.filter((r) => r.status === AttendanceStatus.ABSENT);
     for (const record of absentStudents) await this.notifications.sendAttendanceAlert(record.id);
 
     return {
@@ -163,9 +162,7 @@ export class AttendanceService {
     });
 
     if (existing) {
-      throw new ConflictException(
-        'Attendance already marked for this student on this date/period',
-      );
+      throw new ConflictException('Attendance already marked for this student on this date/period');
     }
 
     // Create attendance record
@@ -193,9 +190,7 @@ export class AttendanceService {
       },
     });
 
-    this.logger.log(
-      `Attendance marked: ${student.firstName} ${student.lastName} - ${dto.status}`,
-    );
+    this.logger.log(`Attendance marked: ${student.firstName} ${student.lastName} - ${dto.status}`);
 
     await this.notifications.sendAttendanceAlert(record.id);
     return record;
@@ -372,9 +367,7 @@ export class AttendanceService {
         where: {
           ...where,
           status: {
-            in: [
-              AttendanceStatus.ABSENT,
-            ],
+            in: [AttendanceStatus.ABSENT],
           },
         },
       }),
@@ -456,7 +449,10 @@ export class AttendanceService {
       return acc;
     }, {} as any);
 
-    const presentDays = (statusCounts[AttendanceStatus.PRESENT] || 0) + (statusCounts[AttendanceStatus.LATE] || 0) + (statusCounts[AttendanceStatus.HALF_DAY] || 0) * 0.5;
+    const presentDays =
+      (statusCounts[AttendanceStatus.PRESENT] || 0) +
+      (statusCounts[AttendanceStatus.LATE] || 0) +
+      (statusCounts[AttendanceStatus.HALF_DAY] || 0) * 0.5;
     const attendanceRate = totalDays > 0 ? (presentDays / totalDays) * 100 : 0;
 
     return {
@@ -475,8 +471,7 @@ export class AttendanceService {
       summary: {
         totalDays,
         present: statusCounts[AttendanceStatus.PRESENT] || 0,
-        absent:
-          statusCounts[AttendanceStatus.ABSENT] || 0,
+        absent: statusCounts[AttendanceStatus.ABSENT] || 0,
         late: statusCounts[AttendanceStatus.LATE] || 0,
         excused: statusCounts[AttendanceStatus.EXCUSED] || 0,
         halfDay: statusCounts[AttendanceStatus.HALF_DAY] || 0,
@@ -490,9 +485,14 @@ export class AttendanceService {
     const tenantId = this.tenantService.requireTenantContext();
 
     // PostgreSQL DATE values use UTC midnight; the school day follows IST.
-    const today = new Date(new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
-    }).format(new Date()));
+    const today = new Date(
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date())
+    );
 
     const where: any = {
       tenantId,
@@ -524,12 +524,8 @@ export class AttendanceService {
 
     const summary = {
       total: records.length,
-      present: records.filter((r) => r.status === AttendanceStatus.PRESENT)
-        .length,
-      absent: records.filter(
-        (r) =>
-          r.status === AttendanceStatus.ABSENT,
-      ).length,
+      present: records.filter((r) => r.status === AttendanceStatus.PRESENT).length,
+      absent: records.filter((r) => r.status === AttendanceStatus.ABSENT).length,
       late: records.filter((r) => r.status === AttendanceStatus.LATE).length,
     };
 
@@ -542,131 +538,133 @@ export class AttendanceService {
 
   // ==================== STAFF ATTENDANCE ====================
 
-  async markBulkStaffAttendance(
-    dto: BulkMarkStaffAttendanceDto,
-    userId?: string,
-  ) {
+  async markBulkStaffAttendance(dto: BulkMarkStaffAttendanceDto, userId?: string) {
     const tenantId = this.tenantService.requireTenantContext();
+    return this.prisma.$transaction(async (db) => {
+      await db.tenant.update({ where: { id: tenantId }, data: { updatedAt: new Date() } });
+      const attendanceDate = new Date(dto.date);
+      attendanceDate.setUTCHours(0, 0, 0, 0);
+      await assertHrPeriodWritable(db, tenantId, attendanceDate, attendanceDate);
 
-    const attendanceDate = new Date(dto.date);
-    attendanceDate.setUTCHours(0, 0, 0, 0);
+      // Validate all staff exist
+      const staffIds = dto.attendance.map((a) => a.staffId);
+      const staff = await db.staff.findMany({
+        where: {
+          id: { in: staffIds },
+          tenantId,
+        },
+      });
 
-    // Validate all staff exist
-    const staffIds = dto.attendance.map((a) => a.staffId);
-    const staff = await this.prisma.staff.findMany({
-      where: {
-        id: { in: staffIds },
-        tenantId,
-      },
-    });
+      if (staff.length !== staffIds.length) {
+        throw new BadRequestException('Some staff members not found');
+      }
+      if (await db.employee.count({ where: { tenantId, staffId: { in: staffIds } } }))
+        throw new BadRequestException(
+          'Use reviewed HR attendance corrections for staff linked to payroll'
+        );
 
-    if (staff.length !== staffIds.length) {
-      throw new BadRequestException('Some staff members not found');
-    }
+      // Check for existing records
+      const existing = await db.staffAttendance.findMany({
+        where: {
+          tenantId,
+          staffId: { in: staffIds },
+          date: attendanceDate,
+        },
+      });
 
-    // Check for existing records
-    const existing = await this.prisma.staffAttendance.findMany({
-      where: {
-        tenantId,
-        staffId: { in: staffIds },
-        date: attendanceDate,
-      },
-    });
+      if (existing.length > 0) {
+        throw new ConflictException(
+          `Attendance already marked for ${existing.length} staff member(s)`
+        );
+      }
 
-    if (existing.length > 0) {
-      throw new ConflictException(
-        `Attendance already marked for ${existing.length} staff member(s)`,
+      // Create attendance records
+      const records = await Promise.all(
+        dto.attendance.map((item) =>
+          db.staffAttendance.create({
+            data: {
+              tenantId,
+              staffId: item.staffId,
+              date: attendanceDate,
+              status: item.status,
+              remarks: item.remarks,
+              timeIn: item.checkInTime ? new Date(item.checkInTime) : null,
+              timeOut: item.checkOutTime ? new Date(item.checkOutTime) : null,
+              markedBy: userId,
+            },
+          })
+        )
       );
-    }
 
-    // Create attendance records
-    const records = await this.prisma.$transaction(
-      dto.attendance.map((item) =>
-        this.prisma.staffAttendance.create({
-          data: {
-            tenantId,
-            staffId: item.staffId,
-            date: attendanceDate,
-            status: item.status,
-            remarks: item.remarks,
-            timeIn: item.checkInTime ? new Date(item.checkInTime) : null,
-            timeOut: item.checkOutTime
-              ? new Date(item.checkOutTime)
-              : null,
-            markedBy: userId,
-          },
-        }),
-      ),
-    );
+      this.logger.log(`Staff attendance marked: ${records.length} staff for ${dto.date}`);
 
-    this.logger.log(
-      `Staff attendance marked: ${records.length} staff for ${dto.date}`,
-    );
-
-    return {
-      success: true,
-      markedCount: records.length,
-      date: dto.date,
-    };
+      return {
+        success: true,
+        markedCount: records.length,
+        date: dto.date,
+      };
+    });
   }
 
-  async markSingleStaffAttendance(
-    dto: MarkSingleStaffAttendanceDto,
-    userId?: string,
-  ) {
+  async markSingleStaffAttendance(dto: MarkSingleStaffAttendanceDto, userId?: string) {
     const tenantId = this.tenantService.requireTenantContext();
+    return this.prisma.$transaction(async (db) => {
+      await db.tenant.update({ where: { id: tenantId }, data: { updatedAt: new Date() } });
+      // Validate staff exists
+      const staff = await db.staff.findFirst({
+        where: { id: dto.staffId, tenantId },
+      });
 
-    // Validate staff exists
-    const staff = await this.prisma.staff.findFirst({
-      where: { id: dto.staffId, tenantId },
-    });
+      if (!staff) {
+        throw new NotFoundException('Staff member not found');
+      }
 
-    if (!staff) {
-      throw new NotFoundException('Staff member not found');
-    }
+      const attendanceDate = new Date(dto.date);
+      attendanceDate.setUTCHours(0, 0, 0, 0);
+      await assertHrPeriodWritable(db, tenantId, attendanceDate, attendanceDate);
+      if (await db.employee.count({ where: { tenantId, staffId: dto.staffId } }))
+        throw new BadRequestException(
+          'Use reviewed HR attendance corrections for staff linked to payroll'
+        );
 
-    const attendanceDate = new Date(dto.date);
-    attendanceDate.setUTCHours(0, 0, 0, 0);
+      // Check for existing record
+      const existing = await db.staffAttendance.findFirst({
+        where: {
+          tenantId,
+          staffId: dto.staffId,
+          date: attendanceDate,
+        },
+      });
 
-    // Check for existing record
-    const existing = await this.prisma.staffAttendance.findFirst({
-      where: {
-        tenantId,
-        staffId: dto.staffId,
-        date: attendanceDate,
-      },
-    });
+      if (existing) {
+        throw new ConflictException('Attendance already marked for this staff member on this date');
+      }
 
-    if (existing) {
-      throw new ConflictException(
-        'Attendance already marked for this staff member on this date',
-      );
-    }
-
-    // Create record
-    const record = await this.prisma.staffAttendance.create({
-      data: {
-        tenantId,
-        staffId: dto.staffId,
-        date: attendanceDate,
-        status: dto.status,
-        remarks: dto.remarks,
-        timeIn: dto.checkInTime ? new Date(dto.checkInTime) : null,
-        timeOut: dto.checkOutTime ? new Date(dto.checkOutTime) : null,
-        markedBy: userId,
-      },
-      include: {
-        staff: {
-          select: {
-            staffNumber: true,
-            firstName: true,
-            lastName: true,
+      // Create record
+      const record = await db.staffAttendance.create({
+        data: {
+          tenantId,
+          staffId: dto.staffId,
+          date: attendanceDate,
+          status: dto.status,
+          remarks: dto.remarks,
+          timeIn: dto.checkInTime ? new Date(dto.checkInTime) : null,
+          timeOut: dto.checkOutTime ? new Date(dto.checkOutTime) : null,
+          markedBy: userId,
+        },
+        include: {
+          staff: {
+            select: {
+              staffNumber: true,
+              firstName: true,
+              lastName: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    return record;
+      return record;
+    });
   }
 
   async queryStaffAttendance(query: QueryStaffAttendanceDto) {
@@ -743,10 +741,7 @@ export class AttendanceService {
         where: {
           ...where,
           status: {
-            in: [
-              StaffAttendanceStatus.ON_LEAVE,
-              StaffAttendanceStatus.SICK_LEAVE,
-            ],
+            in: [StaffAttendanceStatus.ON_LEAVE, StaffAttendanceStatus.SICK_LEAVE],
           },
         },
       }),

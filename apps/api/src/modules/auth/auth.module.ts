@@ -37,7 +37,7 @@ import { EmailService } from '../../common/services/email.service';
     JwtStrategy, 
     LocalStrategy
   ],
-  exports: [AuthService, AccountLockoutService, PasswordResetService],
+  exports: [AuthService, AccountLockoutService, PasswordResetService, EmailService],
 })
 export class AuthModule {}
 

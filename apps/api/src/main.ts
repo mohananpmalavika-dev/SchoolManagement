@@ -2,6 +2,7 @@ import {NestFactory} from '@nestjs/core';
 import {ValidationPipe,Logger} from '@nestjs/common';
 import {DocumentBuilder,SwaggerModule} from '@nestjs/swagger';
 import {ConfigService} from '@nestjs/config';
+import cookieParser from 'cookie-parser';
 import {AppModule} from './app.module';
 import {HttpExceptionFilter} from './common/filters/http-exception.filter';
 import {TransformInterceptor} from './common/interceptors/transform.interceptor';
@@ -11,8 +12,9 @@ async function bootstrap(){
  const production=config.get('NODE_ENV')==='production';
  app.getHttpAdapter().getInstance().disable('x-powered-by');
  app.enableShutdownHooks();
+ app.use(cookieParser());
  app.use((_req:any,res:any,next:()=>void)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('X-Frame-Options','DENY');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Cache-Control','no-store');if(production)res.setHeader('Strict-Transport-Security','max-age=31536000; includeSubDomains');next();});
- app.enableCors({origin:String(config.get('CORS_ORIGIN','http://localhost:3000')).split(',').map(o=>o.trim()),credentials:false});
+ app.enableCors({origin:String(config.get('CORS_ORIGIN','http://localhost:3000')).split(',').map(o=>o.trim()),credentials:true});
  app.setGlobalPrefix('api/v1');
  app.useGlobalPipes(new ValidationPipe({whitelist:true,forbidNonWhitelisted:true,transform:true,transformOptions:{enableImplicitConversion:true}}));
  app.useGlobalFilters(new HttpExceptionFilter());

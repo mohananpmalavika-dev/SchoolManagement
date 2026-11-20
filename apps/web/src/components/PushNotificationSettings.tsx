@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, BellOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api-client';
@@ -17,25 +17,36 @@ export function PushNotificationSettings() {
   const [hasSubscription, setHasSubscription] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [installFirst, setInstallFirst] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const loadVersion = useRef(0);
   const load = useCallback(async () => {
     if (!user) return;
+    const version = ++loadVersion.current;
+    setLoading(true); setError('');
     try {
-      const supported = supportsBackgroundPush(); setSupported(supported);
-      setInstallFirst(isIOSDevice() && !isPWA());
-      setPermission(typeof Notification === 'undefined' ? 'denied' : Notification.permission);
-      const config = await pushConfiguration(); setConfigured(config.enabled);
+      const supported = supportsBackgroundPush();
+      const config = await pushConfiguration();
       const subscription = supported ? await currentPushSubscription() : null;
-      setHasSubscription(!!subscription);
+      let enabled = false;
       if (subscription && config.publicKey && usesPushServerKey(subscription, config.publicKey)) {
         const { data } = await apiClient.post<{ subscribed: boolean }>('/push/status', { endpoint: subscription.endpoint });
-        setEnabled(data.subscribed);
-      } else setEnabled(false);
-    } catch (err) { setError(messageFor(err)); } finally { setLoading(false); }
+        enabled = data.subscribed;
+      }
+      if (version !== loadVersion.current) return;
+      setSupported(supported); setConfigured(config.enabled);
+      setInstallFirst(isIOSDevice() && !isPWA());
+      setPermission(typeof Notification === 'undefined' ? 'denied' : Notification.permission);
+      setHasSubscription(!!subscription);
+      setEnabled(enabled);
+    } catch (err) {
+      if (version === loadVersion.current) setError(messageFor(err));
+    } finally {
+      if (version === loadVersion.current) setLoading(false);
+    }
   }, [user]);
   useEffect(() => {
     void load(); const changed = () => { void load(); };
     window.addEventListener('krypton-push-changed', changed);
-    return () => window.removeEventListener('krypton-push-changed', changed);
+    return () => { loadVersion.current++; window.removeEventListener('krypton-push-changed', changed); };
   }, [load]);
   async function change(kind: 'enable' | 'disable' | 'test') {
     setBusy(true); setError(''); setNotice('');
@@ -48,7 +59,7 @@ export function PushNotificationSettings() {
   }
   return <Panel title="Background notifications" subtitle="Receive new school update alerts even when the app is closed.">
     <div className="panel-body space-y-4">
-      {error && <div className="state-box" role="alert">{error}</div>}{notice && <div className="state-box success" role="status">{notice}</div>}
+      {error && <div className="state-box" role="alert">{error}<button className="underline ml-3" disabled={busy || loading} onClick={() => void load()}>Retry notification settings</button></div>}{notice && <div className="state-box success" role="status">{notice}</div>}
       <p className="text-sm muted">Enable notifications separately on each device. Alerts show a general message; sign in to read the school update.</p>
       {loading ? <p role="status">Checking this device...</p> : <>
         <p className="text-sm font-semibold">{enabled ? 'Enabled on this device' : 'Disabled on this device'}</p>

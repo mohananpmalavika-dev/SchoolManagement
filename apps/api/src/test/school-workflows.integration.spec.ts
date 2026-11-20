@@ -55,6 +55,13 @@ import { OperationsController } from '../modules/operations/operations.controlle
 import { StorageService } from '../common/services/storage.service';
 import { SavedTransportController } from '../modules/operations/transport.controller';
 import { SavedTransportService } from '../modules/operations/transport.service';
+import { CheckInController } from '../modules/operations/check-in.controller';
+import { CheckInService } from '../modules/operations/check-in.service';
+import { BookingsController } from '../modules/bookings/bookings.controller';
+import { BookingsService } from '../modules/bookings/bookings.service';
+import { ParentPortalController } from '../modules/parent-portal/parent-portal.controller';
+import { ParentPortalService } from '../modules/parent-portal/parent-portal.service';
+import { MediaService } from '../modules/media/media.service';
 import { PlatformController } from '../modules/platform/platform.controller';
 import { PlatformService } from '../modules/platform/platform.service';
 import { SubscriptionsController } from '../modules/subscriptions/subscriptions.controller';
@@ -327,6 +334,9 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         PlatformController,
         SubscriptionsController,
         SavedTransportController,
+        CheckInController,
+        BookingsController,
+        ParentPortalController,
         OperationsController,
         AcademicRolloverController,
         WorkspaceController,
@@ -366,6 +376,7 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
             get: async (key: string) => redisData.get(key),
             exists: async (key: string) => redisData.has(key),
             del: async (key: string) => redisData.delete(key),
+            ttl: async (key: string) => redisData.has(key) ? 900 : -2,
             keys: async (pattern: string) =>
               [...redisData.keys()].filter((key) => key.startsWith(pattern.replace('*', ''))),
           },
@@ -374,6 +385,10 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
         SchoolRecordAccessGuard,
         WorkspaceService,
         SavedTransportService,
+        CheckInService,
+        BookingsService,
+        ParentPortalService,
+        MediaService,
         OperationsService,
         AcademicRolloverService,
         AdmissionAccountsService,
@@ -421,6 +436,12 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
       try {
         for (const model of [
           'transportJourney',
+          'substitutionDuty',
+          'parentTeacherBooking',
+          'teacherAvailability',
+          'absenceRequest',
+          'portfolioEntry',
+          'admissionRecord',
           'travelAssignment',
           'route',
           'vehicle',
@@ -516,6 +537,115 @@ integration('School PostgreSQL and authenticated HTTP workflows', () => {
   it('requires authentication and denies cross-tenant records', async () => {
     expect((await request('/workspace/students', '')).status).toBe(401);
     expect((await request('/workspace/student/' + child, outsider)).status).toBe(404);
+  });
+  it('persists admissions, portfolios, absences and substitutions across fresh service/database connections', async () => {
+    const application = await request('/operations/admissions', principal, 'POST', { data: {
+      schoolId: school, firstName: 'Durable', lastName: 'Applicant', dateOfBirth: '2020-01-01',
+      gender: 'FEMALE', grade: 'Class 1', guardianName: 'Test Guardian',
+      guardianEmail: 'durability@example.test', guardianPhone: '0000000000',
+    } });
+    expect(application.status).toBe(201);
+    expect((await request('/operations/admissions', parent)).status).toBe(403);
+    const achievement = await request('/operations/portfolio', teacher, 'POST', { data: {
+      studentId: child, title: 'Durable achievement', category: 'ACADEMIC', achievedOn: '2026-11-19',
+    } });
+    expect(achievement.status).toBe(201);
+    expect((await request('/operations/portfolio', parent, 'POST', { data: {
+      studentId: child, title: 'Cannot self award', category: 'ACADEMIC', achievedOn: '2026-11-19',
+    } })).status).toBe(403);
+    expect((await request('/operations/portfolio', otherParent)).body.map((r:any)=>r.id)).not.toContain(achievement.body.id);
+    const absence = await request('/operations/absences', parent, 'POST', { data: {
+      studentId: child, startDate: '2026-12-01', endDate: '2026-12-02', reason: 'Family appointment',
+    } });
+    expect(absence.status).toBe(201);
+    expect((await request('/operations/absences', otherParent, 'POST', { data: {
+      studentId: child, startDate: '2026-12-01', endDate: '2026-12-02', reason: 'Wrong family',
+    } })).status).toBe(403);
+    expect((await request('/operations/absences', parent, 'POST', { data: {
+      studentId: child, startDate: '2026-12-02', endDate: '2026-12-01', reason: 'Invalid dates',
+    } })).status).toBe(400);
+    expect((await request('/operations/absences', parent, 'POST', { data: {
+      studentId: child, startDate: '2026-12-01T12:00:00Z', endDate: '2026-12-02', reason: 'Use calendar dates',
+    } })).status).toBe(400);
+    expect((await request('/operations/absences', parent, 'POST', { data: {
+      studentId: child, startDate: '2026-12-01', endDate: '2027-02-01', reason: 'Range too long',
+    } })).status).toBe(400);
+    const lesson = await db.timetableEntry.findFirstOrThrow({where:{tenantId:tenant,teacherId:staff}});
+    const dutyLesson = await db.timetableEntry.create({data:{
+      tenantId:tenant, teacherId:otherStaff, classId:cls, subjectId:subject,
+      dayOfWeek:1, period:'9', startTime:'14:00', endTime:'14:45',
+    }});
+    const duty = await request('/operations/substitutions', principal, 'POST', {data:{
+      timetableEntryId:dutyLesson.id,teacherId:staff,date:'2026-11-23',notes:'Saved cover instructions',
+    }});
+    expect(duty.status).toBe(201);
+    expect((await request('/operations/substitutions', parent)).status).toBe(403);
+    expect((await request('/operations/substitutions', principal, 'POST', {data:{
+      timetableEntryId:lesson.id,teacherId:otherStaff,date:'2026-11-23',
+    }})).status).toBe(409);
+    const previous = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = url;
+    const reopened = new PrismaService(tenants);
+    await reopened.$connect();
+    if(previous === undefined)delete process.env.DATABASE_URL;else process.env.DATABASE_URL=previous;
+    try {
+      await inTenant(async()=>{
+        const fresh = new OperationsService(reopened,tenants,{} as any);
+        const manager = {userId:principal,role:'PRINCIPAL'};
+        expect((await fresh.list(manager,'admissions')).map((r:any)=>r.id)).toContain(application.body.id);
+        expect((await fresh.list({userId:parent,role:'PARENT'},'portfolio')).map((r:any)=>r.id)).toContain(achievement.body.id);
+        expect((await fresh.list({userId:parent,role:'PARENT'},'absences')).map((r:any)=>r.id)).toContain(absence.body.id);
+        expect((await fresh.list({userId:teacher,role:'TEACHER'},'substitutions')).map((r:any)=>r.id)).toContain(duty.body.id);
+      });
+    } finally {
+      await reopened.$disconnect();
+      await db.substitutionDuty.delete({where:{id:duty.body.id}});
+      await db.timetableEntry.delete({where:{id:dutyLesson.id}});
+    }
+  });
+  it('rejects unknown attendance codes and saves only the authenticated student without fabricated fallbacks', async()=>{
+    expect((await request('/check-in/scan',studentUser,'POST',{token:'unknown-student'})).status).toBe(400);
+    expect((await request('/check-in/sessions',teacher,'POST',{classId:otherClass})).status).toBe(403);
+    const opened=await request('/check-in/sessions',teacher,'POST',{classId:cls});
+    expect(opened.status).toBe(201);
+    expect((await request('/check-in/scan',parent,'POST',{token:opened.body.token})).status).toBe(403);
+    const results=await Promise.all([1,2].map(()=>request('/check-in/scan',studentUser,'POST',{token:opened.body.token})));
+    expect(results.map(r=>r.status)).toEqual([201,201]);
+    const date=results[0].body.date;
+    expect(await db.attendanceRecord.count({where:{tenantId:tenant,studentId:child,date:new Date(date)}})).toBe(1);
+    await request('/check-in/sessions/'+opened.body.id+'/close',teacher,'POST');
+    expect((await request('/check-in/scan',studentUser,'POST',{token:opened.body.token})).status).toBe(404);
+    await db.attendanceRecord.deleteMany({where:{tenantId:tenant,studentId:child,date:new Date(date)}});
+  });
+  it('saves real parent meetings and prevents concurrent reservations, foreign access and local-only minutes', async()=>{
+    const day=new Date();day.setUTCDate(day.getUTCDate()+14);
+    const date=day.toISOString().slice(0,10);
+    const available=await request('/bookings/availability',teacher,'POST',{
+      dayOfWeek:day.getUTCDay()||7,startTime:'15:00',endTime:'16:00',slotDuration:30,
+    });
+    expect(available.status).toBe(201);
+    const payload={studentId:child,teacherId:staff,bookingDate:date,startTime:'15:00',endTime:'15:30',topic:'Saved consultation'};
+    const reservations=await Promise.all([1,2].map(()=>request('/parent-portal/bookings',parent,'POST',payload)));
+    expect(reservations.map(r=>r.status).sort()).toEqual([201,409]);
+    const reservation=reservations.find(r=>r.status===201)!.body;
+    expect((await request('/bookings/'+reservation.id,otherParent)).status).toBe(403);
+    expect((await request('/bookings/'+reservation.id,outsider)).status).toBe(404);
+    expect((await request('/bookings/'+reservation.id,parent,'PATCH',{teacherNotes:'Forged minutes'})).status).toBe(403);
+    expect((await request('/bookings/'+reservation.id,teacher,'PATCH',{teacherNotes:'Review reading practice',meetingLink:'https://meet.example.test/school'})).status).toBe(200);
+    expect((await request('/bookings/'+reservation.id+'/confirm',teacher,'POST')).status).toBe(201);
+    const read=await request('/bookings/'+reservation.id,parent);
+    expect(read.body).toMatchObject({status:'CONFIRMED',teacherNotes:'Review reading practice',meetingLink:'https://meet.example.test/school'});
+    const previous=process.env.DATABASE_URL;process.env.DATABASE_URL=url;
+    const reopened=new PrismaService(tenants);
+    await reopened.$connect();
+    if(previous===undefined)delete process.env.DATABASE_URL;else process.env.DATABASE_URL=previous;
+    try {
+      await inTenant(async()=>expect(await new BookingsService(reopened,tenants,{} as any).getBooking(reservation.id)).toMatchObject({teacherNotes:'Review reading practice',status:'CONFIRMED'}));
+    } finally {await reopened.$disconnect();}
+    await request('/bookings/'+reservation.id+'/complete',teacher,'POST');
+    expect((await request('/bookings/'+reservation.id,parent)).body.status).toBe('COMPLETED');
+    // Keep unrelated notification assertions in this suite isolated.
+    await db.communication.deleteMany({where:{tenantId:tenant,subject:'Parent meeting confirmed'}});
   });
   it('requires teachers to select an assigned class in original attendance APIs', async () => {
     expect((await request('/attendance/students', teacher)).status).toBe(403);

@@ -1,5 +1,38 @@
 # School release readiness — 17 November 2026
 
+## 20 November follow-up: durable school modules
+
+The mounted school pages use authenticated database services. The unused browser-local admission, finance/payroll, substitution, smart-attendance, PTM, transport and portfolio clients and their preview component trees have now been removed. The separate in-memory AdmissionsModule and public sample TransportModule have also been removed from the API application. A preview-contract test suite has been replaced by real PostgreSQL workflow coverage.
+
+| Workflow | Supported saved implementation |
+|---|---|
+| Admissions | Staff `/operations/admissions`; public applications and private tracking through `/school-public` |
+| Payroll | `/hrms` staff linking, salary assignments, reviewed payroll drafts, approval and payslip access; see [HR repair status](HRMS_REPAIR_STATUS.md) |
+| Fees and finance | `/workspace` invoices/payment records and `/payments-gateway`; only verified collections affect the ledger |
+| Substitution | `/operations/substitutions`, using actual timetable entries and active staff with conflict checks |
+| Smart attendance | `/check-in` signed rotating classroom codes, `/operations/absences` family requests and HR staff punching |
+| PTM | `/bookings` and `/parent-portal/bookings`, saved availability, reservations, confirmation and meeting notes/provider links |
+| Transport | `/operations-transport` with saved vehicles/routes/stops, assignments, trips, passenger state and location reports |
+| Portfolio | `/operations/portfolio` school-recorded achievements and evidence, scoped to assigned classes or linked families |
+
+These paths are relative to `/api/v1`. Old `/api/admissions`, `/api/substitution`, `/api/smart-attendance`, `/api/ptm` and `/api/transport` preview handlers return **410 Gone**, including dynamic ID paths. API rewrites run in the fallback phase so they cannot bypass those handlers. Direct obsolete backend routes are no longer registered. Clients must use the supported contracts; preview payloads are not silently converted or reported as saved.
+
+Unknown attendance codes cannot select a fabricated student. Concurrent classroom scans use an atomic insert with duplicate suppression, preserving existing teacher corrections. Absence requests reject reversed ranges and timestamp values where calendar dates are required.
+
+Browser-local preview records are not imported automatically. They remain in the old browser storage for review; they are not authoritative school records. Demo-only concession/dunning automation, generated badge/portfolio histories, simulated GPS/geofence verification and fake substitution notifications are not supported by this release. The supported workflows above remain available; removal of preview screens does not establish parity with their simulated features.
+
+Verification uses a disposable PostgreSQL database and an optimized web build. `pnpm test:db:school` now checks fresh service/database connections for admission, portfolio, absence, substitution and PTM persistence, concurrent reservations/scans, role/family denial, billing and transport workflows. `pnpm test:ui:durable-modules` seeds old browser records and fails API reads across all eight modules: errors remain visible and none of those storage keys is read or written. This browser regression is included in `test:ui:all`. `test:ui:proxy` also checks retired URLs return 410 and the current API preserves JSON, queries and credentials.
+
+Completed locally for this follow-up: 44 school PostgreSQL/HTTP workflows passed, including browser-created records, reload and family access against the real test database. Optimized-build checks passed: 8 module storage/failure scenarios, 10 HR scenarios, 6 payment scenarios, 3 PTM scenarios and 4 HTTP routing checks. API and web production builds passed. Browser fixture scenarios check UI behavior; they do not certify payment-provider, messaging or GPS delivery in a deployed school.
+
+The broader API regression run passed 724 tests in 51 suites, with 22 environment-dependent tests skipped. It used `--runInBand --testTimeout=30000` and a 4 GB Node heap; an earlier concurrent-build run exceeded the default five-second password-reset test timeout. The final result is recorded in ignored `qa/durable-modules/api-results.json`; browser and HTTP evidence is under `qa/durable-modules`, `qa/functionality-real-browser`, `qa/hrms-repair`, `qa/meetings`, `qa/proxy` and `qa/school-payments`.
+
+The subsequent [HR security follow-up](HRMS_REPAIR_STATUS.md#security-follow-up--20-november-2026) adds explicit school binding, independent financial approval, privacy allowlists, corrected-attendance protection and leave cancellation. Its 70 focused tests and 12 browser fixture scenarios passed. The upgraded signed-JWT PostgreSQL HR suite remains unverified because automatic approval review could not start the disposable database; the earlier database results above do not validate those later changes.
+
+No live deployment or live-data migration was performed. Apply the existing migration chain (including the HR offer-linking migration), rebuild and deploy both applications together, and complete the deployment-specific acceptance checks below.
+
+## Earlier release record
+
 Follow-up verification and fixes are recorded in [the school flow audit](SCHOOL_FLOW_AUDIT.md), including the real HTTP proxy correction, staff/admission/preschool access fixes, durable chat attachments and teaching workflow regressions.
 
 This is the current release record for the school module and its preschool extension. Earlier completion percentages, Kenyan deployment instructions and “all features verified” statements in historical reports are not production certification.
@@ -83,13 +116,16 @@ The configured CI workflow was not executed in this local session. A full applic
 
 ## Go-live requirements
 
+Use the [production operations runbook](../ops/RUNBOOK.md) for HTTPS, first administrator, independent key custody, off-site backup, isolated restore commands, monthly rehearsals and monitoring. Core readiness remains separate from authenticated `/api/v1/ops/health`. Verify now enables all conditional integration suites/browser cases and rejects skipped tests; a hosted run and retained artifact are still required for CI sign-off.
+
 | Capability | What remains environment-dependent |
 |---|---|
 | Hosting and account recovery | Real HTTPS origin, independent secrets, SMTP delivery, production PostgreSQL/Redis health, initial administrator setup and monitoring. Use the production Compose example and test access revocation/account recovery on the deployed domain. |
 | Razorpay | Real merchant keys, captured-payment policy and signed webhook setup; test authorized-but-not-captured, failure, capture, retries and reconciliation in the merchant's sandbox before live use. Environment credentials currently represent one deployment merchant account; independent per-school merchant settlement needs a dedicated credential/settlement integration. |
 | Direct UPI | Set the school's real `SCHOOL_UPI_VPA` and `SCHOOL_MERCHANT_NAME`. There is no default demo payee. Direct UPI is manually reconciled from the school's bank statement. Separate school payees require separate deployment configuration until per-school merchant setup is added. |
 | Photos and documents | Private S3-compatible bucket, HTTPS signed access, deployed upload tests, retention and off-site recovery. A public bucket cannot be certified private by application tests. |
-| SMS / WhatsApp / email | Working provider credentials, approved sender/templates and real delivery checks. In-app notifications already persist; background mobile push is not implemented. Legacy WhatsApp settings/scheduler code is not mounted as a supported production configuration workflow. |
+| SMS / WhatsApp / email | Working provider credentials, approved sender/templates and real delivery checks. Legacy WhatsApp settings/scheduler code is not mounted as a supported production configuration workflow. |
+| Background Web Push | [Implemented for browsers/PWAs](BACKGROUND_PUSH_NOTIFICATIONS.md), using durable inbox logs, subscriptions and an API worker. Deploy the push migration, configure stable VAPID keys, serve HTTPS and complete real-device acceptance with the app closed. Provider acceptance alone does not establish device receipt. |
 | Driver-phone GPS | HTTPS and real phone permission/location testing. The driver keeps the trip page open; mobile operating systems may suspend background browser GPS. ETA is a labelled straight-line estimate, not traffic routing. |
 | CCTV | Provider is undecided. Connect and validate the secure gateway contract in [PRESCHOOL_IMPLEMENTATION.md](PRESCHOOL_IMPLEMENTATION.md), including class mapping, consent, expiry and failure behavior. |
 | Government submissions | No authorized official API adapter is configured. Use reviewed exports and the official portal. Any records created by earlier preview versions must be checked against official records; this release does not delete historical data or turn sample identifiers into verified identifiers. |

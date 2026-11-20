@@ -49,7 +49,8 @@ export class CheckInService {
     if (!student) throw new ForbiddenException('This check-in is for another class');
     const date = new Date(session.date + 'T00:00:00.000Z');
     // A student's scan can create presence; it cannot override a teacher's saved correction.
-    await this.db.attendanceRecord.upsert({ where: { tenantId_studentId_date_period: { tenantId, studentId: student.id, date, period: 1 } }, create: { tenantId, studentId: student.id, classId: session.classId, date, period: 1, status: 'PRESENT' }, update: {} });
+    // ON CONFLICT DO NOTHING is atomic even when two scans arrive together.
+    await this.db.attendanceRecord.createMany({ data: [{ tenantId, studentId: student.id, classId: session.classId, date, period: 1, status: 'PRESENT' }], skipDuplicates: true });
     return { saved: true, date: session.date };
   }
 }

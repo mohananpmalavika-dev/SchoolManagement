@@ -1,7 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { clearSession } from './session';
 const API_URL=process.env.NEXT_PUBLIC_API_URL;
-export const apiClient=axios.create({baseURL:API_URL?`${API_URL.replace(/\/$/,'')}/api/v1`:'/api/v1',timeout:30000,headers:{'Content-Type':'application/json'}});
+export const apiClient=axios.create({baseURL:API_URL?`${API_URL.replace(/\/$/,'')}/api/v1`:'/api/v1',timeout:30000,withCredentials:true,headers:{'Content-Type':'application/json'}});
 apiClient.interceptors.request.use(config=>{if(typeof window!=='undefined'){const token=localStorage.getItem('accessToken');if(token)config.headers.Authorization='Bearer '+token;}return config;});
 let refresh:Promise<string>|null=null;
 apiClient.interceptors.response.use(response=>{
@@ -12,11 +12,16 @@ apiClient.interceptors.response.use(response=>{
  if(error.response?.data?.error?.message)error.response.data.message=error.response.data.error.message;
  if(typeof window!=='undefined'&&error.response?.status===401&&request&&!request._retry&&!['/auth/login','/auth/refresh','/auth/mfa/verify-login'].includes(request.url||'')&&!request.url?.startsWith('/auth/password-reset/')){
   request._retry=true;const token=localStorage.getItem('refreshToken');
-  if(token){try{
-   refresh ||= axios.post((apiClient.defaults.baseURL||'/api')+'/auth/refresh',{refreshToken:token},{timeout:15000}).then(res=>{const data=res.data.data||res.data;if(!data.accessToken)throw new Error('Invalid session');localStorage.setItem('accessToken',data.accessToken);return data.accessToken as string;}).finally(()=>{refresh=null;});
-   request.headers.Authorization='Bearer '+await refresh;return apiClient(request);
-  }catch{clearSession();window.location.assign('/login');}}
-  else{clearSession();window.location.assign('/login');}
+  try{
+   refresh ||= axios.post((apiClient.defaults.baseURL||'/api')+'/auth/refresh',token?{refreshToken:token}:{},{withCredentials:true,timeout:15000}).then(res=>{
+    const data=res.data?.data||res.data;
+    if(data?.accessToken&&localStorage.getItem('accessToken'))localStorage.setItem('accessToken',data.accessToken);
+    return (data?.accessToken||'') as string;
+   }).finally(()=>{refresh=null;});
+   const newToken=await refresh;
+   if(newToken&&localStorage.getItem('accessToken'))request.headers.Authorization='Bearer '+newToken;
+   return apiClient(request);
+  }catch{clearSession();window.location.assign('/login');}
  }
  return Promise.reject(error);
 });

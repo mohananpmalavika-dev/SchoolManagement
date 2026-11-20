@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
-import { createReadStream, createWriteStream, existsSync, mkdirSync, statSync, readdirSync, unlinkSync } from 'fs';
+import { createReadStream, createWriteStream, existsSync, mkdirSync, statSync, readdirSync, unlinkSync, readFileSync, writeFileSync, renameSync, accessSync, constants } from 'fs';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'crypto';
@@ -48,16 +48,19 @@ export class BackupService {
     database: string;
     user: string;
     password: string;
+    sslmode: string;
   };
 
   constructor(private readonly configService: ConfigService) {
     // S3 Configuration
-    const s3Endpoint = this.configService.get<string>('S3_ENDPOINT');
-    const s3AccessKey = this.configService.get<string>('S3_ACCESS_KEY');
-    const s3SecretKey = this.configService.get<string>('S3_SECRET_KEY');
-    const s3Region = this.configService.get<string>('S3_REGION', 'us-east-1');
+    const dedicated = ['ENDPOINT','ACCESS_KEY','SECRET_KEY','BUCKET'].some(key => this.configService.get('BACKUP_S3_' + key));
+    const prefix = dedicated ? 'BACKUP_S3_' : 'S3_';
+    const s3Endpoint = this.configService.get<string>(prefix + 'ENDPOINT');
+    const s3AccessKey = this.configService.get<string>(prefix + 'ACCESS_KEY');
+    const s3SecretKey = this.configService.get<string>(prefix + 'SECRET_KEY');
+    const s3Region = this.configService.get<string>(prefix + 'REGION', 'us-east-1');
     
-    this.s3Bucket = this.configService.get<string>('S3_BUCKET', 'krypton-backups');
+    this.s3Bucket = this.configService.get<string>(prefix + 'BUCKET', 'krypton-backups');
     this.s3Enabled = !!s3Endpoint && !!s3AccessKey && !!s3SecretKey;
 
     if (this.s3Enabled) {
@@ -78,11 +81,12 @@ export class BackupService {
     // Local backup directory
     this.localBackupDir = this.configService.get<string>('BACKUP_DIR', './backups');
     if (!existsSync(this.localBackupDir)) {
-      mkdirSync(this.localBackupDir, { recursive: true });
+      mkdirSync(this.localBackupDir, { recursive: true, mode: 0o700 });
     }
 
     // Encryption key for backup encryption
-    const encryptionMasterKey = this.configService.get<string>('ENCRYPTION_MASTER_KEY');
+    const keyFile = this.configService.get<string>('BACKUP_ENCRYPTION_KEY_FILE');
+    const encryptionMasterKey = keyFile ? readFileSync(keyFile, 'utf8').trim() : this.configService.get<string>('ENCRYPTION_MASTER_KEY');
     if (!encryptionMasterKey || encryptionMasterKey.length < 32) {
       throw new Error('ENCRYPTION_MASTER_KEY must be at least 32 characters for backup encryption');
     }
@@ -99,6 +103,7 @@ export class BackupService {
         database: decodeURIComponent(url.pathname.slice(1)),
         user: decodeURIComponent(url.username),
         password: decodeURIComponent(url.password),
+        sslmode: url.searchParams.get('sslmode') || process.env.PGSSLMODE || 'prefer',
       };
     } else {
       this.dbConfig = {
@@ -107,6 +112,7 @@ export class BackupService {
         database: this.configService.get<string>('POSTGRES_DB', 'krypton'),
         user: this.configService.get<string>('POSTGRES_USER', 'krypton'),
         password: this.configService.get<string>('POSTGRES_PASSWORD', ''),
+        sslmode: process.env.PGSSLMODE || 'prefer',
       };
     }
   }
@@ -120,25 +126,31 @@ export class BackupService {
     const backupId = `backup_${Date.now()}_${randomBytes(4).toString('hex')}`;
     const filename = `${backupId}.sql.gz.enc`;
     const localPath = path.join(this.localBackupDir, filename);
+    const pgDumpFile = path.join(this.localBackupDir, `${backupId}.sql`);
+    const gzipFile = `${pgDumpFile}.gz`;
 
     this.logger.log(`Starting database backup: ${backupId}`);
 
     try {
       // Step 1: Execute pg_dump with gzip compression
-      const pgDumpFile = path.join(this.localBackupDir, `${backupId}.sql`);
+      if (this.configService.get('BACKUP_REQUIRE_OFFSITE') === 'true' && !this.s3Enabled)
+        throw new Error('Off-site backup storage is required');
       
       this.logger.log('Executing pg_dump...');
+      const dumpHandle = await open(pgDumpFile, 'wx', 0o600); await dumpHandle.close();
       await execFileAsync('pg_dump', ['-h', this.dbConfig.host, '-p', this.dbConfig.port, '-U', this.dbConfig.user, '-d', this.dbConfig.database, '--no-owner', '--no-privileges', '--clean', '--if-exists', '-f', pgDumpFile], {
+        timeout: Number(this.configService.get('BACKUP_TIMEOUT_MS', 1800000)),
         env: {
           ...process.env,
           PGPASSWORD: this.dbConfig.password,
+          PGSSLMODE: this.dbConfig.sslmode,
+          PGCONNECT_TIMEOUT: '10',
         },
       });
 
       // Step 2: Compress with gzip
-      const gzipFile = `${pgDumpFile}.gz`;
       const readStream = createReadStream(pgDumpFile);
-      const writeStream = createWriteStream(gzipFile);
+      const writeStream = createWriteStream(gzipFile, {mode:0o600});
       const gzip = createGzip({ level: 9 });
       await pipeline(readStream, gzip, writeStream);
 
@@ -152,12 +164,16 @@ export class BackupService {
       // Step 5: Get file size (cross-platform)
       const stats = statSync(encryptedFile);
       const size = stats.size;
+      if (!await this.verifyBackup(backupId)) throw new Error('Archive verification failed');
 
       // Step 6: Upload to S3 if enabled
       let s3Key: string | undefined;
       if (this.s3Enabled) {
         s3Key = `backups/${filename}`;
         await this.uploadToS3(encryptedFile, s3Key, checksum);
+        const uploaded = await this.s3Client.send(new HeadObjectCommand({ Bucket: this.s3Bucket, Key: s3Key }));
+        if (uploaded.ContentLength !== size || uploaded.Metadata?.checksum !== checksum)
+          throw new Error('Off-site object verification failed');
         this.logger.log(`Backup uploaded to S3: ${s3Key}`);
       }
 
@@ -170,6 +186,10 @@ export class BackupService {
       }
 
       const duration = Date.now() - startTime;
+      this.writeStatus('last-success.json', { backupId, completedAt: new Date().toISOString(),
+        size, checksum, offsite: !!s3Key, verified: true,
+        keyId: createHash('sha256').update(this.encryptionKey).digest('hex').slice(0, 12) });
+      this.writeStatus('last-attempt.json', { at: new Date().toISOString(), success: true });
       this.logger.log(`Backup completed successfully in ${duration}ms: ${backupId}`);
 
       return {
@@ -184,6 +204,7 @@ export class BackupService {
       };
     } catch (error: any) {
       const duration = Date.now() - startTime;
+      this.writeStatus('last-attempt.json', { at: new Date().toISOString(), success: false });
       this.logger.error(`Backup failed after ${duration}ms: ${error.message}`, error.stack);
       
       return {
@@ -195,7 +216,56 @@ export class BackupService {
         duration,
         error: error.message,
       };
+    } finally {
+      // pg_dump/compression/upload failures must not retain plaintext school data.
+      for (const file of [pgDumpFile, gzipFile]) if (existsSync(file)) unlinkSync(file);
     }
+  }
+
+  private writeStatus(name: string, value: unknown) {
+    const target = path.join(this.localBackupDir, name), temporary = target + '.' + randomBytes(6).toString('hex');
+    try { writeFileSync(temporary, JSON.stringify(value), { mode: 0o600 }); renameSync(temporary, target); }
+    finally { if (existsSync(temporary)) unlinkSync(temporary); }
+  }
+
+  async operationalStatus() {
+    accessSync(this.localBackupDir, constants.R_OK | constants.W_OK);
+    const read = (name: string) => {
+      try { return JSON.parse(readFileSync(path.join(this.localBackupDir, name), 'utf8')); } catch { return null; }
+    };
+    const success = read('last-success.json'), attempt = read('last-attempt.json'), rehearsal = read('last-rehearsal.json');
+    const fresh = (value: unknown, hours: number) => typeof value === 'string' &&
+      Number.isFinite(Date.parse(value)) && Date.now() >= Date.parse(value) && Date.now() - Date.parse(value) <= hours * 3600000;
+    let offsite = 'unconfigured';
+    if (this.s3Enabled) {
+      try {
+        if (!success?.offsite || !success.backupId) throw new Error();
+        const object = await this.s3Client.send(new HeadObjectCommand({Bucket:this.s3Bucket,Key:'backups/'+this.backupFilename(success.backupId)}), {abortSignal:AbortSignal.timeout(2500)});
+        offsite = object.ContentLength === success.size && object.Metadata?.checksum === success.checksum ? 'healthy' : 'unhealthy';
+      } catch { offsite = 'unhealthy'; }
+    }
+    return {
+      localStorage: 'healthy', offsite,
+      backup: success?.verified && fresh(success.completedAt, Number(this.configService.get('BACKUP_MAX_AGE_HOURS', 30))) && attempt?.success !== false ? 'healthy' : 'unhealthy',
+      lastSuccessAt: success?.completedAt || null,
+      rehearsal: rehearsal?.success && rehearsal?.source === 'offsite' && rehearsal?.validation === 'expected-counts' &&
+        fresh(rehearsal.completedAt, Number(this.configService.get('RESTORE_MAX_AGE_HOURS', 24 * 35))) ? 'healthy' : 'unverified',
+      lastRehearsalAt: rehearsal?.completedAt || null,
+    };
+  }
+
+  async fetchOffsite(backupId: string) {
+    if (!this.s3Enabled) throw new Error('Off-site backup storage is required');
+    const filename = this.backupFilename(backupId), target = path.join(this.localBackupDir, filename);
+    const temporary = target + '.' + randomBytes(8).toString('hex') + '.download';
+    try {
+      const object = await this.s3Client.send(new HeadObjectCommand({Bucket:this.s3Bucket,Key:'backups/'+filename}));
+      await this.downloadFromS3('backups/' + filename, temporary);
+      if (!object.Metadata?.checksum || await this.calculateChecksum(temporary) !== object.Metadata.checksum)
+        throw new Error('Off-site checksum mismatch');
+      renameSync(temporary, target);
+      if (!await this.verifyBackup(backupId)) throw new Error('Off-site archive authentication failed');
+    } finally { if (existsSync(temporary)) unlinkSync(temporary); }
   }
 
   /**
@@ -234,7 +304,7 @@ export class BackupService {
       
       // Verify it's valid gzip by decompressing
       const readStream = createReadStream(decryptedFile);
-      const writeStream = createWriteStream(decompressedFile);
+      const writeStream = createWriteStream(decompressedFile, { mode: 0o600 });
       const gunzip = createGunzip();
       await pipeline(readStream, gunzip, writeStream);
 
@@ -275,6 +345,24 @@ export class BackupService {
         throw new Error(`Backup file not found: ${localPath}`);
       }
 
+      const restoreUrl = this.configService.get<string>('RESTORE_DATABASE_URL');
+      const parsed = restoreUrl ? new URL(restoreUrl) : null;
+      const target = parsed ? {
+        host: parsed.hostname, port: parsed.port || '5432', database: decodeURIComponent(parsed.pathname.slice(1)),
+        user: decodeURIComponent(parsed.username), password: decodeURIComponent(parsed.password),
+        sslmode: parsed.searchParams.get('sslmode') || process.env.PGSSLMODE || 'prefer',
+      } : { ...this.dbConfig, database: targetDatabase || '' };
+      if (!/^[A-Za-z_][A-Za-z0-9_]{0,62}$/.test(target.database) || ['postgres','template0','template1'].includes(target.database) ||
+          (target.host === this.dbConfig.host && target.port === this.dbConfig.port && target.database === this.dbConfig.database))
+        throw new Error('Restore requires an explicit different, empty target database');
+      if (parsed && !['postgres:', 'postgresql:'].includes(parsed.protocol)) throw new Error('Invalid restore database URL');
+      const connection = ['-h', target.host, '-p', target.port, '-U', target.user, '-d', target.database];
+      const environment = { ...process.env, PGPASSWORD: target.password, PGSSLMODE: target.sslmode, PGCONNECT_TIMEOUT: '10' };
+      const probe = await execFileAsync('psql', ['--no-psqlrc', ...connection, '-v', 'ON_ERROR_STOP=1', '-tAc',
+        "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind IN ('r','p','v','m','S','f')"],
+        { env: environment, timeout: 30000 });
+      if (probe.stdout.trim() !== '0') throw new Error('Restore target must be empty');
+
       // Step 1: Decrypt
       const decryptedFile = `${localPath}.${randomBytes(8).toString('hex')}.dec`;
       temporaryFiles.push(decryptedFile);
@@ -286,19 +374,16 @@ export class BackupService {
       temporaryFiles.push(decompressedFile);
       this.logger.log('Decompressing backup...');
       const readStream = createReadStream(decryptedFile);
-      const writeStream = createWriteStream(decompressedFile);
+      const writeStream = createWriteStream(decompressedFile, { mode: 0o600 });
       const gunzip = createGunzip();
       await pipeline(readStream, gunzip, writeStream);
 
       // Step 3: Restore with psql
-      const dbName = targetDatabase || this.dbConfig.database;
+      const dbName = target.database;
       this.logger.log(`Restoring to database: ${dbName}`);
       
-      const { stdout, stderr } = await execFileAsync('psql', ['-h', this.dbConfig.host, '-p', this.dbConfig.port, '-U', this.dbConfig.user, '-d', dbName, '-v', 'ON_ERROR_STOP=1', '--single-transaction', '-f', decompressedFile], {
-        env: {
-          ...process.env,
-          PGPASSWORD: this.dbConfig.password,
-        },
+      const { stdout, stderr } = await execFileAsync('psql', ['--no-psqlrc', ...connection, '-v', 'ON_ERROR_STOP=1', '--single-transaction', '-f', decompressedFile], {
+        env: environment, timeout: Number(this.configService.get('RESTORE_TIMEOUT_MS', 1800000)),
       });
       
       // Clean up temporary files

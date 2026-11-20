@@ -4,6 +4,11 @@ const compoundSelectors = new Map(Prisma.dmmf.datamodel.models.map(model => [mod
   ...(model.primaryKey ? [{ name: model.primaryKey.name || model.primaryKey.fields.join('_'), fields: model.primaryKey.fields }] : []),
 ]]));
 const directModels = new Set([
+  'Department', 'Designation', 'EmployeeGrade', 'Employee', 'EmployeeBankAccount', 'EmployeeStatutoryProfile', 'EmployeeDocument',
+  'Shift', 'ShiftAssignment', 'AttendanceDevice', 'PunchLog', 'AttendanceCorrection', 'GeofenceZone',
+  'LeaveType', 'LeaveBalance', 'LeaveRequest', 'SalaryComponent', 'SalaryStructure', 'EmployeeSalaryAssignment',
+  'PayrollPeriod', 'PayrollRun', 'Payslip', 'JobOffer', 'OnboardingTask', 'Resignation', 'ExitClearance', 'FullFinalSettlement', 'EmployeeOrderLetter',
+  'RecruitmentVacancy', 'RecruitmentCandidate', 'RecruitmentInterview',
   'PreschoolStaffAssignment', 'PreschoolDayRecord', 'PreschoolPickupPass', 'DevelopmentObservation', 'PreschoolContent',
   'ClassroomCamera', 'ClassroomCameraConsent', 'TransportAlert',
   'ChatChannel', 'CollaborationRoom', 'Subscription', 'School', 'User', 'Student', 'Guardian', 'Staff', 'StaffAttendance',
@@ -18,7 +23,7 @@ const directModels = new Set([
   'BoardIntegration', 'BoardSyncLog', 'BoardExamRegistration',
   'ComplianceReport', 'ComplianceExport', 'ComplianceLedger', 'ComplianceChecklist', 'DataQualityAudit', 'GovernmentApiLog', 'ComplianceAlert'
 ]);
-const relations: Record<string, string> = { ChatChannelMember: 'channel', ChatMessage: 'channel', GuardianStudentLink: 'guardian', FeeItem: 'feeStructure', InvoiceItem: 'invoice', CommunicationLog: 'communication', RouteStop: 'route', ExaminationSubject: 'examination' };
+const relations: Record<string, string> = { SalaryStructureComponent: 'structure', ChatChannelMember: 'channel', ChatMessage: 'channel', GuardianStudentLink: 'guardian', FeeItem: 'feeStructure', InvoiceItem: 'invoice', CommunicationLog: 'communication', RouteStop: 'route', ExaminationSubject: 'examination' };
 const reads = new Set(['findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow', 'findMany', 'count', 'aggregate', 'groupBy', 'update', 'updateMany', 'delete', 'deleteMany', 'upsert']);
 export function createTenantFilterMiddleware(getTenantId: () => string | null) {
   return async (params: Prisma.MiddlewareParams, next: (params: Prisma.MiddlewareParams) => Promise<any>) => {

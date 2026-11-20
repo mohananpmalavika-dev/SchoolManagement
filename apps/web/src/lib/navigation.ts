@@ -79,7 +79,7 @@ function baseNavigation(portal: Portal, role: string): NavigationGroup[] {
   };
   if (operations[role]) return [
     group('WORKSPACE', [['dashboard', 'Dashboard', LayoutDashboard], ['students', 'Students', Users]]),
-    group('OPERATIONS', [...operations[role], ['support', 'Support', LifeBuoy]]),
+    group('OPERATIONS', [...operations[role], ...(role !== 'ACCOUNTANT' ? [['hrms', 'My HR & leave', Briefcase]] as Entry[] : []), ['support', 'Support', LifeBuoy]]),
   ];
   return [
     group('WORKSPACE', [['dashboard', 'Dashboard', LayoutDashboard], ...(predictiveAnalyticsRoles.includes(role) ? [['analytics', 'Advanced analytics', BarChart3], ['predictive-analytics', 'Student risk alerts', Radar], ['ai-studio', 'AI teaching studio', Sparkles]] as Entry[] : []), ['copilot', 'ERP Copilot', Bot]]),

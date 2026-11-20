@@ -29,6 +29,12 @@ export interface PresignedUrlResult {
 @Injectable()
 export class StorageService implements OnModuleInit {
   isConfigured() { return this.s3Enabled; }
+  async checkConnectivity() {
+    if (!this.s3Enabled) return 'unconfigured' as const;
+    // A health probe must never create a bucket or change its access policy.
+    await this.s3Client.send(new HeadBucketCommand({ Bucket: this.s3Bucket }), { abortSignal: AbortSignal.timeout(2500) });
+    return 'healthy' as const;
+  }
   private readonly logger = new Logger(StorageService.name);
   private readonly s3Client: S3Client;
   private readonly s3PresignClient: S3Client;

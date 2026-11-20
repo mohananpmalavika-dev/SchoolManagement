@@ -71,6 +71,6 @@ Keep port 3001 free for the proxy browser test; its backend fixture is temporary
 
 ## Remaining work requiring the deployed environment
 
-Real HTTPS application/Redis startup, SMTP/SMS/WhatsApp delivery, merchant settlement/reconciliation, private S3 storage, real-phone GPS, a CCTV gateway, cross-network TURN calls and production off-site restore still need their configured environments and acceptance checks. There is no background mobile push implementation or authorized direct government submission adapter. Passing local tests does not certify those capabilities.
+Real HTTPS application/Redis startup, SMTP/SMS/WhatsApp delivery, merchant settlement/reconciliation, private S3 storage, real-phone GPS, a CCTV gateway, cross-network TURN calls and production off-site restore still need their configured environments and acceptance checks. Background browser/PWA push is now [implemented](BACKGROUND_PUSH_NOTIFICATIONS.md); VAPID setup and closed-app real-device delivery acceptance remain deployment requirements. There is no authorized direct government submission adapter. Passing local tests does not certify external delivery capabilities.
 
 See [school production readiness](SCHOOL_PRODUCTION_READINESS.md) for the configuration and acceptance requirements, including current payment-merchant boundaries and preview-only components. The configured GitHub Actions workflow was updated but was not itself run in this session.

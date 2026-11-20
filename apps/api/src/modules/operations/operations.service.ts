@@ -65,6 +65,8 @@ export class OperationsService {
   if(resource==='admissions'){this.allow(user,[...managers,'RECEPTIONIST']);return this.newAdmission(input,user.userId);}
   if(resource==='absences'){
    this.allow(user,['PARENT',...managers]);const data=this.parse({studentId:'ref:student!',startDate:'date!',endDate:'date!',reason:'long!'},input);await this.studentAccess(user,data.studentId);
+   if(data.endDate<data.startDate)throw new BadRequestException('Absence end date must not precede its start date');
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(String(input.startDate))||!/^\d{4}-\d{2}-\d{2}$/.test(String(input.endDate)))throw new BadRequestException('Use calendar dates for absence requests');
    if((data.endDate.getTime()-data.startDate.getTime())/86400000>30)throw new BadRequestException('Absence requests can cover up to 31 days');
    const row=await this.db.absenceRequest.create({data:{tenantId,...data,requestedBy:user.userId} as any});await this.audit(user,'ABSENCE_REQUESTED',row.id);return row;
   }

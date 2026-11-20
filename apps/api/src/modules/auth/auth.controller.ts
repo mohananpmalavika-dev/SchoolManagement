@@ -1,4 +1,6 @@
-import {Controller,Get,Post,Body,Request,HttpCode,Query,Param,Delete} from '@nestjs/common';
+import {Controller,Get,Post,Body,Request,HttpCode,Query,Param,Delete,Res,UnauthorizedException} from '@nestjs/common';
+import {ConfigService} from '@nestjs/config';
+import type {Response} from 'express';
 import {ApiTags,ApiOperation,ApiResponse} from '@nestjs/swagger';
 import {IsString,MinLength,MaxLength,IsEmail,IsOptional} from 'class-validator';
 import {AuthService} from './auth.service';
@@ -47,25 +49,76 @@ export class AuthController {
    private auth:AuthService,
    private passwordReset:PasswordResetService,
    private mfa:MfaService,
+   private config:ConfigService,
  ){}
+
+ private getCookieOptions(isRefresh = false) {
+   const isProd = this.config.get('NODE_ENV') === 'production';
+   const maxAge = isRefresh
+     ? Number(this.config.get('JWT_REFRESH_TTL_SECONDS', 604800)) * 1000
+     : Number(this.config.get('JWT_ACCESS_TTL_SECONDS', 3600)) * 1000;
+   return {
+     httpOnly: true,
+     secure: isProd,
+     sameSite: 'lax' as const,
+     path: '/',
+     maxAge,
+   };
+ }
+
+ private setAuthCookies(res: Response, accessToken?: string, refreshToken?: string) {
+   if (!res || typeof res.cookie !== 'function') return;
+   if (accessToken) {
+     res.cookie('accessToken', accessToken, this.getCookieOptions(false));
+   }
+   if (refreshToken) {
+     res.cookie('refreshToken', refreshToken, this.getCookieOptions(true));
+   }
+ }
+
+ private clearAuthCookies(res: Response) {
+   if (!res || typeof res.clearCookie !== 'function') return;
+   const isProd = this.config.get('NODE_ENV') === 'production';
+   const opts = { httpOnly: true, secure: isProd, sameSite: 'lax' as const, path: '/' };
+   res.clearCookie('accessToken', opts);
+   res.clearCookie('refreshToken', opts);
+   res.clearCookie('access_token', opts);
+   res.clearCookie('refresh_token', opts);
+ }
  
  @Public() @Post('login') @HttpCode(200) @Throttle({default:{limit:10,ttl:60000}})
  @ApiOperation({ summary: 'Login with email and password' })
  @ApiResponse({ status: 200, description: 'Successfully authenticated' })
  @ApiResponse({ status: 401, description: 'Invalid credentials or account locked' })
- login(@Body() dto:LoginDto){return this.auth.login(dto);}
+ async login(@Body() dto:LoginDto, @Res({ passthrough: true }) res: any){
+   const result = await this.auth.login(dto);
+   if ('accessToken' in result && result.accessToken) {
+     this.setAuthCookies(res, result.accessToken, result.refreshToken);
+   }
+   return result;
+ }
 
  @Public() @Post('mfa/verify-login') @HttpCode(200) @Throttle({default:{limit:10,ttl:60000}})
  @ApiOperation({ summary: 'Verify MFA code during login and obtain access tokens' })
  @ApiResponse({ status: 200, description: 'Successfully authenticated via MFA' })
  @ApiResponse({ status: 401, description: 'Invalid or expired MFA code' })
- verifyLoginMfa(@Body() dto:VerifyLoginMfaDto){
-   return this.auth.verifyMfaLogin(dto.mfaSessionToken, dto.code);
+ async verifyLoginMfa(@Body() dto:VerifyLoginMfaDto, @Res({ passthrough: true }) res: any){
+   const result = await this.auth.verifyMfaLogin(dto.mfaSessionToken, dto.code);
+   if (result.accessToken) {
+     this.setAuthCookies(res, result.accessToken, result.refreshToken);
+   }
+   return result;
  }
  
  @Public() @Post('refresh') @HttpCode(200)
  @ApiOperation({ summary: 'Refresh access token' })
- refresh(@Body() dto:RefreshTokenDto){return this.auth.refreshToken(dto.refreshToken);}
+ async refresh(@Body() dto:RefreshTokenDto, @Request() req: any, @Res({ passthrough: true }) res: any){
+   const token = dto?.refreshToken || req?.cookies?.['refreshToken'] || req?.cookies?.['refresh_token'];
+   if (!token) throw new UnauthorizedException('Refresh token missing');
+   const result = await this.auth.refreshToken(token);
+   this.setAuthCookies(res, result.accessToken);
+   return result;
+ }
  
  @Get('me') 
  @ApiOperation({ summary: 'Get current user profile' })
@@ -73,7 +126,10 @@ export class AuthController {
  
  @Post('logout') @HttpCode(200) 
  @ApiOperation({ summary: 'Logout and invalidate all tokens' })
- logout(@Request() req:any){return this.auth.logout(req.user.userId);}
+ async logout(@Request() req:any, @Res({ passthrough: true }) res: any){
+   this.clearAuthCookies(res);
+   return this.auth.logout(req.user.userId);
+ }
  
  @Post('password') @HttpCode(200) 
  @ApiOperation({ summary: 'Change password' })

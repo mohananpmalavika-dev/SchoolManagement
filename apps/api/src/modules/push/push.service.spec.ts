@@ -18,14 +18,15 @@ describe('Server background push delivery', () => {
   const keys = {p256dh: pair.getPublicKey().toString('base64url'), auth: randomBytes(16).toString('base64url')};
   const endpoint = 'https://fcm.googleapis.com/fcm/send/browser-secret';
   let db: any, service: PushService, tenants: TenantService, subscription: any, config: ConfigService;
-  const actor = {userId: 'parent'};
+  const actor = {userId: 'parent', tokenVersion: 2};
   const inSchool = <T>(work: () => T) => tenants.run(() => {tenants.setTenantId('school');return work();});
   beforeEach(() => {
     jest.clearAllMocks();
     tenants = new TenantService();
     config = new ConfigService({WEB_PUSH_PUBLIC_KEY: pair.getPublicKey().toString('base64url'), WEB_PUSH_PRIVATE_KEY: pair.getPrivateKey().toString('base64url'), WEB_PUSH_SUBJECT: 'mailto:school@example.test'});
     subscription = {id: 'device', tenantId: 'school', userId: 'parent', tokenVersion: 2,
-      endpoint, endpointHash: pushEndpointHash(endpoint), ...keys, cursorAt: new Date('2026-01-01'), cursorId: '', retryCount: 0};
+      endpoint, endpointHash: pushEndpointHash(endpoint), ...keys, cursorAt: new Date('2026-01-01'), cursorId: '', retryCount: 0,
+      updatedAt: new Date('2026-01-01')};
     db = {
       user: {findFirst: jest.fn().mockResolvedValue({id: 'parent', tenantId: 'school', isActive: true, tokenVersion: 2})},
       pushSubscription: {
@@ -46,7 +47,7 @@ describe('Server background push delivery', () => {
 
   it('saves browser subscriptions for the authenticated user and school', async () => {
     await inSchool(() => service.subscribe(actor, {endpoint, keys, expirationTime: null}));
-    expect(db.user.findFirst).toHaveBeenCalledWith({where: {id: 'parent', tenantId: 'school', isActive: true}});
+    expect(db.user.findFirst).toHaveBeenCalledWith({where: {id: 'parent', tenantId: 'school', isActive: true, tokenVersion: 2}});
     expect(db.pushSubscription.upsert.mock.calls[0][0].create).toMatchObject({tenantId: 'school', userId: 'parent', tokenVersion: 2, endpointHash: pushEndpointHash(endpoint)});
     expect(db.pushSubscription.upsert.mock.calls[0][0].create.cursorAt).toBeInstanceOf(Date);
   });
@@ -55,6 +56,13 @@ describe('Server background push delivery', () => {
     db.pushSubscription.findUnique.mockResolvedValue(subscription);
     await inSchool(() => service.subscribe(actor, {endpoint, keys}));
     expect(db.pushSubscription.upsert.mock.calls[0][0].update).not.toHaveProperty('cursorAt');
+  });
+
+  it('does not bind a session revoked after its request was authenticated', async () => {
+    db.user.findFirst.mockImplementation(async ({where}: any) => where.tokenVersion === 3
+      ? {id: 'parent', tokenVersion: 3} : null);
+    await expect(inSchool(() => service.subscribe(actor, {endpoint, keys}))).rejects.toThrow('Sign in again');
+    expect(db.pushSubscription.upsert).not.toHaveBeenCalled();
   });
 
   it('rejects concurrent ownership conflicts instead of overwriting another browser binding', async () => {
@@ -100,6 +108,22 @@ describe('Server background push delivery', () => {
     await service.dispatch();expect(send).not.toHaveBeenCalled();
   });
 
+  it.each([
+    {userId: 'new-account'}, {tokenVersion: 3}, {cursorId: 'already-sent'},
+    {cursorAt: new Date('2026-11-19')}, {updatedAt: new Date('2026-11-19')},
+  ])('discards a scanned device changed before lease acquisition: %p', async change => {
+    const current = {...subscription, ...change};
+    // Model the database's conditional update after a concurrent rebind or delivery.
+    db.pushSubscription.updateMany.mockImplementation(async ({where}: any) => ({count:
+      ['userId','tokenVersion','cursorAt','cursorId','updatedAt'].every(key => !(key in where) ||
+        (where[key] instanceof Date ? where[key].getTime() === current[key].getTime() : where[key] === current[key])) ? 1 : 0,
+    }));
+    await service.dispatch();
+    expect(send).not.toHaveBeenCalled();
+    expect(db.user.findFirst).not.toHaveBeenCalled();
+    expect(db.pushSubscription.deleteMany).toHaveBeenCalledTimes(1); // Only the expired-device sweep.
+  });
+
   it('does not send historical/read messages when no new unread inbox update exists', async () => {
     db.communicationLog.findFirst.mockResolvedValue(null);
     await service.dispatch();expect(send).not.toHaveBeenCalled();
@@ -143,6 +167,15 @@ describe('Server background push delivery', () => {
     db.pushSubscription.findFirst.mockResolvedValue(null);
     await expect(inSchool(() => service.test(actor, {endpoint}))).rejects.toThrow('Enable notifications');
     expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not report a revoked device binding as enabled or send a test through it', async () => {
+    await inSchool(() => service.status(actor, {endpoint}));
+    expect(db.pushSubscription.findFirst.mock.calls[0][0].where.tokenVersion).toBe(2);
+    db.pushSubscription.findFirst.mockResolvedValue({...subscription, tokenVersion: 1,
+      user: {isActive: true, tokenVersion: 2}});
+    await expect(inSchool(() => service.test(actor, {endpoint}))).rejects.toThrow('Enable notifications');
+    expect(send).not.toHaveBeenCalled();
   });
 
   it.each(['http://fcm.googleapis.com/a', 'https://127.0.0.1/admin', 'https://fcm.googleapis.com.evil.test/x', 'https://fcm.googleapis.com:8443/x', 'https://user:secret@fcm.googleapis.com/x', 'https://school.example.test/api', 'not-a-url'])('rejects arbitrary outbound endpoint %s', url => {

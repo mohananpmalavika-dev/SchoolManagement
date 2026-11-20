@@ -8,7 +8,7 @@ const suites = [
   'ui-redesign', 'navigation-ui', 'single-sign-in', 'preschool-ui',
   'school-payments-ui', 'school-records-ui', 'chat-ui', 'meetings-ui',
   'teacher-ai-ui', 'advanced-analytics-ui', 'predictive-analytics-ui',
-  'modern-workspace-ui', 'api-proxy',
+  'modern-workspace-ui', 'api-proxy', 'durable-modules-ui',
 ].filter(suite => !process.env.UI_SUITES || process.env.UI_SUITES.split(',').includes(suite));
 const results = [];
 for (const suite of suites) {

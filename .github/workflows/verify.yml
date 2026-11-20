@@ -39,6 +39,11 @@ jobs:
       - run: pnpm build
       - run: pnpm type-check
       - run: pnpm --filter @krypton/web lint
+      - name: Verify operator commands and CI acceptance gate
+        run: node --test scripts/test-operations.cjs
+      - name: Validate production Compose inheritance and isolation
+        run: node scripts/test-production-compose.cjs
+      - run: pnpm db:deploy && pnpm db:seed:demo
       - run: pnpm exec playwright install --with-deps chromium
       - name: Verify preschool staff and family browser workflows
         run: |
@@ -47,24 +52,18 @@ jobs:
           pnpm test:ui:all
         env:
           UI_BASE_URL: http://127.0.0.1:3102
-      - run: pnpm --filter @krypton/api test -- --runInBand
-      - run: pnpm db:deploy && pnpm db:seed:demo
-      - name: Verify preschool database transactions and tenant constraints
-        run: pnpm --filter @krypton/api test -- --runInBand preschool.integration.spec
+      - name: Verify all API suites with PostgreSQL and browser checks; reject skips
+        run: |
+          mkdir -p qa/ci
+          pnpm --filter @krypton/api test -- --runInBand --json --outputFile=../../qa/ci/api-results.json
+          node scripts/check-jest-results.cjs qa/ci/api-results.json
         env:
           PRESCHOOL_TEST_DATABASE_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_qa
-      - name: Verify school permissions, billing and family inbox workflows
-        run: pnpm test:db:school
-        env:
           SCHOOL_TEST_DATABASE_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_qa
+          COMPLIANCE_TEST_DATABASE_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_qa
           SCHOOL_UI_BASE_URL: http://127.0.0.1:3102
-      - name: Verify real two-browser video and shared board
-        # The optimized web server started above remains available to two isolated browsers.
-        run: |
-          pnpm test:db:live
-        env:
-          SCHOOL_TEST_DATABASE_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_qa
           LIVE_UI_BASE_URL: http://127.0.0.1:3102
+          COMPLIANCE_UI_BASE_URL: http://127.0.0.1:3102
       - name: Replay migrations and verify historical data preservation
         run: |
           createdb -h 127.0.0.1 -p 15432 -U krypton_qa krypton_migrations_test
@@ -72,6 +71,17 @@ jobs:
         env:
           PGPASSWORD: local-qa-only
           PRESCHOOL_MIGRATION_TEST_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/krypton_migrations_test
+      - name: Verify HR statutory profiles, salary revisions and payroll period locking
+        run: |
+          createdb -h 127.0.0.1 -p 15432 -U krypton_qa hrms_rules_test
+          pnpm --filter @krypton/database db:migrate:deploy
+          node scripts/test-hrms-workflows.cjs
+          node scripts/test-hrms-ui.mjs
+        env:
+          PGPASSWORD: local-qa-only
+          DATABASE_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/hrms_rules_test
+          HRMS_TEST_DATABASE_URL: postgresql://krypton_qa:local-qa-only@127.0.0.1:15432/hrms_rules_test
+          UI_BASE_URL: http://127.0.0.1:3102
       - name: Rehearse encrypted database backup and recovery
         run: |
           export PATH="/usr/lib/postgresql/16/bin:$PATH"
@@ -84,6 +94,19 @@ jobs:
           SCHOOL_BACKUP_RESTORE_DATABASE: krypton_backup_restore_test
       - run: |
           node apps/api/dist/main.js > api.log 2>&1 &
-          for i in $(seq 1 30); do curl -fsS http://localhost:3001/api/v1/health && break || sleep 2; done
+          for i in $(seq 1 30); do curl -fsS http://localhost:3001/api/v1/health/ready && break || sleep 2; done
+          curl -fsS http://localhost:3001/api/v1/health/ready
           pnpm test:smoke
       - run: pnpm audit --prod --audit-level high
+      - name: Retain test reports and startup logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-evidence-${{ github.run_id }}
+          path: |
+            qa/
+            api.log
+            preschool-web.log
+            playwright-report/
+            test-results/
+          retention-days: 14

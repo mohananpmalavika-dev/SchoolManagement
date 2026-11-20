@@ -37,6 +37,12 @@ export class EmailService {
     this.initializeTransporter();
   }
 
+  async checkConnectivity() {
+    if (!this.transporter) return 'unconfigured' as const;
+    await this.transporter.verify();
+    return 'healthy' as const;
+  }
+
   /**
    * Initialize nodemailer transporter
    */

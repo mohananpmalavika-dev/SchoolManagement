@@ -12,7 +12,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setLoading] = useState(true);
   const router = useRouter();
   const refreshUser = async () => {
-    if (!localStorage.getItem('accessToken')) { setUser(null); return; }
+    if (!localStorage.getItem('accessToken') && !localStorage.getItem('user')) { setUser(null); return; }
     const { data } = await apiClient.get<User>('/auth/me');
     setUser(data); localStorage.setItem('user', JSON.stringify(data));
   };
@@ -28,10 +28,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigator.serviceWorker?.addEventListener('message', changed);
     return () => navigator.serviceWorker?.removeEventListener('message', changed);
   }, [user?.id, user?.tenantId]);
-  const finishLogin = (response: { accessToken: string; refreshToken: string; user: User }) => {
-    if (!response.accessToken || !response.refreshToken || !response.user?.role) throw new Error('Invalid sign-in response. Please try again.');
-    localStorage.setItem('accessToken', response.accessToken);
-    localStorage.setItem('refreshToken', response.refreshToken);
+  const finishLogin = (response: { accessToken?: string; refreshToken?: string; user: User }) => {
+    if (!response.user?.role) throw new Error('Invalid sign-in response. Please try again.');
+    const useCookieAuth = process.env.NEXT_PUBLIC_AUTH_STORAGE === 'cookie' || (process.env.NEXT_PUBLIC_AUTH_STORAGE !== 'localStorage' && process.env.NODE_ENV === 'production');
+    if (useCookieAuth) {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+    } else {
+      if (response.accessToken) localStorage.setItem('accessToken', response.accessToken);
+      if (response.refreshToken) localStorage.setItem('refreshToken', response.refreshToken);
+    }
     localStorage.setItem('user', JSON.stringify(response.user));
     setUser(response.user); router.replace(homeForRole(response.user.role));
   };

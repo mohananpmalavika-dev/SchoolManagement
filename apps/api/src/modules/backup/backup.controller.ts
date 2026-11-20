@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Param, Query, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Param, Query, UseGuards, HttpCode, HttpStatus, GoneException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { BackupService, BackupResult, RestoreResult } from './backup.service';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -44,17 +44,17 @@ export class BackupController {
   @Roles(UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ 
-    summary: 'Restore database from backup (DANGEROUS - requires confirmation)',
-    description: 'WARNING: This will overwrite existing data. Use with extreme caution!'
+    summary: 'Online restore retired (HTTP 410)',
+    description: 'Use the operator CLI to restore into a separate empty database and verify reviewed counts.'
   })
-  @ApiQuery({ name: 'targetDatabase', required: false, description: 'Target database name (defaults to current database)' })
+  @ApiQuery({ name: 'targetDatabase', required: false, description: 'Deprecated; use the operator CLI' })
   @ApiResponse({ status: 200, description: 'Restore completed' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async restoreBackup(
     @Param('backupId') backupId: string,
     @Query('targetDatabase') targetDatabase?: string,
   ): Promise<RestoreResult> {
-    return this.backupService.restoreBackup(backupId, targetDatabase);
+    throw new GoneException('Online database restore is disabled. Use the operator restore command with a separate empty target and reviewed verification counts.');
   }
 
   @Delete('prune')

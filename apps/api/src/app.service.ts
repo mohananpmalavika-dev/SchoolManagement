@@ -23,6 +23,6 @@ export class AppService {
       redis: results[1].status === 'fulfilled' && results[1].value === 'PONG' ? 'healthy' : 'unhealthy',
     };
     if (Object.values(checks).some(status => status !== 'healthy')) throw new ServiceUnavailableException('A required service is unavailable');
-    return {...this.getHealth(), checks};
+    return {...this.getHealth(), checks, scope:'core-api', operationsHealth:'/api/v1/ops/health'};
   }
 }

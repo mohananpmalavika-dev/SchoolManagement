@@ -1,5 +1,6 @@
 # Dependencies
 node_modules
+/scratch/hrms-postgres-test/
 .pnp
 .pnp.js
 
@@ -88,3 +89,9 @@ scratch/preschool/
 
 .next-master-setup
 apps/web/.next-master-setup
+.secrets/
+.operations-secrets/
+
+# Isolated recruitment workflow verification databases.
+/scratch/recruitment-postgres-test/
+/scratch/recruitment-verification-test/

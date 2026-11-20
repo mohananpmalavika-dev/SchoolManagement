@@ -12,7 +12,7 @@ import { TenantService } from '../../database/tenant.service';
 import { PushEndpointDto, SavePushSubscriptionDto } from './push.dto';
 import { pushEndpointHash, validatePushKeys } from './push-endpoint';
 
-interface PushActor { userId: string }
+interface PushActor { userId: string; tokenVersion: number }
 @Injectable()
 export class PushService {
   private readonly logger = new Logger(PushService.name);
@@ -39,8 +39,8 @@ export class PushService {
     // A browser endpoint is shared by accounts using the same profile. Possession
     // of both browser keys permits rebinding on sign-in without retaining the old user.
     return this.tenants.run(() => this.db.$transaction(async tx => {
-      const user = await tx.user.findFirst({ where: { id: actor.userId, tenantId, isActive: true } });
-      if (!user) throw new ConflictException('An active school account is required');
+      const user = await tx.user.findFirst({ where: { id: actor.userId, tenantId, isActive: true, tokenVersion: actor.tokenVersion } });
+      if (!user) throw new ConflictException('An active school session is required. Sign in again before enabling notifications');
       const previous = await tx.pushSubscription.findUnique({ where: { endpointHash } });
       if (previous && (previous.p256dh !== input.keys.p256dh || previous.auth !== input.keys.auth))
         throw new ConflictException('This endpoint has different browser keys. Reset the browser subscription');
@@ -60,7 +60,7 @@ export class PushService {
 
   async status(actor: PushActor, input: PushEndpointDto) {
     const row = await this.db.pushSubscription.findFirst({ where: {
-      tenantId: this.tenants.requireTenantContext(), userId: actor.userId, endpointHash: pushEndpointHash(input.endpoint),
+      tenantId: this.tenants.requireTenantContext(), userId: actor.userId, tokenVersion: actor.tokenVersion, endpointHash: pushEndpointHash(input.endpoint),
     }, select: { id: true, lastPushAt: true, lastError: true } });
     return { subscribed: !!row, lastPushAt: row?.lastPushAt || null, lastError: row?.lastError || null };
   }
@@ -88,7 +88,7 @@ export class PushService {
     this.requireConfiguration();
     const tenantId = this.tenants.requireTenantContext();
     const row = await this.db.pushSubscription.findFirst({ where: { tenantId, userId: actor.userId, endpointHash: pushEndpointHash(input.endpoint) }, include: { user: true } });
-    if (!row || !row.user.isActive || row.tokenVersion !== row.user.tokenVersion) throw new ConflictException('Enable notifications on this device first');
+    if (!row || !row.user.isActive || row.tokenVersion !== row.user.tokenVersion || row.tokenVersion !== actor.tokenVersion) throw new ConflictException('Enable notifications on this device first');
     try {
       await this.send(row, 'test-' + randomUUID(), true);
       return { accepted: true, message: 'The push provider accepted the test notification' };
@@ -123,11 +123,16 @@ export class PushService {
     return this.tenants.run(async () => {
       const tenantId = subscription.tenantId; this.tenants.setTenantId(tenantId);
       const leaseToken = randomUUID(), now = new Date();
+      // A scan can outlive a rebind, revocation or another delivery. Claim only
+      // the scanned revision so stale work cannot change a newer device binding.
       const claimed = await this.db.pushSubscription.updateMany({ where: {
-        id: subscription.id, tenantId, nextAttemptAt: { lte: now }, OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }],
+        id: subscription.id, tenantId, userId: subscription.userId,
+        tokenVersion: subscription.tokenVersion, cursorAt: subscription.cursorAt, cursorId: subscription.cursorId,
+        updatedAt: subscription.updatedAt,
+        nextAttemptAt: { lte: now }, OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }],
       }, data: { leaseToken, leaseUntil: new Date(Date.now() + 60000) } });
       if (!claimed.count) return;
-      const owned = { id: subscription.id, tenantId, userId: subscription.userId, leaseToken };
+      const owned = { id: subscription.id, tenantId, userId: subscription.userId, tokenVersion: subscription.tokenVersion, leaseToken };
       const release = { leaseToken: null, leaseUntil: null, nextAttemptAt: new Date(Date.now() + 10000) };
       try {
         const user = await this.db.user.findFirst({ where: { id: subscription.userId, tenantId, isActive: true,

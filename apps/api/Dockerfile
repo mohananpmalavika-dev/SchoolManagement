@@ -9,6 +9,14 @@ RUN pnpm --filter @krypton/api deploy --prod --ignore-scripts /runtime
 WORKDIR /app/apps/api
 RUN node -e "const fs=require('fs'),path=require('path');const client=path.dirname(require.resolve('@prisma/client/package.json'));fs.cpSync(path.resolve(client,'../../.prisma'),'/runtime/node_modules/.prisma',{recursive:true});"
 
+FROM build AS operations
+RUN apk add --no-cache postgresql16-client
+RUN mkdir -p /app/backups && chown node:node /app/backups
+USER node
+WORKDIR /app
+ENTRYPOINT ["node", "scripts/operations.cjs"]
+CMD ["backup"]
+
 FROM build AS migrations
 WORKDIR /app
 CMD ["node", "packages/database/node_modules/prisma/build/index.js", "migrate", "deploy", "--schema", "packages/database/prisma/schema.prisma"]

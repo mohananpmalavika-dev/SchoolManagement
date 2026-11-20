@@ -176,20 +176,12 @@ describe('BackupService', () => {
     });
 
     it('should verify a valid backup successfully', async () => {
-      // Skip if no database available
-      jest.setTimeout(60000);
-
-      // Create a backup first
-      const backupResult = await service.createBackup();
-
-      if (backupResult.success) {
-        // Verify the backup
-        const verifyResult = await service.verifyBackup(backupResult.backupId);
-        expect(verifyResult).toBe(true);
-      } else {
-        // Skip test if backup creation failed
-        console.log('Skipping verification test - no database available');
-      }
+      // Archive verification has no database dependency. Actual pg_dump/restore
+      // is a separate mandatory CI rehearsal and must fail when unavailable.
+      const id='backup_20261120_000000_valid', input=path.join(mockConfigService.get('BACKUP_DIR'),'fixture.gz');
+      fs.writeFileSync(input,require('zlib').gzipSync('CREATE TABLE restore_probe(id integer);'));
+      await (service as any).encryptFile(input,path.join(mockConfigService.get('BACKUP_DIR'),id+'.sql.gz.enc'));
+      expect(await service.verifyBackup(id)).toBe(true);
     }, 60000);
 
     it('should detect corrupted backup file', async () => {

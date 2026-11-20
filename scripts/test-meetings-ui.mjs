@@ -15,6 +15,7 @@ async function session(role){
   const method=route.request().method(),body=route.request().postDataJSON();requests.push({path,method,body});
   const ok=data=>route.fulfill({json:{success:true,data}});
   if(path==='/api/auth/me')return ok({id:'user-1',firstName:role==='PARENT'?'Family':'Teacher',lastName:'Mwangi',email:'qa@example.test',role,tenantId:'school-1'});
+  if(path==='/api/preschool/navigation')return ok({programme:'STANDARD'});
   if(path==='/api/bookings/options')return ok({teachers:[{id:'teacher-1',name:'Teacher Mwangi'}],...(role==='PARENT'?{guardianId:'guardian-1'}:{teacherId:'teacher-1'})});
   if(path==='/api/bookings')return ok(meeting?[meeting]:[]);
   if(path==='/api/workspace/children')return ok([{id:'student-1',firstName:'Learner',lastName:'One'}]);

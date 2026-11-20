@@ -60,18 +60,33 @@ try {
   assert.equal(data.authorization, 'Bearer fixture-access');
   assert.equal(data.tenant, 'fixture-school');
   checks.push('Real HTTP sign-in routing preserves request JSON and authorization headers');
-  const legacy = await fetch(base + '/api/admissions/fixture-id/stage?mode=review', {
+  const legacy = await fetch(base + '/api/v1/operations/admissions/fixture-id/accept?mode=review', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer fixture-access' },
-    body: '{"stage":"ACCEPTED"}',
+    body: '{"data":{}}',
   });
   const saved = await legacy.json();
   assert.equal(legacy.status, 200, JSON.stringify(saved));
-  assert.equal(saved.path, '/api/v1/admissions/fixture-id/stage');
+  assert.equal(saved.path, '/api/v1/operations/admissions/fixture-id/accept');
   assert.equal(saved.authorization, 'Bearer fixture-access');
-  assert.equal(saved.body, '{"stage":"ACCEPTED"}');
+  assert.equal(saved.body, '{"data":{}}');
   assert.equal(saved.query, '?mode=review');
-  checks.push('Existing server API route handlers forward legacy paths, bodies and credentials');
+  checks.push('Durable school operations preserve mutation JSON, queries and credentials');
+  for (const [path, method] of [
+    ['/api/admissions', 'GET'], ['/api/admissions/fixture-id/stage', 'POST'],
+    ['/api/admissions/fixture-id', 'GET'], ['/api/ptm/slots/fixture-id', 'PATCH'],
+    ['/api/substitution/assignments', 'POST'], ['/api/smart-attendance/qr-scan', 'POST'],
+    ['/api/ptm/book', 'POST'], ['/api/transport/trip/start', 'POST'],
+    ['/api/transport/parent/fixture-id', 'GET'],
+  ]) {
+    const response = await fetch(base + path, { method });
+    const retired = await response.json();
+    assert.equal(response.status, 410, JSON.stringify(retired));
+    assert.equal(retired.success, false);
+    assert.ok(retired.replacement.startsWith('/api/v1/'));
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+  }
+  checks.push('Retired preview APIs return 410 with production replacements, never fake records or saves');
   await mkdir('qa/proxy', { recursive: true });
   await writeFile(
     'qa/proxy/results.json',

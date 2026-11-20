@@ -7,6 +7,8 @@ node_modules
 .ssh
 .codex
 .agents
+.secrets
+.operations-secrets
 **/*.pem
 **/*.key
 test-results

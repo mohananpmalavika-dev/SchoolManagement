@@ -16,9 +16,9 @@ module.exports = {
   },
   async rewrites() {
     const backend = (process.env.API_URL || 'http://localhost:3001').replace(/\/$/, '');
-    return [
+    return { fallback: [
       { source: '/api/v1/:path*', destination: `${backend}/api/v1/:path*` },
       { source: '/api/:path*', destination: `${backend}/api/v1/:path*` },
-    ];
+    ] };
   },
 };
