@@ -107,7 +107,7 @@ try {
     }
     if (role === 'ACCOUNTANT') {
       await page.goto(base + '/school/whatsapp');
-      await page.waitForURL('**/school/dashboard');
+      await page.getByRole('heading', { name: 'Access denied', exact: true }).waitFor();
       assert.equal(await page.getByRole('heading', { name: 'WhatsApp messages', exact: true }).count(), 0);
     }
     checks.push(role + ' / ' + programme + ': scoped menus, valid routes and correct landing page');

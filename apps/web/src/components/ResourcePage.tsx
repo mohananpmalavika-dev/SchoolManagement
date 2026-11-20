@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api-client';
 import { getRows, messageFor, exportCsv, money, dateLabel } from '@/lib/workspace';
 import { useAuth } from '@/contexts/AuthContext';
 import { educationLevelLabels, preschoolStages } from '@/lib/academic-setup';
+import { canActOnResource, canWriteResource } from '@/lib/resource-access';
 export interface Column { key: string; label: string; format?: 'money' | 'date' | 'status' }
 interface Props { title: string; description: string; endpoint: string; columns: Column[]; fields?: Field[]; editable?: boolean; createAllowed?: boolean; action?: { label: string; path: string } }
 const directories = new Set(['students', 'guardians', 'staff', 'schools', 'users', 'books', 'materials']);
@@ -15,18 +16,12 @@ export function ResourcePage({ title, description, endpoint, columns, fields, ed
   const { user } = useAuth();
   const role = user?.role || '';
   const resource = endpoint.split('/').filter(Boolean).at(-1) || '';
-  const deputyRestricted = ['guardians','guardian-links','staff','books','borrowings','vehicles','routes','invoices','payments','assignments','materials'].includes(resource);
-  const canWrite = !!fields && (
-    resource === 'tickets' && ['ACCOUNTANT','LIBRARIAN','TRANSPORT_OFFICER','RECEPTIONIST','AUDITOR'].includes(role) ||
-    ['TEACHER', 'CLASS_TEACHER', 'EXAM_OFFICER'].includes(role) && /assignments|materials|submissions/.test(endpoint) ||
-    ['SUPER_ADMIN', 'SCHOOL_OWNER', 'PRINCIPAL', 'SCHOOL_ADMIN'].includes(role) || role === 'DEPUTY_PRINCIPAL' && !deputyRestricted ||
-    role === 'ACCOUNTANT' && /invoices|payments/.test(endpoint) ||
-    role === 'LIBRARIAN' && /books|borrowings/.test(endpoint) ||
-    role === 'TRANSPORT_OFFICER' && /vehicles|routes/.test(endpoint) ||
-    role === 'RECEPTIONIST' && /students|guardians|guardian-links/.test(endpoint));
   const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [denied, setDenied] = useState(false);
+  const canWrite = !!fields && !loading && !error && !denied && canWriteResource(role, endpoint);
+  const canAct = !!action && !loading && !error && !denied && canActOnResource(role, endpoint, action.path);
   const [notice, setNotice] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -60,8 +55,14 @@ export function ResourcePage({ title, description, endpoint, columns, fields, ed
   };
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setRows(await getRows(endpoint)); } catch (err) { setError(messageFor(err)); } finally { setLoading(false); }
-  }, [endpoint, setLoading, setError, setRows]);
+    try { setRows(await getRows(endpoint)); setDenied(false); }
+    catch (err) {
+      setError(messageFor(err));
+      if ((err as { response?: { status?: number } }).response?.status === 403) {
+        setDenied(true); setRows([]); setPreview(undefined); setModal(false); setSelected(undefined);
+      }
+    } finally { setLoading(false); }
+  }, [endpoint, setLoading, setError, setRows, setDenied, setPreview, setModal, setSelected]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { setPage(1); }, [search, status, sort, pageSize, endpoint]);
   const statusKey = columns.find(column => column.format === 'status')?.key;
@@ -92,17 +93,16 @@ export function ResourcePage({ title, description, endpoint, columns, fields, ed
   const clearFilters = () => { setSearch(''); setStatus(''); };
   function toggleSort(key: string) { setSort(current => current?.key === key && current.direction === 'desc' ? null : { key, direction: current?.key === key ? 'desc' : 'asc' }); }
   async function run(row: Record<string, any>) {
-    if (busy || !action) return;
+    if (busy || !action || !canAct) return;
     setBusy(row.id); setError('');
     try { await apiClient.post(endpoint + '/' + row.id + '/' + action.path); setNotice(action.label + ' completed.'); await load(); }
     catch (err) { setError(messageFor(err)); } finally { setBusy(null); }
   }
   const recordLabel = resource === 'classes' ? 'class' : resource === 'streams' ? 'section' : resource === 'years' ? 'school year' : resource === 'terms' ? 'term' : title === 'People & access' ? 'user' : title === 'Students' ? 'student' : title === 'Guardians' ? 'guardian' : title === 'Staff' ? 'staff member' : 'record';
-  const canAct = !!action && (role === 'SUPER_ADMIN' || ['SCHOOL_OWNER','PRINCIPAL','SCHOOL_ADMIN'].includes(role) || role === 'DEPUTY_PRINCIPAL' && !deputyRestricted || role === 'LIBRARIAN' && resource === 'borrowings');
   const showActions = editable && canWrite || canAct;
   const primaryName = (row: Record<string, any>) => String(row[columns[0]?.key] ?? row.name ?? row.title ?? 'Record');
   const initials = (name: string) => name.split(' ').filter(Boolean).slice(0, 2).map(word => word[0]).join('');
-  const edit = (row: Record<string, any>) => { setSelected(row); setModal(true); };
+  const edit = (row: Record<string, any>) => { if (canWrite && editable) { setSelected(row); setModal(true); } };
   function value(column: Column, row: Record<string, any>) {
     if (column.key === 'isCurrent') return row.isCurrent ? 'Current' : '—';
     if (column.key === 'educationLevel') return educationLevelLabels[row[column.key]] || row[column.key] || '—';
@@ -112,6 +112,7 @@ export function ResourcePage({ title, description, endpoint, columns, fields, ed
     if (column.format === 'date') return dateLabel(row[column.key]);
     return String(row[column.key] ?? '\u2014');
   }
+  if (denied) return <div className="state-box" role="alert"><h1>Access denied</h1><p>{error || 'Your role does not have access to these records.'}</p><Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}>Retry</Button></div>;
   return <div className="resource-workspace">
     <PageHeading eyebrow={directories.has(resource) ? 'Your directory' : 'School records'} title={title} description={description} actions={<><Button size="sm" variant="outline" leftIcon={<Download size={15}/>} disabled={loading || !!error || !filtered.length} onClick={() => exportCsv(title, columns, filtered)}>Export CSV</Button>{canWrite && createAllowed && <Button size="sm" leftIcon={<Plus size={16}/>} onClick={() => setModal(true)}>Add {recordLabel}</Button>}</>}/>
     {notice && <div role="status" className="state-box success flex items-center justify-between gap-4">{notice}<button className="icon-button" aria-label="Dismiss confirmation" onClick={() => setNotice('')}><X size={16}/></button></div>}
@@ -129,6 +130,6 @@ export function ResourcePage({ title, description, endpoint, columns, fields, ed
     <dialog ref={previewDialog} className="record-detail-dialog" aria-labelledby={previewTitle} onCancel={() => setPreview(undefined)} onClose={() => setPreview(undefined)} onClick={event => { if (event.target === event.currentTarget) setPreview(undefined); }}>
       {preview && <><div className="record-detail-header"><span className="eyebrow">{title} / Record overview</span><button className="icon-button" aria-label="Close record preview" onClick={() => setPreview(undefined)}><X size={19}/></button></div><div className="record-detail-identity"><span className="record-avatar">{initials(primaryName(preview))}</span><h2 id={previewTitle}>{primaryName(preview)}</h2>{statusKey && <StatusPill value={String(preview[statusKey] ?? 'UNKNOWN')}/>}</div><div className="record-detail-body"><h3>Record details</h3><dl>{columns.slice(1).filter(column => column.key !== statusKey).map(column => <div key={column.key}><dt>{column.label}</dt><dd>{value(column, preview)}</dd></div>)}{fields?.filter(field => !columns.some(column => column.key === field.key) && ['date','email','textarea'].includes(field.type || '') && preview[field.key] != null && preview[field.key] !== '').map(field => <div key={field.key}><dt>{field.label}</dt><dd>{field.type === 'date' ? dateLabel(preview[field.key]) : String(preview[field.key])}</dd></div>)}</dl></div><div className="record-detail-footer"><Button variant="outline" onClick={() => setPreview(undefined)}>Close preview</Button>{editable && canWrite && <Button leftIcon={<Pencil size={15}/>} onClick={() => { previewDialog.current?.close(); setPreview(undefined); edit(preview); }}>Edit details</Button>}</div></>}
     </dialog>
-    {modal && fields && <RecordModal title={selected ? 'Edit ' + recordLabel : 'Add ' + recordLabel} endpoint={endpoint} fields={fields} initial={selected} onClose={close} onSaved={() => {close();setNotice('Record saved successfully.');void load();}}/>}
+    {modal && fields && canWrite && (selected ? editable : createAllowed) && <RecordModal title={selected ? 'Edit ' + recordLabel : 'Add ' + recordLabel} endpoint={endpoint} fields={fields} initial={selected} onClose={close} onSaved={() => {close();setNotice('Record saved successfully.');void load();}}/>}
   </div>;
 }

@@ -28,11 +28,25 @@ export function preschoolSectionsFor(role: string): PreschoolSection[] {
   return [];
 }
 export function navigationMatches(href: string, pathname: string, section: string | null): boolean {
-  const aliases: Record<string, string> = { '/student/academics': '/student/grades', '/student/library': '/student/materials', '/school/fees/preview': '/school/analytics', '/school/transport/driver': '/school/transport', '/dashboard/transport': '/parent/transport', '/driver': '/school/transport' };
-  pathname = aliases[pathname] || pathname;
+  pathname = workspaceDestination(pathname);
   const [path, query] = href.split('?');
   const targetSection = new URLSearchParams(query).get('section');
   return (pathname === path || path !== '/dashboard' && pathname.startsWith(path + '/')) && (!targetSection || targetSection === (section || 'daily'));
+}
+function workspaceDestination(pathname: string): string {
+  const aliases: Record<string, string> = { '/student/academics': '/student/grades', '/student/library': '/student/materials', '/school/fees/preview': '/school/analytics', '/school/transport/driver': '/school/transport', '/dashboard/transport': '/parent/transport', '/driver': '/school/transport' };
+  return aliases[pathname] || pathname;
+}
+export function canAccessWorkspacePage(portal: Portal, role: string, pathname: string): boolean {
+  // Use exact destinations: access to fees must not also grant payment settings.
+  // Programme availability is handled separately by the shell and module APIs.
+  const destinations = navigationFor(portal, role, 'COMBINED').flatMap(group => group.items);
+  if (!destinations.length) return false;
+  if (pathname === '/account' || pathname.startsWith('/account/') || pathname === '/notifications') return true;
+  if (portal === 'admin' && pathname === '/admin/admissions') return true; // Legacy redirect.
+  if (portal === 'student' && pathname === '/student') return true; // Dashboard redirect.
+  const destination = workspaceDestination(pathname);
+  return destinations.some(item => item.href.split('?')[0] === destination);
 }
 export function navigationFor(portal: Portal, role: string, programme: string = 'STANDARD'): NavigationGroup[] {
   const allowed = portal === 'admin' ? role === 'SUPER_ADMIN' : portal === 'school' ? schoolRoles.includes(role) : portal === 'teacher' ? teacherRoles.includes(role) : role === (portal === 'parent' ? 'PARENT' : 'STUDENT');
