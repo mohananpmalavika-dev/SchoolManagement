@@ -1,6 +1,5 @@
 # Dependencies
 node_modules
-/scratch/hrms-postgres-test/
 .pnp
 .pnp.js
 
@@ -11,7 +10,8 @@ coverage
 
 # Next.js
 .next
-.next-flow*/
+.next*/
+**/.next*/
 out
 build
 dist
@@ -64,6 +64,9 @@ docker-compose.override.yml
 tmp
 temp
 *.tmp
+scratch/
+/scratch/
+**/scratch/
 
 # OS
 Thumbs.db
@@ -75,23 +78,5 @@ dependency-audit*.json
 *.tsbuildinfo
 .env.qa
 
-# Isolated redesign verification build
-.next-redesign/
-.next-design*/
-
-# Isolated modern workspace previews and checks
-.next-modern*/
-.next-preschool*/
-scratch/preschool/
-# Isolated government workflow verification infrastructure.
-/scratch/compliance-postgres/
-/apps/web/.next-compliance*/
-
-.next-master-setup
-apps/web/.next-master-setup
 .secrets/
 .operations-secrets/
-
-# Isolated recruitment workflow verification databases.
-/scratch/recruitment-postgres-test/
-/scratch/recruitment-verification-test/
