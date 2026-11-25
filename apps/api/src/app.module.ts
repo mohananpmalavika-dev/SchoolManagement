@@ -39,7 +39,6 @@ import { BookingsModule } from './modules/bookings/bookings.module';
 import { ParentPortalModule } from './modules/parent-portal/parent-portal.module';
 import { GovernmentModule } from './modules/government/government.module';
 import { BackupModule } from './modules/backup/backup.module';
-import { CertificatesModule } from './modules/certificates/certificates.module';
 import { ParentEngagementNotificationsModule } from './modules/parent-engagement-notifications/parent-engagement-notifications.module';
 import { HrmsModule } from './modules/hrms/hrms.module';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -115,7 +114,6 @@ import { PushModule } from './modules/push/push.module';
     ParentPortalModule,
     GovernmentModule,
     BackupModule,
-    CertificatesModule,
     ParentEngagementNotificationsModule,
     HrmsModule,
   ],
@@ -132,8 +130,8 @@ import { PushModule } from './modules/push/push.module';
   ],
 })
 export class AppModule implements NestModule {
- constructor(private tenants:TenantService){}
- configure(consumer:MiddlewareConsumer){
-  consumer.apply((req:any,res:any,next:()=>void)=>this.tenants.run(next),TenantResolutionMiddleware).forRoutes('{*path}');
- }
+  constructor(private tenants: TenantService) { }
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply((req: any, res: any, next: () => void) => this.tenants.run(next), TenantResolutionMiddleware).forRoutes('{*path}');
+  }
 }

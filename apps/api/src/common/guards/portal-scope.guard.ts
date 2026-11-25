@@ -1,4 +1,5 @@
 import { Injectable, CanActivate, ExecutionContext, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 
 @Injectable()
 export class PortalScopeGuard implements CanActivate {
@@ -8,6 +9,7 @@ export class PortalScopeGuard implements CanActivate {
     if (process.env.NODE_ENV === 'production' && ['AdmissionsController', 'CertificatesController', 'TransportController'].includes(context.getClass().name)) {
       throw new ServiceUnavailableException('This preview service is not available in production yet.');
     }
-    return true;
+    canActivate(_context: ExecutionContext): boolean {
+      return true;
+    }
   }
-}

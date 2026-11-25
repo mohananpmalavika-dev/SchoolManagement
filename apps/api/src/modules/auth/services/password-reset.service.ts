@@ -5,6 +5,7 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../../database/prisma.service';
 import { RedisService } from '../../../common/services/redis.service';
 import { EmailService } from '../../../common/services/email.service';
+import { validatePasswordStrength } from '../utils/password-strength.util';
 
 /**
  * Password Reset Service
@@ -38,7 +39,7 @@ export class PasswordResetService {
     private readonly redis: RedisService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
-  ) {}
+  ) { }
 
   // Called only for accounts already linked by the admission transaction. The recipient
   // may be the guardian's mailbox when the student has a generated login ID.
@@ -280,41 +281,7 @@ export class PasswordResetService {
    * Validate password strength
    */
   private validatePasswordStrength(password: string): void {
-    if (!password || password.length < this.MIN_PASSWORD_LENGTH) {
-      throw new BadRequestException(
-        `Password must be at least ${this.MIN_PASSWORD_LENGTH} characters long`
-      );
-    }
-
-    // Check for at least one uppercase letter
-    if (!/[A-Z]/.test(password)) {
-      throw new BadRequestException('Password must contain at least one uppercase letter');
-    }
-
-    // Check for at least one lowercase letter
-    if (!/[a-z]/.test(password)) {
-      throw new BadRequestException('Password must contain at least one lowercase letter');
-    }
-
-    // Check for at least one number
-    if (!/[0-9]/.test(password)) {
-      throw new BadRequestException('Password must contain at least one number');
-    }
-
-    // Check for at least one special character
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-      throw new BadRequestException('Password must contain at least one special character');
-    }
-
-    // Check for common weak passwords
-    const commonPasswords = [
-      'password123', 'admin123456', 'welcome12345', 'qwerty123456',
-      '123456789012', 'password1234', 'admin1234567'
-    ];
-
-    if (commonPasswords.some(weak => password.toLowerCase().includes(weak))) {
-      throw new BadRequestException('Password is too common. Please choose a stronger password.');
-    }
+    validatePasswordStrength(password);
   }
 
   /**
@@ -341,7 +308,7 @@ export class PasswordResetService {
   }> {
     const normalizedEmail = email.trim().toLowerCase();
     const rateLimitKey = `password-reset:rate:${normalizedEmail}`;
-    
+
     const countStr = await this.redis.get(rateLimitKey);
     const count = countStr ? parseInt(countStr, 10) : 0;
     const remaining = Math.max(0, this.MAX_RESET_REQUESTS - count);

@@ -12,9 +12,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setLoading] = useState(true);
   const router = useRouter();
   const refreshUser = async () => {
-    if (!localStorage.getItem('accessToken') && !localStorage.getItem('user')) { setUser(null); return; }
-    const { data } = await apiClient.get<User>('/auth/me');
-    setUser(data); localStorage.setItem('user', JSON.stringify(data));
+    try {
+      const { data } = await apiClient.get<User>('/auth/me');
+      setUser(data);
+      localStorage.setItem('user', JSON.stringify(data));
+    } catch {
+      setUser(null);
+      clearSession();
+    }
   };
   useEffect(() => {
     if ('serviceWorker' in navigator) void navigator.serviceWorker.register('/sw.js').catch(() => undefined);

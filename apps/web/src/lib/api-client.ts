@@ -1,52 +1,57 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { clearSession } from './session';
-const API_URL=process.env.NEXT_PUBLIC_API_URL;
-export const apiClient=axios.create({baseURL:API_URL?`${API_URL.replace(/\/$/,'')}/api/v1`:'/api/v1',timeout:30000,withCredentials:true,headers:{'Content-Type':'application/json'}});
-apiClient.interceptors.request.use(config=>{if(typeof window!=='undefined'){const token=localStorage.getItem('accessToken');if(token)config.headers.Authorization='Bearer '+token;}return config;});
-let refresh:Promise<string>|null=null;
-apiClient.interceptors.response.use(response=>{
- if(response.data?.success===true&&'data' in response.data)response.data=response.data.data;
- return response;
-},async(error:AxiosError<any>)=>{
- const request=error.config as (InternalAxiosRequestConfig&{_retry?:boolean})|undefined;
- if(error.response?.data?.error?.message)error.response.data.message=error.response.data.error.message;
- if(typeof window!=='undefined'&&error.response?.status===401&&request&&!request._retry&&!['/auth/login','/auth/refresh','/auth/mfa/verify-login'].includes(request.url||'')&&!request.url?.startsWith('/auth/password-reset/')){
-  request._retry=true;const token=localStorage.getItem('refreshToken');
-  try{
-   refresh ||= axios.post((apiClient.defaults.baseURL||'/api')+'/auth/refresh',token?{refreshToken:token}:{},{withCredentials:true,timeout:15000}).then(res=>{
-    const data=res.data?.data||res.data;
-    if(data?.accessToken&&localStorage.getItem('accessToken'))localStorage.setItem('accessToken',data.accessToken);
-    return (data?.accessToken||'') as string;
-   }).finally(()=>{refresh=null;});
-   const newToken=await refresh;
-   if(newToken&&localStorage.getItem('accessToken'))request.headers.Authorization='Bearer '+newToken;
-   return apiClient(request);
-  }catch{clearSession();window.location.assign('/login');}
- }
- return Promise.reject(error);
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+export const apiClient = axios.create({ baseURL: API_URL ? `${API_URL.replace(/\/$/, '')}/api/v1` : '/api/v1', timeout: 30000, withCredentials: true, headers: { 'Content-Type': 'application/json' } });
+apiClient.interceptors.request.use(config => { if (typeof window !== 'undefined') { const token = localStorage.getItem('accessToken'); if (token) config.headers.Authorization = 'Bearer ' + token; } return config; });
+let refresh: Promise<string> | null = null;
+apiClient.interceptors.response.use(response => {
+    if (response.data?.success === true && 'data' in response.data) response.data = response.data.data;
+    return response;
+}, async (error: AxiosError<any>) => {
+    const request = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
+    if (error.response?.data?.error?.message) error.response.data.message = error.response.data.error.message;
+    if (typeof window !== 'undefined' && error.response?.status === 401 && request && !request._retry && !['/auth/login', '/auth/refresh', '/auth/mfa/verify-login'].includes(request.url || '') && !request.url?.startsWith('/auth/password-reset/')) {
+        request._retry = true; const token = localStorage.getItem('refreshToken');
+        try {
+            refresh ||= axios.post((apiClient.defaults.baseURL || '/api') + '/auth/refresh', token ? { refreshToken: token } : {}, { withCredentials: true, timeout: 15000 }).then(res => {
+                const data = res.data?.data || res.data;
+                if (data?.accessToken && localStorage.getItem('accessToken')) localStorage.setItem('accessToken', data.accessToken);
+                if (data?.refreshToken && localStorage.getItem('refreshToken')) localStorage.setItem('refreshToken', data.refreshToken);
+                return (data?.accessToken || '') as string;
+            }).finally(() => { refresh = null; });
+            const newToken = await refresh;
+            if (newToken && localStorage.getItem('accessToken')) request.headers.Authorization = 'Bearer ' + newToken;
+            return apiClient(request);
+        } catch {
+            clearSession();
+            const isPublic = typeof window !== 'undefined' && (['/', '/login', '/register', '/reset-password', '/verify-email'].includes(window.location.pathname) || window.location.pathname.startsWith('/admissions/') || window.location.pathname.startsWith('/school-public/'));
+            if (!isPublic && typeof window !== 'undefined') window.location.assign('/login');
+        }
+    }
+    return Promise.reject(error);
 });
-export const api={
- login:async(email:string,password:string)=>(await apiClient.post('/auth/login',{email,password})).data,
- logout:async()=>{try{return (await apiClient.post('/auth/logout')).data;}finally{clearSession();}},
- getMyChildren:async()=>(await apiClient.get('/workspace/children')).data,
- getStudent:async(id:string)=>(await apiClient.get('/workspace/student/'+encodeURIComponent(id))).data,
- getStudentInvoices:async(id:string)=>(await apiClient.get('/workspace/student/'+encodeURIComponent(id))).data.invoices,
- getStudentPayments:async(id:string)=>(await apiClient.get('/workspace/student/'+encodeURIComponent(id))).data.payments,
- getStudentAttendance:async(id:string,_start?:string,_end?:string)=>(await apiClient.get('/workspace/student/'+encodeURIComponent(id))).data.attendance,
- getStudentAttendanceReport:async(id:string,_start?:string,_end?:string)=>(await apiClient.get('/workspace/student/'+encodeURIComponent(id))).data.attendanceSummary,
- getStudentGrades:async(id:string,_term?:string)=>(await apiClient.get('/workspace/student/'+encodeURIComponent(id))).data.grades,
- getStudentReportCards:async(id:string)=>(await apiClient.get('/workspace/student/'+encodeURIComponent(id))).data.reportCards,
- getInvoice:async(id:string)=>(await apiClient.get('/workspace/invoice/'+encodeURIComponent(id))).data,
- getReportCard:async(id:string)=>(await apiClient.get('/workspace/report/'+encodeURIComponent(id))).data,
- getCurrentTerm:async()=>(await apiClient.get('/workspace/current-term')).data,
- initiateSTKPush:async(data:{invoiceId:string;phoneNumber:string;amount:number})=>(await apiClient.post('/workspace/pay',data)).data,
- getStudentMe:async()=>(await apiClient.get('/students/me')).data,
- getStudentDashboard:async()=>(await apiClient.get('/students/me/dashboard')).data,
- getStudentTimetable:async()=>(await apiClient.get('/students/me/timetable')).data,
- getStudentAttendanceRecord:async()=>(await apiClient.get('/students/me/attendance')).data,
- getStudentGradesInfo:async()=>(await apiClient.get('/students/me/grades')).data,
- getStudentReportCardsList:async()=>(await apiClient.get('/students/me/report-cards')).data,
- getStudentAssignments:async()=>(await apiClient.get('/students/me/assignments')).data,
- getStudentMaterials:async()=>(await apiClient.get('/students/me/materials')).data,
+export const api = {
+    login: async (email: string, password: string) => (await apiClient.post('/auth/login', { email, password })).data,
+    logout: async () => { try { return (await apiClient.post('/auth/logout')).data; } finally { clearSession(); } },
+    getMyChildren: async () => (await apiClient.get('/workspace/children')).data,
+    getStudent: async (id: string) => (await apiClient.get('/workspace/student/' + encodeURIComponent(id))).data,
+    getStudentInvoices: async (id: string) => (await apiClient.get('/workspace/student/' + encodeURIComponent(id))).data.invoices,
+    getStudentPayments: async (id: string) => (await apiClient.get('/workspace/student/' + encodeURIComponent(id))).data.payments,
+    getStudentAttendance: async (id: string, _start?: string, _end?: string) => (await apiClient.get('/workspace/student/' + encodeURIComponent(id))).data.attendance,
+    getStudentAttendanceReport: async (id: string, _start?: string, _end?: string) => (await apiClient.get('/workspace/student/' + encodeURIComponent(id))).data.attendanceSummary,
+    getStudentGrades: async (id: string, _term?: string) => (await apiClient.get('/workspace/student/' + encodeURIComponent(id))).data.grades,
+    getStudentReportCards: async (id: string) => (await apiClient.get('/workspace/student/' + encodeURIComponent(id))).data.reportCards,
+    getInvoice: async (id: string) => (await apiClient.get('/workspace/invoice/' + encodeURIComponent(id))).data,
+    getReportCard: async (id: string) => (await apiClient.get('/workspace/report/' + encodeURIComponent(id))).data,
+    getCurrentTerm: async () => (await apiClient.get('/workspace/current-term')).data,
+    initiateSTKPush: async (data: { invoiceId: string; phoneNumber: string; amount: number }) => (await apiClient.post('/workspace/pay', data)).data,
+    getStudentMe: async () => (await apiClient.get('/students/me')).data,
+    getStudentDashboard: async () => (await apiClient.get('/students/me/dashboard')).data,
+    getStudentTimetable: async () => (await apiClient.get('/students/me/timetable')).data,
+    getStudentAttendanceRecord: async () => (await apiClient.get('/students/me/attendance')).data,
+    getStudentGradesInfo: async () => (await apiClient.get('/students/me/grades')).data,
+    getStudentReportCardsList: async () => (await apiClient.get('/students/me/report-cards')).data,
+    getStudentAssignments: async () => (await apiClient.get('/students/me/assignments')).data,
+    getStudentMaterials: async () => (await apiClient.get('/students/me/materials')).data,
 };
 export default apiClient;

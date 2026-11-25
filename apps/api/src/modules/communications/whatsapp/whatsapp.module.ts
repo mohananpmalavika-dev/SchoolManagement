@@ -62,5 +62,9 @@ import { TenantService } from '../../../database/tenant.service';
     WhatsAppSchedulerService,
     WhatsAppSettingsService,
   ],
+  imports: [ConfigModule],
+  controllers: [WhatsAppController],
+  providers: [WhatsAppService],
+  exports: [WhatsAppService],
 })
-export class WhatsAppModule {}
+export class WhatsAppModule { }
